@@ -17,3 +17,12 @@ export async function decrypt(input: string): Promise<any> {
   })
   return payload
 }
+
+export async function verifyToken(token: string): Promise<{ userId: string } | null> {
+  try {
+    const payload = await decrypt(token)
+    return payload as { userId: string }
+  } catch {
+    return null
+  }
+}
