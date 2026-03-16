@@ -1,21 +1,37 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { decrypt } from '@/lib/auth'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // VERY BASIC SKELETON: Redirect from protected routes if not authenticated
-  // We will fully implement JWT checks in Sprint 1
+  // 1. Dashboard User Protection
+  if (pathname.startsWith('/dashboard')) {
+    const token = request.cookies.get('auth_token')?.value
+    
+    if (!token) {
+      return NextResponse.redirect(new URL('/signup', request.url))
+    }
 
-  const hasToken = request.cookies.has('auth_token') // Placeholder cookie name
-  const hasAdminToken = request.cookies.has('admin_token') // Placeholder cookie name
-
-  if (pathname.startsWith('/dashboard') && !hasToken) {
-    return NextResponse.redirect(new URL('/signup', request.url))
+    try {
+      const payload = await decrypt(token)
+      if (!payload) throw new Error('Invalid token')
+      // Validated. (You can also pass headers here if needed by downstream API)
+    } catch (error) {
+      console.error('Middleware Auth Error:', error)
+      // Invalid token -> Clear it and redirect
+      const response = NextResponse.redirect(new URL('/signup', request.url))
+      response.cookies.delete('auth_token')
+      return response
+    }
   }
 
-  if (pathname.startsWith('/admin') && pathname !== '/admin' && !hasAdminToken) {
-    return NextResponse.redirect(new URL('/admin', request.url))
+  // 2. Admin Protection (Skeleton for Sprint 4)
+  if (pathname.startsWith('/admin') && pathname !== '/admin') {
+    const adminToken = request.cookies.get('admin_token')?.value
+    if (!adminToken) {
+      return NextResponse.redirect(new URL('/admin', request.url))
+    }
   }
 
   return NextResponse.next()

@@ -10,7 +10,8 @@ CREATE TABLE public.users (
   mobile TEXT UNIQUE NOT NULL,
   instagram_username TEXT,
   gender TEXT,
-  email TEXT,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
   profile_strength INTEGER DEFAULT 0,
   -- Bank Details
   account_name TEXT,
@@ -46,7 +47,7 @@ BEGIN
   new_id := 'HY' || next_num;
   RETURN new_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 3. campaigns
 CREATE TYPE campaign_status AS ENUM ('Draft', 'Active', 'Review', 'Closed');
@@ -91,7 +92,8 @@ CREATE TABLE public.applications (
 -- 5. otps
 CREATE TABLE public.otps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  mobile TEXT NOT NULL,
+  mobile TEXT,
+  email TEXT,
   otp TEXT NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   is_used BOOLEAN DEFAULT false,
@@ -137,7 +139,8 @@ CREATE INDEX idx_users_mobile ON public.users(mobile);
 CREATE INDEX idx_campaigns_status ON public.campaigns(status);
 CREATE INDEX idx_campaigns_code ON public.campaigns(campaign_code);
 CREATE INDEX idx_applications_user_campaign ON public.applications(user_id, campaign_id);
-CREATE INDEX idx_otps_mobile_unexpired ON public.otps(mobile, expires_at) WHERE is_used = false;
+CREATE INDEX idx_otps_mobile_unexpired ON public.otps(mobile, expires_at) WHERE (is_used = false AND mobile IS NOT NULL);
+CREATE INDEX idx_otps_email_unexpired ON public.otps(email, expires_at) WHERE (is_used = false AND email IS NOT NULL);
 
 -- ==========================================
 -- RLS POLICIES (Row Level Security)
