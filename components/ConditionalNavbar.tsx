@@ -6,9 +6,9 @@ import { Navbar } from '@/components/Navbar'
 export function ConditionalNavbar() {
   const pathname = usePathname()
 
-  // Do not show Navbar on the homepage, signup, login, and dashboard pages
+  // Do not show Navbar on the homepage, signup, login, dashboard, and admin pages
   const hiddenRoutes = ['/', '/signup', '/login']
-  if (hiddenRoutes.includes(pathname) || pathname.startsWith('/dashboard')) {
+  if (hiddenRoutes.includes(pathname) || pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
     return null
   }
 

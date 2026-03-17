@@ -1,20 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useAuth } from '@/components/providers/AuthProvider'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
-  Send,
-  CheckCircle2,
-  User,
+  Megaphone,
+  Users,
   LogOut,
-  Sparkles,
+  ShieldCheck,
   Menu,
-  X,
   ChevronRight,
-  AlertTriangle,
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -28,17 +26,48 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 
+interface AdminInfo {
+  id: string
+  name: string
+  email: string
+}
+
 const sidebarLinks = [
-  { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
-  { href: '/dashboard/campaigns', label: 'Applied', icon: Send },
-  { href: '/dashboard/approved', label: 'Approved', icon: CheckCircle2 },
-  { href: '/dashboard/profile', label: 'Profile', icon: User },
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
 ]
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [admin, setAdmin] = useState<AdminInfo | null>(null)
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('admin_cache')
+      if (cached) setAdmin(JSON.parse(cached))
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' })
+    } catch {
+      // ignore
+    } finally {
+      localStorage.removeItem('admin_cache')
+      router.push('/admin')
+      router.refresh()
+    }
+  }
+
+  const isActive = (href: string) => {
+    if (href === '/admin/dashboard') return pathname === href
+    return pathname.startsWith(href)
+  }
 
   return (
     <div className="dark min-h-screen bg-slate-950 text-white font-sans flex">
@@ -58,23 +87,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         {/* Logo */}
         <div className="p-5 border-b border-white/5">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 shadow-lg shadow-purple-500/20">
-              <Sparkles className="h-4 w-4 text-white" />
+          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-500 shadow-lg shadow-indigo-500/20">
+              <ShieldCheck className="h-4 w-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-white">1to7 Media</span>
+            <div>
+              <span className="text-lg font-bold text-white">Admin</span>
+              <span className="text-[10px] text-indigo-400 block -mt-1 font-medium">1to7 Media</span>
+            </div>
           </Link>
         </div>
 
-        {/* User Info */}
+        {/* Admin Info */}
         <div className="p-4 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-bold text-white">
-              {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white">
+              {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.full_name || 'Creator'}</p>
-              <p className="text-xs text-slate-400 truncate">{user?.influencer_id || 'ID Loading...'}</p>
+              <p className="text-sm font-semibold text-white truncate">{admin?.name || 'Admin'}</p>
+              <p className="text-xs text-slate-400 truncate">{admin?.email || 'admin@1to7.com'}</p>
             </div>
           </div>
         </div>
@@ -82,21 +114,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Nav Links */}
         <nav className="flex-1 p-3 space-y-1">
           {sidebarLinks.map((link) => {
-            const isActive = pathname === link.href
+            const active = isActive(link.href)
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 group cursor-pointer ${
-                  isActive
-                    ? 'bg-purple-500/15 text-purple-300 border border-purple-500/20'
+                  active
+                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20'
                     : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <link.icon className={`h-4.5 w-4.5 ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
                 {link.label}
-                {isActive && <ChevronRight className="ml-auto h-4 w-4 text-purple-400" />}
+                {active && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400" />}
               </Link>
             )
           })}
@@ -118,14 +150,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Ready to Sign Out?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-slate-400 text-center sm:text-center text-[15px] leading-relaxed max-w-[320px] mx-auto w-full">
-                  You are about to sign out of the <span className="text-slate-200 font-semibold">Creator Dashboard</span>. You will need to log in again to access your campaigns.
+                  You are about to sign out of the <span className="text-slate-200 font-semibold">Admin Portal</span>. You will need to enter your credentials again to access these management tools.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter className="bg-slate-950/50 p-6 flex flex-col sm:flex-row items-center justify-center sm:justify-center gap-3 sm:gap-4 border-t border-white/5 w-full">
                 <AlertDialogCancel className="mt-0 group relative overflow-hidden bg-slate-800/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white hover:border-white/20 cursor-pointer w-full sm:w-[150px] rounded-xl h-11 transition-all duration-300 font-medium flex items-center justify-center">
                   Stay Logged In
                 </AlertDialogCancel>
-                <AlertDialogAction onClick={logout} className="group relative overflow-hidden bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer w-full sm:w-[150px] rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all duration-300 border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center">
+                <AlertDialogAction onClick={handleLogout} className="group relative overflow-hidden bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer w-full sm:w-[150px] rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all duration-300 border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center">
                   Yes, Sign Out
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -145,12 +177,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-purple-600 to-pink-500">
-              <Sparkles className="h-3 w-3 text-white" />
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-indigo-600 to-purple-500">
+              <ShieldCheck className="h-3 w-3 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">1to7 Media</span>
+            <span className="text-sm font-bold text-white">Admin</span>
           </div>
-          <div className="w-9" /> {/* Spacer */}
+          <div className="w-9" />
         </header>
 
         {/* Page Content */}

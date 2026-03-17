@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, CheckCircle2, Clock, XCircle, TrendingUp, Loader2, Instagram, Youtube, ShoppingBag } from 'lucide-react'
+import { Send, CheckCircle2, Clock, XCircle, TrendingUp, Loader2, Sparkles, Instagram, Youtube, ShoppingBag, Search } from 'lucide-react'
 import Link from 'next/link'
+import CampaignCard from '@/components/campaigns/CampaignCard'
+import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
+import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
+import { Input } from '@/components/ui/input'
 
 interface Stats {
   total: number
@@ -41,8 +45,14 @@ const statusColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
-  const [recentApps, setRecentApps] = useState<Application[]>([])
+  const [campaigns, setCampaigns] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Modal states
+  const [selectedCampaign, setSelectedCampaign] = useState<any>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [applyOpen, setApplyOpen] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -50,20 +60,36 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, appsRes] = await Promise.all([
+      const [statsRes, campaignsRes] = await Promise.all([
         fetch('/api/dashboard/stats'),
-        fetch('/api/dashboard/applications'),
+        fetch('/api/campaigns'), // Fetch live campaigns
       ])
       const statsData = await statsRes.json()
-      const appsData = await appsRes.json()
+      const campaignsData = await campaignsRes.json()
 
       setStats(statsData.stats || null)
-      setRecentApps((appsData.applications || []).slice(0, 5))
+      setCampaigns(campaignsData.campaigns || [])
     } catch {
       console.error('Failed to fetch dashboard data')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleViewDetails = (campaign: any) => {
+    setSelectedCampaign(campaign)
+    setDetailOpen(true)
+  }
+
+  const handleApply = (campaign: any) => {
+    setDetailOpen(false)
+    setSelectedCampaign(campaign)
+    setApplyOpen(true)
+  }
+
+  const handleApplicationSuccess = () => {
+    // Optionally refresh stats if an application was successfully submitted
+    fetchData()
   }
 
   if (loading) {
@@ -111,57 +137,86 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Applications */}
-      <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-          <h2 className="text-lg font-semibold text-white">Recent Applications</h2>
+      {/* Live Campaigns Grid */}
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <h2 className="text-xl font-bold text-white tracking-wide whitespace-nowrap">Live Campaigns</h2>
+          
+          <div className="relative w-full md:max-w-xl mx-auto md:mx-4 flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search campaigns by brand, code, or platform..."
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-slate-900/50 border-white/10 text-white placeholder:text-slate-500 rounded-xl h-10 w-full"
+            />
+          </div>
+
           <Link
             href="/dashboard/campaigns"
-            className="text-xs font-medium text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+            className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
           >
-            View All →
+            Manage Applications →
           </Link>
         </div>
 
-        {recentApps.length === 0 ? (
-          <div className="p-10 text-center">
-            <Send className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">No applications yet</p>
-            <p className="text-xs text-slate-500 mt-1">Browse campaigns and start applying!</p>
-            <Link
-              href="/"
-              className="inline-block mt-4 text-xs font-medium px-4 py-2 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 transition-colors cursor-pointer"
-            >
-              Browse Campaigns
-            </Link>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {recentApps.map((app, i) => (
-              <motion.div
-                key={app.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: i * 0.05 }}
-                className="flex items-center justify-between px-6 py-4 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-slate-800 text-slate-400">
-                    {platformIcons[app.campaigns?.platform] || <Send className="h-4 w-4" />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{app.campaigns?.brand_name || 'Campaign'}</p>
-                    <p className="text-xs text-slate-500">{new Date(app.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                  </div>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                  {app.status}
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        )}
+        {(() => {
+          const filteredCampaigns = campaigns.filter(c =>
+            c.brand_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.campaign_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.platform?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+
+          if (campaigns.length === 0) {
+            return (
+              <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg">
+                <Sparkles className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-400">No live campaigns right now</h3>
+                <p className="text-sm text-slate-500 mt-2">Check back soon — new brand campaigns drop every week!</p>
+              </div>
+            )
+          }
+
+          if (filteredCampaigns.length === 0) {
+             return (
+              <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg">
+                <Search className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-400">No campaigns found</h3>
+                <p className="text-sm text-slate-500 mt-2">Try adjusting your search query.</p>
+              </div>
+            )
+          }
+
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredCampaigns.map((campaign, index) => (
+                <CampaignCard
+                  key={campaign.id}
+                  campaign={campaign}
+                  index={index}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </div>
+          )
+        })()}
       </div>
+
+      {/* Modals */}
+      <CampaignDetailModal
+        campaign={selectedCampaign}
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onApply={handleApply}
+        isLoggedIn={true}
+      />
+
+      <ApplicationFormModal
+        campaign={selectedCampaign}
+        isOpen={applyOpen}
+        onClose={() => setApplyOpen(false)}
+        onSuccess={handleApplicationSuccess}
+      />
     </div>
   )
 }

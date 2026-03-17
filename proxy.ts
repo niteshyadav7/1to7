@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { decrypt } from '@/lib/auth'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. Dashboard User Protection
@@ -26,11 +26,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 2. Admin Protection (Skeleton for Sprint 4)
+  // 2. Admin Protection
   if (pathname.startsWith('/admin') && pathname !== '/admin') {
     const adminToken = request.cookies.get('admin_token')?.value
     if (!adminToken) {
       return NextResponse.redirect(new URL('/admin', request.url))
+    }
+
+    try {
+      const payload = await decrypt(adminToken)
+      if (!payload || payload.role !== 'admin') throw new Error('Invalid admin token')
+    } catch (error) {
+      console.error('Admin Middleware Auth Error:', error)
+      const response = NextResponse.redirect(new URL('/admin', request.url))
+      response.cookies.delete('admin_token')
+      return response
     }
   }
 
