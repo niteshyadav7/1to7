@@ -5,8 +5,9 @@ import { motion } from 'framer-motion'
 import {
   User, Save, Loader2, Lock, Instagram, MapPin, Users, CreditCard,
   Sparkles, Shield, CheckCircle2, AtSign, Building, Hash, Globe,
-  BadgeCheck
+  BadgeCheck, ExternalLink
 } from 'lucide-react'
+import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -44,13 +45,14 @@ function computeProfileStrength(data: any): number {
 }
 
 export default function ProfilePage() {
+  const { user: authUser, refreshUserProfile } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    full_name: '',
-    instagram_username: '',
-    gender: '',
+    full_name: (authUser?.full_name as string) || '',
+    instagram_username: (authUser?.instagram_username as string) || '',
+    gender: (authUser?.gender as string) || '',
     state: '',
     city: '',
     followers: 0,
@@ -69,17 +71,18 @@ export default function ProfilePage() {
       const data = await res.json()
       if (data.user) {
         setProfile(data.user)
-        setFormData({
-          full_name: data.user.full_name || '',
-          instagram_username: data.user.instagram_username || '',
-          gender: data.user.gender || '',
+        setFormData(prev => ({
+          ...prev,
+          full_name: data.user.full_name || prev.full_name,
+          instagram_username: data.user.instagram_username || prev.instagram_username,
+          gender: data.user.gender || prev.gender,
           state: data.user.state || '',
           city: data.user.city || '',
           followers: data.user.followers || 0,
           account_name: data.user.account_name || '',
           account_number: data.user.account_number || '',
           ifsc_code: data.user.ifsc_code || '',
-        })
+        }))
       }
     } catch {
       toast.error('Failed to load profile')
@@ -98,6 +101,7 @@ export default function ProfilePage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      await refreshUserProfile()
       toast.success('Profile updated successfully!')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update profile'
@@ -226,14 +230,25 @@ export default function ProfilePage() {
             {/* Instagram */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Instagram Username</Label>
-              <div className="relative">
+              <div className="relative group">
                 <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-400" />
                 <Input
                   value={formData.instagram_username}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, instagram_username: e.target.value })}
                   placeholder="@username"
-                  className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-purple-500 rounded-xl"
+                  className="pl-10 pr-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-purple-500 rounded-xl"
                 />
+                {formData.instagram_username && (
+                  <a
+                    href={`https://www.instagram.com/${formData.instagram_username.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-pink-400 transition-colors p-1 cursor-pointer"
+                    title="View Instagram Profile"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -247,7 +262,7 @@ export default function ProfilePage() {
             {/* Gender */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Gender</Label>
-              <Select value={String(formData.gender || "")} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+              <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
                 <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-purple-500 rounded-xl">
                   <SelectValue placeholder="Select Gender" />
                 </SelectTrigger>
@@ -274,7 +289,7 @@ export default function ProfilePage() {
               </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input value={profile?.email || ''} readOnly className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl" />
+                <Input value={profile?.email || authUser?.email || ''} readOnly className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl" />
               </div>
             </div>
           </div>
@@ -367,7 +382,7 @@ export default function ProfilePage() {
               </Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-300 font-medium">+91</span>
-                <Input value={profile?.mobile || ''} readOnly className="pl-11 bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl" />
+                <Input value={profile?.mobile || authUser?.mobile || ''} readOnly className="pl-11 bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl" />
               </div>
             </div>
             {/* Followers */}
@@ -377,7 +392,7 @@ export default function ProfilePage() {
                 <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <Input
                   type="number"
-                  value={formData.followers}
+                  value={formData.followers === 0 ? '' : formData.followers}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })}
                   placeholder="Enter Followers"
                   className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-purple-500 rounded-xl"

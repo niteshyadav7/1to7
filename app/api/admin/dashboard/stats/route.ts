@@ -37,13 +37,19 @@ export async function GET() {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Approved')
 
+    // Rejected applications
+    const { count: rejectedApplications } = await supabase
+      .from('applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'Rejected')
+
     // Total influencers (users)
     const { count: totalInfluencers } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
 
-    // Recent applications (last 10)
-    const { data: recentApplications } = await supabase
+    // Recent Pending applications (last 5)
+    const { data: recentPendingApplications } = await supabase
       .from('applications')
       .select(`
         id,
@@ -52,8 +58,23 @@ export async function GET() {
         users ( full_name, influencer_id, instagram_username ),
         campaigns ( brand_name, platform, campaign_code )
       `)
+      .eq('status', 'Applied')
       .order('created_at', { ascending: false })
-      .limit(10)
+      .limit(5)
+
+    // Recent Approved applications (last 5)
+    const { data: recentApprovedApplications } = await supabase
+      .from('applications')
+      .select(`
+        id,
+        status,
+        created_at,
+        users ( full_name, influencer_id, instagram_username ),
+        campaigns ( brand_name, platform, campaign_code )
+      `)
+      .eq('status', 'Approved')
+      .order('updated_at', { ascending: false })
+      .limit(5)
 
     return NextResponse.json({
       stats: {
@@ -62,9 +83,11 @@ export async function GET() {
         totalApplications: totalApplications || 0,
         pendingApplications: pendingApplications || 0,
         approvedApplications: approvedApplications || 0,
+        rejectedApplications: rejectedApplications || 0,
         totalInfluencers: totalInfluencers || 0,
       },
-      recentApplications: recentApplications || [],
+      recentPendingApplications: recentPendingApplications || [],
+      recentApprovedApplications: recentApprovedApplications || [],
     })
   } catch (error) {
     console.error('API /admin/dashboard/stats Error:', error)

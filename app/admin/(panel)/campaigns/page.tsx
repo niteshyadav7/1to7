@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
-  Megaphone, Plus, Loader2, Eye, EyeOff, Pencil, Users,
-  Instagram, Youtube, ShoppingBag, Globe
+  Megaphone, Plus, Eye, EyeOff, Pencil, Users,
+  Instagram, Youtube, ShoppingBag, Globe, Search
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 
 interface Campaign {
@@ -42,6 +44,7 @@ export default function AdminCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -81,16 +84,17 @@ export default function AdminCampaignsPage() {
     }
   }
 
-  const filtered = activeFilter === 'All'
-    ? campaigns
-    : campaigns.filter(c => c.status === activeFilter)
+  const filtered = campaigns.filter(c => {
+    const matchesFilter = activeFilter === 'All' || c.status === activeFilter
+    const matchesSearch = 
+      c.brand_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      c.campaign_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.platform.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
-      </div>
-    )
+    return <GlobalLoader text="Loading Campaigns..." />
   }
 
   return (
@@ -109,29 +113,41 @@ export default function AdminCampaignsPage() {
         </Link>
       </div>
 
-      {/* Filter Pills */}
-      <div className="flex flex-wrap gap-2">
-        {filters.map(f => (
-          <button
-            key={f}
-            onClick={() => setActiveFilter(f)}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-              activeFilter === f
-                ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20'
-                : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            {f}
-            {f !== 'All' && (
-              <span className="ml-1.5 text-[10px] opacity-60">
-                ({campaigns.filter(c => c.status === f).length})
-              </span>
-            )}
-            {f === 'All' && (
-              <span className="ml-1.5 text-[10px] opacity-60">({campaigns.length})</span>
-            )}
-          </button>
-        ))}
+      {/* Filters & Search */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {filters.map(f => (
+            <button
+              key={f}
+              onClick={() => setActiveFilter(f)}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                activeFilter === f
+                  ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                  : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {f}
+              {f !== 'All' && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  ({campaigns.filter(c => c.status === f).length})
+                </span>
+              )}
+              {f === 'All' && (
+                <span className="ml-1.5 text-[10px] opacity-60">({campaigns.length})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Input
+            value={searchQuery}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            placeholder="Search campaigns..."
+            className="pl-9 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
+          />
+        </div>
       </div>
 
       {/* Campaign Cards */}
@@ -145,75 +161,79 @@ export default function AdminCampaignsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filtered.map((campaign, i) => (
-            <motion.div
-              key={campaign.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 hover:border-white/10 transition-all"
-            >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-800 text-slate-400 shrink-0">
-                    {platformIcons[campaign.platform] || <Globe className="h-4 w-4" />}
+          <AnimatePresence mode="popLayout">
+            {filtered.map((campaign, i) => (
+              <motion.div
+                layout
+                key={campaign.id}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, delay: i * 0.03 }}
+                className="group rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 hover:bg-slate-800/80 hover:border-white/10 transition-all shadow-lg hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5"
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-slate-800 border border-white/5 text-slate-400 shrink-0 group-hover:bg-slate-700/50 group-hover:border-white/10 transition-colors">
+                      {platformIcons[campaign.platform] || <Globe className="h-5 w-5" />}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-white truncate">{campaign.brand_name}</h3>
+                      <p className="text-xs text-slate-500">{campaign.campaign_code} • {campaign.platform}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-white truncate">{campaign.brand_name}</h3>
-                    <p className="text-xs text-slate-500">{campaign.campaign_code} • {campaign.platform}</p>
-                  </div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
+                    {campaign.status}
+                  </span>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
-                  {campaign.status}
-                </span>
-              </div>
 
-              <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-slate-400">
-                {campaign.category && (
-                  <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">{campaign.category}</span>
-                )}
-                {campaign.budget_type && (
-                  <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">{campaign.budget_type}</span>
-                )}
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">
-                  <Users className="h-3 w-3" />
-                  {campaign.application_count} applied
-                </span>
-              </div>
+                <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-slate-400">
+                  {campaign.category && (
+                    <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">{campaign.category}</span>
+                  )}
+                  {campaign.budget_type && (
+                    <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">{campaign.budget_type}</span>
+                  )}
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5 font-medium text-slate-300">
+                    <Users className="h-3 w-3 text-indigo-400" />
+                    {campaign.application_count} applied
+                  </span>
+                </div>
 
-              <div className="flex items-center gap-2">
-                {/* Live Toggle */}
-                <button
-                  onClick={() => toggleLive(campaign)}
-                  disabled={togglingId === campaign.id}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-                    campaign.is_live
-                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
-                      : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/5'
-                  }`}
-                >
-                  {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                  {campaign.is_live ? 'Live' : 'Offline'}
-                </button>
-
-                {/* Edit */}
-                <Link href={`/admin/campaigns/${campaign.id}`}>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-400 border border-white/5 hover:bg-white/5 hover:text-white transition-all cursor-pointer">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
+                <div className="flex items-center gap-2 pt-2 border-t border-white/5 mt-auto">
+                  {/* Live Toggle */}
+                  <button
+                    onClick={() => toggleLive(campaign)}
+                    disabled={togglingId === campaign.id}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                      campaign.is_live
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                        : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    {campaign.is_live ? 'Live' : 'Offline'}
                   </button>
-                </Link>
 
-                {/* View Applications */}
-                <Link href={`/admin/applications/${campaign.id}`}>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all cursor-pointer">
-                    <Users className="h-3.5 w-3.5" />
-                    Applications
-                  </button>
-                </Link>
-              </div>
-            </motion.div>
-          ))}
+                  {/* Edit */}
+                  <Link href={`/admin/campaigns/${campaign.id}`}>
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-400 border border-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                  </Link>
+
+                  {/* View Applications */}
+                  <Link href={`/admin/applications/${campaign.id}`} className="ml-auto">
+                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer">
+                      <Users className="h-3.5 w-3.5" />
+                      View Applications
+                    </button>
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>

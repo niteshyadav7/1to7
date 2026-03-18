@@ -12,19 +12,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const campaign_id = searchParams.get('campaign_id')
 
-    if (!campaign_id) {
-       return NextResponse.json({ error: 'Campaign ID is required' }, { status: 400 })
+    // Get campaign info if campaign_id is provided
+    let campaign = null
+    if (campaign_id) {
+      const { data } = await supabase
+        .from('campaigns')
+        .select('brand_name, campaign_code, platform')
+        .eq('id', campaign_id)
+        .single()
+      campaign = data
     }
 
-    // Get campaign info
-    const { data: campaign } = await supabase
-      .from('campaigns')
-      .select('brand_name, campaign_code, platform')
-      .eq('id', campaign_id)
-      .single()
-
-    // Get applications with user details
-    const { data: applications, error } = await supabase
+    // Build applications query
+    let query = supabase
       .from('applications')
       .select(`
         id,
@@ -47,10 +47,19 @@ export async function GET(request: Request) {
           state,
           city,
           gender
+        ),
+        campaigns (
+          brand_name,
+          campaign_code,
+          platform
         )
       `)
-      .eq('campaign_id', campaign_id)
-      .order('created_at', { ascending: false })
+
+    if (campaign_id) {
+      query = query.eq('campaign_id', campaign_id)
+    }
+
+    const { data: applications, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw error
 

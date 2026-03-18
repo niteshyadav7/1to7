@@ -35,6 +35,8 @@ interface AdminInfo {
 const sidebarLinks = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
+  { href: '/admin/applications', label: 'Applications', icon: Users },
+  { href: '/admin/influencers', label: 'Influencers', icon: Users },
 ]
 
 export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
@@ -122,11 +124,11 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 group cursor-pointer ${
                   active
-                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
+                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5 translate-x-1'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5 hover:translate-x-0.5'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                <link.icon className={`h-4.5 w-4.5 transition-colors ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
                 {link.label}
                 {active && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400" />}
               </Link>

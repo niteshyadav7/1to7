@@ -13,11 +13,11 @@ export async function GET() {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.id) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    const userId = payload.userId
+    const userId = payload.id
 
     // Get all application counts in parallel
     const [totalRes, approvedRes, pendingRes, completedRes, rejectedRes] = await Promise.all([

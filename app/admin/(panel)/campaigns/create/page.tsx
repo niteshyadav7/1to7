@@ -23,6 +23,12 @@ export default function AdminCreateCampaignPage() {
     product_links: '',
     requirements: '',
     gender_required: 'Any',
+    location: '',
+    looking_for: '',
+    followers: '',
+    additional_info: '',
+    collab_date: '',
+    form_link: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,6 +158,58 @@ export default function AdminCreateCampaignPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Location</Label>
+                <Input
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="e.g. PAN India, Mumbai"
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Collab Date / Timeline</Label>
+                <Input
+                  type="date"
+                  value={formData.collab_date}
+                  onChange={(e) => setFormData({ ...formData, collab_date: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl [color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Looking For</Label>
+                <Input
+                  value={formData.looking_for}
+                  onChange={(e) => setFormData({ ...formData, looking_for: e.target.value })}
+                  placeholder="e.g. Fashion & Lifestyle Creators"
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Followers Required</Label>
+                <Input
+                  value={formData.followers}
+                  onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
+                  placeholder="e.g. Above 2k, 10k+"
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">External Form Link (Optional)</Label>
+              <Input
+                value={formData.form_link}
+                onChange={(e) => setFormData({ ...formData, form_link: e.target.value })}
+                placeholder="e.g. https://forms.gle/..."
+                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Deliverables</Label>
               <textarea
@@ -169,6 +227,17 @@ export default function AdminCreateCampaignPage() {
                 value={formData.requirements}
                 onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
                 placeholder="e.g. Minimum 10K followers, Must be from India"
+                rows={3}
+                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Additional Info</Label>
+              <textarea
+                value={formData.additional_info}
+                onChange={(e) => setFormData({ ...formData, additional_info: e.target.value })}
+                placeholder="e.g. Product Reimbursement in 1-2 days"
                 rows={3}
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
               />

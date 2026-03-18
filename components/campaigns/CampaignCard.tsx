@@ -17,6 +17,12 @@ interface Campaign {
   is_live: boolean
   status: string
   created_at: string
+  location?: string
+  followers?: string
+  looking_for?: string
+  additional_info?: string
+  collab_date?: string
+  form_link?: string
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -110,10 +116,26 @@ export default function CampaignCard({
             {campaign.deliverables}
           </p>
 
-          {/* Gender */}
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Users className="h-3.5 w-3.5" />
-            <span>{campaign.gender_required === 'Any' ? 'Open to all genders' : `${campaign.gender_required} creators`}</span>
+          {/* Gender & Location & Followers */}
+          <div className="flex flex-col gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <Users className="h-3.5 w-3.5 text-indigo-400" />
+              <span>{campaign.gender_required === 'Any' ? 'Open to all genders' : `${campaign.gender_required} creators`}</span>
+            </div>
+            
+            {campaign.location && (
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 flex items-center justify-center text-rose-400 text-[10px]">📍</span>
+                <span className="truncate">{campaign.location}</span>
+              </div>
+            )}
+            
+            {campaign.followers && (
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                <span className="truncate">{campaign.followers} followers</span>
+              </div>
+            )}
           </div>
 
           {/* CTA */}

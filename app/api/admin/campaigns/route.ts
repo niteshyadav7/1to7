@@ -53,6 +53,12 @@ export async function POST(request: Request) {
       product_links,
       requirements,
       gender_required,
+      location,
+      looking_for,
+      followers,
+      additional_info,
+      collab_date,
+      form_link,
     } = body
 
     if (!brand_name || !platform) {
@@ -74,6 +80,12 @@ export async function POST(request: Request) {
         product_links: product_links || [],
         requirements: requirements || null,
         gender_required: gender_required || 'Any',
+        location: location || null,
+        looking_for: looking_for || null,
+        followers: followers || null,
+        additional_info: additional_info || null,
+        collab_date: collab_date || null,
+        form_link: form_link || null,
         status: 'Draft',
         is_live: false,
       })

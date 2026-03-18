@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.id) {
       return NextResponse.json(
         { error: 'Invalid session. Please log in again.' },
         { status: 401 }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const { data: existing } = await supabase
       .from('applications')
       .select('id')
-      .eq('user_id', payload.userId)
+      .eq('user_id', payload.id)
       .eq('campaign_id', campaignId)
       .single()
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     const { data: application, error } = await supabase
       .from('applications')
       .insert({
-        user_id: payload.userId,
+        user_id: payload.id,
         campaign_id: campaignId,
         form_data: formData || {},
         status: 'Applied'

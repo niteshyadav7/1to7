@@ -18,10 +18,10 @@ export async function decrypt(input: string): Promise<any> {
   return payload
 }
 
-export async function verifyToken(token: string): Promise<{ userId: string } | null> {
+export async function verifyToken(token: string): Promise<{ id: string; mobile?: string; influencer_id?: string; email?: string; role?: string } | null> {
   try {
     const payload = await decrypt(token)
-    return payload as { userId: string }
+    return payload as { id: string; mobile?: string; influencer_id?: string; email?: string; role?: string }
   } catch {
     return null
   }

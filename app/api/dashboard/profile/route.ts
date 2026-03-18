@@ -13,14 +13,14 @@ export async function GET() {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.id) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
     const { data: user, error } = await supabase
       .from('users')
       .select('id, influencer_id, full_name, mobile, email, instagram_username, gender, profile_strength, account_name, account_number, ifsc_code, state, city, followers, created_at, is_email_verified, is_mobile_verified')
-      .eq('id', payload.userId)
+      .eq('id', payload.id)
       .single()
 
     console.log('[DEBUG] Fetched user from Supabase:', JSON.stringify(user, null, 2))
@@ -48,7 +48,7 @@ export async function PUT(request: Request) {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.id) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
@@ -76,7 +76,7 @@ export async function PUT(request: Request) {
     const { data: currentUser } = await supabase
       .from('users')
       .select(allowedFields.join(', '))
-      .eq('id', payload.userId)
+      .eq('id', payload.id)
       .single()
 
     // Update user
@@ -84,7 +84,7 @@ export async function PUT(request: Request) {
     const { error: updateError } = await supabase
       .from('users')
       .update(updateData)
-      .eq('id', payload.userId)
+      .eq('id', payload.id)
 
     if (updateError) throw updateError
 
@@ -96,7 +96,7 @@ export async function PUT(request: Request) {
         const oldValue = (currentUser as any)[field]
         if (String(oldValue) !== String(newValue)) {
           logEntries.push({
-            user_id: payload.userId,
+            user_id: payload.id,
             changed_field: field,
             old_value: String(oldValue || ''),
             new_value: String(newValue || ''),

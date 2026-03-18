@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, CheckCircle2, XCircle, Send,
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
-  DollarSign, Phone, Save
+  DollarSign, Phone, Save, Search
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 
 interface UserInfo {
@@ -53,11 +54,15 @@ const statusColors: Record<string, string> = {
   'Payment Initiated': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
 }
 
+const filters = ['All', 'Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated']
+
 export default function AdminApplicationsPage({ params }: { params: Promise<{ campaign_id: string }> }) {
   const { campaign_id } = use(params)
   const [loading, setLoading] = useState(true)
   const [campaign, setCampaign] = useState<CampaignInfo | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
+  const [activeFilter, setActiveFilter] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [paymentEdits, setPaymentEdits] = useState<Record<string, {
@@ -139,12 +144,16 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
-      </div>
-    )
+    return <GlobalLoader text="Loading Applications..." />
   }
+
+  const filtered = applications.filter(a => {
+    const matchesFilter = activeFilter === 'All' || a.status === activeFilter
+    const user = a.users
+    const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email}`.toLowerCase()
+    const matchesSearch = searchString.includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   return (
     <div className="space-y-6">
@@ -163,27 +172,71 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         </div>
       </div>
 
+      {/* Filters & Search */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {filters.map(f => (
+            <button
+              key={f}
+              onClick={() => setActiveFilter(f)}
+              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                activeFilter === f
+                  ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                  : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {f}
+              {f !== 'All' && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  ({applications.filter(a => a.status === f).length})
+                </span>
+              )}
+              {f === 'All' && (
+                <span className="ml-1.5 text-[10px] opacity-60">({applications.length})</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Input
+            value={searchQuery}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            placeholder="Search applicants..."
+            className="pl-9 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
+          />
+        </div>
+      </div>
+
       {/* Applications */}
-      {applications.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-20">
           <Send className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-400">No applications yet</h3>
-          <p className="text-sm text-slate-500 mt-2">Applications will appear here when influencers apply</p>
+          <h3 className="text-lg font-semibold text-slate-400">No applications found</h3>
+          <p className="text-sm text-slate-500 mt-2">
+            {activeFilter !== 'All' || searchQuery ? 'Try a different filter or search query' : 'Applications will appear here when influencers apply'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {applications.map((app, i) => {
-            const isExpanded = expandedId === app.id
-            const user = app.users
+          <AnimatePresence mode="popLayout">
+            {filtered.map((app, i) => {
+              const isExpanded = expandedId === app.id
+              const user = app.users
 
-            return (
-              <motion.div
-                key={app.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03 }}
-                className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden"
-              >
+              return (
+                <motion.div
+                  layout
+                  key={app.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2, delay: i * 0.03 }}
+                  className={`rounded-2xl border bg-slate-900/60 backdrop-blur-lg overflow-hidden transition-all ${
+                    isExpanded ? 'border-white/20 shadow-xl shadow-indigo-500/5' : 'border-white/5 hover:border-white/10'
+                  }`}
+                >
                 {/* Main Row */}
                 <div
                   className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
@@ -391,6 +444,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
               </motion.div>
             )
           })}
+          </AnimatePresence>
         </div>
       )}
     </div>

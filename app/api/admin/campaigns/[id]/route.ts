@@ -48,7 +48,9 @@ export async function PUT(
     const allowedFields = [
       'brand_name', 'category', 'platform', 'budget_type',
       'deliverables', 'product_links', 'requirements',
-      'gender_required', 'is_live', 'status'
+      'gender_required', 'is_live', 'status',
+      'location', 'looking_for', 'followers', 'additional_info',
+      'collab_date', 'form_link'
     ]
 
     const updates: Record<string, any> = {}

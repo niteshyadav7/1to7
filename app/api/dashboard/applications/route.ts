@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.id) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
           gender_required
         )
       `)
-      .eq('user_id', payload.userId)
+      .eq('user_id', payload.id)
       .order('created_at', { ascending: false })
 
     if (statusFilter) {

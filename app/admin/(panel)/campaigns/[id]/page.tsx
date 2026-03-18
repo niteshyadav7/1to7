@@ -24,6 +24,12 @@ interface CampaignData {
   gender_required: string
   status: string
   is_live: boolean
+  location: string
+  looking_for: string
+  followers: string
+  additional_info: string
+  collab_date: string
+  form_link: string
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +49,12 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     gender_required: 'Any',
     status: 'Draft' as string,
     is_live: false,
+    location: '',
+    looking_for: '',
+    followers: '',
+    additional_info: '',
+    collab_date: '',
+    form_link: '',
   })
 
   useEffect(() => {
@@ -68,6 +80,12 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         gender_required: data.campaign.gender_required || 'Any',
         status: data.campaign.status || 'Draft',
         is_live: data.campaign.is_live || false,
+        location: data.campaign.location || '',
+        looking_for: data.campaign.looking_for || '',
+        followers: data.campaign.followers || '',
+        additional_info: data.campaign.additional_info || '',
+        collab_date: data.campaign.collab_date || '',
+        form_link: data.campaign.form_link || '',
       })
     } catch {
       toast.error('Failed to load campaign')
@@ -251,6 +269,54 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Location</Label>
+                <Input
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Collab Date / Timeline</Label>
+                <Input
+                  type="date"
+                  value={formData.collab_date}
+                  onChange={(e) => setFormData({ ...formData, collab_date: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl [color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Looking For</Label>
+                <Input
+                  value={formData.looking_for}
+                  onChange={(e) => setFormData({ ...formData, looking_for: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Followers Required</Label>
+                <Input
+                  value={formData.followers}
+                  onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">External Form Link (Optional)</Label>
+              <Input
+                value={formData.form_link}
+                onChange={(e) => setFormData({ ...formData, form_link: e.target.value })}
+                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Deliverables</Label>
               <textarea
@@ -266,6 +332,16 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               <textarea
                 value={formData.requirements}
                 onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                rows={3}
+                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Additional Info</Label>
+              <textarea
+                value={formData.additional_info}
+                onChange={(e) => setFormData({ ...formData, additional_info: e.target.value })}
                 rows={3}
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
               />

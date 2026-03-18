@@ -9,7 +9,15 @@ export interface User {
   mobile: string
   full_name?: string
   instagram_username?: string
-  // Add more fields as needed across the dashboard
+  email?: string
+  gender?: string
+  state?: string
+  city?: string
+  followers?: number
+  account_name?: string
+  account_number?: string
+  ifsc_code?: string
+  role?: string
 }
 
 interface AuthContextType {
@@ -17,6 +25,9 @@ interface AuthContextType {
   isLoading: boolean
   login: (userData: User) => void
   logout: () => Promise<void>
+  refreshUserProfile: () => Promise<void>
+  getMissingFields: () => string[]
+  isProfileComplete: () => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -49,6 +60,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user_cache', JSON.stringify(userData))
   }
 
+  const refreshUserProfile = async () => {
+    try {
+      const res = await fetch('/api/dashboard/profile')
+      const data = await res.json()
+      if (data.user) {
+        setUser(data.user)
+        localStorage.setItem('user_cache', JSON.stringify(data.user))
+      }
+    } catch (e) {
+      console.error('Failed to refresh profile', e)
+    }
+  }
+
+  const getMissingFields = () => {
+    if (!user) return []
+    const requiredFields = [
+      'full_name', 'instagram_username', 'gender', 
+      'state', 'city', 'followers', 
+      'account_name', 'account_number', 'ifsc_code'
+    ]
+    return requiredFields.filter(field => {
+      const val = (user as any)[field]
+      if (field === 'followers') return val === undefined || val === null || val === 0 || val === '0'
+      return !val || (typeof val === 'string' && val.trim() === '')
+    })
+  }
+
+  const isProfileComplete = () => {
+    return getMissingFields().length === 0
+  }
+
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
@@ -63,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUserProfile, getMissingFields, isProfileComplete }}>
       {children}
     </AuthContext.Provider>
   )
