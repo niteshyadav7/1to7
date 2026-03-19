@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
+import nodemailer from 'nodemailer'
 
 export async function POST(request: Request) {
   try {
@@ -71,6 +72,53 @@ export async function POST(request: Request) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
+
+    // 7. Send welcome email with Influencer ID
+    try {
+      const gmailUser = process.env.GMAIL_USER
+      const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
+
+      if (gmailUser && gmailAppPassword) {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: gmailUser,
+            pass: gmailAppPassword,
+          },
+        })
+
+        await transporter.sendMail({
+          from: `"1to7" <${gmailUser}>`,
+          to: email,
+          subject: `Welcome to 1to7! Your Influencer ID: ${newInfluencerId}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;">
+              <div style="background-color: #0f172a; padding: 20px; text-align: center;">
+                <h1 style="color: #fff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">1to7</h1>
+              </div>
+              <div style="padding: 30px; background-color: #fafafa;">
+                <p style="font-size: 18px; color: #333; margin-top: 0;">Welcome, ${fullName}! 🎉</p>
+                <p style="font-size: 16px; color: #333;">Your creator account has been successfully created. Here is your unique Influencer ID:</p>
+                
+                <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 15px 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+                  <span style="font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 5px; color: #4f46e5;">${newInfluencerId}</span>
+                </div>
+
+                <p style="font-size: 14px; color: #64748b;">Use this ID to log in or share it with brands for collaborations. Keep it safe!</p>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                  <p style="font-size: 13px; color: #94a3b8; margin: 0;">– Team 1to7</p>
+                </div>
+              </div>
+            </div>
+          `
+        })
+        console.log(`Welcome email with ID ${newInfluencerId} sent to ${email}`)
+      }
+    } catch (emailError) {
+      // Don't fail signup if welcome email fails
+      console.error('Failed to send welcome email:', emailError)
+    }
 
     const { password_hash, ...userWithoutPassword } = newUser
     return NextResponse.json({ success: true, user: userWithoutPassword })

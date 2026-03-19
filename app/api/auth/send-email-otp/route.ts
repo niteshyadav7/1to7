@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 
 export async function POST(request: Request) {
   try {
@@ -24,19 +24,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to generate OTP' }, { status: 500 })
     }
 
-    // Send via Resend
+    // Send via Nodemailer (Gmail)
     console.log(`[EMAIL OTP] To: ${email}, OTP: ${otp}`)
-    
-    // Initialize Resend here to capture environment variables dynamically
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      console.error('Missing RESEND_API_KEY in environment variables');
-      return NextResponse.json({ error: 'Email service configuration error' }, { status: 500 });
-    }
-    const resend = new Resend(resendApiKey);
 
-    const { data, error } = await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
+    const gmailUser = process.env.GMAIL_USER
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
+
+    if (!gmailUser || !gmailAppPassword) {
+      console.error('Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment variables')
+      return NextResponse.json({ error: 'Email service configuration error' }, { status: 500 })
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailAppPassword,
+      },
+    })
+
+    const info = await transporter.sendMail({
+      from: `"1to7" <${gmailUser}>`,
       to: email,
       subject: 'Your 1to7 Login Verification Code',
       html: `
@@ -58,12 +66,9 @@ export async function POST(request: Request) {
       `
     })
 
-    if (error) {
-       console.error('Error sending email via Resend:', error)
-       return NextResponse.json({ error: 'Failed to send OTP email' }, { status: 500 })
-    }
+    console.log('Email sent successfully, messageId:', info.messageId)
 
-    return NextResponse.json({ success: true, message: 'OTP sent to email (check server console)' })
+    return NextResponse.json({ success: true, message: 'OTP sent to email' })
   } catch (error) {
     console.error('API /auth/send-email-otp Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
