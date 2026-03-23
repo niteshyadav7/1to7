@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest } from '@/lib/admin-auth'
+import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/mailer'
 
 export async function POST(request: Request) {
   try {
@@ -25,11 +26,29 @@ export async function POST(request: Request) {
       .from('applications')
       .update({ status, updated_at: new Date().toISOString() })
       .in('id', applicationIds)
-      .select('id, status')
+      .select('id, status, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
 
     if (error) {
       console.error('Supabase bulk update error:', error)
       throw error
+    }
+
+    // Send email notifications for Approved/Rejected (fire-and-forget)
+    if (data && (status === 'Approved' || status === 'Rejected')) {
+      for (const app of data) {
+        const userEmail = (app as any).users?.email
+        const userName = (app as any).users?.full_name || 'Creator'
+        const brandName = (app as any).campaigns?.brand_name || 'Campaign'
+        const campaignCode = (app as any).campaigns?.campaign_code || ''
+
+        if (userEmail) {
+          if (status === 'Approved') {
+            sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
+          } else {
+            sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode)
+          }
+        }
+      }
     }
 
     return NextResponse.json({
@@ -42,3 +61,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal server error', details: String(error) }, { status: 500 })
   }
 }
+

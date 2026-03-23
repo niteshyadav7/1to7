@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { sendApplicationSubmittedEmail } from '@/lib/mailer'
 
 export async function POST(request: Request) {
   try {
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     // Check campaign exists and is active
     const { data: campaign } = await supabase
       .from('campaigns')
-      .select('id, status, is_live')
+      .select('id, status, is_live, brand_name, campaign_code')
       .eq('id', campaignId)
       .single()
 
@@ -77,6 +78,22 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
+    // Send confirmation email (fire-and-forget)
+    const { data: user } = await supabase
+      .from('users')
+      .select('email, full_name')
+      .eq('id', payload.id)
+      .single()
+
+    if (user?.email) {
+      sendApplicationSubmittedEmail(
+        user.email,
+        user.full_name || 'Creator',
+        campaign.brand_name,
+        campaign.campaign_code
+      )
+    }
+
     return NextResponse.json({
       success: true,
       applicationId: application.id,
@@ -96,3 +113,4 @@ export async function POST(request: Request) {
     )
   }
 }
+

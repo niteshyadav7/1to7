@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest } from '@/lib/admin-auth'
+import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/mailer'
 
 export async function PUT(
   request: Request,
@@ -32,10 +33,23 @@ export async function PUT(
       .from('applications')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select('*, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
       .single()
 
     if (error) throw error
+
+    // Send email notification on status change (fire-and-forget)
+    const newStatus = body.status
+    const userEmail = application?.users?.email
+    const userName = application?.users?.full_name || 'Creator'
+    const brandName = application?.campaigns?.brand_name || 'Campaign'
+    const campaignCode = application?.campaigns?.campaign_code || ''
+
+    if (userEmail && newStatus === 'Approved') {
+      sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
+    } else if (userEmail && newStatus === 'Rejected') {
+      sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode)
+    }
 
     return NextResponse.json({ success: true, application })
   } catch (error) {
@@ -43,3 +57,4 @@ export async function PUT(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

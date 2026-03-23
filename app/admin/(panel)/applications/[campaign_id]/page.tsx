@@ -277,38 +277,67 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-white/5 px-5 py-5 space-y-5">
-                    {/* User Details */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Email</p>
-                        <p className="text-slate-300 truncate">{user?.email || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Mobile</p>
-                        <p className="text-slate-300">{user?.mobile || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Location</p>
-                        <p className="text-slate-300 flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Gender</p>
-                        <p className="text-slate-300">{user?.gender || '—'}</p>
+                    {/* User Profile Details */}
+                    <div>
+                      <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Influencer Profile</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Full Name</p>
+                          <p className="text-slate-300">{user?.full_name || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Influencer ID</p>
+                          <p className="text-slate-300 font-mono">{user?.influencer_id || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Email</p>
+                          <p className="text-slate-300 truncate">{user?.email || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Mobile</p>
+                          <p className="text-slate-300">{user?.mobile || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
+                          <p className="text-slate-300 flex items-center gap-1">
+                            {user?.instagram_username ? (
+                              <><Instagram className="h-3 w-3 text-pink-400" />{user.instagram_username}</>
+                            ) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>
+                          <p className="text-slate-300 font-medium">
+                            {user?.followers > 0 ? user.followers.toLocaleString() : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Location</p>
+                          <p className="text-slate-300 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Gender</p>
+                          <p className="text-slate-300">{user?.gender || '—'}</p>
+                        </div>
                       </div>
                     </div>
 
                     {/* Form Data */}
                     {app.form_data && Object.keys(app.form_data).length > 0 && (
-                      <div className="rounded-xl border border-white/5 bg-slate-950/40 p-4">
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Application Form Data</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Application Form Responses</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
                           {Object.entries(app.form_data).map(([key, value]) => (
                             <div key={key}>
-                              <p className="text-[10px] text-slate-500 uppercase">{key.replace(/_/g, ' ')}</p>
-                              <p className="text-sm text-slate-300">{String(value)}</p>
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                                {key.replace(/[_-]/g, ' ')}
+                              </p>
+                              <p className="text-slate-300 break-words">
+                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                              </p>
                             </div>
                           ))}
                         </div>

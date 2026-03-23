@@ -295,33 +295,133 @@ export default function AllApplicationsPage() {
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-white/5 px-5 py-5 space-y-5 bg-slate-950/20">
-                    {/* User Details */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Email</p>
-                        <p className="text-slate-300 truncate">{user?.email || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Mobile</p>
-                        <p className="text-slate-300">{user?.mobile || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Location</p>
-                        <p className="text-slate-300 flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>
-                        <p className="text-slate-300 font-medium">
-                          {user?.followers > 0 ? user.followers.toLocaleString() : '—'}
-                        </p>
+                    {/* User Profile Details */}
+                    <div>
+                      <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Influencer Profile</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Full Name</p>
+                          <p className="text-slate-300">{user?.full_name || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Influencer ID</p>
+                          <p className="text-slate-300 font-mono">{user?.influencer_id || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Email</p>
+                          <p className="text-slate-300 truncate">{user?.email || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Mobile</p>
+                          <p className="text-slate-300">{user?.mobile || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
+                          <p className="text-slate-300 flex items-center gap-1">
+                            {user?.instagram_username ? (
+                              <><Instagram className="h-3 w-3 text-pink-400" />{user.instagram_username}</>
+                            ) : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>
+                          <p className="text-slate-300 font-medium">
+                            {user?.followers > 0 ? user.followers.toLocaleString() : '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Location</p>
+                          <p className="text-slate-300 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Gender</p>
+                          <p className="text-slate-300">{user?.gender || '—'}</p>
+                        </div>
                       </div>
                     </div>
 
+                    {/* Campaign Info */}
+                    <div>
+                      <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Campaign Details</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Brand</p>
+                          <p className="text-slate-300 font-medium">{camp?.brand_name || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Campaign Code</p>
+                          <p className="text-slate-300 font-mono">{camp?.campaign_code || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Platform</p>
+                          <p className="text-slate-300">{camp?.platform || '—'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Application Form Data (dynamic) */}
+                    {app.form_data && Object.keys(app.form_data).length > 0 && (
+                      <div>
+                        <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Application Form Responses</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                          {Object.entries(app.form_data).map(([key, value]) => (
+                            <div key={key}>
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                                {key.replace(/[_-]/g, ' ')}
+                              </p>
+                              <p className="text-slate-300 break-words">
+                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Info (if any) */}
+                    {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
+                      <div>
+                        <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Payment Details</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Partial Payment</p>
+                            <p className="text-slate-300 flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              {app.partial_payment > 0 ? `₹${app.partial_payment.toLocaleString()}` : '—'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Final Payment</p>
+                            <p className="text-slate-300 flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              {app.final_payment > 0 ? `₹${app.final_payment.toLocaleString()}` : '—'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Pending Amount</p>
+                            <p className="text-slate-300 flex items-center gap-1">
+                              <DollarSign className="h-3 w-3" />
+                              {app.pending_amount > 0 ? `₹${app.pending_amount.toLocaleString()}` : '—'}
+                            </p>
+                          </div>
+                          {app.manager_phone && (
+                            <div>
+                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Manager Phone</p>
+                              <p className="text-slate-300 flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {app.manager_phone}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Meta */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
                        <p className="text-[10px] text-slate-600 font-medium">
                          Applied: {new Date(app.created_at).toLocaleString('en-IN')}
                          {app.updated_at !== app.created_at && ` • Updated: ${new Date(app.updated_at).toLocaleString('en-IN')}`}
