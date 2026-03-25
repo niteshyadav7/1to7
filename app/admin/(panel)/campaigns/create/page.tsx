@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders } from 'lucide-react'
+import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ export default function AdminCreateCampaignPage() {
     collab_date: '',
     form_link: '',
   })
+  const [customFields, setCustomFields] = useState<FormField[]>([])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +48,7 @@ export default function AdminCreateCampaignPage() {
         product_links: formData.product_links
           ? formData.product_links.split('\n').map(l => l.trim()).filter(Boolean)
           : [],
+        form_fields: customFields.filter(f => f.name.trim()),
       }
 
       const res = await fetch('/api/admin/campaigns', {
@@ -253,6 +256,19 @@ export default function AdminCreateCampaignPage() {
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Custom Application Fields */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-purple-500/5 to-transparent">
+            <FileSliders className="h-4 w-4 text-purple-400" />
+            <h3 className="text-sm font-semibold text-white">Custom Application Fields</h3>
+            <span className="text-[10px] text-slate-500 ml-auto">{customFields.length} field{customFields.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="p-6">
+            <p className="text-xs text-slate-500 mb-4">Define extra fields that influencers must fill when applying. These appear in the application form.</p>
+            <FormFieldBuilder fields={customFields} onChange={setCustomFields} />
           </div>
         </div>
 

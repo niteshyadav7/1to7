@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Instagram, Youtube, ShoppingBag, Users, FileText, 
   Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, 
-  CreditCard, Layout, Sparkles, Check
+  CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,7 @@ interface Campaign {
   additional_info?: string
   collab_date?: string
   form_link?: string
+  form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -83,6 +84,9 @@ export default function CampaignDetailModal({
   const [showProfileInline, setShowProfileInline] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [inlineData, setInlineData] = useState<Record<string, any>>({})
+  const [showCustomForm, setShowCustomForm] = useState(false)
+  const [customFormData, setCustomFormData] = useState<Record<string, any>>({})
+  const [submitting, setSubmitting] = useState(false)
   
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
@@ -92,6 +96,9 @@ export default function CampaignDetailModal({
     if (isOpen) {
       setAgreementChecked(false)
       setShowProfileInline(false)
+      setShowCustomForm(false)
+      setCustomFormData({})
+      setSubmitting(false)
       // Force refresh user data to ensure we have the latest completeness status
       refreshUserProfile()
     }
@@ -113,6 +120,8 @@ export default function CampaignDetailModal({
 
   const emoji = brandEmojis[campaign.brand_name] || '✨'
 
+  const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
+
   const handleApplyClick = () => {
     if (!isLoggedIn) {
       router.push('/login')
@@ -129,7 +138,52 @@ export default function CampaignDetailModal({
       return
     }
 
+    // If campaign has custom fields, show the form step
+    if (hasCustomFields) {
+      // Initialize form data with empty values
+      const initial: Record<string, any> = {}
+      campaign.form_fields!.forEach(f => {
+        initial[f.name] = f.type === 'number' ? '' : ''
+      })
+      setCustomFormData(initial)
+      setShowCustomForm(true)
+      return
+    }
+
     onApply(campaign)
+  }
+
+  const isCustomFormValid = () => {
+    if (!campaign.form_fields) return true
+    return campaign.form_fields
+      .filter(f => f.required)
+      .every(f => {
+        const val = customFormData[f.name]
+        return val !== undefined && val !== '' && val !== null
+      })
+  }
+
+  const handleCustomFormSubmit = async () => {
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          formData: customFormData,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to apply')
+      toast.success(data.message || 'Application submitted!')
+      setShowCustomForm(false)
+      onClose()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit application')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleSaveInline = async () => {
@@ -292,6 +346,92 @@ export default function CampaignDetailModal({
                          className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
                        >
                          {savingProfile ? 'Saving...' : 'Save and Proceed'}
+                       </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Custom Form Fields View */}
+              <AnimatePresence>
+                {showCustomForm && campaign.form_fields && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 50 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
+                  >
+                    <div className="p-8 pb-4 border-b border-white/5">
+                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-purple-400" />
+                          Application Form
+                       </h3>
+                       <p className="text-slate-400 text-sm mt-1">Fill in the details below to apply for <span className="text-white font-medium">{campaign.brand_name}</span></p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-8 space-y-5">
+                      {campaign.form_fields.map((field, idx) => (
+                        <div key={idx} className="space-y-2">
+                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                              {field.name}
+                              {field.required && <span className="text-red-400">*</span>}
+                           </label>
+                           
+                           {field.type === 'dropdown' ? (
+                             <Select 
+                               value={customFormData[field.name] || ""} 
+                               onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
+                             >
+                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                   <SelectValue placeholder={`Select ${field.name}`} />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                   {field.options?.map(opt => (
+                                     <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-purple-500/20 focus:text-white">{opt}</SelectItem>
+                                   ))}
+                                </SelectContent>
+                             </Select>
+                           ) : field.type === 'textarea' ? (
+                             <textarea
+                               value={customFormData[field.name] || ''}
+                               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                               placeholder={`Enter ${field.name}...`}
+                               rows={3}
+                               className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-600"
+                             />
+                           ) : (
+                             <Input 
+                               value={customFormData[field.name] || ''}
+                               type={field.type === 'number' ? 'number' : 'text'}
+                               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                               placeholder={`Enter ${field.name}...`}
+                               className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-purple-500"
+                             />
+                           )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-8 pt-4 border-t border-white/5 flex gap-4">
+                       <Button 
+                         variant="ghost" 
+                         onClick={() => setShowCustomForm(false)}
+                         className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+                       >
+                         <ArrowLeft className="mr-2 h-4 w-4" />
+                         Back
+                       </Button>
+                       <Button 
+                         onClick={handleCustomFormSubmit}
+                         disabled={submitting || !isCustomFormValid()}
+                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                       >
+                         {submitting ? (
+                           <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                         ) : (
+                           <><CheckCircle2 className="mr-2 h-4 w-4" /> Submit Application</>
+                         )}
                        </Button>
                     </div>
                   </motion.div>
