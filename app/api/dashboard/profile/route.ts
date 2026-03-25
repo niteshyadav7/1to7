@@ -90,7 +90,7 @@ export async function PUT(request: Request) {
 
     // Log changes to profile_logs
     if (currentUser) {
-      const logEntries = []
+      const logEntries: any[] = []
       for (const [field, newValue] of Object.entries(updateData)) {
         if (field === 'updated_at') continue
         const oldValue = (currentUser as any)[field]

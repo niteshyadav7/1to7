@@ -177,7 +177,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Status</Label>
-              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v || 'Draft' })}>
                 <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -235,7 +235,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Platform</Label>
-                <Select value={formData.platform} onValueChange={(v) => setFormData({ ...formData, platform: v })}>
+                <Select value={formData.platform} onValueChange={(v) => setFormData({ ...formData, platform: v || 'Instagram' })}>
                   <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -248,7 +248,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Budget Type</Label>
-                <Select value={formData.budget_type} onValueChange={(v) => setFormData({ ...formData, budget_type: v })}>
+                <Select value={formData.budget_type} onValueChange={(v) => setFormData({ ...formData, budget_type: v || 'Paid' })}>
                   <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -261,7 +261,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Gender</Label>
-                <Select value={formData.gender_required} onValueChange={(v) => setFormData({ ...formData, gender_required: v })}>
+                <Select value={formData.gender_required} onValueChange={(v) => setFormData({ ...formData, gender_required: v || 'Any' })}>
                   <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>

@@ -273,8 +273,10 @@ function SignupForm() {
                   <InputOTP
                     maxLength={6}
                     value={emailOtp}
-                    onChange={(value) => setEmailOtp(value)}
+                    onChange={(value: string) => setEmailOtp(value)}
                     pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
+                    className=""
+                    containerClassName=""
                   >
                     <InputOTPGroup className="gap-2">
                        {[0,1,2,3,4,5].map((index) => (
@@ -370,7 +372,7 @@ function SignupForm() {
         <div className="space-y-2">
           <Label htmlFor="gender" className="text-slate-300 font-medium text-sm">Gender</Label>
           <div className="relative group">
-            <Select value={formData.gender} onValueChange={handleGenderChange} required>
+            <Select value={formData.gender} onValueChange={(v) => handleGenderChange(v || '')} required>
               <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-10 text-sm rounded-lg focus:ring-purple-500 transition-all shadow-inner group-hover:border-white/20">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const campaign_id = searchParams.get('campaign_id')
 
     // Get campaign info if campaign_id is provided
-    let campaign = null
+    let campaign: any = null
     if (campaign_id) {
       const { data } = await supabase
         .from('campaigns')

@@ -262,7 +262,7 @@ export default function ProfilePage() {
             {/* Gender */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Gender</Label>
-              <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
+              <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v || '' })}>
                 <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-purple-500 rounded-xl">
                   <SelectValue placeholder="Select Gender" />
                 </SelectTrigger>
@@ -407,7 +407,7 @@ export default function ProfilePage() {
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">State</Label>
               <Select
                 value={formData.state}
-                onValueChange={(v) => setFormData({ ...formData, state: v, city: '' })}
+                onValueChange={(v) => setFormData({ ...formData, state: v || '', city: '' })}
               >
                 <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-purple-500 rounded-xl">
                   <SelectValue placeholder="Select State" />
@@ -426,7 +426,7 @@ export default function ProfilePage() {
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">City</Label>
               <Select
                 value={formData.city}
-                onValueChange={(v) => setFormData({ ...formData, city: v })}
+                onValueChange={(v) => setFormData({ ...formData, city: v || '' })}
                 disabled={!formData.state}
               >
                 <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-purple-500 rounded-xl disabled:opacity-50">
