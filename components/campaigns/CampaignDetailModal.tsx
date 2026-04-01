@@ -259,73 +259,92 @@ export default function CampaignDetailModal({
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-8 space-y-5">
-                      {missingFields.map((field) => (
-                        <div key={field} className="space-y-2">
-                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
-                              {FIELD_LABELS[field] || field}
-                           </label>
-                           
+                      {missingFields.filter(f => f !== 'city').map((field) => (
+                        <div key={field}>
                            {field === 'gender' ? (
-                             <Select 
-                               value={inlineData[field] || ""} 
-                               onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
-                             >
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
-                                   <SelectValue placeholder="Select Gender" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-white/10 text-white">
-                                   <SelectItem value="Male" className="cursor-pointer">Male</SelectItem>
-                                   <SelectItem value="Female" className="cursor-pointer">Female</SelectItem>
-                                   <SelectItem value="Other" className="cursor-pointer">Other</SelectItem>
-                                </SelectContent>
-                             </Select>
+                             <div className="space-y-2">
+                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                  {FIELD_LABELS[field] || field}
+                               </label>
+                               <Select 
+                                 value={inlineData[field] || ""} 
+                                 onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
+                               >
+                                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                     <SelectValue placeholder="Select Gender" />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-slate-900 border-white/10 text-white">
+                                     <SelectItem value="Male" className="cursor-pointer">Male</SelectItem>
+                                     <SelectItem value="Female" className="cursor-pointer">Female</SelectItem>
+                                     <SelectItem value="Other" className="cursor-pointer">Other</SelectItem>
+                                  </SelectContent>
+                               </Select>
+                             </div>
                             ) : field === 'state' ? (
-                              <Select 
-                                value={inlineData[field] || ""} 
-                                onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val, city: '' }))}
-                              >
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
-                                   <SelectValue placeholder="Select State" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
-                                   {STATES.map(s => (
-                                     <SelectItem key={s} value={s} className="cursor-pointer">{s}</SelectItem>
-                                   ))}
-                                </SelectContent>
-                             </Select>
-                           ) : field === 'city' ? (
-                             <Select 
-                               disabled={!inlineData.state && !user?.state}
-                               value={inlineData[field] || ""} 
-                               onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
-                             >
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
-                                   <SelectValue placeholder="Select City" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
-                                   {(inlineData.state || user?.state) && INDIA_DATA[inlineData.state || user?.state!]?.map(c => (
-                                     <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>
-                                   ))}
-                                </SelectContent>
-                             </Select>
+                              <div className="grid grid-cols-2 gap-4">
+                                {/* State */}
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                     State
+                                  </label>
+                                  <Select 
+                                    value={inlineData.state || ""} 
+                                    onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
+                                  >
+                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                       <SelectValue placeholder="Select State" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                       {STATES.map(s => (
+                                         <SelectItem key={s} value={s} className="cursor-pointer">{s}</SelectItem>
+                                       ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                {/* City */}
+                                <div className="space-y-2">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                     City
+                                  </label>
+                                  <Select 
+                                    disabled={!inlineData.state && !user?.state}
+                                    value={inlineData.city || ""} 
+                                    onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
+                                  >
+                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                       <SelectValue placeholder="Select City" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                       {(inlineData.state || user?.state) && INDIA_DATA[inlineData.state || user?.state!]?.map(c => (
+                                         <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>
+                                       ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
                            ) : (
-                             <div className="relative">
-                                {field.includes('account') || field.includes('ifsc') ? (
-                                  <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                ) : field.includes('instagram') ? (
-                                  <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                ) : field === 'followers' ? (
-                                  <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                ) : (
-                                  <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                )}
-                                <Input 
-                                  value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
-                                  type={field === 'followers' ? 'number' : 'text'}
-                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
-                                  placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
-                                  className="bg-white/5 border-white/10 text-white h-12 pl-11 rounded-xl focus-visible:ring-purple-500"
-                                />
+                             <div className="space-y-2">
+                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                  {FIELD_LABELS[field] || field}
+                               </label>
+                               <div className="relative">
+                                  {field.includes('account') || field.includes('ifsc') ? (
+                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                  ) : field.includes('instagram') ? (
+                                    <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                  ) : field === 'followers' ? (
+                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                  ) : (
+                                    <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                  )}
+                                  <Input 
+                                    value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
+                                    type={field === 'followers' ? 'number' : 'text'}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
+                                    placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
+                                    className="bg-white/5 border-white/10 text-white h-12 pl-11 rounded-xl focus-visible:ring-purple-500"
+                                  />
+                               </div>
                              </div>
                            )}
                         </div>
