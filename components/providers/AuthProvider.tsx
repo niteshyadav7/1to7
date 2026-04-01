@@ -18,6 +18,7 @@ export interface User {
   account_number?: string
   ifsc_code?: string
   role?: string
+  is_mobile_verified?: boolean
 }
 
 interface AuthContextType {

@@ -25,6 +25,13 @@ interface Campaign {
   is_live: boolean
   status: string
   created_at: string
+  location?: string
+  looking_for?: string
+  followers?: string
+  additional_info?: string
+  collab_date?: string
+  form_link?: string
+  form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
 }
 
 export default function Home() {

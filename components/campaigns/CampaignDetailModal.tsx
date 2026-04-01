@@ -14,6 +14,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
+import MobileOTPModal from '@/components/modals/MobileOTPModal'
 
 interface Campaign {
   id: string
@@ -87,6 +88,7 @@ export default function CampaignDetailModal({
   const [showCustomForm, setShowCustomForm] = useState(false)
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [showOTPModal, setShowOTPModal] = useState(false)
   
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
@@ -104,7 +106,7 @@ export default function CampaignDetailModal({
     }
   }, [isOpen])
 
-  // Prepare inline form data when showing inline flow
+  // Prepare inline form data + custom form data when showing inline flow
   useEffect(() => {
     if (showProfileInline && user) {
       const missing = getMissingFields()
@@ -113,6 +115,15 @@ export default function CampaignDetailModal({
         initial[field] = (user as any)[field] || (field === 'followers' ? 0 : '')
       })
       setInlineData(initial)
+
+      // Also init custom fields
+      if (hasCustomFields) {
+        const cfInitial: Record<string, any> = {}
+        campaign!.form_fields!.forEach(f => {
+          cfInitial[f.name] = ''
+        })
+        setCustomFormData(cfInitial)
+      }
     }
   }, [showProfileInline, user])
 
@@ -128,25 +139,19 @@ export default function CampaignDetailModal({
       return
     }
 
-    if (!isProfileComplete()) {
-      setShowProfileInline(true)
-      return
-    }
-
     if (campaign.form_link) {
       window.open(campaign.form_link, '_blank')
       return
     }
 
-    // If campaign has custom fields, show the form step
-    if (hasCustomFields) {
-      // Initialize form data with empty values
-      const initial: Record<string, any> = {}
-      campaign.form_fields!.forEach(f => {
-        initial[f.name] = f.type === 'number' ? '' : ''
-      })
-      setCustomFormData(initial)
-      setShowCustomForm(true)
+    if (!user?.is_mobile_verified) {
+      setShowOTPModal(true)
+      return
+    }
+
+    // Show combined form if profile incomplete OR campaign has custom questions
+    if (!isProfileComplete() || hasCustomFields) {
+      setShowProfileInline(true)
       return
     }
 
@@ -187,20 +192,42 @@ export default function CampaignDetailModal({
   }
 
   const handleSaveInline = async () => {
+    if (!user?.is_mobile_verified) {
+      setShowOTPModal(true)
+      return
+    }
+
     setSavingProfile(true)
     try {
-      const res = await fetch('/api/dashboard/profile', {
-        method: 'PUT',
+      // Step 1: Save profile if there are missing fields
+      const missing = getMissingFields()
+      if (missing.length > 0) {
+        const res = await fetch('/api/dashboard/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...user, ...inlineData }),
+        })
+        if (!res.ok) throw new Error('Failed to update profile')
+        await refreshUserProfile()
+      }
+
+      // Step 2: Submit application with custom form data
+      const res = await fetch('/api/apply', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...user, ...inlineData }),
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          formData: hasCustomFields ? customFormData : {},
+        }),
       })
-      if (!res.ok) throw new Error('Failed to update')
-      
-      await refreshUserProfile()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to apply')
+
+      toast.success(data.message || 'Application submitted successfully!')
       setShowProfileInline(false)
-      // Stay on the modal so they can apply immediately
-    } catch (err) {
-      console.error(err)
+      onClose()
+    } catch (err: any) {
+      toast.error(err.message || 'Something went wrong')
     } finally {
       setSavingProfile(false)
     }
@@ -349,6 +376,57 @@ export default function CampaignDetailModal({
                            )}
                         </div>
                       ))}
+
+                      {/* Custom Campaign Questions */}
+                      {hasCustomFields && (
+                        <>
+                          <div className="border-t border-white/10 pt-5 mt-2">
+                            <p className="text-[11px] font-bold text-purple-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <FileText className="h-3.5 w-3.5" />
+                              Campaign Questions
+                            </p>
+                          </div>
+                          {campaign.form_fields!.map((field, idx) => (
+                            <div key={`cf-${idx}`} className="space-y-2">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                                {field.name}
+                                {field.required && <span className="text-red-400">*</span>}
+                              </label>
+                              {field.type === 'dropdown' ? (
+                                <Select
+                                  value={customFormData[field.name] || ""}
+                                  onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
+                                >
+                                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                    <SelectValue placeholder={`Select ${field.name}`} />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                    {field.options?.map(opt => (
+                                      <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : field.type === 'textarea' ? (
+                                <textarea
+                                  value={customFormData[field.name] || ''}
+                                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                                  placeholder={`Enter ${field.name}...`}
+                                  rows={3}
+                                  className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-600"
+                                />
+                              ) : (
+                                <Input
+                                  value={customFormData[field.name] || ''}
+                                  type={field.type === 'number' ? 'number' : 'text'}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                                  placeholder={`Enter ${field.name}...`}
+                                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-purple-500"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </>
+                      )}
                     </div>
 
                     <div className="p-8 pt-4 border-t border-white/5 flex gap-4">
@@ -361,10 +439,10 @@ export default function CampaignDetailModal({
                        </Button>
                        <Button 
                          onClick={handleSaveInline}
-                         disabled={savingProfile || Object.values(inlineData).some(v => !v && v !== 0)}
-                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
+                         disabled={savingProfile || Object.values(inlineData).some(v => !v && v !== 0) || (hasCustomFields && !isCustomFormValid())}
+                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
                        >
-                         {savingProfile ? 'Saving...' : 'Save and Proceed'}
+                         {savingProfile ? 'Submitting...' : 'Save & Apply'}
                        </Button>
                     </div>
                   </motion.div>

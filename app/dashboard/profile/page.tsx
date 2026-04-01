@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
+import MobileOTPModal from '@/components/modals/MobileOTPModal'
 
 interface UserProfile {
   id: string
@@ -49,6 +50,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [showOTPModal, setShowOTPModal] = useState(false)
   const [formData, setFormData] = useState({
     full_name: (authUser?.full_name as string) || '',
     instagram_username: (authUser?.instagram_username as string) || '',
@@ -277,15 +279,9 @@ export default function ProfilePage() {
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1">
                 Email
-                {profile?.is_email_verified !== false ? (
-                  <span className="inline-flex items-center gap-0.5 ml-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">
-                    <CheckCircle2 className="h-2.5 w-2.5" /> VERIFIED
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-0.5 ml-1 rounded-full bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 border border-slate-500/20">
-                    UNVERIFIED
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-0.5 ml-1 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">
+                  <CheckCircle2 className="h-2.5 w-2.5" /> VERIFIED
+                </span>
               </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -370,14 +366,17 @@ export default function ProfilePage() {
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1">
                 Mobile
                 <Lock className="h-3 w-3 ml-0.5 text-slate-600" />
-                {profile?.is_mobile_verified !== false ? (
+                {profile?.is_mobile_verified === true ? (
                   <span className="inline-flex items-center gap-0.5 ml-auto rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/20">
-                    VERIFIED
+                    <CheckCircle2 className="h-2.5 w-2.5" /> VERIFIED
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-0.5 ml-auto rounded-full bg-slate-500/15 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 border border-slate-500/20">
-                    UNVERIFIED
-                  </span>
+                  <button
+                    onClick={() => setShowOTPModal(true)}
+                    className="inline-flex items-center gap-1 ml-auto rounded-full bg-purple-500/15 px-2.5 py-0.5 text-[10px] font-bold text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 transition-colors cursor-pointer"
+                  >
+                    <Shield className="h-2.5 w-2.5" /> VERIFY NOW
+                  </button>
                 )}
               </Label>
               <div className="relative">
@@ -466,6 +465,17 @@ export default function ProfilePage() {
           )}
         </Button>
       </motion.div>
+
+      {/* Mobile OTP Verification Modal */}
+      <MobileOTPModal
+        isOpen={showOTPModal}
+        onClose={() => setShowOTPModal(false)}
+        onVerified={async () => {
+          await fetchProfile()
+          await refreshUserProfile()
+        }}
+        mobile={profile?.mobile || authUser?.mobile || ''}
+      />
     </div>
   )
 }
