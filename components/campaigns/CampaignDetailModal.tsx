@@ -246,8 +246,9 @@ export default function CampaignDetailModal({
   const missingFields = getMissingFields()
 
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <>
+      <AnimatePresence>
+        {isOpen && (
         <>
           {/* Backdrop */}
           <motion.div
@@ -702,5 +703,18 @@ export default function CampaignDetailModal({
         </>
       )}
     </AnimatePresence>
+
+      {/* Mobile OTP Modal */}
+      <MobileOTPModal
+        isOpen={showOTPModal}
+        onClose={() => setShowOTPModal(false)}
+        onVerified={async () => {
+          if (refreshUserProfile) {
+            await refreshUserProfile()
+          }
+        }}
+        mobile={user?.mobile || ''}
+      />
+    </>
   )
 }
