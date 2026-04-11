@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown, Type, Hash, AlignLeft, List } from 'lucide-react'
+import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown, Type, Hash, AlignLeft, List, ImageIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 export interface FormField {
   name: string
-  type: 'text' | 'number' | 'textarea' | 'dropdown'
+  type: 'text' | 'number' | 'textarea' | 'dropdown' | 'image'
   required: boolean
   options: string[] // only for dropdown
 }
@@ -20,6 +20,7 @@ const typeIcons: Record<string, React.ReactNode> = {
   number: <Hash className="h-3.5 w-3.5" />,
   textarea: <AlignLeft className="h-3.5 w-3.5" />,
   dropdown: <List className="h-3.5 w-3.5" />,
+  image: <ImageIcon className="h-3.5 w-3.5" />,
 }
 
 const typeLabels: Record<string, string> = {
@@ -27,6 +28,7 @@ const typeLabels: Record<string, string> = {
   number: 'Number',
   textarea: 'Long Text',
   dropdown: 'Dropdown',
+  image: 'Image Upload',
 }
 
 export default function FormFieldBuilder({

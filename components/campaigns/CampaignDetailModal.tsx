@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Instagram, Youtube, ShoppingBag, Users, FileText, 
   Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, 
-  CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2
+  CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,9 @@ interface Campaign {
   collab_date?: string
   form_link?: string
   form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
+  order_form?: boolean
+  order_form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
+  show_order_form?: boolean
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -89,6 +92,7 @@ export default function CampaignDetailModal({
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({})
   const [submitting, setSubmitting] = useState(false)
   const [showOTPModal, setShowOTPModal] = useState(false)
+  const [commentText, setCommentText] = useState('')
   
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
@@ -100,7 +104,8 @@ export default function CampaignDetailModal({
       setShowProfileInline(false)
       setShowCustomForm(false)
       setCustomFormData({})
-      setSubmitting(false)
+      setCommentText('')
+      setSavingProfile(false)
       // Force refresh user data to ensure we have the latest completeness status
       refreshUserProfile()
     }
@@ -132,6 +137,10 @@ export default function CampaignDetailModal({
   const emoji = brandEmojis[campaign.brand_name] || '✨'
 
   const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
+  // Bank details excluded from campaign apply — collected later
+  const bankFields = ['account_name', 'account_number', 'ifsc_code']
+  const campaignMissingFields = getMissingFields().filter(f => !bankFields.includes(f))
+  const needsInlineForm = true // Always show form for comments
 
   const handleApplyClick = () => {
     if (!isLoggedIn) {
@@ -149,13 +158,21 @@ export default function CampaignDetailModal({
       return
     }
 
-    // Show combined form if profile incomplete OR campaign has custom questions
-    if (!isProfileComplete() || hasCustomFields) {
+    // Show combined form if profile incomplete OR campaign has custom questions/order form/comments
+    if (needsInlineForm) {
       setShowProfileInline(true)
       return
     }
 
     onApply(campaign)
+  }
+
+  const isProfileFormValid = () => {
+    return missingFields.every(field => {
+      const val = inlineData[field]
+      if (field === 'followers') return val !== undefined && val !== null && val !== '' && Number(val) > 0
+      return val !== undefined && val !== null && val !== ''
+    })
   }
 
   const isCustomFormValid = () => {
@@ -217,7 +234,10 @@ export default function CampaignDetailModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          formData: hasCustomFields ? customFormData : {},
+          formData: {
+            ...(hasCustomFields ? customFormData : {}),
+            comments: commentText || '',
+          },
         }),
       })
       const data = await res.json()
@@ -243,7 +263,7 @@ export default function CampaignDetailModal({
     </div>
   )
 
-  const missingFields = getMissingFields()
+  const missingFields = campaignMissingFields
 
   return (
     <>
@@ -278,12 +298,49 @@ export default function CampaignDetailModal({
                     exit={{ opacity: 0, scale: 1.05 }}
                     className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
                   >
-                    <div className="p-8 pb-4 border-b border-white/5">
-                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          <AlertCircle className="h-5 w-5 text-amber-500" />
-                          Complete Missing Details
-                       </h3>
-                       <p className="text-slate-400 text-sm mt-1">Please fill these fields to proceed with your application.</p>
+                    {/* Header with campaign info */}
+                    <div className="p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-slate-900 to-slate-800">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            ✈️ Apply to Campaign
+                          </h3>
+                          <p className="text-slate-400 text-sm mt-0.5">{campaign.brand_name}</p>
+                        </div>
+                        <button 
+                          onClick={() => setShowProfileInline(false)}
+                          className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      {/* Campaign + Instagram Info Cards */}
+                      <div className="mt-4 space-y-3">
+                        {/* Campaign Card */}
+                        <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
+                          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-white font-bold text-sm shrink-0">
+                            {campaign.brand_name?.charAt(0) || 'C'}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{campaign.brand_name}</p>
+                            <p className="text-[11px] text-slate-500">Campaign ID: {campaign.campaign_code}</p>
+                          </div>
+                        </div>
+
+                        {/* Instagram Profile Card */}
+                        {user?.instagram_username && (
+                          <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-pink-500/20 to-orange-500/20 shrink-0">
+                              <Instagram className="h-5 w-5 text-pink-400" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-white truncate">@{user.instagram_username}</p>
+                              <p className="text-[11px] text-slate-500">Primary Instagram Profile</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-8 space-y-5">
@@ -372,11 +429,33 @@ export default function CampaignDetailModal({
                                     placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
                                     className="bg-white/5 border-white/10 text-white h-12 pl-11 rounded-xl focus-visible:ring-purple-500"
                                   />
-                               </div>
+                                  </div>
+                                </div>
+                               )}
                              </div>
-                           )}
-                        </div>
-                      ))}
+                           ))}
+
+
+                      {/* Comments - Always shown */}
+                          <div className="border-t border-white/10 pt-5 mt-2">
+                            <p className="text-[11px] font-bold text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Comments / Notes
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                              Your Comments (Optional)
+                            </label>
+                            <textarea
+                              value={commentText}
+                              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
+                              placeholder="Add any comments, notes, or questions for the brand..."
+                              rows={4}
+                              className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none placeholder:text-slate-600"
+                            />
+                          </div>
+
 
                       {/* Custom Campaign Questions */}
                       {hasCustomFields && (
@@ -415,6 +494,43 @@ export default function CampaignDetailModal({
                                   rows={3}
                                   className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-600"
                                 />
+                              ) : field.type === 'image' ? (
+                                <div className="space-y-2">
+                                  {customFormData[field.name] ? (
+                                    <div className="relative rounded-xl border border-white/10 overflow-hidden bg-white/5 aspect-video max-h-[200px] flex items-center justify-center">
+                                      <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                                      <button
+                                        type="button"
+                                        onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
+                                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed border-white/10 hover:border-purple-500/50 bg-white/5 hover:bg-purple-500/5 transition-all cursor-pointer group">
+                                      {uploadingFields[field.name] ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                          <Loader2 className="h-6 w-6 text-purple-500 animate-spin" />
+                                          <span className="text-xs text-slate-400">Uploading...</span>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <UploadCloud className="h-8 w-8 text-slate-400 group-hover:text-purple-400 mb-2 transition-colors" />
+                                          <span className="text-sm font-medium text-slate-300">Tap to select image</span>
+                                          <span className="text-[10px] text-slate-500 mt-1">PNG, JPG formats supported</span>
+                                        </>
+                                      )}
+                                      <input
+                                        type="file"
+                                        accept="image/png, image/jpeg, image/webp"
+                                        className="hidden"
+                                        disabled={uploadingFields[field.name]}
+                                        onChange={(e) => handleImageUpload(e, field.name, false)}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
                               ) : (
                                 <Input
                                   value={customFormData[field.name] || ''}
@@ -440,7 +556,11 @@ export default function CampaignDetailModal({
                        </Button>
                        <Button 
                          onClick={handleSaveInline}
-                         disabled={savingProfile || Object.values(inlineData).some(v => !v && v !== 0) || (hasCustomFields && !isCustomFormValid())}
+                         disabled={
+                           savingProfile || 
+                           (!isProfileComplete() && !isProfileFormValid()) || 
+                           (hasCustomFields && !isCustomFormValid())
+                         }
                          className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
                        >
                          {savingProfile ? 'Submitting...' : 'Save & Apply'}
@@ -598,12 +718,23 @@ export default function CampaignDetailModal({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {campaign.show_order_form !== false && (
+                    <DetailCard 
+                      label="Order Form" 
+                      value={campaign.order_form ? '📋 Yes — Order Details Required' : '💬 No — Comments Only'} 
+                      icon={ClipboardList} 
+                      color="text-emerald-400" 
+                    />
+                  )}
                   <DetailCard 
                     label="Followers Req." 
                     value={campaign.followers || "No restriction"} 
                     icon={Sparkles} 
                     color="text-amber-400" 
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <DetailCard 
                     label="Collab Date" 
                     value={campaign.collab_date || "Flexible"} 

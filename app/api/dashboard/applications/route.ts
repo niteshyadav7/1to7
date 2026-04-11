@@ -40,7 +40,9 @@ export async function GET(request: Request) {
           budget_type,
           deliverables,
           requirements,
-          gender_required
+          gender_required,
+          order_form,
+          order_form_fields
         )
       `)
       .eq('user_id', payload.id)

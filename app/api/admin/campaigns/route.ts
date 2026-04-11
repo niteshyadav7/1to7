@@ -60,6 +60,9 @@ export async function POST(request: Request) {
       collab_date,
       form_link,
       form_fields,
+      order_form,
+      order_form_fields,
+      show_order_form,
     } = body
 
     if (!brand_name || !platform) {
@@ -88,6 +91,9 @@ export async function POST(request: Request) {
         collab_date: collab_date || null,
         form_link: form_link || null,
         form_fields: form_fields || [],
+        order_form: order_form || false,
+        order_form_fields: order_form_fields || [],
+        show_order_form: show_order_form !== false,
         status: 'Draft',
         is_live: false,
       })

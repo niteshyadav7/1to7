@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter } from 'lucide-react'
+import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink } from 'lucide-react'
+import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
+import { useAuth } from '@/components/providers/AuthProvider'
 
 interface Application {
   id: string
@@ -12,26 +14,23 @@ interface Application {
   updated_at: string
   campaigns: {
     id: string
+    campaign_code: string
     brand_name: string
     platform: string
     category: string
     budget_type: string
     deliverables: string
+    order_form?: boolean
+    order_form_fields?: any[]
   }
 }
 
-const platformIcons: Record<string, React.ReactNode> = {
-  'Instagram': <Instagram className="h-4 w-4" />,
-  'YouTube': <Youtube className="h-4 w-4" />,
-  'Amazon': <ShoppingBag className="h-4 w-4" />,
-}
-
 const statusColors: Record<string, string> = {
-  'Applied': 'bg-blue-500/15 text-blue-300 border-blue-500/20',
-  'Approved': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
-  'Rejected': 'bg-red-500/15 text-red-300 border-red-500/20',
-  'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
-  'Payment Initiated': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
+  'Applied': 'bg-amber-500/90 text-white',
+  'Approved': 'bg-emerald-500/90 text-white',
+  'Rejected': 'bg-red-500/90 text-white',
+  'Completed': 'bg-purple-500/90 text-white',
+  'Payment Initiated': 'bg-blue-500/90 text-white',
 }
 
 const statuses = ['All', 'Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated']
@@ -40,6 +39,8 @@ export default function AppliedCampaignsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     fetchApplications()
@@ -104,44 +105,127 @@ export default function AppliedCampaignsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredApps.map((app, i) => (
             <motion.div
               key={app.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 hover:bg-slate-900/80 transition-colors"
+              className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden hover:bg-slate-900/80 transition-colors"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 min-w-0">
-                  <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-slate-800 text-slate-400 shrink-0">
-                    {platformIcons[app.campaigns?.platform] || <Send className="h-5 w-5" />}
+              {/* Campaign Header - Dark gradient bar */}
+              <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-700/80 text-white font-bold text-sm shrink-0">
+                    {app.campaigns?.brand_name?.charAt(0) || 'C'}
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-white">{app.campaigns?.brand_name || 'Campaign'}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {app.campaigns?.category} · {app.campaigns?.budget_type}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-2 line-clamp-1">
-                      {app.campaigns?.deliverables}
+                  <div>
+                    <h3 className="text-sm font-bold text-white">{app.campaigns?.brand_name || 'Campaign'}</h3>
+                    <p className="text-[11px] text-slate-400">ID: {app.campaigns?.campaign_code}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {app.campaigns?.order_form && !app.form_data?.order_details && app.status === 'Approved' && (
+                    <span className="rounded-md px-3 py-1.5 text-[11px] font-semibold bg-blue-500/90 text-white">
+                      Fill Order Form
+                    </span>
+                  )}
+                  <span className={`rounded-md px-3 py-1.5 text-[11px] font-semibold ${statusColors[app.status] || 'bg-slate-500/90 text-white'}`}>
+                    {app.status === 'Applied' ? 'Pending' : app.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Info Row - Instagram + Followers */}
+              <div className="px-5 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Instagram */}
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Instagram</p>
+                    {user?.instagram_username ? (
+                      <a
+                        href={`https://instagram.com/${user.instagram_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-sm font-medium text-pink-400 hover:text-pink-300 transition-colors"
+                      >
+                        <Instagram className="h-4 w-4" />
+                        View Profile
+                      </a>
+                    ) : (
+                      <span className="text-sm text-slate-500">Not set</span>
+                    )}
+                  </div>
+                  {/* Followers */}
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Followers</p>
+                    <p className="text-sm font-semibold text-white">
+                      {user?.followers ? (
+                        user.followers >= 1000 
+                          ? `${(user.followers / 1000).toFixed(user.followers % 1000 === 0 ? 0 : 1)}k Followers`
+                          : `${user.followers}`
+                      ) : 'N/A'}
                     </p>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                    {app.status}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {new Date(app.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </span>
+              {/* Approved Banner */}
+              {app.status === 'Approved' && (
+                <div className="mx-5 mb-3">
+                  <div className="rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 border border-white/5 px-4 py-3 flex items-center justify-center gap-2">
+                    <Info className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm font-medium text-slate-200">What&apos;s the Next Step?</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions Row */}
+              <div className="px-5 pb-4">
+                <div className="flex items-center justify-end gap-3">
+                  {/* Reply button for approved */}
+                  {app.status === 'Approved' && (
+                    <button
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-white/10 text-slate-300 hover:bg-slate-700 hover:text-white transition-all text-xs font-semibold"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Reply
+                    </button>
+                  )}
+
+                  {/* Upload Order Details - only when approved */}
+                  {app.status === 'Approved' && app.campaigns?.order_form && (
+                    <button
+                      onClick={() => setSelectedApplication(app)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-semibold"
+                    >
+                      {app.form_data?.order_details ? (
+                        <>
+                          <CheckCircle2 className="h-4 w-4" />
+                          Update Order Details
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-4 w-4" />
+                          Upload Order Details
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      <OrderVerificationModal
+        isOpen={!!selectedApplication}
+        onClose={() => setSelectedApplication(null)}
+        application={selectedApplication}
+        onSuccess={fetchApplications}
+      />
     </div>
   )
 }

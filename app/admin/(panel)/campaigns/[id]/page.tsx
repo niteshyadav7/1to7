@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +32,8 @@ interface CampaignData {
   collab_date: string
   form_link: string
   form_fields: FormField[]
+  order_form: boolean
+  order_form_fields: FormField[]
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,8 +59,11 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     additional_info: '',
     collab_date: '',
     form_link: '',
+    order_form: false,
+    show_order_form: true,
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
+  const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
 
   useEffect(() => {
     fetchCampaign()
@@ -89,8 +94,11 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         additional_info: data.campaign.additional_info || '',
         collab_date: data.campaign.collab_date || '',
         form_link: data.campaign.form_link || '',
+        order_form: data.campaign.order_form || false,
+        show_order_form: data.campaign.show_order_form !== false,
       })
       setCustomFields(data.campaign.form_fields || [])
+      setOrderFormFields(data.campaign.order_form_fields || [])
     } catch {
       toast.error('Failed to load campaign')
     } finally {
@@ -113,6 +121,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           ? formData.product_links.split('\n').map(l => l.trim()).filter(Boolean)
           : [],
         form_fields: customFields.filter(f => f.name.trim()),
+        order_form: formData.order_form,
+        order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
+        show_order_form: formData.show_order_form,
       }
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
@@ -313,14 +324,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">External Form Link (Optional)</Label>
-              <Input
-                value={formData.form_link}
-                onChange={(e) => setFormData({ ...formData, form_link: e.target.value })}
-                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-              />
-            </div>
+
 
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Deliverables</Label>
@@ -359,6 +363,81 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 onChange={(e) => setFormData({ ...formData, product_links: e.target.value })}
                 rows={3}
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Application Settings */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-emerald-500/5 to-transparent">
+            <ClipboardList className="h-4 w-4 text-emerald-400" />
+            <h3 className="text-sm font-semibold text-white">Application Settings</h3>
+          </div>
+          <div className="p-6 space-y-5">
+            {/* Order Form Toggle */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Order Form Required?</Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, order_form: true })}
+                  className={`flex-1 h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
+                    formData.order_form
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  ✅ Yes — Collect Order Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, order_form: false })}
+                  className={`flex-1 h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
+                    !formData.order_form
+                      ? 'bg-orange-500/15 text-orange-300 border-orange-500/20'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  ❌ No — Just Comments
+                </button>
+              </div>
+            </div>
+
+            {/* Show Order Form to Influencers Toggle */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Show Order Form info to Influencers?</Label>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, show_order_form: !formData.show_order_form })}
+                className={`w-full h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
+                  formData.show_order_form
+                    ? 'bg-blue-500/15 text-blue-300 border-blue-500/20'
+                    : 'bg-slate-950/50 text-slate-400 border-white/10'
+                }`}
+              >
+                {formData.show_order_form ? '👁️ Visible — Influencers can see Order Form info' : '🙈 Hidden — Order Form info hidden from influencers'}
+              </button>
+            </div>
+
+            {/* Order Form Fields (only when order_form = true) */}
+            {formData.order_form && (
+              <div className="space-y-3">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Order Form Fields</Label>
+                <p className="text-xs text-slate-500">Define fields for order details (e.g. Delivery Address, T-shirt Size, Quantity).</p>
+                <FormFieldBuilder fields={orderFormFields} onChange={setOrderFormFields} />
+              </div>
+            )}
+
+            {/* External Form Link */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">External Form Link (Optional)</Label>
+              <p className="text-xs text-slate-500 mb-1">If set, clicking "Apply" will redirect influencers to this link instead of showing the built-in form.</p>
+              <Input
+                value={formData.form_link}
+                onChange={(e) => setFormData({ ...formData, form_link: e.target.value })}
+                placeholder="e.g. https://forms.gle/..."
+                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
               />
             </div>
           </div>
