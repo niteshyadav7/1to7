@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { Client } from 'pg'
 import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
@@ -12,14 +12,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    // Find admin by email
-    const { data: admin, error: adminError } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    // Connect to database to fetch admin securely, bypassing RLS
+    const client = new Client({ connectionString: process.env.POSTGRES_URL })
+    await client.connect()
+    
+    const res = await client.query('SELECT * FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
+    await client.end()
 
-    if (adminError || !admin) {
+    const admin = res.rows[0]
+
+    if (!admin) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 

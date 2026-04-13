@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Loader2, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react'
+import { Loader2, Lock, Mail, ShieldCheck, Sparkles, Zap } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -128,7 +128,26 @@ export default function AdminLoginPage() {
             </div>
             <span className="text-xs font-bold text-slate-500">1to7 Media</span>
           </div>
-          <p className="text-[11px] text-slate-600">Restricted access — authorized personnel only</p>
+          <p className="text-[11px] text-slate-600 mb-6">Restricted access — authorized personnel only</p>
+          
+          <button
+            type="button"
+            onClick={async () => {
+              const loadingToast = toast.loading('Seeding database...')
+              try {
+                const res = await fetch('/api/admin/seed', { method: 'POST' })
+                const data = await res.json()
+                if (!res.ok) throw new Error(data.error)
+                toast.success(data.message, { id: loadingToast })
+              } catch (err: any) {
+                toast.error(err.message, { id: loadingToast })
+              }
+            }}
+            className="mx-auto flex shadow-lg items-center gap-2 px-4 py-2 border border-slate-700 hover:border-indigo-500 rounded-lg text-slate-400 hover:text-indigo-400 text-xs font-medium bg-slate-900/50 hover:bg-slate-800 transition-all cursor-pointer"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Seed Database
+          </button>
         </div>
       </motion.div>
     </div>

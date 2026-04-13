@@ -1,96 +1,104 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { Client } from 'pg'
 import { getAdminFromRequest } from '@/lib/admin-auth'
 
 export async function GET() {
+  const client = new Client({ connectionString: process.env.POSTGRES_URL })
   try {
     const admin = await getAdminFromRequest()
     if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Total campaigns
-    const { count: totalCampaigns } = await supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
+    await client.connect()
 
-    // Live campaigns
-    const { count: liveCampaigns } = await supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_live', true)
+    // 1. Total campaigns
+    const totalCampaignsRes = await client.query('SELECT COUNT(*) FROM public.campaigns')
+    const totalCampaigns = parseInt(totalCampaignsRes.rows[0].count)
 
-    // Total applications
-    const { count: totalApplications } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
+    // 2. Live campaigns
+    const liveCampaignsRes = await client.query('SELECT COUNT(*) FROM public.campaigns WHERE is_live = true')
+    const liveCampaigns = parseInt(liveCampaignsRes.rows[0].count)
 
-    // Pending applications (Applied status)
-    const { count: pendingApplications } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Applied')
+    // 3. Total applications
+    const totalAppsRes = await client.query('SELECT COUNT(*) FROM public.applications')
+    const totalApplications = parseInt(totalAppsRes.rows[0].count)
 
-    // Approved applications
-    const { count: approvedApplications } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Approved')
+    // 4. Pending applications
+    const pendingAppsRes = await client.query("SELECT COUNT(*) FROM public.applications WHERE status = 'Applied'")
+    const pendingApplications = parseInt(pendingAppsRes.rows[0].count)
 
-    // Rejected applications
-    const { count: rejectedApplications } = await supabase
-      .from('applications')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Rejected')
+    // 5. Approved applications
+    const approvedAppsRes = await client.query("SELECT COUNT(*) FROM public.applications WHERE status = 'Approved'")
+    const approvedApplications = parseInt(approvedAppsRes.rows[0].count)
 
-    // Total influencers (users)
-    const { count: totalInfluencers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
+    // 6. Rejected applications
+    const rejectedAppsRes = await client.query("SELECT COUNT(*) FROM public.applications WHERE status = 'Rejected'")
+    const rejectedApplications = parseInt(rejectedAppsRes.rows[0].count)
 
-    // Recent Pending applications (last 5)
-    const { data: recentPendingApplications } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        status,
-        created_at,
-        users ( full_name, influencer_id, instagram_username ),
-        campaigns ( brand_name, platform, campaign_code )
-      `)
-      .eq('status', 'Applied')
-      .order('created_at', { ascending: false })
-      .limit(5)
+    // 7. Total influencers
+    const totalInfluencersRes = await client.query('SELECT COUNT(*) FROM public.users')
+    const totalInfluencers = parseInt(totalInfluencersRes.rows[0].count)
 
-    // Recent Approved applications (last 5)
-    const { data: recentApprovedApplications } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        status,
-        created_at,
-        users ( full_name, influencer_id, instagram_username ),
-        campaigns ( brand_name, platform, campaign_code )
-      `)
-      .eq('status', 'Approved')
-      .order('updated_at', { ascending: false })
-      .limit(5)
+    // 8. Recent Pending applications
+    const recentPendingRes = await client.query(`
+      SELECT 
+        a.id, a.status, a.created_at,
+        u.full_name, u.influencer_id, u.instagram_username,
+        c.brand_name, c.platform, c.campaign_code
+      FROM public.applications a
+      JOIN public.users u ON a.user_id = u.id
+      JOIN public.campaigns c ON a.campaign_id = c.id
+      WHERE a.status = 'Applied'
+      ORDER BY a.created_at DESC
+      LIMIT 5
+    `)
+    const recentPendingApplications = recentPendingRes.rows.map(row => ({
+      id: row.id,
+      status: row.status,
+      created_at: row.created_at,
+      users: { full_name: row.full_name, influencer_id: row.influencer_id, instagram_username: row.instagram_username },
+      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code }
+    }))
+
+    // 9. Recent Approved applications
+    const recentApprovedRes = await client.query(`
+      SELECT 
+        a.id, a.status, a.created_at, a.updated_at,
+        u.full_name, u.influencer_id, u.instagram_username,
+        c.brand_name, c.platform, c.campaign_code
+      FROM public.applications a
+      JOIN public.users u ON a.user_id = u.id
+      JOIN public.campaigns c ON a.campaign_id = c.id
+      WHERE a.status = 'Approved'
+      ORDER BY a.updated_at DESC
+      LIMIT 5
+    `)
+    const recentApprovedApplications = recentApprovedRes.rows.map(row => ({
+      id: row.id,
+      status: row.status,
+      created_at: row.created_at,
+      users: { full_name: row.full_name, influencer_id: row.influencer_id, instagram_username: row.instagram_username },
+      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code }
+    }))
 
     return NextResponse.json({
       stats: {
-        totalCampaigns: totalCampaigns || 0,
-        liveCampaigns: liveCampaigns || 0,
-        totalApplications: totalApplications || 0,
-        pendingApplications: pendingApplications || 0,
-        approvedApplications: approvedApplications || 0,
-        rejectedApplications: rejectedApplications || 0,
-        totalInfluencers: totalInfluencers || 0,
+        totalCampaigns,
+        liveCampaigns,
+        totalApplications,
+        pendingApplications,
+        approvedApplications,
+        rejectedApplications,
+        totalInfluencers,
       },
-      recentPendingApplications: recentPendingApplications || [],
-      recentApprovedApplications: recentApprovedApplications || [],
+      recentPendingApplications,
+      recentApprovedApplications,
     })
   } catch (error) {
     console.error('API /admin/dashboard/stats Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } finally {
+    await client.end()
   }
 }

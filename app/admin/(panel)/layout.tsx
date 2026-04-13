@@ -12,7 +12,11 @@ import {
   Menu,
   ChevronRight,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardList,
+  CreditCard,
+  BarChart3,
+  PieChart
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -36,6 +40,10 @@ const sidebarLinks = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
   { href: '/admin/applications', label: 'Applications', icon: Users },
+  { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/requests', label: 'Requests', icon: PieChart },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/influencers', label: 'Influencers', icon: Users },
 ]
 

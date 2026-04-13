@@ -1,31 +1,32 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { Client } from 'pg'
 import { getAdminFromRequest } from '@/lib/admin-auth'
 
 export async function GET() {
+  const client = new Client({ connectionString: process.env.POSTGRES_URL })
   try {
     const admin = await getAdminFromRequest()
     if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get all campaigns with application counts
-    const { data: campaigns, error } = await supabase
-      .from('campaigns')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
+    await client.connect()
+    
+    // Get all campaigns
+    const campaignsRes = await client.query(`
+      SELECT * FROM public.campaigns 
+      ORDER BY created_at DESC
+    `)
+    const campaigns = campaignsRes.rows
 
     // Get application counts per campaign
     const campaignsWithCounts = await Promise.all(
-      (campaigns || []).map(async (campaign) => {
-        const { count } = await supabase
-          .from('applications')
-          .select('*', { count: 'exact', head: true })
-          .eq('campaign_id', campaign.id)
-
-        return { ...campaign, application_count: count || 0 }
+      campaigns.map(async (campaign) => {
+        const countRes = await client.query(
+          'SELECT COUNT(*) FROM public.applications WHERE campaign_id = $1',
+          [campaign.id]
+        )
+        return { ...campaign, application_count: parseInt(countRes.rows[0].count) || 0 }
       })
     )
 
@@ -33,10 +34,13 @@ export async function GET() {
   } catch (error) {
     console.error('API /admin/campaigns GET Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } finally {
+    await client.end()
   }
 }
 
 export async function POST(request: Request) {
+  const client = new Client({ connectionString: process.env.POSTGRES_URL })
   try {
     const admin = await getAdminFromRequest()
     if (!admin) {
@@ -72,39 +76,34 @@ export async function POST(request: Request) {
     // Auto-generate campaign code
     const code = `CAM-${Date.now().toString(36).toUpperCase()}`
 
-    const { data: campaign, error } = await supabase
-      .from('campaigns')
-      .insert({
-        campaign_code: code,
-        brand_name,
-        category: category || null,
-        platform,
-        budget_type: budget_type || null,
-        deliverables: deliverables || null,
-        product_links: product_links || [],
-        requirements: requirements || null,
-        gender_required: gender_required || 'Any',
-        location: location || null,
-        looking_for: looking_for || null,
-        followers: followers || null,
-        additional_info: additional_info || null,
-        collab_date: collab_date || null,
-        form_link: form_link || null,
-        form_fields: form_fields || [],
-        order_form: order_form || false,
-        order_form_fields: order_form_fields || [],
-        show_order_form: show_order_form !== false,
-        status: 'Draft',
-        is_live: false,
-      })
-      .select()
-      .single()
+    await client.connect()
+    const query = `
+      INSERT INTO public.campaigns (
+        campaign_code, brand_name, category, platform, budget_type, 
+        deliverables, product_links, requirements, gender_required, 
+        location, looking_for, followers, additional_info, 
+        collab_date, form_link, form_fields, order_form, 
+        order_form_fields, show_order_form, status, is_live
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+      ) RETURNING *
+    `
+    const values = [
+      code, brand_name, category || null, platform, budget_type || null,
+      deliverables || null, product_links || [], requirements || null, gender_required || 'Any',
+      location || null, looking_for || null, followers || null, additional_info || null,
+      collab_date || null, form_link || null, JSON.stringify(form_fields || []), order_form || false,
+      JSON.stringify(order_form_fields || []), show_order_form !== false, 'Draft', false
+    ]
 
-    if (error) throw error
+    const res = await client.query(query, values)
+    const campaign = res.rows[0]
 
     return NextResponse.json({ success: true, campaign })
   } catch (error) {
     console.error('API /admin/campaigns POST Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } finally {
+    await client.end()
   }
 }

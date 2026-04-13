@@ -49,7 +49,8 @@ export async function POST(request: Request) {
           password_hash: hashedPassword,
           instagram_username: instagramUsername, 
           gender, 
-          influencer_id: newInfluencerId 
+          influencer_id: newInfluencerId,
+          is_email_verified: true
         }
       ])
       .select()
