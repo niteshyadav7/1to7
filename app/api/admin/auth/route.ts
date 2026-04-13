@@ -58,6 +58,6 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('API /admin/auth Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }
