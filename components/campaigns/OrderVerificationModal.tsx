@@ -19,8 +19,8 @@ interface Application {
   id: string
   campaigns: {
     brand_name: string
-    order_form: boolean
-    order_form_fields: FormField[]
+    order_form?: boolean
+    order_form_fields?: FormField[]
   }
 }
 

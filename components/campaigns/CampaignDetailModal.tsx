@@ -93,9 +93,51 @@ export default function CampaignDetailModal({
   const [submitting, setSubmitting] = useState(false)
   const [showOTPModal, setShowOTPModal] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, isInline: boolean) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, and WebP images are allowed')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB')
+      return
+    }
+
+    setUploadingFields(p => ({ ...p, [fieldName]: true }))
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      if (isInline) {
+        setInlineData(p => ({ ...p, [fieldName]: data.url }))
+      } else {
+        setCustomFormData(p => ({ ...p, [fieldName]: data.url }))
+      }
+      toast.success('Image uploaded successfully')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image')
+    } finally {
+      setUploadingFields(p => ({ ...p, [fieldName]: false }))
+    }
+  }
 
   // Reset state when modal opens
   useEffect(() => {

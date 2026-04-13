@@ -35,13 +35,13 @@ export default function AdminCreateCampaignPage() {
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([
-    { name: 'Order ID', type: 'text', required: true },
-    { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true },
-    { name: 'Product Amount (₹)', type: 'number', required: true },
-    { name: 'Reviewer Name', type: 'text', required: true },
-    { name: 'Reviewer Profile Link', type: 'text', required: true },
-    { name: 'Order Placement Screenshot', type: 'image', required: true },
-    { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true }
+    { name: 'Order ID', type: 'text', required: true, options: [] },
+    { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true, options: [] },
+    { name: 'Product Amount (₹)', type: 'number', required: true, options: [] },
+    { name: 'Reviewer Name', type: 'text', required: true, options: [] },
+    { name: 'Reviewer Profile Link', type: 'text', required: true, options: [] },
+    { name: 'Order Placement Screenshot', type: 'image', required: true, options: [] },
+    { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true, options: [] }
   ])
 
   const handleSubmit = async (e: React.FormEvent) => {

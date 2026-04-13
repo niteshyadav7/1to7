@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
-  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award
+  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -288,7 +288,7 @@ export default function InfluencersDirectoryPage() {
     
     // In a real app, you might want to fetch all pages for export, 
     // but here we export current view for simplicity.
-    const csvRows = []
+    const csvRows: string[] = []
     const headers = ['ID', 'Name', 'Email', 'Mobile', 'Instagram', 'Followers', 'Location', 'Gender', 'Profile Strength', 'Verified', 'Joined']
     csvRows.push(headers.join(','))
 
