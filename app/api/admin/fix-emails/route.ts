@@ -19,3 +19,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+// cmd
