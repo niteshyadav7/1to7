@@ -3,7 +3,14 @@ import { Client } from 'pg'
 import { getAdminFromRequest } from '@/lib/admin-auth'
 
 export async function GET() {
-  const client = new Client({ connectionString: process.env.POSTGRES_URL })
+  if (!process.env.POSTGRES_URL) {
+    console.error('Missing POSTGRES_URL environment variable');
+    return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
+  }
+  const client = new Client({ 
+    connectionString: process.env.POSTGRES_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+  })
   try {
     const admin = await getAdminFromRequest()
     if (!admin) {
@@ -40,7 +47,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const client = new Client({ connectionString: process.env.POSTGRES_URL })
+  if (!process.env.POSTGRES_URL) {
+    console.error('Missing POSTGRES_URL environment variable');
+    return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
+  }
+  const client = new Client({ 
+    connectionString: process.env.POSTGRES_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+  })
   try {
     const admin = await getAdminFromRequest()
     if (!admin) {

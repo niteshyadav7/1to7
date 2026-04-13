@@ -12,8 +12,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
+    if (!process.env.POSTGRES_URL) {
+      console.error('Missing POSTGRES_URL environment variable');
+      return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
+    }
+
     // Connect to database to fetch admin securely, bypassing RLS
-    const client = new Client({ connectionString: process.env.POSTGRES_URL })
+    const client = new Client({ 
+      connectionString: process.env.POSTGRES_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    })
     await client.connect()
     
     const res = await client.query('SELECT * FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])

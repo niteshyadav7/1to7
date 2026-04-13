@@ -10,6 +10,7 @@ export async function POST() {
 
   const client = new Client({
     connectionString: process.env.POSTGRES_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
   });
 
   try {
