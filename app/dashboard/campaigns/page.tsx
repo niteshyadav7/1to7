@@ -171,12 +171,26 @@ export default function AppliedCampaignsPage() {
                 </div>
               </div>
 
-              {/* Approved Banner */}
+              {/* Approved / Rejected Banner */}
               {app.status === 'Approved' && (
                 <div className="mx-5 mb-3">
                   <div className="rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 border border-white/5 px-4 py-3 flex items-center justify-center gap-2">
                     <Info className="h-4 w-4 text-blue-400" />
                     <span className="text-sm font-medium text-slate-200">What&apos;s the Next Step?</span>
+                  </div>
+                </div>
+              )}
+
+              {app.status === 'Rejected' && app.form_data?.rejection_reason && (
+                <div className="mx-5 mb-3">
+                  <div className="rounded-xl bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/20 px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <MessageSquare className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-sm font-bold text-red-300 block mb-1">Order Rejected</span>
+                        <span className="text-xs font-medium text-slate-300">{app.form_data.rejection_reason}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -194,11 +208,11 @@ export default function AppliedCampaignsPage() {
                     </button>
                   )}
 
-                  {/* Upload Order Details - only when approved */}
-                  {app.status === 'Approved' && app.campaigns?.order_form && (
+                  {/* Upload Order Details - when approved or rejected */}
+                  {(app.status === 'Approved' || app.status === 'Rejected') && app.campaigns?.order_form && (
                     <button
                       onClick={() => setSelectedApplication(app)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-semibold"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-semibold cursor-pointer"
                     >
                       {app.form_data?.order_details ? (
                         <>

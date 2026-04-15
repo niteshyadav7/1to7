@@ -21,6 +21,7 @@ CREATE TABLE public.users (
   state TEXT,
   city TEXT,
   followers INTEGER DEFAULT 0,
+  category TEXT,
   is_email_verified BOOLEAN DEFAULT false,
   is_mobile_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,

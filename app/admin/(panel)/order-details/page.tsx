@@ -501,22 +501,18 @@ function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => vo
   )
 }
 
-// ─── ActionsDropdown Component ─────────────────────────────
 function ActionsDropdown({
   app,
   onStatusChange,
+  onInitiatePayment,
+  onReject,
 }: {
   app: OrderEntry
   onStatusChange: (id: string, status: string) => void
+  onInitiatePayment: (app: OrderEntry) => void
+  onReject: (app: OrderEntry) => void
 }) {
   const popover = usePopover()
-
-  const actions = [
-    { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
-    { label: 'Initiate Payment', status: 'Payment Initiated', icon: DollarSign, color: 'text-amber-400 hover:bg-amber-500/10' },
-  ].filter(a => a.status !== app.status)
-
-  if (actions.length === 0) return null
 
   return (
     <div className="relative" ref={popover.ref}>
@@ -529,30 +525,34 @@ function ActionsDropdown({
 
       <AnimatePresence>
         {popover.open && (
-          <motion.div
+           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.12 }}
             className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
           >
-            <div className="p-1">
-              {actions.map(a => (
-                <button
-                  key={a.status}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onStatusChange(app.id, a.status)
-                    popover.setOpen(false)
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${a.color}`}
-                >
-                  <a.icon className="h-3.5 w-3.5" />
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+             <div className="p-1">
+               {app.status !== 'Completed' && (
+                 <button onClick={(e) => { e.stopPropagation(); onStatusChange(app.id, 'Completed'); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-purple-400 hover:bg-purple-500/10 cursor-pointer">
+                   <CheckCircle2 className="h-3.5 w-3.5" />
+                   Mark Completed
+                 </button>
+               )}
+               {app.status !== 'Payment Initiated' && (
+                 <button onClick={(e) => { e.stopPropagation(); onInitiatePayment(app); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-amber-400 hover:bg-amber-500/10 cursor-pointer">
+                   <DollarSign className="h-3.5 w-3.5" />
+                   Initiate Payment
+                 </button>
+               )}
+               {app.status !== 'Rejected' && (
+                 <button onClick={(e) => { e.stopPropagation(); onReject(app); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-500/10 cursor-pointer">
+                   <XCircle className="h-3.5 w-3.5" />
+                   Reject Order
+                 </button>
+               )}
+             </div>
+           </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -678,6 +678,13 @@ export default function OrderDetailsPage() {
 
   // Image preview
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
+
+  // Action Modals State
+  const [initiatePaymentApp, setInitiatePaymentApp] = useState<OrderEntry | null>(null)
+  const [rejectApp, setRejectApp] = useState<OrderEntry | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentCommission, setPaymentCommission] = useState('')
+  const [rejectReason, setRejectReason] = useState('')
 
   // ─── Derived data ─────────────────────────────────────
   const uniqueBrands = useMemo(() =>
@@ -859,6 +866,65 @@ export default function OrderDetailsPage() {
       toast.success(`Order marked as ${newStatus}`)
     } catch {
       toast.error('Failed to update status')
+    }
+  }
+
+  const handleInitiatePaymentSubmit = async () => {
+    if (!initiatePaymentApp) return
+    const amt = parseFloat(paymentAmount) || 0
+    const comm = parseFloat(paymentCommission) || 0
+    const total = amt + comm
+
+    if (total <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Payment Initiated',
+          partial_payment: total // Update the amount as requested
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to initiate payment')
+      
+      setOrders(prev => prev.map(o => o.id === initiatePaymentApp.id ? { ...o, status: 'Payment Initiated', partial_payment: total } : o))
+      toast.success('Payment initiated successfully')
+      setInitiatePaymentApp(null)
+      setPaymentAmount('')
+      setPaymentCommission('')
+    } catch {
+      toast.error('Failed to initiate payment')
+    }
+  }
+
+  const handleRejectSubmit = async () => {
+    if (!rejectApp || !rejectReason.trim()) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+
+    try {
+      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason }
+      const res = await fetch(`/api/admin/applications/${rejectApp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Rejected',
+          form_data: newFormData
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to reject order')
+      
+      setOrders(prev => prev.map(o => o.id === rejectApp.id ? { ...o, status: 'Rejected', form_data: newFormData } : o))
+      toast.success('Order rejected successfully')
+      setRejectApp(null)
+      setRejectReason('')
+    } catch {
+      toast.error('Failed to reject order')
     }
   }
 
@@ -1321,7 +1387,7 @@ export default function OrderDetailsPage() {
                         {/* Actions */}
                         {visibleCols.actions && (
                           <td className={`px-2 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
-                            <ActionsDropdown app={order} onStatusChange={updateSingleStatus} />
+                            <ActionsDropdown app={order} onStatusChange={updateSingleStatus} onInitiatePayment={setInitiatePaymentApp} onReject={setRejectApp} />
                           </td>
                         )}
                       </motion.tr>
@@ -1457,19 +1523,19 @@ export default function OrderDetailsPage() {
                                     <div className="mt-6 flex flex-wrap items-center gap-3 pt-4 border-t border-indigo-500/20">
                                       <Button
                                         size="sm"
-                                        onClick={() => updateSingleStatus(order.id, 'Completed')}
-                                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer"
-                                      >
-                                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                                        Verify & Mark Completed
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => updateSingleStatus(order.id, 'Payment Initiated')}
+                                        onClick={() => setInitiatePaymentApp(order)}
                                         className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
                                       >
                                         <DollarSign className="mr-1.5 h-4 w-4" />
                                         Verify & Initiate Payment
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => setRejectApp(order)}
+                                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
+                                      >
+                                        <XCircle className="mr-1.5 h-4 w-4" />
+                                        Reject (with reason)
                                       </Button>
                                     </div>
                                   </div>
@@ -1620,6 +1686,123 @@ export default function OrderDetailsPage() {
           onClose={() => setPreviewImage(null)}
         />
       )}
+
+      {/* Initiate Payment Modal */}
+      <AnimatePresence>
+        {initiatePaymentApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => setInitiatePaymentApp(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6"
+            >
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-amber-500" />
+                Initiate Payment
+              </h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Enter the approved amount and commission. The sum will be shown to the influencer.
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Amount (₹)</label>
+                  <Input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentAmount(e.target.value)}
+                    placeholder="e.g. 1000"
+                    className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Commission (₹)</label>
+                  <Input
+                    type="number"
+                    value={paymentCommission}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentCommission(e.target.value)}
+                    placeholder="e.g. 200"
+                    className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                  />
+                </div>
+                {paymentAmount || paymentCommission ? (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                    <p className="text-[10px] text-amber-500 uppercase tracking-wider font-bold mb-1">Total to Influencer</p>
+                    <p className="text-lg font-bold text-amber-400">
+                      ₹{((parseFloat(paymentAmount) || 0) + (parseFloat(paymentCommission) || 0)).toLocaleString()}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setInitiatePaymentApp(null)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
+                  Cancel
+                </Button>
+                <Button onClick={handleInitiatePaymentSubmit} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-none font-bold cursor-pointer">
+                  Confirm Payment
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Modal */}
+      <AnimatePresence>
+        {rejectApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => setRejectApp(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6"
+            >
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <XCircle className="h-5 w-5 text-red-500" />
+                Reject Order
+              </h3>
+              
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Reason for Rejection *</label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRejectReason(e.target.value)}
+                    placeholder="Explain why the order was rejected..."
+                    rows={4}
+                    className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500/50 resize-none placeholder:text-slate-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setRejectApp(null)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
+                  Cancel
+                </Button>
+                <Button onClick={handleRejectSubmit} className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-none font-bold cursor-pointer">
+                  Reject Order
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

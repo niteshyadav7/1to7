@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import {
   User, Save, Loader2, Lock, Instagram, MapPin, Users, CreditCard,
   Sparkles, Shield, CheckCircle2, AtSign, Building, Hash, Globe,
-  BadgeCheck, ExternalLink
+  BadgeCheck, ExternalLink, Tag, X
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,7 @@ interface UserProfile {
   email: string
   instagram_username: string
   gender: string
+  category: string
   profile_strength: number
   account_name: string
   account_number: string
@@ -36,8 +37,31 @@ interface UserProfile {
   is_mobile_verified?: boolean
 }
 
+const INFLUENCER_CATEGORIES = [
+  'Fashion & Style',
+  'Beauty & Skincare',
+  'Fitness & Health',
+  'Food & Cooking',
+  'Travel & Adventure',
+  'Tech & Gadgets',
+  'Gaming',
+  'Photography',
+  'Art & Design',
+  'Music & Dance',
+  'Comedy & Entertainment',
+  'Education & Learning',
+  'Finance & Business',
+  'Lifestyle & Vlogging',
+  'Parenting & Family',
+  'Pets & Animals',
+  'Sports',
+  'Automotive & Cars',
+  'Home & Interior',
+  'Motivational & Self-Help',
+]
+
 function computeProfileStrength(data: any): number {
-  const fields = ['full_name', 'instagram_username', 'gender', 'state', 'city', 'followers', 'account_name', 'account_number', 'ifsc_code']
+  const fields = ['full_name', 'instagram_username', 'gender', 'category', 'state', 'city', 'followers', 'account_name', 'account_number', 'ifsc_code']
   let filled = 0
   for (const f of fields) {
     if (data[f] && String(data[f]).trim() !== '' && String(data[f]) !== '0') filled++
@@ -51,10 +75,12 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showOTPModal, setShowOTPModal] = useState(false)
+  const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [formData, setFormData] = useState({
     full_name: (authUser?.full_name as string) || '',
     instagram_username: (authUser?.instagram_username as string) || '',
     gender: (authUser?.gender as string) || '',
+    category: '',
     state: '',
     city: '',
     followers: 0,
@@ -73,11 +99,15 @@ export default function ProfilePage() {
       const data = await res.json()
       if (data.user) {
         setProfile(data.user)
+        const savedCategory = data.user.category || ''
+        const isCustom = savedCategory && !INFLUENCER_CATEGORIES.includes(savedCategory)
+        setShowCustomCategory(isCustom)
         setFormData(prev => ({
           ...prev,
           full_name: data.user.full_name || prev.full_name,
           instagram_username: data.user.instagram_username || prev.instagram_username,
           gender: data.user.gender || prev.gender,
+          category: savedCategory,
           state: data.user.state || '',
           city: data.user.city || '',
           followers: data.user.followers || 0,
@@ -288,6 +318,63 @@ export default function ProfilePage() {
                 <Input value={profile?.email || authUser?.email || ''} readOnly className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl" />
               </div>
             </div>
+          </div>
+
+          {/* Category / Niche */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Influencer Category / Niche</Label>
+            {showCustomCategory ? (
+              <div className="relative">
+                <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-purple-400" />
+                <Input
+                  value={formData.category}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="Enter your custom category"
+                  className="pl-10 pr-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-purple-500 rounded-xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomCategory(false)
+                    setFormData({ ...formData, category: '' })
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400 transition-colors cursor-pointer"
+                  title="Back to dropdown"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <Select
+                value={formData.category || ""}
+                onValueChange={(v) => {
+                  if (v === '__custom__') {
+                    setShowCustomCategory(true)
+                    setFormData({ ...formData, category: '' })
+                  } else {
+                    setFormData({ ...formData, category: v || '' })
+                  }
+                }}
+              >
+                <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-purple-500 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-purple-400" />
+                    <SelectValue placeholder="Select your niche" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 max-h-[300px]">
+                  {INFLUENCER_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="focus:bg-purple-500/30 focus:text-white cursor-pointer py-2.5">
+                      {cat}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__custom__" className="focus:bg-pink-500/30 focus:text-white cursor-pointer py-2.5 border-t border-white/10 mt-1">
+                    ✏️ Other — Enter custom category
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            <p className="text-xs text-slate-500">Choose the niche that best describes your content, or add your own.</p>
           </div>
         </div>
       </motion.div>

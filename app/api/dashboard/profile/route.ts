@@ -19,7 +19,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, influencer_id, full_name, mobile, email, instagram_username, gender, profile_strength, account_name, account_number, ifsc_code, state, city, followers, created_at, is_email_verified, is_mobile_verified')
+      .select('id, influencer_id, full_name, mobile, email, instagram_username, gender, category, profile_strength, account_name, account_number, ifsc_code, state, city, followers, created_at, is_email_verified, is_mobile_verified')
       .eq('id', payload.id)
       .single()
 
@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
 
     // Only allow updating these fields
     const allowedFields = [
-      'full_name', 'instagram_username', 'gender',
+      'full_name', 'instagram_username', 'gender', 'category',
       'state', 'city', 'followers',
       'account_name', 'account_number', 'ifsc_code'
     ]

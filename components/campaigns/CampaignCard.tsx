@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Instagram, Youtube, ShoppingBag, Sparkles, Users, ArrowRight } from 'lucide-react'
+import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, Sparkles, MapPin, ChevronRight } from 'lucide-react'
 
 interface Campaign {
   id: string
@@ -25,39 +25,21 @@ interface Campaign {
   form_link?: string
 }
 
-const platformIcons: Record<string, React.ReactNode> = {
-  'Instagram': <Instagram className="h-4 w-4" />,
-  'YouTube': <Youtube className="h-4 w-4" />,
-  'Amazon': <ShoppingBag className="h-4 w-4" />,
+const platformConfig: Record<string, { icon: React.ReactNode; color: string }> = {
+  'Instagram': { icon: <Instagram className="h-3.5 w-3.5" />, color: 'text-pink-400' },
+  'YouTube': { icon: <Youtube className="h-3.5 w-3.5" />, color: 'text-red-400' },
+  'Amazon': { icon: <ShoppingBag className="h-3.5 w-3.5" />, color: 'text-amber-400' },
 }
 
-const platformColors: Record<string, string> = {
-  'Instagram': 'from-pink-500 to-purple-500',
-  'YouTube': 'from-red-500 to-rose-500',
-  'Amazon': 'from-amber-500 to-orange-500',
-}
-
-const brandGradients: Record<string, string> = {
-  'Nike': 'from-slate-800 to-slate-900',
-  'Spotify India': 'from-emerald-600 to-green-700',
-  'Mamaearth': 'from-green-500 to-lime-600',
-  'boAt Lifestyle': 'from-red-600 to-rose-700',
-  'Zomato': 'from-red-500 to-red-700',
-  'Nykaa': 'from-pink-500 to-rose-600',
-  'Flipkart': 'from-blue-500 to-indigo-600',
-  'Sugar Cosmetics': 'from-pink-400 to-fuchsia-500',
-}
-
-const brandEmojis: Record<string, string> = {
-  'Nike': '👟',
-  'Spotify India': '🎵',
-  'Mamaearth': '🌿',
-  'boAt Lifestyle': '🎧',
-  'Zomato': '🍕',
-  'Nykaa': '💄',
-  'Flipkart': '🛒',
-  'Sugar Cosmetics': '💋',
-}
+// Each card gets a unique accent color — subtle but distinctive
+const accentColors = [
+  { border: 'border-t-indigo-500', dot: 'bg-indigo-500', badge: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20', avatar: 'from-indigo-500 to-indigo-600', glow: 'hover:shadow-indigo-500/5' },
+  { border: 'border-t-violet-500', dot: 'bg-violet-500', badge: 'bg-violet-500/10 text-violet-400 border-violet-500/20', avatar: 'from-violet-500 to-violet-600', glow: 'hover:shadow-violet-500/5' },
+  { border: 'border-t-cyan-500', dot: 'bg-cyan-500', badge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20', avatar: 'from-cyan-500 to-cyan-600', glow: 'hover:shadow-cyan-500/5' },
+  { border: 'border-t-rose-500', dot: 'bg-rose-500', badge: 'bg-rose-500/10 text-rose-400 border-rose-500/20', avatar: 'from-rose-500 to-rose-600', glow: 'hover:shadow-rose-500/5' },
+  { border: 'border-t-emerald-500', dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', avatar: 'from-emerald-500 to-emerald-600', glow: 'hover:shadow-emerald-500/5' },
+  { border: 'border-t-amber-500', dot: 'bg-amber-500', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20', avatar: 'from-amber-500 to-amber-600', glow: 'hover:shadow-amber-500/5' },
+]
 
 export default function CampaignCard({ 
   campaign, 
@@ -68,83 +50,101 @@ export default function CampaignCard({
   index: number 
   onViewDetails: (campaign: Campaign) => void 
 }) {
-  const gradient = brandGradients[campaign.brand_name] || 'from-purple-600 to-pink-500'
-  const emoji = brandEmojis[campaign.brand_name] || '✨'
-  const platformGradient = platformColors[campaign.platform] || 'from-purple-500 to-pink-500'
+  const accent = accentColors[index % accentColors.length]
+  const platform = platformConfig[campaign.platform] || { icon: null, color: 'text-slate-400' }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08 }}
-      whileHover={{ y: -6, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.4, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
       className="group cursor-pointer"
       onClick={() => onViewDetails(campaign)}
     >
-      <div className="relative h-full rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-lg overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-purple-500/10 transition-all duration-300">
-        {/* Brand Header */}
-        <div className={`relative h-28 bg-gradient-to-br ${gradient} p-5 flex items-end justify-between`}>
-          <div className="absolute inset-0 bg-black/10" />
-          <div className="relative z-10">
-            <span className="text-3xl">{emoji}</span>
-            <h3 className="text-lg font-bold text-white mt-1 leading-tight">{campaign.brand_name}</h3>
-          </div>
-          <div className={`relative z-10 flex items-center gap-1.5 rounded-full bg-gradient-to-r ${platformGradient} px-3 py-1 text-xs font-semibold text-white shadow-lg`}>
-            {platformIcons[campaign.platform]}
-            {campaign.platform}
-          </div>
-        </div>
+      <div className={`relative h-full rounded-2xl border border-white/[0.06] ${accent.border} border-t-2 bg-[#111827]/90 backdrop-blur-xl overflow-hidden shadow-lg hover:shadow-2xl ${accent.glow} hover:border-white/[0.1] transition-all duration-300`}>
+        
+        {/* Subtle gradient wash from top */}
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/[0.02] to-transparent pointer-events-none" />
 
-        {/* Content */}
-        <div className="p-5 space-y-3">
-          {/* Category & Budget */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="rounded-full bg-purple-500/15 px-3 py-1 text-xs font-medium text-purple-300 border border-purple-500/20">
+        <div className="relative p-5 space-y-4">
+
+          {/* ── Top Row: Avatar + Brand + LIVE ── */}
+          <div className="flex items-start gap-3.5">
+            {/* Avatar */}
+            <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${accent.avatar} text-white text-base font-bold shadow-lg shrink-0`}>
+              {campaign.brand_name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[15px] font-bold text-white truncate">{campaign.brand_name}</h3>
+                {campaign.is_live && (
+                  <span className="flex items-center gap-1.5 shrink-0 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                    </span>
+                    Live
+                  </span>
+                )}
+              </div>
+              {campaign.location ? (
+                <p className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+                  <MapPin className="h-3 w-3" />
+                  <span className="truncate">{campaign.location}</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-600 font-mono mt-0.5">{campaign.campaign_code}</p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Divider ── */}
+          <div className="h-px bg-white/[0.04]" />
+
+          {/* ── Tags ── */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold border ${accent.badge}`}>
+              {platform.icon}
+              {campaign.platform}
+            </span>
+            <span className="rounded-lg bg-white/[0.04] px-2.5 py-1 text-[11px] font-medium text-slate-400 border border-white/[0.05]">
               {campaign.category}
             </span>
-            <span className={`rounded-full px-3 py-1 text-xs font-medium border ${
+            <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold border ${
               campaign.budget_type === 'Paid' 
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20' 
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/20'
+                ? 'bg-emerald-500/8 text-emerald-400 border-emerald-500/15' 
+                : 'bg-amber-500/8 text-amber-400 border-amber-500/15'
             }`}>
-              {campaign.budget_type === 'Paid' ? '💰 Paid' : '🤝 Barter'}
+              {campaign.budget_type === 'Paid' ? '₹ Paid' : '↔ Barter'}
             </span>
           </div>
 
-          {/* Deliverables */}
-          <p className="text-sm text-slate-300 line-clamp-2 leading-relaxed">
+          {/* ── Deliverables ── */}
+          <p className="text-[13px] text-slate-400 line-clamp-2 leading-[1.65]">
             {campaign.deliverables}
           </p>
 
-          {/* Gender & Location & Followers */}
-          <div className="flex flex-col gap-2 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <Users className="h-3.5 w-3.5 text-indigo-400" />
-              <span>{campaign.gender_required === 'Any' ? 'Open to all genders' : `${campaign.gender_required} creators`}</span>
+          {/* ── Meta ── */}
+          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3 w-3 text-slate-600" />
+              <span>{campaign.gender_required === 'Any' ? 'All genders' : campaign.gender_required}</span>
             </div>
-            
-            {campaign.location && (
-              <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 flex items-center justify-center text-rose-400 text-[10px]">📍</span>
-                <span className="truncate">{campaign.location}</span>
-              </div>
-            )}
-            
             {campaign.followers && (
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span className="truncate">{campaign.followers} followers</span>
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-slate-600" />
+                <span>{campaign.followers}</span>
               </div>
             )}
           </div>
 
-          {/* CTA */}
-          <div className="pt-2">
-            <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-500/30 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:text-purple-300 transition-all duration-200 cursor-pointer group/btn">
-              View Details
-              <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-            </button>
-          </div>
+          {/* ── CTA ── */}
+          <button className={`w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${accent.avatar} hover:opacity-90 px-4 py-3 text-[13px] font-bold text-white shadow-md transition-all duration-200 cursor-pointer group/btn`}>
+            View Details & Apply
+            <ChevronRight className="h-4 w-4 opacity-70 group-hover/btn:translate-x-0.5 transition-transform" />
+          </button>
         </div>
       </div>
     </motion.div>
