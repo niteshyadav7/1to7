@@ -53,8 +53,9 @@ export async function GET() {
     const payments = (applications || []).filter((app: any) => {
       const hasAdminPayment = (app.partial_payment > 0) || (app.final_payment > 0) || (app.pending_amount > 0)
       const hasPaymentRequest = app.form_data?.payment_request && Object.keys(app.form_data.payment_request).length > 0
-      const isPaymentRelevant = ['Approved', 'Payment Initiated', 'Completed'].includes(app.status)
-      return hasAdminPayment || hasPaymentRequest || isPaymentRelevant
+      const hasPartialRequests = Array.isArray(app.form_data?.requests) && app.form_data.requests.length > 0
+      const isPaymentRelevant = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed'].includes(app.status)
+      return hasAdminPayment || hasPaymentRequest || hasPartialRequests || isPaymentRelevant
     })
 
     return NextResponse.json({ payments })

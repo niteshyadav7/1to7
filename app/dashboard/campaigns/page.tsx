@@ -36,7 +36,7 @@ const statusColors: Record<string, string> = {
   'Payment Initiated': 'bg-blue-500/90 text-white',
 }
 
-const statuses = ['All', 'Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated']
+const statuses = ['All', 'Applied', 'Rejected']
 
 export default function AppliedCampaignsPage() {
   const [applications, setApplications] = useState<Application[]>([])
@@ -61,9 +61,13 @@ export default function AppliedCampaignsPage() {
     }
   }
 
+  // Only show Applied & Rejected here — Approved and beyond are on the Approved page
+  const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
+  const appliedPageApps = applications.filter(app => !approvedStatuses.includes(app.status))
+
   const filteredApps = activeFilter === 'All'
-    ? applications
-    : applications.filter((app) => app.status === activeFilter)
+    ? appliedPageApps
+    : appliedPageApps.filter((app) => app.status === activeFilter)
 
   if (loading) {
     return (

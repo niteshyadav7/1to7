@@ -11,7 +11,7 @@ import {
   Calendar, X, MoreHorizontal, SlidersHorizontal,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, Eye,
-  Image, Package, Banknote, IndianRupee, Clock, FileText,
+  Image, Package, Banknote, IndianRupee, Clock, FileText, AlertCircle,
   Pencil, Check, Save
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -69,12 +69,13 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  'Payment Requested': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 const statusDots: Record<string, string> = {
   'Applied': 'bg-blue-400', 'Approved': 'bg-emerald-400', 'Rejected': 'bg-red-400',
-  'Completed': 'bg-purple-400', 'Payment Initiated': 'bg-amber-400',
+  'Completed': 'bg-purple-400', 'Payment Initiated': 'bg-amber-400', 'Payment Requested': 'bg-cyan-400',
 }
-const statusFilters = ['All', 'Payment Initiated', 'Completed', 'Approved']
+const statusFilters = ['All', 'Payment Requested', 'Payment Initiated', 'Completed', 'Approved']
 const dateRanges = [
   { label: 'All Time', value: 'all' }, { label: 'Today', value: 'today' },
   { label: 'Last 7 days', value: '7d' }, { label: 'Last 30 days', value: '30d' },
@@ -477,6 +478,13 @@ export default function PaymentsPage() {
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null)
   const [editValue, setEditValue] = useState('')
+  // Initiate Payment popup state
+  const [initiatePaymentApp, setInitiatePaymentApp] = useState<PaymentEntry | null>(null)
+  const [initiateAmount, setInitiateAmount] = useState('')
+  const [initiateBankCode, setInitiateBankCode] = useState('')
+  // Reject Payment popup state
+  const [rejectPaymentApp, setRejectPaymentApp] = useState<PaymentEntry | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   const uniqueBrands = useMemo(() => [...new Set(payments.map(p => p.campaigns?.brand_name).filter(Boolean))].sort(), [payments])
   const uniquePlatforms = useMemo(() => [...new Set(payments.map(p => p.campaigns?.platform).filter(Boolean))].sort(), [payments])
@@ -738,9 +746,6 @@ export default function PaymentsPage() {
             className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
             <span className="text-sm font-medium text-indigo-300">{selectedIds.size} selected</span>
             <div className="h-4 w-px bg-indigo-500/30" />
-            <Button size="sm" onClick={() => handleBulkAction('Completed')} disabled={bulkUpdating} className="h-8 px-3 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 text-xs font-medium cursor-pointer">
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Mark Completed
-            </Button>
             <Button size="sm" onClick={() => handleBulkAction('Payment Initiated')} disabled={bulkUpdating} className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
               <DollarSign className="mr-1 h-3.5 w-3.5" /> Initiate Payment
             </Button>
@@ -796,10 +801,15 @@ export default function PaymentsPage() {
                   const user = payment.users
                   const camp = payment.campaigns
                   const pr = payment.form_data?.payment_request || {}
+                  const allRequests = (payment.form_data?.requests || []) as any[]
+                  const partialRequests = allRequests.filter((r: any) => r.type !== 'appeal')
+                  const appealRequests = allRequests.filter((r: any) => r.type === 'appeal')
                   const isExpanded = expandedId === payment.id
                   const isSelected = selectedIds.has(payment.id)
                   const totalPaid = (payment.partial_payment || 0) + (payment.final_payment || 0)
                   const hasPR = Object.keys(pr).length > 0
+                  const hasPartialReqs = partialRequests.length > 0
+                  const hasAppeals = appealRequests.length > 0
 
                   return (
                     <React.Fragment key={payment.id}>
@@ -868,10 +878,18 @@ export default function PaymentsPage() {
                         {/* Payment Request */}
                         {visibleCols.paymentRequest && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            {hasPR ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-                                <FileText className="h-3 w-3" /> Submitted
-                              </span>
+                            {hasPR || hasPartialReqs || hasAppeals ? (
+                              <div className="flex flex-col gap-1">
+                                {hasPR && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                                  <FileText className="h-3 w-3" /> Submitted
+                                </span>}
+                                {hasPartialReqs && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/25">
+                                  <IndianRupee className="h-3 w-3" /> {partialRequests.filter((r: any) => r.status === 'pending').length} Partial
+                                </span>}
+                                {hasAppeals && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/25">
+                                  <AlertCircle className="h-3 w-3" /> {appealRequests.filter((r: any) => r.status === 'pending').length} Appeal
+                                </span>}
+                              </div>
                             ) : (
                               <span className="text-[10px] text-slate-600">None</span>
                             )}
@@ -897,7 +915,7 @@ export default function PaymentsPage() {
                         {visibleCols.actions && (
                           <td className={`px-2 ${densityPadding[density]}`} onClick={e => e.stopPropagation()}>
                             <div className="relative">
-                              <ActionsMenu payment={payment} onStatusChange={updateSingleStatus} />
+                              <ActionsMenu payment={payment} onInitiatePayment={(p) => { setInitiatePaymentApp(p); setInitiateAmount(''); setInitiateBankCode('') }} onRejectPayment={(p) => { setRejectPaymentApp(p); setRejectReason('') }} />
                             </div>
                           </td>
                         )}
@@ -1004,15 +1022,111 @@ export default function PaymentsPage() {
                                     </div>
                                   )}
 
+                                  {/* Partial Payment Requests */}
+                                  {hasPartialReqs && (
+                                    <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-5">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <p className="text-[11px] text-cyan-400 uppercase tracking-wider font-bold flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Partial Payment Requests</p>
+                                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 text-[10px] font-bold border border-cyan-500/20">{partialRequests.length} REQUEST{partialRequests.length > 1 ? 'S' : ''}</span>
+                                      </div>
+                                      <div className="space-y-3">
+                                        {partialRequests.map((req: any, idx: number) => (
+                                          <div key={req.id || idx} className="bg-slate-900/50 p-4 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center gap-3">
+                                            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Amount</p>
+                                                <p className="text-sm font-bold text-white">₹{(req.amount || 0).toLocaleString()}</p>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Reason</p>
+                                                <p className="text-xs text-slate-300 truncate">{req.reason || '—'}</p>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                  req.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
+                                                  req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
+                                                  'bg-red-500/15 text-red-400 border-red-500/20'
+                                                }`}>{req.status}</span>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
+                                                <p className="text-xs text-slate-400">{req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : '—'}</p>
+                                              </div>
+                                            </div>
+                                            {req.status === 'pending' && (
+                                              <div className="flex items-center gap-2 shrink-0">
+                                                <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode('') }}
+                                                  className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
+                                                  <DollarSign className="mr-1 h-3.5 w-3.5" /> Initiate
+                                                </Button>
+                                                <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
+                                                  className="h-8 px-3 rounded-lg bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 text-xs font-medium cursor-pointer">
+                                                  <X className="mr-1 h-3.5 w-3.5" /> Reject
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Appeals Section */}
+                                  {hasAppeals && (
+                                    <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-5">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <p className="text-[11px] text-orange-400 uppercase tracking-wider font-bold flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Influencer Appeals</p>
+                                        <span className="px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 text-[10px] font-bold border border-orange-500/20">{appealRequests.length} APPEAL{appealRequests.length > 1 ? 'S' : ''}</span>
+                                      </div>
+                                      <div className="space-y-3">
+                                        {appealRequests.map((req: any, idx: number) => (
+                                          <div key={req.id || idx} className="bg-slate-900/50 p-4 rounded-xl border border-white/5 space-y-3">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Reason</p>
+                                                <p className="text-xs text-white break-words">{req.reason || '—'}</p>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                  req.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
+                                                  req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
+                                                  'bg-red-500/15 text-red-400 border-red-500/20'
+                                                }`}>{req.status}</span>
+                                              </div>
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
+                                                <p className="text-xs text-slate-400">{req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : '—'}</p>
+                                              </div>
+                                            </div>
+                                            {req.screenshot && (
+                                              <div>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">Screenshot</p>
+                                                <button onClick={() => setPreviewImage({ src: req.screenshot, alt: 'Appeal Screenshot' })}
+                                                  className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-orange-400 bg-black cursor-pointer w-full max-w-xs">
+                                                  <img src={req.screenshot} alt="Appeal Screenshot" className="h-24 w-full object-cover opacity-90 group-hover:opacity-100" />
+                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                    <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View</span>
+                                                  </div>
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* Action Buttons */}
                                   <div className="flex flex-wrap items-center gap-3 pt-2">
-                                    <Button size="sm" onClick={() => updateSingleStatus(payment.id, 'Payment Initiated')}
+                                    <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
                                       className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
                                       <DollarSign className="mr-1.5 h-4 w-4" /> Initiate Payment
                                     </Button>
-                                    <Button size="sm" onClick={() => updateSingleStatus(payment.id, 'Completed')}
-                                      className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer">
-                                      <CheckCircle2 className="mr-1.5 h-4 w-4" /> Mark Completed
+                                    <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
+                                      className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
+                                      <X className="mr-1.5 h-4 w-4" /> Reject Payment
                                     </Button>
                                   </div>
                                 </div>
@@ -1067,18 +1181,151 @@ export default function PaymentsPage() {
       )}
 
       {previewImage && <ImagePreviewModal src={previewImage.src} alt={previewImage.alt} onClose={() => setPreviewImage(null)} />}
+
+      {/* Initiate Payment Modal */}
+      <AnimatePresence>
+        {initiatePaymentApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setInitiatePaymentApp(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 shadow-lg shadow-amber-500/20">
+                      <DollarSign className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Initiate Payment</h3>
+                      <p className="text-[11px] text-slate-500">{initiatePaymentApp.users?.full_name} · {initiatePaymentApp.campaigns?.brand_name}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setInitiatePaymentApp(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white cursor-pointer">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="bg-slate-800/50 border border-white/5 rounded-xl p-3 grid grid-cols-2 gap-3 text-center">
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Total Deal</p>
+                    <p className="text-sm font-bold text-white">₹{(initiatePaymentApp.pending_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Already Paid</p>
+                    <p className="text-sm font-bold text-emerald-400">₹{((initiatePaymentApp.partial_payment || 0) + (initiatePaymentApp.final_payment || 0)).toLocaleString()}</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Initiate Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">₹</span>
+                    <input type="number" value={initiateAmount} onChange={e => setInitiateAmount(e.target.value)}
+                      placeholder="Enter amount" className="w-full bg-slate-800 border border-white/10 text-white text-sm font-semibold rounded-xl px-3 py-3 pl-7 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Bank Code / Reference *</label>
+                  <input type="text" value={initiateBankCode} onChange={e => setInitiateBankCode(e.target.value)}
+                    placeholder="Enter bank transaction code" className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500/50" />
+                </div>
+              </div>
+              <div className="p-5 border-t border-white/5 flex gap-3">
+                <Button variant="outline" onClick={() => setInitiatePaymentApp(null)}
+                  className="flex-1 rounded-xl border-white/10 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer bg-transparent">Cancel</Button>
+                <Button onClick={async () => {
+                  const amt = parseFloat(initiateAmount) || 0
+                  if (amt <= 0 || !initiateBankCode.trim()) { toast.error('Please enter amount and bank code'); return }
+                  try {
+                    const currentPartial = initiatePaymentApp.partial_payment || 0
+                    const currentPending = initiatePaymentApp.pending_amount || 0
+                    const newPartial = currentPartial + amt
+                    const newPending = Math.max(0, currentPending - amt)
+                    const currentFormData = initiatePaymentApp.form_data || {}
+                    const updatedFormData = { ...currentFormData, payment_initiated: { amount: amt, bank_code: initiateBankCode.trim(), initiated_at: new Date().toISOString() } }
+                    const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
+                      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData })
+                    })
+                    if (!res.ok) throw new Error('Failed')
+                    setPayments(prev => prev.map(p => p.id === initiatePaymentApp.id ? { ...p, status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData } : p))
+                    toast.success(`Payment of ₹${amt.toLocaleString()} initiated successfully`)
+                    setInitiatePaymentApp(null)
+                  } catch { toast.error('Failed to initiate payment') }
+                }} className="flex-[2] rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/20 border-none cursor-pointer">
+                  <DollarSign className="mr-1.5 h-4 w-4" /> Confirm Payment
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Payment Modal */}
+      <AnimatePresence>
+        {rejectPaymentApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setRejectPaymentApp(null)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+              <div className="p-5 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-red-500 shadow-lg shadow-red-500/20">
+                      <X className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Reject Payment</h3>
+                      <p className="text-[11px] text-slate-500">{rejectPaymentApp.users?.full_name} · {rejectPaymentApp.campaigns?.brand_name}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setRejectPaymentApp(null)} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white cursor-pointer">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Rejection Reason *</label>
+                  <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                    placeholder="Explain why this payment request is being rejected..." rows={3}
+                    className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500/50 resize-none placeholder:text-slate-600" />
+                </div>
+              </div>
+              <div className="p-5 border-t border-white/5 flex gap-3">
+                <Button variant="outline" onClick={() => setRejectPaymentApp(null)}
+                  className="flex-1 rounded-xl border-white/10 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer bg-transparent">Cancel</Button>
+                <Button onClick={async () => {
+                  if (!rejectReason.trim()) { toast.error('Please enter a rejection reason'); return }
+                  try {
+                    const currentFormData = rejectPaymentApp.form_data || {}
+                    const updatedFormData = { ...currentFormData, payment_rejection: { reason: rejectReason.trim(), rejected_at: new Date().toISOString() } }
+                    const res = await fetch(`/api/admin/applications/${rejectPaymentApp.id}`, {
+                      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: 'Approved', form_data: updatedFormData })
+                    })
+                    if (!res.ok) throw new Error('Failed')
+                    setPayments(prev => prev.map(p => p.id === rejectPaymentApp.id ? { ...p, status: 'Approved', form_data: updatedFormData } : p))
+                    toast.success('Payment request rejected')
+                    setRejectPaymentApp(null)
+                  } catch { toast.error('Failed to reject payment') }
+                }} className="flex-[2] rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold shadow-lg shadow-red-500/20 border-none cursor-pointer">
+                  <X className="mr-1.5 h-4 w-4" /> Confirm Rejection
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
 // ─── ActionsMenu ───────────────────────────────────────────
-function ActionsMenu({ payment, onStatusChange }: { payment: PaymentEntry; onStatusChange: (id: string, status: string) => void }) {
+function ActionsMenu({ payment, onInitiatePayment, onRejectPayment }: { payment: PaymentEntry; onInitiatePayment: (p: PaymentEntry) => void; onRejectPayment: (p: PaymentEntry) => void }) {
   const popover = usePopover()
-  const actions = [
-    { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
-    { label: 'Initiate Payment', status: 'Payment Initiated', icon: DollarSign, color: 'text-amber-400 hover:bg-amber-500/10' },
-  ].filter(a => a.status !== payment.status)
-  if (actions.length === 0) return null
   return (
     <div className="relative" ref={popover.ref}>
       <button onClick={e => { e.stopPropagation(); popover.setOpen(!popover.open) }}
@@ -1090,12 +1337,16 @@ function ActionsMenu({ payment, onStatusChange }: { payment: PaymentEntry; onSta
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-1">
-              {actions.map(a => (
-                <button key={a.status} onClick={e => { e.stopPropagation(); onStatusChange(payment.id, a.status); popover.setOpen(false) }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer ${a.color}`}>
-                  <a.icon className="h-3.5 w-3.5" /> {a.label}
+              {payment.status !== 'Payment Initiated' && (
+                <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); popover.setOpen(false) }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-amber-400 hover:bg-amber-500/10">
+                  <DollarSign className="h-3.5 w-3.5" /> Initiate Payment
                 </button>
-              ))}
+              )}
+              <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); popover.setOpen(false) }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-red-400 hover:bg-red-500/10">
+                <X className="h-3.5 w-3.5" /> Reject Payment
+              </button>
             </div>
           </motion.div>
         )}

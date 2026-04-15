@@ -140,7 +140,7 @@ export default function ApprovedCampaignsPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest whitespace-nowrap">Bank Code</span>
                       <span className="bg-slate-950 border border-white/10 text-slate-400 px-2 py-0.5 rounded text-xs font-mono font-medium">
-                        {app.id.substring(0,8)}
+                        {app.form_data?.payment_initiated?.bank_code || app.id.substring(0,8)}
                       </span>
                     </div>
                   </div>

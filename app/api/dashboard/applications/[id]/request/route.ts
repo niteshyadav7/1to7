@@ -22,7 +22,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { type, amount, reason } = body // type: 'partial' | 'payment' | 'appeal'
+    const { type, amount, reason, screenshot } = body // type: 'partial' | 'payment' | 'appeal'
 
     // Verify ownership
     const { data: application, error: fetchErr } = await supabase
@@ -40,7 +40,7 @@ export async function PUT(
     }
 
     // Build the new request entry
-    const newRequest = {
+    const newRequest: any = {
       id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       type: type || 'partial',
       amount: parseFloat(amount) || 0,
@@ -48,6 +48,7 @@ export async function PUT(
       status: 'pending', // pending | approved | rejected | processed
       submitted_at: new Date().toISOString(),
     }
+    if (screenshot) newRequest.screenshot = screenshot
 
     // Append to existing requests array in form_data
     const currentFormData = application.form_data || {}
