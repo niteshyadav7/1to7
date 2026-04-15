@@ -9,6 +9,7 @@ import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
 interface Application {
   id: string
   status: string
+  form_data?: any
   partial_payment: number
   final_payment: number
   pending_amount: number
@@ -22,6 +23,7 @@ interface Application {
     category: string
     budget_type: string
     deliverables: string
+    order_form?: boolean
   }
 }
 
@@ -39,8 +41,18 @@ export default function ApprovedCampaignsPage() {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
       // Filter for approved/completed statuses
-      const validStatuses = ['Approved', 'Payment Initiated', 'Completed']
-      const filtered = (data.applications || []).filter((app: Application) => validStatuses.includes(app.status))
+      const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
+      const filtered = (data.applications || []).filter((app: Application) => {
+        if (!validStatuses.includes(app.status)) return false
+        
+        // If it requires an order form, ONLY show on the Approved page if they've submitted the order details
+        if (app.status === 'Approved' && app.campaigns?.order_form) {
+          if (!app.form_data?.order_details) {
+            return false
+          }
+        }
+        return true
+      })
       setApplications(filtered)
     } catch {
       console.error('Failed to fetch approved campaigns')
@@ -92,7 +104,7 @@ export default function ApprovedCampaignsPage() {
             const received = (app.partial_payment || 0) + (app.final_payment || 0)
             const pending = app.pending_amount || 0
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
-            const statusDisplay = app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
+            const statusDisplay = app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' : app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
             
             return (
               <motion.div

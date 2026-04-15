@@ -1366,7 +1366,8 @@ export default function AllApplicationsPage() {
                                 </div>
 
                                 {/* Application Form + Order Data */}
-                                {app.form_data && (() => {
+                                {/* <OrderDetailsPage /> */}
+                                {/* {app.form_data && (() => {
                                   const { order_details, ...regularData } = app.form_data
                                   const hasRegularData = Object.keys(regularData).length > 0
                                   const hasOrderDetails = order_details && Object.keys(order_details).length > 0
@@ -1453,10 +1454,10 @@ export default function AllApplicationsPage() {
                                       )}
                                     </div>
                                   )
-                                })()}
+                                })()} */}
 
                                 {/* Payment Info */}
-                                {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
+                                {/* {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
                                   <div>
                                     <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
                                       <DollarSign className="h-3.5 w-3.5" />
@@ -1495,7 +1496,7 @@ export default function AllApplicationsPage() {
                                       )}
                                     </div>
                                   </div>
-                                )}
+                                )} */}
 
                                 {/* Meta */}
                                 <div className="flex items-center justify-between pt-3 border-t border-white/5">

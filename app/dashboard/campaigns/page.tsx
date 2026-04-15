@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink } from 'lucide-react'
+import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText } from 'lucide-react'
 import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
 import { useAuth } from '@/components/providers/AuthProvider'
 
@@ -10,6 +10,9 @@ interface Application {
   id: string
   status: string
   form_data: any
+  partial_payment: number
+  final_payment: number
+  pending_amount: number
   created_at: string
   updated_at: string
   campaigns: {
@@ -171,16 +174,10 @@ export default function AppliedCampaignsPage() {
                 </div>
               </div>
 
-              {/* Approved / Rejected Banner */}
-              {app.status === 'Approved' && (
-                <div className="mx-5 mb-3">
-                  <div className="rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 border border-white/5 px-4 py-3 flex items-center justify-center gap-2">
-                    <Info className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm font-medium text-slate-200">What&apos;s the Next Step?</span>
-                  </div>
-                </div>
-              )}
 
+            
+              {/* Payment Info - when admin has initiated payment */}
+             
               {app.status === 'Rejected' && app.form_data?.rejection_reason && (
                 <div className="mx-5 mb-3">
                   <div className="rounded-xl bg-gradient-to-r from-red-500/10 to-red-500/5 border border-red-500/20 px-4 py-3">
@@ -198,16 +195,6 @@ export default function AppliedCampaignsPage() {
               {/* Actions Row */}
               <div className="px-5 pb-4">
                 <div className="flex items-center justify-end gap-3">
-                  {/* Reply button for approved */}
-                  {app.status === 'Approved' && (
-                    <button
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 border border-white/10 text-slate-300 hover:bg-slate-700 hover:text-white transition-all text-xs font-semibold"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Reply
-                    </button>
-                  )}
-
                   {/* Upload Order Details - when approved or rejected */}
                   {(app.status === 'Approved' || app.status === 'Rejected') && app.campaigns?.order_form && (
                     <button

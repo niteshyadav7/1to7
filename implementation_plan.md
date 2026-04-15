@@ -1,107 +1,108 @@
-# SaaS-Grade Applications Data Table
+# Fix Payment Workflow: Admin → Influencer Screen
 
-Upgrade the admin `/admin/applications` page from a basic card-list into a premium, full-featured data table — the kind you'd see in tools like Linear, Retool, or Stripe Dashboard.
+## Problem
+Currently when admin clicks **"Verify & Approved"** on order-details page:
+- Status is set to `Payment Initiated` → should be `Approved`
+- Amount goes to `partial_payment` → immediately shows as "Received" on influencer screen
+- Influencer sees "PAYMENT INITIATED - PROCESSING" instead of "APPROVED"
 
-## Current State
+## Desired Flow
 
-The existing page shows applications as expandable cards with:
-- Status tab filters (All, Applied, Approved, Rejected, Completed, Payment Initiated)
-- A search bar
-- Bulk select + bulk approve/reject
-- Expandable card details (influencer profile, campaign info, form data, payments)
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant DB
+    participant Influencer
 
-## Proposed Features
+    Admin->>DB: Verify & Approved (enters total deal amount)
+    Note over DB: status = "Approved"<br/>pending_amount = total deal<br/>partial_payment = 0
+    Influencer->>DB: Sees card with "APPROVED"
+    Note over Influencer: Total Deal = pending_amount<br/>Received = ₹0<br/>Pending = pending_amount
 
-### 1. Proper Data Table with Sortable Columns
-A real `<table>` layout with these columns:
+    Influencer->>DB: Clicks "Submit Payment Form"
+    Note over DB: status = "Payment Requested"
+    Influencer->>DB: Sees "PAYMENT REQUESTED"
 
-| Column | Sortable | Description |
-|--------|----------|-------------|
-| Checkbox | — | Bulk select |
-| Influencer | ✅ (by name) | Avatar + Name + Influencer ID |
-| Instagram | ✅ (by followers) | Username + follower count |
-| Brand / Campaign | ✅ (by brand) | Brand name + campaign code badge |
-| Location | ✅ (by state) | City, State |
-| Status | ✅ | Color-coded pill |
-| Applied On | ✅ | Relative date (e.g. "2 days ago") with tooltip for full date |
-| Actions | — | Quick-action dropdown (Approve, Reject, View Details) |
-
-Click column headers to sort ascending → descending → none.
-
-### 2. Advanced Filters (Toolbar Dropdowns)
-In addition to the existing status tabs and search, add dropdown popovers:
-- **Gender** — Male, Female, Other (multi-select chips)
-- **Location** — State dropdown (derived from data)
-- **Followers** — Range presets (< 1K, 1K–10K, 10K–50K, 50K–100K, 100K+)
-- **Platform** — Instagram, YouTube, etc. (from campaign data)
-- **Date Range** — Quick picks (Today, Last 7 days, Last 30 days, Custom)
-- Active filters shown as dismissible chips below the toolbar
-
-### 3. Column Visibility Toggle
-A "Columns" button that opens a popover checklist — hide/show any column.
-
-### 4. Pagination
-- Page size selector (10 / 25 / 50 / 100)
-- Page navigation with current page indicator
-- "Showing X–Y of Z results" label
-
-### 5. Row Density Toggle
-Compact / Default / Comfortable modes that adjust row padding.
-
-### 6. Export
-"Export" button with CSV and JSON options for the current filtered/sorted view.
-
-### 7. Expandable Row Detail (Preserved)
-Clicking a row (not a button) still expands an inline detail section identical to the current one — influencer profile, campaign info, form data, order details, payment info.
-
-### 8. Premium Table UI
-- Sticky header that stays visible while scrolling
-- Alternating subtle row backgrounds
-- Hover highlight with soft glow
-- Smooth sort-direction indicator animations
-- Glassmorphism toolbar
-- Active filter count badge on the filter buttons
-- Skeleton loading state for the table
+    Admin->>DB: Approves payment (from admin panel)
+    Note over DB: status = "Payment Initiated"<br/>partial_payment += approved amount<br/>pending_amount -= approved amount
+    Influencer->>DB: Sees updated financials
+    Note over Influencer: Received = partial_payment<br/>Pending = pending_amount
+```
 
 ## Proposed Changes
 
-### Applications Page
+### Admin Order Details Page
 
-#### [MODIFY] [page.tsx](file:///d:/yash-android-projects/influencer/1to7/app/admin/(panel)/applications/page.tsx)
+#### [MODIFY] [page.tsx](file:///d:/yash-android-projects/influencer/1to7/app/admin/(panel)/order-details/page.tsx)
+- **`handleInitiatePaymentSubmit`** (line ~872): Change from:
+  - `status: 'Payment Initiated'` → `status: 'Approved'`
+  - `partial_payment: total` → `pending_amount: total`
+- **Local state update** (line ~894): Match the same — set `pending_amount` instead of `partial_payment`
+- **Toast message**: "Order verified & approved" instead of "Payment initiated"
 
-Full rewrite of this file to implement:
-- State management for sort (column + direction), filters (gender, location, followers, platform, date range), pagination (page, pageSize), column visibility, row density
-- All sorting, filtering, pagination logic computed client-side from the fetched data
-- Premium `<table>` layout replacing the card list
-- Toolbar with search, filter dropdowns, column toggle, density, export
-- Status tabs preserved as-is
-- Expandable row detail preserved as-is
-- Floating bulk action bar preserved as-is
-- Skeleton loading state
+---
 
-> [!NOTE]
-> No new npm dependencies required. Everything uses existing lucide-react icons, framer-motion animations, and built-in shadcn components (Button, Input, Dialog). Filter dropdowns are custom popover components built inline.
+### Influencer Approved Page
 
-## What Won't Change
-- **API routes** — No backend changes needed. The existing `GET /api/admin/applications` already returns all data, and sorting/filtering/pagination will be client-side.
-- **Bulk action API** — Unchanged.
-- **Single status update API** — Unchanged.
-- **Admin layout/sidebar** — Unchanged.
+#### [MODIFY] [page.tsx](file:///d:/yash-android-projects/influencer/1to7/app/dashboard/approved/page.tsx)
+- **Status filter** (line ~44): Add `'Payment Requested'` to `validStatuses` array
+- **Status display** (line ~108): Update `statusDisplay` logic:
+  - `Approved` → `"APPROVED - AWAITING ACTION"`
+  - `Payment Requested` → `"PAYMENT REQUESTED"` *(new)*
+  - `Payment Initiated` → `"PAYMENT INITIATED - PROCESSING"`
+  - `Completed` → `"COMPLETED"`
+- **Financial calculations** (line ~104):
+  - `totalDeal` = `pending_amount + partial_payment + final_payment` (no change, already correct)
+  - `received` = `partial_payment + final_payment` (no change)
+  - `pending` = `pending_amount` (no change)
+  - This means when admin sets `pending_amount = total`, Total Deal shows the total, Received = ₹0, Pending = total ✅
+
+---
+
+### Payment Form Modal (Influencer submits payment request)
+
+#### [MODIFY] [PaymentFormModal.tsx](file:///d:/yash-android-projects/influencer/1to7/components/campaigns/PaymentFormModal.tsx)
+- No structural changes needed — it already calls the payment-request API
+
+---
+
+### Payment Request API Route
+
+#### [MODIFY] [route.ts](file:///d:/yash-android-projects/influencer/1to7/app/api/dashboard/applications/[id]/payment-request/route.ts)
+- **Status** (line 57): Change from `'Payment Initiated'` → `'Payment Requested'`
+- **Remove additive pending_amount logic** (lines 62-64): Don't modify `pending_amount` — it was already set by admin. The influencer is just requesting release of the amount, not adding to it.
+
+---
+
+### Approved Campaign Modal
+
+#### [MODIFY] [ApprovedCampaignModal.tsx](file:///d:/yash-android-projects/influencer/1to7/components/campaigns/ApprovedCampaignModal.tsx)
+- **Status color** (line ~88): Add `'Payment Requested'` color mapping
+- **Partial Request button** (line 192): Show for `Payment Requested` status too (or keep as-is)
+
+---
+
+### Admin Applications Status Filter (Order Details page)
+
+#### [MODIFY] [page.tsx](file:///d:/yash-android-projects/influencer/1to7/app/admin/(panel)/order-details/page.tsx)
+- **`statusFilters`** array: Add `'Payment Requested'` so admin can filter orders where influencer has requested payment
+- **`statusColors`** and **`statusDots`**: Add styling for `'Payment Requested'` status
+
+## Summary Table
+
+| Step | Who | Action | Status Set | `partial_payment` | `pending_amount` |
+|------|-----|--------|------------|-------------------|------------------|
+| 1 | Admin | Verify & Approved | `Approved` | 0 (unchanged) | = entered amount |
+| 2 | Influencer | Submit Payment Form | `Payment Requested` | unchanged | unchanged |
+| 3 | Admin | Approve Payment | `Payment Initiated` | += amount | -= amount |
+
+> [!IMPORTANT]
+> Step 3 (admin approving the influencer's payment request) uses the existing admin `PUT /api/admin/applications/[id]` route which already supports updating `partial_payment`, `pending_amount`, and `status`. No API changes needed for step 3 — admin just uses the existing actions dropdown → "Initiate Payment" for that final approval.
 
 ## Verification Plan
 
 ### Manual Verification
-1. Open `localhost:3000/admin/applications` and verify:
-   - Table renders with all columns
-   - Clicking column headers sorts correctly (asc/desc/none)
-   - Filter dropdowns open and apply filters
-   - Active filters show as chips and are dismissible
-   - Pagination works with page size changes
-   - Column visibility toggle hides/shows columns
-   - Row density changes table spacing
-   - Export downloads CSV/JSON
-   - Row expansion shows full details
-   - Bulk select + action bar works
-   - Search still works
-   - Status tabs still work
-   - Responsive on mobile (horizontal scroll with sticky first column)
+1. Admin clicks "Verify & Approved" with amount ₹1000 → check DB has `status='Approved'`, `pending_amount=1000`, `partial_payment=0`
+2. Influencer approved page shows card with: Total Deal=₹1000, Received=₹0, Pending=₹1000, Status="APPROVED"
+3. Influencer clicks "Submit Payment Form" → status changes to "Payment Requested"
+4. Admin sees order with "Payment Requested" status, can approve payment → moves amount to received

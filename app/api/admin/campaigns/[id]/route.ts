@@ -47,6 +47,7 @@ export async function PUT(
     // Only allow updating specific fields
     const allowedFields = [
       'brand_name', 'category', 'platform', 'budget_type',
+      'budget_amount', 'partial_payment_enabled', 'partial_payment_config',
       'deliverables', 'product_links', 'requirements',
       'gender_required', 'is_live', 'status',
       'location', 'looking_for', 'followers', 'additional_info',

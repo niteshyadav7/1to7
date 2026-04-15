@@ -48,19 +48,11 @@ export async function PUT(
       }
     }
 
-    // Extract payment_amount from the form to set as pending_amount
-    const paymentAmount = parseFloat(body.payment_amount) || 0
-
-    // Build the update object: save form_data + update pending_amount + set status
+    // Build the update object: save form_data + set status to Payment Requested
     const updatePayload: Record<string, any> = {
       form_data: updatedFormData,
-      status: 'Payment Initiated',
+      status: 'Payment Requested',
       updated_at: new Date().toISOString(),
-    }
-
-    // Set pending_amount to the influencer's requested amount (additive if they submit again)
-    if (paymentAmount > 0) {
-      updatePayload.pending_amount = (application.pending_amount || 0) + paymentAmount
     }
 
     const { error: updateErr } = await supabase

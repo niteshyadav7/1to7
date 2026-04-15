@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, DollarSign, Percent, IndianRupee, Wallet } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +19,9 @@ interface CampaignData {
   category: string
   platform: string
   budget_type: string
+  budget_amount: number
+  partial_payment_enabled: boolean
+  partial_payment_config: { type: 'percentage' | 'fixed'; value: number }
   deliverables: string
   product_links: string[]
   requirements: string
@@ -47,6 +50,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     category: '',
     platform: 'Instagram',
     budget_type: 'Paid',
+    budget_amount: '',
+    partial_payment_enabled: false,
+    partial_payment_config: { type: 'percentage' as 'percentage' | 'fixed', value: '' as string },
     deliverables: '',
     product_links: '',
     requirements: '',
@@ -77,11 +83,18 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
       if (!res.ok) throw new Error(data.error)
 
       setCampaign(data.campaign)
+      const ppConfig = data.campaign.partial_payment_config || {}
       setFormData({
         brand_name: data.campaign.brand_name || '',
         category: data.campaign.category || '',
         platform: data.campaign.platform || 'Instagram',
         budget_type: data.campaign.budget_type || 'Paid',
+        budget_amount: data.campaign.budget_amount ? String(data.campaign.budget_amount) : '',
+        partial_payment_enabled: data.campaign.partial_payment_enabled || false,
+        partial_payment_config: {
+          type: (ppConfig.type || 'percentage') as 'percentage' | 'fixed',
+          value: ppConfig.value !== undefined ? String(ppConfig.value) : '',
+        },
         deliverables: data.campaign.deliverables || '',
         product_links: (data.campaign.product_links || []).join('\n'),
         requirements: data.campaign.requirements || '',
@@ -117,6 +130,10 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     try {
       const payload = {
         ...formData,
+        budget_amount: formData.budget_amount ? parseFloat(formData.budget_amount) : 0,
+        partial_payment_config: formData.partial_payment_enabled
+          ? { type: formData.partial_payment_config.type, value: parseFloat(formData.partial_payment_config.value as string) || 0 }
+          : {},
         product_links: formData.product_links
           ? formData.product_links.split('\n').map(l => l.trim()).filter(Boolean)
           : [],
@@ -365,6 +382,139 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Budget & Payment */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-amber-500/5 to-transparent">
+            <Wallet className="h-4 w-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-white">Budget & Payment</h3>
+          </div>
+          <div className="p-6 space-y-5">
+            {/* Budget Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total Campaign Budget (₹)</Label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.budget_amount}
+                  onChange={(e) => setFormData({ ...formData, budget_amount: e.target.value })}
+                  placeholder="e.g. 50000"
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-amber-500 rounded-xl pl-10"
+                />
+              </div>
+              <p className="text-xs text-slate-500">Optional. Total budget allocated for this campaign across all influencers.</p>
+            </div>
+
+            {/* Partial Payment Toggle */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Enable Partial Payment?</Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, partial_payment_enabled: true })}
+                  className={`flex-1 h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
+                    formData.partial_payment_enabled
+                      ? 'bg-amber-500/15 text-amber-300 border-amber-500/20'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  ✅ Yes — Split Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, partial_payment_enabled: false })}
+                  className={`flex-1 h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
+                    !formData.partial_payment_enabled
+                      ? 'bg-slate-500/15 text-slate-300 border-slate-500/20'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  💵 No — Full Payment
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">When enabled, influencer payments will be split into partial + final installments.</p>
+            </div>
+
+            {/* Partial Payment Config (shown only when enabled) */}
+            {formData.partial_payment_enabled && (
+              <div className="space-y-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Payment Type</Label>
+                    <Select
+                      value={formData.partial_payment_config.type}
+                      onValueChange={(v) => setFormData({
+                        ...formData,
+                        partial_payment_config: { ...formData.partial_payment_config, type: v as 'percentage' | 'fixed' }
+                      })}
+                    >
+                      <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-amber-500 rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
+                        <SelectItem value="percentage" className="focus:bg-amber-500/30 focus:text-white cursor-pointer py-2.5">
+                          <span className="flex items-center gap-2"><Percent className="h-3.5 w-3.5" /> Percentage</span>
+                        </SelectItem>
+                        <SelectItem value="fixed" className="focus:bg-amber-500/30 focus:text-white cursor-pointer py-2.5">
+                          <span className="flex items-center gap-2"><IndianRupee className="h-3.5 w-3.5" /> Fixed Amount</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                      {formData.partial_payment_config.type === 'percentage' ? 'Partial %' : 'Partial Amount (₹)'}
+                    </Label>
+                    <div className="relative">
+                      {formData.partial_payment_config.type === 'percentage'
+                        ? <Percent className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                        : <IndianRupee className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      }
+                      <Input
+                        type="number"
+                        min="0"
+                        max={formData.partial_payment_config.type === 'percentage' ? '100' : undefined}
+                        value={formData.partial_payment_config.value}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          partial_payment_config: { ...formData.partial_payment_config, value: e.target.value }
+                        })}
+                        placeholder={formData.partial_payment_config.type === 'percentage' ? 'e.g. 50' : 'e.g. 500'}
+                        className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-amber-500 rounded-xl pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Preview */}
+                {formData.budget_amount && formData.partial_payment_config.value && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/80 border border-white/5">
+                    <DollarSign className="h-4 w-4 text-amber-400 shrink-0" />
+                    <div className="text-xs text-slate-300">
+                      {(() => {
+                        const budget = parseFloat(formData.budget_amount) || 0
+                        const val = parseFloat(formData.partial_payment_config.value as string) || 0
+                        const partial = formData.partial_payment_config.type === 'percentage'
+                          ? (budget * val / 100)
+                          : val
+                        const final_ = Math.max(0, budget - partial)
+                        return (
+                          <>
+                            <span className="text-amber-400 font-semibold">Per influencer:</span>{' '}
+                            ₹{partial.toLocaleString('en-IN')} partial + ₹{final_.toLocaleString('en-IN')} final{' '}
+                            <span className="text-slate-500">(of ₹{budget.toLocaleString('en-IN')} total)</span>
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

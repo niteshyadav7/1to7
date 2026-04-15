@@ -73,6 +73,7 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  'Payment Requested': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 
 const statusDots: Record<string, string> = {
@@ -81,9 +82,10 @@ const statusDots: Record<string, string> = {
   'Rejected': 'bg-red-400',
   'Completed': 'bg-purple-400',
   'Payment Initiated': 'bg-amber-400',
+  'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Approved', 'Completed', 'Payment Initiated']
+const statusFilters = ['All', 'Approved', 'Payment Requested', 'Completed', 'Payment Initiated']
 
 const dateRanges = [
   { label: 'All Time', value: 'all' },
@@ -885,19 +887,19 @@ export default function OrderDetailsPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Payment Initiated',
-          partial_payment: total // Update the amount as requested
+          status: 'Approved',
+          pending_amount: total // Goes to Total Deal, not Received
         }),
       })
-      if (!res.ok) throw new Error('Failed to initiate payment')
+      if (!res.ok) throw new Error('Failed to verify & approve')
       
-      setOrders(prev => prev.map(o => o.id === initiatePaymentApp.id ? { ...o, status: 'Payment Initiated', partial_payment: total } : o))
-      toast.success('Payment initiated successfully')
+      setOrders(prev => prev.map(o => o.id === initiatePaymentApp.id ? { ...o, status: 'Approved', pending_amount: total } : o))
+      toast.success('Order verified & approved successfully')
       setInitiatePaymentApp(null)
       setPaymentAmount('')
       setPaymentCommission('')
     } catch {
-      toast.error('Failed to initiate payment')
+      toast.error('Failed to verify & approve')
     }
   }
 
@@ -1527,7 +1529,7 @@ export default function OrderDetailsPage() {
                                         className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
                                       >
                                         <DollarSign className="mr-1.5 h-4 w-4" />
-                                        Verify & Initiate Payment
+                                        Verify & Approved
                                       </Button>
                                       <Button
                                         size="sm"
@@ -1702,11 +1704,35 @@ export default function OrderDetailsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6"
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
             >
+              {/* Screenshot Preview at Top */}
+              {(() => {
+                const details = getOrderDetails(initiatePaymentApp)
+                let screenshotUrl = ''
+                for (const [key, value] of Object.entries(details)) {
+                  if (isImageValue(key, value)) {
+                    screenshotUrl = String(value)
+                    break
+                  }
+                }
+                return screenshotUrl ? (
+                  <div className="relative w-full h-48 bg-black">
+                    <img src={screenshotUrl} alt="Order Screenshot" className="w-full h-full object-contain" />
+                    <button
+                      onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
+                      className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 transition-colors cursor-pointer border border-white/10"
+                    >
+                      <Eye className="h-3 w-3" />
+                      View Full
+                    </button>
+                  </div>
+                ) : null
+              })()}
+              <div className="p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-amber-500" />
-                Initiate Payment
+                Total Deal
               </h3>
               <p className="text-xs text-slate-400 mb-4">
                 Enter the approved amount and commission. The sum will be shown to the influencer.
@@ -1750,6 +1776,7 @@ export default function OrderDetailsPage() {
                 <Button onClick={handleInitiatePaymentSubmit} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-none font-bold cursor-pointer">
                   Confirm Payment
                 </Button>
+              </div>
               </div>
             </motion.div>
           </div>

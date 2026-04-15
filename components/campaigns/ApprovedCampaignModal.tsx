@@ -87,6 +87,7 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
     const getStatusColor = (status: string) => {
       switch (status) {
         case 'Approved': return 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10'
+        case 'Payment Requested': return 'text-cyan-400 border-cyan-500/20 bg-cyan-500/10'
         case 'Payment Initiated': return 'text-blue-400 border-blue-500/20 bg-blue-500/10'
         case 'Completed': return 'text-purple-400 border-purple-500/20 bg-purple-500/10'
         default: return 'text-slate-400 border-white/10 bg-white/5'
@@ -148,22 +149,6 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
                 </p>
               </div>
             </div>
-
-            {/* Campaign Manager Alert */}
-            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-start gap-3 w-full">
-                <MessageCircle className="h-6 w-6 text-indigo-400 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-bold text-indigo-300">Campaign Manager</h4>
-                  <p className="text-xs font-medium text-emerald-400 mt-0.5">Need help? Chat directly on WhatsApp.</p>
-                </div>
-              </div>
-              <Button className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl h-10 shadow-lg shadow-emerald-500/20 px-6 font-bold shrink-0 cursor-pointer">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Chat Now
-              </Button>
-            </div>
-
             {/* Financial Summary */}
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -185,19 +170,6 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
                 </div>
               </div>
             </div>
-
-            {/* Deliverables & Instructions */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <FileText className="h-5 w-5 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white">Deliverables & Instructions</h3>
-              </div>
-              <Button className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold shadow-lg shadow-indigo-500/20 cursor-pointer">
-                <FileText className="mr-2 h-5 w-5" />
-                View Deliverables & Next Steps
-              </Button>
-            </div>
-
             {/* Available Actions */}
             <div>
                <div className="flex items-center gap-2 mb-4">
@@ -218,12 +190,14 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
                   <CreditCard className="h-6 w-6 text-indigo-400 group-hover:scale-110 transition-transform mb-3" />
                   <span className="text-[11px] sm:text-xs font-bold text-indigo-300 text-center">Submit Payment Form</span>
                 </button>
-                <button 
-                  onClick={() => setShowPartialModal(true)}
-                  className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 transition-colors group cursor-pointer">
-                  <PieChart className="h-6 w-6 text-cyan-400 group-hover:scale-110 transition-transform mb-3" />
-                  <span className="text-[11px] sm:text-xs font-bold text-cyan-300 text-center">Partial Request</span>
-                </button>
+                {application?.status === 'Payment Initiated' && balance > 0 && (
+                  <button 
+                    onClick={() => setShowPartialModal(true)}
+                    className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 transition-colors group cursor-pointer">
+                    <PieChart className="h-6 w-6 text-cyan-400 group-hover:scale-110 transition-transform mb-3" />
+                    <span className="text-[11px] sm:text-xs font-bold text-cyan-300 text-center">Partial Request</span>
+                  </button>
+                )}
                 <button className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors group cursor-pointer">
                   <AlertCircle className="h-6 w-6 text-red-400 group-hover:scale-110 transition-transform mb-3" />
                   <span className="text-[11px] sm:text-xs font-bold text-red-300 text-center">Raise Appeal</span>

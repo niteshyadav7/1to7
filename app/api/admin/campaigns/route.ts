@@ -67,6 +67,9 @@ export async function POST(request: Request) {
       category,
       platform,
       budget_type,
+      budget_amount,
+      partial_payment_enabled,
+      partial_payment_config,
       deliverables,
       product_links,
       requirements,
@@ -94,16 +97,18 @@ export async function POST(request: Request) {
     const query = `
       INSERT INTO public.campaigns (
         campaign_code, brand_name, category, platform, budget_type, 
+        budget_amount, partial_payment_enabled, partial_payment_config,
         deliverables, product_links, requirements, gender_required, 
         location, looking_for, followers, additional_info, 
         collab_date, form_link, form_fields, order_form, 
         order_form_fields, show_order_form, status, is_live
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       ) RETURNING *
     `
     const values = [
       code, brand_name, category || null, platform, budget_type || null,
+      budget_amount || 0, partial_payment_enabled || false, JSON.stringify(partial_payment_config || {}),
       deliverables || null, product_links || [], requirements || null, gender_required || 'Any',
       location || null, looking_for || null, followers || null, additional_info || null,
       collab_date || null, form_link || null, JSON.stringify(form_fields || []), order_form || false,

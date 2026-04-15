@@ -62,6 +62,9 @@ CREATE TABLE public.campaigns (
   category TEXT,
   platform TEXT NOT NULL, -- e.g., 'Instagram', 'YouTube', 'Amazon'
   budget_type TEXT, -- e.g., 'Paid', 'Barter'
+  budget_amount NUMERIC(12, 2) DEFAULT 0, -- Total campaign budget in ₹
+  partial_payment_enabled BOOLEAN DEFAULT false, -- Enable partial payment system
+  partial_payment_config JSONB DEFAULT '{}'::jsonb, -- { type: 'percentage'|'fixed', value: number }
   deliverables TEXT,
   product_links TEXT[],
   requirements TEXT,
