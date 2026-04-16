@@ -31,7 +31,7 @@ export async function PUT(
     // Verify ownership
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('user_id, form_data')
+      .select('user_id, form_data, status')
       .eq('id', id)
       .single()
 
@@ -47,12 +47,25 @@ export async function PUT(
     const currentFormData = application.form_data || {}
     const updatedFormData = {
       ...currentFormData,
-      order_details: orderFormData
+      order_details: orderFormData,
+      // Clear rejection state and reset approval flag on re-submission
+      rejection_reason: undefined,
+      order_details_approved: false
+    }
+    // Remove undefined keys (clean up rejection_reason)
+    Object.keys(updatedFormData).forEach(key => {
+      if (updatedFormData[key] === undefined) delete updatedFormData[key]
+    })
+
+    // If the application was rejected (order rejection), set status back to Approved for re-review
+    const updatePayload: any = { form_data: updatedFormData }
+    if (application.status === 'Rejected') {
+      updatePayload.status = 'Approved'
     }
 
     const { error: updateErr } = await supabase
       .from('applications')
-      .update({ form_data: updatedFormData })
+      .update(updatePayload)
       .eq('id', id)
 
     if (updateErr) throw updateErr

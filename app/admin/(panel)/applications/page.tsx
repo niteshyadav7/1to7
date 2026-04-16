@@ -515,7 +515,14 @@ function ActionsDropdown({
     { label: 'Reject', status: 'Rejected', icon: UserX, color: 'text-red-400 hover:bg-red-500/10' },
     { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
     { label: 'Initiate Payment', status: 'Payment Initiated', icon: DollarSign, color: 'text-amber-400 hover:bg-amber-500/10' },
-  ].filter(a => a.status !== app.status)
+  ].filter(a => {
+    if (a.status === app.status) return false
+    // Hide Approve/Reject buttons once the application is no longer in the Applied state
+    if (app.status !== 'Applied' && (a.status === 'Approved' || a.status === 'Rejected')) {
+      return false
+    }
+    return true
+  })
 
   return (
     <div className="relative" ref={popover.ref}>
@@ -1276,11 +1283,11 @@ export default function AllApplicationsPage() {
                         )}
 
                         {/* Actions */}
-                        {visibleCols.actions && (
+                        {/* {visibleCols.actions && (
                           <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                             <ActionsDropdown app={app} onStatusChange={updateSingleStatus} />
                           </td>
-                        )}
+                        )} */}
                       </tr>
 
                       {/* Expanded Details */}

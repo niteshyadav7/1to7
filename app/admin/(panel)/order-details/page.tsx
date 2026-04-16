@@ -1241,11 +1241,11 @@ export default function OrderDetailsPage() {
                     </th>
                   )}
                   {/* Actions */}
-                  {visibleCols.actions && (
+                  {/* {visibleCols.actions && (
                     <th className="px-2 py-3 text-left w-10">
                       <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500" />
                     </th>
-                  )}
+                  )} */}
                 </tr>
               </thead>
               <tbody>
@@ -1528,24 +1528,41 @@ export default function OrderDetailsPage() {
                                       })}
                                     </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="mt-6 flex flex-wrap items-center gap-3 pt-4 border-t border-indigo-500/20">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => setInitiatePaymentApp(order)}
-                                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
-                                      >
-                                        <DollarSign className="mr-1.5 h-4 w-4" />
-                                        Verify & Approved
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => setRejectApp(order)}
-                                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
-                                      >
-                                        <XCircle className="mr-1.5 h-4 w-4" />
-                                        Reject (with reason)
-                                      </Button>
+                                    {/* Action Buttons & Status */}
+                                    <div className="mt-6 pt-4 border-t border-indigo-500/20">
+                                      {order.form_data?.order_details_approved ? (
+                                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl w-fit">
+                                          <CheckCircle2 className="h-4 w-4" />
+                                          Order Verified & Approved
+                                        </div>
+                                      ) : order.status === 'Rejected' ? (
+                                        <div className="flex flex-col gap-1.5">
+                                          <div className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl w-fit">
+                                            <XCircle className="h-4 w-4" />
+                                            Order Rejected
+                                          </div>
+                                          <p className="text-xs text-red-300 font-medium ml-1">Reason: {order.form_data?.rejection_reason}</p>
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-wrap items-center gap-3">
+                                          <Button
+                                            size="sm"
+                                            onClick={() => setInitiatePaymentApp(order)}
+                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
+                                          >
+                                            <DollarSign className="mr-1.5 h-4 w-4" />
+                                            Verify & Approved
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            onClick={() => setRejectApp(order)}
+                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
+                                          >
+                                            <XCircle className="mr-1.5 h-4 w-4" />
+                                            Reject (with reason)
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 

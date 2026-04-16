@@ -35,21 +35,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if user already applied
-    const { data: existing } = await supabase
-      .from('applications')
-      .select('id')
-      .eq('user_id', payload.id)
-      .eq('campaign_id', campaignId)
-      .single()
-
-    if (existing) {
-      return NextResponse.json(
-        { error: 'You have already applied to this campaign' },
-        { status: 409 }
-      )
-    }
-
     // Check campaign exists and is active
     const { data: campaign } = await supabase
       .from('campaigns')
@@ -63,6 +48,59 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Check if user already applied
+    const { data: existing } = await supabase
+      .from('applications')
+      .select('id, status')
+      .eq('user_id', payload.id)
+      .eq('campaign_id', campaignId)
+      .single()
+
+    if (existing) {
+      if (existing.status === 'Rejected') {
+        // If rejected, allow re-application by updating the existing record
+        const { error: updateError } = await supabase
+          .from('applications')
+          .update({
+            form_data: formData || {},
+            status: 'Applied',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+
+        if (updateError) throw updateError
+
+        // Send confirmation email for re-application
+        const { data: user } = await supabase
+          .from('users')
+          .select('email, full_name')
+          .eq('id', payload.id)
+          .single()
+
+        if (user?.email) {
+          sendApplicationSubmittedEmail(
+            user.email,
+            user.full_name || 'Creator',
+            campaign.brand_name,
+            campaign.campaign_code
+          )
+        }
+        
+        return NextResponse.json({
+          success: true,
+          applicationId: existing.id,
+          message: 'Application re-submitted successfully!'
+        })
+      }
+
+      return NextResponse.json(
+        { error: 'You have already applied to this campaign' },
+        { status: 409 }
+      )
+    }
+
+
 
     // Insert application
     const { data: application, error } = await supabase

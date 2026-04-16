@@ -105,7 +105,10 @@ export default function ApprovedCampaignsPage() {
             const received = (app.partial_payment || 0) + (app.final_payment || 0)
             const pending = app.pending_amount || 0
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
-            const statusDisplay = app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' : app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
+            const statusDisplay = progress >= 100 ? 'FULLY PAID' :
+                                  app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : 
+                                  app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' : 
+                                  app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
             
             return (
               <motion.div
@@ -122,7 +125,7 @@ export default function ApprovedCampaignsPage() {
                     <span className="text-sm font-bold text-white truncate max-w-[50%] flex items-center gap-1.5">
                       <span className="opacity-50 text-indigo-400">#</span> {campCode}
                     </span>
-                    <span className="bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 text-[9px] font-bold px-2 py-1 flex items-center shrink-0 uppercase tracking-wider rounded-sm">
+                    <span className={`text-[9px] font-bold px-2 py-1 flex items-center shrink-0 uppercase tracking-wider rounded-sm border ${progress >= 100 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20'}`}>
                       {statusDisplay}
                     </span>
                   </div>
@@ -138,12 +141,14 @@ export default function ApprovedCampaignsPage() {
                       </div>
                       <span className="text-sm font-bold text-white">{brandName}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest whitespace-nowrap">Bank Code</span>
-                      <span className="bg-slate-950 border border-white/10 text-slate-400 px-2 py-0.5 rounded text-xs font-mono font-medium">
-                        {app.form_data?.payment_initiated?.bank_code || app.id.substring(0,8)}
-                      </span>
-                    </div>
+                    {app.form_data?.payment_initiated?.bank_code && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest whitespace-nowrap">Bank Code</span>
+                        <span className="bg-slate-950 border border-white/10 text-slate-400 px-2 py-0.5 rounded text-xs font-mono font-medium truncate max-w-[150px]" title={app.form_data.payment_initiated.bank_code}>
+                          {app.form_data.payment_initiated.bank_code}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Financials Row */}

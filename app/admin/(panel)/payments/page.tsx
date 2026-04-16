@@ -912,13 +912,13 @@ export default function PaymentsPage() {
                           </td>
                         )}
                         {/* Actions */}
-                        {visibleCols.actions && (
+                        {/* {visibleCols.actions && (
                           <td className={`px-2 ${densityPadding[density]}`} onClick={e => e.stopPropagation()}>
                             <div className="relative">
                               <ActionsMenu payment={payment} onInitiatePayment={(p) => { setInitiatePaymentApp(p); setInitiateAmount(''); setInitiateBankCode('') }} onRejectPayment={(p) => { setRejectPaymentApp(p); setRejectReason('') }} />
                             </div>
                           </td>
-                        )}
+                        )} */}
                       </motion.tr>
 
                       {/* Expanded Row */}
@@ -1043,18 +1043,24 @@ export default function PaymentsPage() {
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                                  req.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
-                                                  req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
-                                                  'bg-red-500/15 text-red-400 border-red-500/20'
-                                                }`}>{req.status}</span>
+                                                {(() => {
+                                                  const isEffectivelySettled = req.status === 'pending' && (payment.pending_amount !== undefined && payment.pending_amount <= 0);
+                                                  const displayStatus = isEffectivelySettled ? 'settled' : req.status;
+                                                  return (
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                      displayStatus === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
+                                                      (displayStatus === 'approved' || displayStatus === 'settled') ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
+                                                      'bg-red-500/15 text-red-400 border-red-500/20'
+                                                    }`}>{displayStatus}</span>
+                                                  )
+                                                })()}
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
                                                 <p className="text-xs text-slate-400">{req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : '—'}</p>
                                               </div>
                                             </div>
-                                            {req.status === 'pending' && (
+                                            {req.status === 'pending' && (payment.pending_amount === undefined || payment.pending_amount > 0) && (
                                               <div className="flex items-center gap-2 shrink-0">
                                                 <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode('') }}
                                                   className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
@@ -1089,11 +1095,17 @@ export default function PaymentsPage() {
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                                  req.status === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
-                                                  req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
-                                                  'bg-red-500/15 text-red-400 border-red-500/20'
-                                                }`}>{req.status}</span>
+                                                {(() => {
+                                                  const isEffectivelySettled = req.status === 'pending' && (payment.pending_amount !== undefined && payment.pending_amount <= 0);
+                                                  const displayStatus = isEffectivelySettled ? 'settled' : req.status;
+                                                  return (
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                      displayStatus === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
+                                                      (displayStatus === 'approved' || displayStatus === 'settled') ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
+                                                      'bg-red-500/15 text-red-400 border-red-500/20'
+                                                    }`}>{displayStatus}</span>
+                                                  )
+                                                })()}
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
@@ -1120,14 +1132,23 @@ export default function PaymentsPage() {
 
                                   {/* Action Buttons */}
                                   <div className="flex flex-wrap items-center gap-3 pt-2">
-                                    <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
-                                      className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
-                                      <DollarSign className="mr-1.5 h-4 w-4" /> Initiate Payment
-                                    </Button>
-                                    <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
-                                      className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
-                                      <X className="mr-1.5 h-4 w-4" /> Reject Payment
-                                    </Button>
+                                    {(payment.pending_amount === undefined || payment.pending_amount <= 0) ? (
+                                      <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Fully Paid
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
+                                          className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
+                                          <DollarSign className="mr-1.5 h-4 w-4" /> Initiate Payment
+                                        </Button>
+                                        <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
+                                          className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
+                                          <X className="mr-1.5 h-4 w-4" /> Reject Payment
+                                        </Button>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
                               </motion.div>
@@ -1243,7 +1264,13 @@ export default function PaymentsPage() {
                     const newPartial = currentPartial + amt
                     const newPending = Math.max(0, currentPending - amt)
                     const currentFormData = initiatePaymentApp.form_data || {}
-                    const updatedFormData = { ...currentFormData, payment_initiated: { amount: amt, bank_code: initiateBankCode.trim(), initiated_at: new Date().toISOString() } }
+                    const existingBankCode = currentFormData.payment_initiated?.bank_code || ''
+                    const newBankCode = initiateBankCode.trim()
+                    const updatedBankCode = existingBankCode 
+                      ? (existingBankCode.includes(newBankCode) ? existingBankCode : `${existingBankCode}, ${newBankCode}`)
+                      : newBankCode
+                    
+                    const updatedFormData = { ...currentFormData, payment_initiated: { amount: amt, bank_code: updatedBankCode, initiated_at: new Date().toISOString() } }
                     const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData })
@@ -1337,16 +1364,22 @@ function ActionsMenu({ payment, onInitiatePayment, onRejectPayment }: { payment:
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-1">
-              {payment.status !== 'Payment Initiated' && (
-                <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); popover.setOpen(false) }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-amber-400 hover:bg-amber-500/10">
-                  <DollarSign className="h-3.5 w-3.5" /> Initiate Payment
-                </button>
+              {(payment.pending_amount === undefined || payment.pending_amount <= 0) ? (
+                <div className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-500/5 border border-emerald-500/10">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Fully Paid
+                </div>
+              ) : (
+                <>
+                  <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); popover.setOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-amber-400 hover:bg-amber-500/10">
+                    <DollarSign className="h-3.5 w-3.5" /> Initiate Payment
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); popover.setOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-red-400 hover:bg-red-500/10">
+                    <X className="h-3.5 w-3.5" /> Reject Payment
+                  </button>
+                </>
               )}
-              <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); popover.setOpen(false) }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-red-400 hover:bg-red-500/10">
-                <X className="h-3.5 w-3.5" /> Reject Payment
-              </button>
             </div>
           </motion.div>
         )}

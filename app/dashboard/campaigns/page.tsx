@@ -219,16 +219,21 @@ export default function AppliedCampaignsPage() {
               {/* Actions Row */}
               <div className="px-5 pb-4">
                 <div className="flex items-center justify-end gap-3">
-                  {/* Upload Order Details - when approved or rejected */}
-                  {(app.status === 'Approved' || app.status === 'Rejected') && app.campaigns?.order_form && (
+                  {/* Upload Order Details - only show if approved, or if rejected AFTER they already submitted order details */}
+                  {((app.status === 'Approved') || (app.status === 'Rejected' && !!app.form_data?.order_details)) && app.campaigns?.order_form && (
                     <button
                       onClick={() => setSelectedApplication(app)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-semibold cursor-pointer"
+                      disabled={!!app.form_data?.order_details && app.status !== 'Rejected'}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-semibold ${
+                        !!app.form_data?.order_details && app.status !== 'Rejected'
+                          ? 'bg-slate-800/50 border border-slate-700/50 text-slate-500 cursor-not-allowed'
+                          : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 cursor-pointer'
+                      }`}
                     >
                       {app.form_data?.order_details ? (
                         <>
                           <CheckCircle2 className="h-4 w-4" />
-                          Update Order Details
+                          {app.status !== 'Rejected' ? 'Order Details Submitted' : 'Update Order Details'}
                         </>
                       ) : (
                         <>
