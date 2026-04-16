@@ -84,6 +84,7 @@ export async function POST(request: Request) {
       order_form,
       order_form_fields,
       show_order_form,
+      payment_form_fields,
     } = body
 
     if (!brand_name || !platform) {
@@ -101,9 +102,9 @@ export async function POST(request: Request) {
         deliverables, product_links, requirements, gender_required, 
         location, looking_for, followers, additional_info, 
         collab_date, form_link, form_fields, order_form, 
-        order_form_fields, show_order_form, status, is_live
+        order_form_fields, show_order_form, payment_form_fields, status, is_live
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
       ) RETURNING *
     `
     const values = [
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
       deliverables || null, product_links || [], requirements || null, gender_required || 'Any',
       location || null, looking_for || null, followers || null, additional_info || null,
       collab_date || null, form_link || null, JSON.stringify(form_fields || []), order_form || false,
-      JSON.stringify(order_form_fields || []), show_order_form !== false, 'Draft', false
+      JSON.stringify(order_form_fields || []), show_order_form !== false, JSON.stringify(payment_form_fields || []), 'Draft', false
     ]
 
     const res = await client.query(query, values)

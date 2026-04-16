@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, DollarSign, Percent, IndianRupee, Wallet } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, DollarSign, Percent, IndianRupee, Wallet, CreditCard } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,6 +37,7 @@ interface CampaignData {
   form_fields: FormField[]
   order_form: boolean
   order_form_fields: FormField[]
+  payment_form_fields: FormField[]
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -70,6 +71,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
+  const [paymentFormFields, setPaymentFormFields] = useState<FormField[]>([])
 
   useEffect(() => {
     fetchCampaign()
@@ -112,6 +114,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
       })
       setCustomFields(data.campaign.form_fields || [])
       setOrderFormFields(data.campaign.order_form_fields || [])
+      setPaymentFormFields(data.campaign.payment_form_fields || [])
     } catch {
       toast.error('Failed to load campaign')
     } finally {
@@ -141,6 +144,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,
+        payment_form_fields: paymentFormFields.filter(f => f.name.trim()),
       }
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
@@ -603,6 +607,19 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           <div className="p-6">
             <p className="text-xs text-slate-500 mb-4">Define extra fields that influencers must fill when applying. These appear in the application form.</p>
             <FormFieldBuilder fields={customFields} onChange={setCustomFields} />
+          </div>
+        </div>
+
+        {/* Payment Form Fields */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-pink-500/5 to-transparent">
+            <CreditCard className="h-4 w-4 text-pink-400" />
+            <h3 className="text-sm font-semibold text-white">Payment Form Settings</h3>
+            <span className="text-[10px] text-slate-500 ml-auto">{paymentFormFields.length} field{paymentFormFields.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="p-6">
+            <p className="text-xs text-slate-500 mb-4">Live Date, Payment Reason, Payment Amount, and Supporting Document are already required. Use this to add ANY EXTRA payment-related fields.</p>
+            <FormFieldBuilder fields={paymentFormFields} onChange={setPaymentFormFields} />
           </div>
         </div>
 

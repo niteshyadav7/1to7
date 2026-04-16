@@ -52,7 +52,7 @@ export async function PUT(
       'gender_required', 'is_live', 'status',
       'location', 'looking_for', 'followers', 'additional_info',
       'collab_date', 'form_link', 'form_fields',
-      'order_form', 'order_form_fields', 'show_order_form'
+      'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields'
     ]
 
     const updates: Record<string, any> = {}

@@ -42,7 +42,8 @@ export async function GET(request: Request) {
           requirements,
           gender_required,
           order_form,
-          order_form_fields
+          order_form_fields,
+          payment_form_fields
         )
       `)
       .eq('user_id', payload.id)

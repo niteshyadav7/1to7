@@ -23,6 +23,7 @@ interface Application {
     campaign_code: string
     platform: string
     deliverables: string
+    payment_form_fields?: any[]
   }
 }
 

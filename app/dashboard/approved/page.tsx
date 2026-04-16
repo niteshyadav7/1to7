@@ -24,6 +24,7 @@ interface Application {
     budget_type: string
     deliverables: string
     order_form?: boolean
+    payment_form_fields?: any[]
   }
 }
 
