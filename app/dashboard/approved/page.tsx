@@ -45,9 +45,10 @@ export default function ApprovedCampaignsPage() {
       const filtered = (data.applications || []).filter((app: Application) => {
         if (!validStatuses.includes(app.status)) return false
         
-        // If it requires an order form, ONLY show on the Approved page if they've submitted the order details
-        if (app.status === 'Approved' && app.campaigns?.order_form) {
-          if (!app.form_data?.order_details) {
+        // If it requires an order form, ONLY show on the Approved page
+        // after order_details have been submitted AND approved by admin
+        if (app.campaigns?.order_form && app.status === 'Approved') {
+          if (!app.form_data?.order_details_approved) {
             return false
           }
         }

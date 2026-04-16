@@ -883,17 +883,24 @@ export default function OrderDetailsPage() {
     }
 
     try {
+      // Set order_details_approved flag so the campaign moves from Applied → Approved on influencer dashboard
+      const updatedFormData = {
+        ...initiatePaymentApp.form_data,
+        order_details_approved: true
+      }
+
       const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'Approved',
-          pending_amount: total // Goes to Total Deal, not Received
+          pending_amount: total, // Goes to Total Deal, not Received
+          form_data: updatedFormData
         }),
       })
       if (!res.ok) throw new Error('Failed to verify & approve')
       
-      setOrders(prev => prev.map(o => o.id === initiatePaymentApp.id ? { ...o, status: 'Approved', pending_amount: total } : o))
+      setOrders(prev => prev.map(o => o.id === initiatePaymentApp.id ? { ...o, status: 'Approved', pending_amount: total, form_data: updatedFormData } : o))
       toast.success('Order verified & approved successfully')
       setInitiatePaymentApp(null)
       setPaymentAmount('')
@@ -910,7 +917,7 @@ export default function OrderDetailsPage() {
     }
 
     try {
-      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason }
+      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason, order_details_approved: false }
       const res = await fetch(`/api/admin/applications/${rejectApp.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

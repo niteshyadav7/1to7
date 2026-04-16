@@ -34,6 +34,7 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/90 text-white',
   'Completed': 'bg-purple-500/90 text-white',
   'Payment Initiated': 'bg-blue-500/90 text-white',
+  'Order Details Pending': 'bg-cyan-500/90 text-white',
 }
 
 const statuses = ['All', 'Applied', 'Rejected']
@@ -62,8 +63,16 @@ export default function AppliedCampaignsPage() {
   }
 
   // Only show Applied & Rejected here — Approved and beyond are on the Approved page
+  // BUT: if the campaign requires an order form and order_details haven't been approved yet,
+  // keep it visible on the Applied page so the influencer can fill the order form
   const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
-  const appliedPageApps = applications.filter(app => !approvedStatuses.includes(app.status))
+  const appliedPageApps = applications.filter(app => {
+    // Always show Applied & Rejected
+    if (!approvedStatuses.includes(app.status)) return true
+    // For campaigns with order forms: keep in Applied until order_details are approved by admin
+    if (app.campaigns?.order_form && !app.form_data?.order_details_approved) return true
+    return false
+  })
 
   const filteredApps = activeFilter === 'All'
     ? appliedPageApps
@@ -133,13 +142,24 @@ export default function AppliedCampaignsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {app.campaigns?.order_form && !app.form_data?.order_details && app.status === 'Approved' && (
+                  {/* Show contextual status for order-form campaigns */}
+                  {app.campaigns?.order_form && app.status === 'Approved' && !app.form_data?.order_details && (
                     <span className="rounded-md px-3 py-1.5 text-[11px] font-semibold bg-blue-500/90 text-white">
                       Fill Order Form
                     </span>
                   )}
-                  <span className={`rounded-md px-3 py-1.5 text-[11px] font-semibold ${statusColors[app.status] || 'bg-slate-500/90 text-white'}`}>
-                    {app.status === 'Applied' ? 'Pending' : app.status}
+                  <span className={`rounded-md px-3 py-1.5 text-[11px] font-semibold ${
+                    app.status === 'Applied'
+                      ? statusColors['Applied']
+                      : app.campaigns?.order_form && app.status === 'Approved' && app.form_data?.order_details && !app.form_data?.order_details_approved
+                        ? statusColors['Order Details Pending']
+                        : statusColors[app.status] || 'bg-slate-500/90 text-white'
+                  }`}>
+                    {app.status === 'Applied'
+                      ? 'Pending'
+                      : app.campaigns?.order_form && app.status === 'Approved' && app.form_data?.order_details && !app.form_data?.order_details_approved
+                        ? 'Order Details Pending'
+                        : app.status}
                   </span>
                 </div>
               </div>
