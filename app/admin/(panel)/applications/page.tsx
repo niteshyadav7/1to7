@@ -626,7 +626,7 @@ export default function AllApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
 
   // Table state
-  const [activeStatus, setActiveStatus] = useState('All')
+  const [activeStatus, setActiveStatus] = useState('Applied')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -1623,27 +1623,32 @@ export default function AllApplicationsPage() {
               <span className="text-[11px] text-slate-500">applications</span>
             </div>
             <div className="w-px h-8 bg-white/10" />
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkAction('Rejected')}
-                disabled={bulkUpdating}
-                className="h-9 px-4 rounded-xl border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300 bg-slate-950 font-medium cursor-pointer"
-              >
-                {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                Reject
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleBulkAction('Approved')}
-                disabled={bulkUpdating}
-                className="h-9 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 border-none font-medium cursor-pointer"
-              >
-                {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                Approve
-              </Button>
-            </div>
+            {(() => {
+              const allApplied = Array.from(selectedIds).every(id => applications.find(a => a.id === id)?.status === 'Applied')
+              return (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('Rejected')}
+                    disabled={bulkUpdating || !allApplied}
+                    className="h-9 px-4 rounded-xl border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300 bg-slate-950 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleBulkAction('Approved')}
+                    disabled={bulkUpdating || !allApplied}
+                    className="h-9 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 border-none font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                    Approve
+                  </Button>
+                </div>
+              )
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
