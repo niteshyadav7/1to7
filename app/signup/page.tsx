@@ -202,7 +202,10 @@ function SignupForm() {
 
         {/* Mobile Number */}
         <div className="space-y-2">
-          <Label htmlFor="mobile" className="text-slate-300 font-medium text-sm">Mobile Number</Label>
+          <Label htmlFor="mobile" className="text-slate-300 font-medium text-sm flex justify-between items-center">
+            <span>Mobile Number</span>
+            <span className="text-[10px] text-pink-300 font-medium bg-pink-500/20 px-2 py-0.5 rounded border border-pink-500/30">Don't start with 0</span>
+          </Label>
           <div className="relative group">
              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
             <Input
@@ -211,7 +214,14 @@ function SignupForm() {
               placeholder="9990000000"
               required
               value={formData.mobile}
-              onChange={(e) => setFormData(prev => ({ ...prev, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+              onChange={(e) => {
+                let val = e.target.value.replace(/\D/g, '');
+                if (val.startsWith('0')) {
+                  toast.error('Mobile number should not start with 0');
+                  val = val.replace(/^0+/, '');
+                }
+                setFormData(prev => ({ ...prev, mobile: val.slice(0, 10) }));
+              }}
               className={inputClasses}
             />
             <div className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 blur transition-opacity group-focus-within:opacity-20" />

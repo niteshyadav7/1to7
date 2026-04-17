@@ -1,0 +1,2 @@
+full_name,mobile,email,influencer_id,instagram_username,gender,account_number,account_name,ifsc_code,state,city,followers,category,password_hash,is_email_verified,is_mobile_verified
+Yash Agrawal,7417432115,yash@example.com,HY1000,yash_agrawal,Male,1234567890,Yash Agrawal,SBIN0001234,UTTAR PRADESH,Kasganj,122,Fashion,$2a$10$YourHashedPasswordHere,TRUE,TRUE
