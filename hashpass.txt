@@ -1,0 +1,6 @@
+-- Enable the encryption extension just in case
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Actually secure hash 'Test@123' for all profiles
+UPDATE public.users 
+SET password_hash = crypt('Test@123', gen_salt('bf', 10));
