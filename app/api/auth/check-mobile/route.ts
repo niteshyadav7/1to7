@@ -38,10 +38,13 @@ export async function POST(request: Request) {
       const isMatch = user.email?.toLowerCase() === email.toLowerCase()
       return NextResponse.json({ exists: true, emailVerified: isMatch, userId: isMatch ? user.id : undefined, isVerified: user.is_mobile_verified })
     }
-
-    // Return masked email hint for the challenge
-    const maskedEmail = maskEmail(user.email || '')
-    return NextResponse.json({ exists: true, maskedEmail, isVerified: user.is_mobile_verified })
+    // Return data directly (skip masking since we bypass email challenge entirely now for direct apply)
+    return NextResponse.json({ 
+      exists: true, 
+      userId: user.id, // Exposing ID so the frontend can bypass identity check
+      maskedEmail: maskEmail(user.email || ''), 
+      isVerified: user.is_mobile_verified 
+    })
   } catch (error) {
     console.error('API /auth/check-mobile Error:', error)
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

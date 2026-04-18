@@ -863,7 +863,7 @@ export default function CampaignDetailModal({
                   className="w-full h-14 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-lg shadow-xl shadow-purple-500/20 transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {!isLoggedIn 
-                    ? 'Login to Apply' 
+                    ? 'Quick Apply' 
                     : campaign.form_link 
                       ? 'Apply via External Form' 
                       : 'Apply Now'

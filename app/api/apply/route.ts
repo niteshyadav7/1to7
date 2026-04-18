@@ -64,8 +64,8 @@ export async function POST(request: Request) {
       if (existingUser) {
         userId = existingUser.id
       } else {
-        const { data: newInfluencerId, error: idError } = await supabase.rpc('generate_influencer_id')
-        if (idError) throw new Error('Failed to generate Influencer ID')
+        // Generate influencer ID in code (RPC returns null via anon key)
+        const newInfluencerId = `HY${Math.floor(10000 + Math.random() * 90000)}`
         
         const { data: newUser, error: insertError } = await supabase
           .from('users')
@@ -75,13 +75,16 @@ export async function POST(request: Request) {
              email: guestProfile?.email || `${mobile}@guest.1to7.com`,
              password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
              influencer_id: newInfluencerId,
-             is_mobile_verified: true,
+             is_mobile_verified: false,
              is_email_verified: false
           }])
           .select('id, influencer_id, mobile')
           .single()
 
-        if (insertError) throw new Error('Failed to create guest account')
+        if (insertError) {
+          console.error('CRITICAL GUEST INSERT ERROR:', insertError)
+          throw new Error(`DB Error: ${insertError.message} (Code: ${insertError.code})`)
+        }
         
         userId = newUser.id
         

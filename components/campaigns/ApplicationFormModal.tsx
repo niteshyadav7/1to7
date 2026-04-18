@@ -55,6 +55,7 @@ export default function ApplicationFormModal({
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
   const [checkingMobile, setCheckingMobile] = useState(false)
+  const [mobileStatus, setMobileStatus] = useState<'idle' | 'exists' | 'new'>('idle')
   const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null)
 
   // Reset all state when modal opens/closes
@@ -69,6 +70,7 @@ export default function ApplicationFormModal({
       setGuestName('')
       setGuestEmail('')
       setCheckingMobile(false)
+      setMobileStatus('idle')
       setVerifiedUserId(null)
       setPitch('')
     }
@@ -95,7 +97,45 @@ export default function ApplicationFormModal({
     }
   }
 
-  // Step 1: Check mobile number
+  // Auto-check mobile when 10 digits are entered
+  useEffect(() => {
+    const checkSilently = async () => {
+      const cleanMobile = guestMobile.replace(/\D/g, '')
+      if (cleanMobile.length !== 10) {
+        setMobileStatus('idle')
+        setVerifiedUserId(null)
+        return
+      }
+
+      setCheckingMobile(true)
+      setMobileStatus('idle')
+      try {
+        const res = await fetch('/api/auth/check-mobile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: cleanMobile }),
+        })
+        const data = await res.json()
+
+        if (data.exists && data.userId) {
+          setMobileStatus('exists')
+          setVerifiedUserId(data.userId)
+        } else {
+          setMobileStatus('new')
+          setVerifiedUserId(null)
+        }
+      } catch {
+        setMobileStatus('idle')
+      } finally {
+        setCheckingMobile(false)
+      }
+    }
+
+    const timeoutId = setTimeout(checkSilently, 400)
+    return () => clearTimeout(timeoutId)
+  }, [guestMobile])
+
+  // Step 1: Check mobile number (Continue Button)
   const handleMobileCheck = async () => {
     const cleanMobile = guestMobile.replace(/\D/g, '')
     if (cleanMobile.length !== 10) {
@@ -103,27 +143,32 @@ export default function ApplicationFormModal({
       return
     }
 
-    setCheckingMobile(true)
-    try {
-      const res = await fetch('/api/auth/check-mobile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: cleanMobile }),
-      })
-      const data = await res.json()
+    if (mobileStatus === 'exists' && verifiedUserId) {
+      setGuestStep('application')
+    } else if (mobileStatus === 'new') {
+      setGuestStep('new-profile')
+    } else {
+      // Fallback if they clicked continue before silent check finished
+      setCheckingMobile(true)
+      try {
+        const res = await fetch('/api/auth/check-mobile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: cleanMobile }),
+        })
+        const data = await res.json()
 
-      if (data.exists) {
-        // Existing user → show email challenge
-        setMaskedEmail(data.maskedEmail || '***@***.com')
-        setGuestStep('email-challenge')
-      } else {
-        // New user → show profile expansion
-        setGuestStep('new-profile')
+        if (data.exists && data.userId) {
+          setVerifiedUserId(data.userId)
+          setGuestStep('application')
+        } else {
+          setGuestStep('new-profile')
+        }
+      } catch {
+        toast.error('Failed to verify mobile number. Please try again.')
+      } finally {
+        setCheckingMobile(false)
       }
-    } catch {
-      toast.error('Failed to verify mobile number. Please try again.')
-    } finally {
-      setCheckingMobile(false)
     }
   }
 
@@ -324,16 +369,43 @@ export default function ApplicationFormModal({
                         value={guestMobile}
                         onChange={(e) => setGuestMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                         placeholder="e.g. 9876543210"
-                        className="bg-slate-950/80 border border-purple-500/30 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-purple-500/50 transition-all font-medium"
+                        className={`bg-slate-950/80 border text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl transition-all font-medium ${
+                          mobileStatus === 'exists' ? 'border-emerald-500/50 focus-visible:ring-emerald-500/50' : 
+                          mobileStatus === 'new' ? 'border-blue-500/50 focus-visible:ring-blue-500/50' : 
+                          'border-purple-500/30 focus-visible:ring-purple-500/50'
+                        }`}
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && handleMobileCheck()}
                       />
+
+                      <AnimatePresence>
+                        {mobileStatus === 'exists' && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-2 text-emerald-400 text-xs font-medium pt-2 pl-1"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" /> Account Found! You can quick apply.
+                          </motion.div>
+                        )}
+                        {mobileStatus === 'new' && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-2 text-blue-400 text-xs font-medium pt-2 pl-1"
+                          >
+                            <User className="h-3.5 w-3.5" /> New Creator! We'll set up your profile next.
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     <Button
                       onClick={handleMobileCheck}
-                      disabled={checkingMobile || guestMobile.replace(/\D/g, '').length !== 10}
-                      className="w-full h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                      disabled={checkingMobile || guestMobile.replace(/\D/g, '').length !== 10 || mobileStatus === 'idle'}
+                      className={`w-full h-12 rounded-xl text-white font-bold shadow-lg cursor-pointer disabled:opacity-50 transition-all ${
+                        mobileStatus === 'exists' ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-emerald-500/20' : 
+                        mobileStatus === 'new' ? 'bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-blue-500/20' : 
+                        'bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 shadow-purple-500/20'
+                      }`}
                     >
                       {checkingMobile ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
@@ -344,65 +416,7 @@ export default function ApplicationFormModal({
                   </motion.div>
                 )}
 
-                {/* ===== GUEST STEP 2a: Email Challenge (Existing User) ===== */}
-                {!isLoggedIn && guestStep === 'email-challenge' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-5"
-                  >
-                    <div className="text-center space-y-2 mb-6">
-                      <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20 flex items-center justify-center">
-                        <ShieldCheck className="h-7 w-7 text-emerald-400" />
-                      </div>
-                      <h3 className="text-lg font-bold text-white">Confirm It&apos;s You</h3>
-                      <p className="text-sm text-slate-400">
-                        We found an account with <span className="text-white font-medium">+91 {guestMobile}</span>
-                      </p>
-                    </div>
-
-                    <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
-                      <p className="text-xs text-slate-400 mb-1">Your email on file</p>
-                      <p className="text-base font-bold text-emerald-300 tracking-wide">{maskedEmail}</p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                        Enter Your Full Email <span className="text-pink-500">*</span>
-                      </Label>
-                      <Input
-                        type="email"
-                        value={emailChallenge}
-                        onChange={(e) => setEmailChallenge(e.target.value)}
-                        placeholder="your.email@example.com"
-                        className="bg-slate-950/80 border border-emerald-500/30 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-emerald-500/50 transition-all font-medium"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleEmailChallenge()}
-                      />
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        variant="ghost"
-                        onClick={() => setGuestStep('mobile')}
-                        className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        onClick={handleEmailChallenge}
-                        disabled={checkingMobile || !emailChallenge.includes('@')}
-                        className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
-                      >
-                        {checkingMobile ? (
-                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
-                        ) : (
-                          <>Verify & Continue <ArrowRight className="ml-2 h-4 w-4" /></>
-                        )}
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
+                {/* email-challenge step has been DELETED entirely per user request */}
 
                 {/* ===== GUEST STEP 2b: New Profile (New User) ===== */}
                 {!isLoggedIn && guestStep === 'new-profile' && (
@@ -585,7 +599,7 @@ export default function ApplicationFormModal({
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={!isLoggedIn ? () => setGuestStep(verifiedUserId ? 'email-challenge' : guestEmail ? 'new-profile' : 'mobile') : onClose}
+                          onClick={!isLoggedIn ? () => setGuestStep(verifiedUserId ? 'mobile' : guestEmail ? 'mobile' : 'mobile') : onClose}
                           className="flex-1 h-12 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 font-semibold"
                         >
                           {isLoggedIn ? 'Cancel' : 'Back'}

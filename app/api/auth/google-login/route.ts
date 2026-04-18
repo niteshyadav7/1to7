@@ -75,8 +75,8 @@ export async function POST(request: Request) {
     }
 
     // New user — create account fully linked with both email and verified mobile
-    const { data: newInfluencerId, error: idError } = await supabase.rpc('generate_influencer_id')
-    if (idError) throw new Error('Failed to generate Influencer ID')
+    // Generate influencer ID in code (RPC returns null via anon key)
+    const newInfluencerId = `HY${Math.floor(10000 + Math.random() * 90000)}`
 
     const { data: newUser, error: insertError } = await supabase
       .from('users')
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       success: true, 
       user: userWithoutPassword,
-      needsMobileVerification: true,
+      needsMobileVerification: false,
       isNewUser: true
     })
   } catch (error: any) {
