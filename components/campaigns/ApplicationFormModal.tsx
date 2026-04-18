@@ -120,9 +120,11 @@ export default function ApplicationFormModal({
         if (data.exists && data.userId) {
           setMobileStatus('exists')
           setVerifiedUserId(data.userId)
+          if (data.maskedEmail) setMaskedEmail(data.maskedEmail)
         } else {
           setMobileStatus('new')
           setVerifiedUserId(null)
+          setMaskedEmail('')
         }
       } catch {
         setMobileStatus('idle')
@@ -384,7 +386,10 @@ export default function ApplicationFormModal({
                             initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
                             className="flex items-center gap-2 text-emerald-400 text-xs font-medium pt-2 pl-1"
                           >
-                            <CheckCircle className="h-3.5 w-3.5" /> Account Found! You can quick apply.
+                            <CheckCircle className="h-3.5 w-3.5 shrink-0" /> 
+                            <span>
+                              Account Found{maskedEmail ? <span className="text-emerald-500/70"> ({maskedEmail})</span> : ''}! You can quick apply.
+                            </span>
                           </motion.div>
                         )}
                         {mobileStatus === 'new' && (
