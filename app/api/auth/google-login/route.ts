@@ -11,12 +11,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
+    // Check if user exists by mobile (Primary Identity since it was OTP verified)
+    const { data: userByMobile } = await supabase
+      .from('users')
+      .select('*')
+      .eq('mobile', mobile)
+      .single()
+
     // Check if user exists by email
-    const { data: existingUser } = await supabase
+    const { data: userByEmail } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
       .single()
+
+    // --- STRICT LOCKING ENFORCEMENT ---
+    if (userByMobile && userByMobile.email && userByMobile.email.toLowerCase() !== email.toLowerCase()) {
+      // Exception: allow claiming auto-generated guest accounts
+      if (!userByMobile.email.includes('@guest.1to7.com')) {
+         const [nameParts, domain] = userByMobile.email.split('@')
+         const masked = nameParts.length > 2 ? nameParts.substring(0, 2) + '***' : nameParts
+         return NextResponse.json({ error: `This mobile number is already linked to ${masked}@${domain || 'server'}. Please use that Google account.` }, { status: 403 })
+      }
+    }
+
+    if (userByEmail && userByEmail.mobile && userByEmail.mobile !== mobile) {
+      return NextResponse.json({ error: `This Google account is already linked to a mobile number ending in *${userByEmail.mobile.slice(-4)}. Please start over and use that mobile number.` }, { status: 403 })
+    }
+
+    const existingUser = userByMobile || userByEmail
 
     const cookieStore = await cookies()
 
@@ -29,6 +52,14 @@ export async function POST(request: Request) {
       if (existingUser.full_name === 'Guest Creator' && displayName) {
         updates.full_name = displayName
         existingUser.full_name = displayName
+        needsUpdate = true
+      }
+
+      // Update email if they claimed a guest account
+      if (existingUser.email !== email) {
+        updates.email = email
+        existingUser.email = email
+        updates.is_email_verified = true
         needsUpdate = true
       }
       
