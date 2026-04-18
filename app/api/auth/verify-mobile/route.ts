@@ -23,10 +23,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Mobile number is required' }, { status: 400 })
     }
 
-    // Update user's mobile verification status
+    // Update user's mobile number and verification status
     const { error } = await supabase
       .from('users')
-      .update({ is_mobile_verified: true })
+      .update({ mobile, is_mobile_verified: true })
       .eq('id', payload.id)
 
     if (error) {

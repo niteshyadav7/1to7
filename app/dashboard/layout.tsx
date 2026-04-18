@@ -37,7 +37,7 @@ const sidebarLinks = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, isProfileComplete } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
@@ -155,6 +155,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page Content */}
         <main className="flex-1 p-6 lg:p-8">
+          {!isProfileComplete() && (
+            <div className="mb-6 rounded-2xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 p-4 lg:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg shadow-amber-500/5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 shrink-0 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-sm lg:text-base">🚀 Your application is under review!</h3>
+                  <p className="text-slate-300 text-xs lg:text-sm mt-0.5 max-w-xl leading-relaxed">Please complete your profile (Instagram & Bank Details) so brands can verify your applications and we can process your payments faster.</p>
+                </div>
+              </div>
+              <Link href="/dashboard/profile" className="shrink-0 bg-amber-500 hover:bg-amber-400 text-slate-950 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-500/20 w-full sm:w-auto text-center cursor-pointer">
+                Complete Profile
+              </Link>
+            </div>
+          )}
           {children}
         </main>
       </div>

@@ -186,7 +186,7 @@ export default function CampaignDetailModal({
 
   const handleApplyClick = () => {
     if (!isLoggedIn) {
-      router.push('/login')
+      onApply(campaign)
       return
     }
 

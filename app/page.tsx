@@ -77,10 +77,6 @@ export default function Home() {
   }
 
   const handleApply = (campaign: Campaign) => {
-    if (!user) {
-      router.push('/login')
-      return
-    }
     setDetailOpen(false)
     setSelectedCampaign(campaign)
     setApplyOpen(true)
@@ -153,15 +149,10 @@ export default function Home() {
             >
               {!user ? (
                 <>
-                  <Link href="/signup">
-                    <Button className="h-11 px-7 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-semibold text-sm shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] group cursor-pointer">
-                      Join as Creator
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
                   <Link href="/login">
-                    <Button className="h-11 px-7 rounded-xl bg-white/5 border border-white/20 text-white hover:bg-white/10 hover:border-white/30 font-medium text-sm transition-all cursor-pointer">
-                      Sign In
+                    <Button className="h-11 px-7 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-semibold text-sm shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] group cursor-pointer">
+                      Get Started
+                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </Button>
                   </Link>
                 </>

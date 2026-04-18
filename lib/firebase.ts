@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, GoogleAuthProvider, signInWithPopup, ConfirmationResult } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: "AIzaSyB-bq7BAoZ-2IvDDI8V0MRFF-QlI0jUOzo",
@@ -15,8 +15,12 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
 const auth = getAuth(app)
 
+// Google Auth Provider
+const googleProvider = new GoogleAuthProvider()
+
 // Disable app verification for testing (remove in production)
 // auth.settings.appVerificationDisabledForTesting = true
 
-export { auth, RecaptchaVerifier, signInWithPhoneNumber }
+export { auth, RecaptchaVerifier, signInWithPhoneNumber, googleProvider, signInWithPopup }
 export type { ConfirmationResult }
+
