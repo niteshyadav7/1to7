@@ -131,6 +131,13 @@ export default function LoginPage() {
       // Verify with Firebase
       await confirmationRef.current.confirm(otp)
       
+      // Update database instantly so they don't have to verify again if they drop off
+      fetch('/api/auth/mark-mobile-verified', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: mobile.replace(/\D/g, '') })
+      }).catch(console.error)
+      
       // Successfully verified mobile! Now force them to link a Google account to complete signup.
       toast.success('Mobile verified successfully!')
       setStep('google')
