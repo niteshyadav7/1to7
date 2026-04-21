@@ -445,94 +445,47 @@ export default function LoginPage() {
                   <p className="text-sm text-slate-400">Sign in to your creator account to continue.</p>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex p-1 bg-white/5 border border-white/10 rounded-xl">
-                  <button
-                    onClick={() => setActiveTab('password')}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'password' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    Password
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('otp')}
-                    className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'otp' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    Login via OTP
-                  </button>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {/* PASSWORD TAB */}
-                  {activeTab === 'password' && (
-                    <motion.div key="pw" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}>
-                      <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Email, Mobile or HYID</label>
-                          <div className="relative group">
-                            <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-                            <Input
-                              value={identifier}
-                              onChange={(e) => setIdentifier(e.target.value)}
-                              placeholder="Enter your credential"
-                              className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
-                              autoFocus
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center px-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Password</label>
-                            <Link href="/forgot-password" className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors">Forgot?</Link>
-                          </div>
-                          <div className="relative group">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-                            <Input
-                              type="password"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              placeholder="Enter password"
-                              className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          type="submit"
-                          disabled={loading || !identifier || !password}
-                          className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-2"
-                        >
-                          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Sign In <ArrowRight className="ml-2 h-5 w-5" /></>}
-                        </Button>
-                      </form>
-                    </motion.div>
-                  )}
-
-                  {/* OTP TAB */}
-                  {activeTab === 'otp' && (
-                    <motion.div key="otp-tab" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Mobile Number</label>
-                        <div className="relative group">
-                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-                          <Input
-                            value={mobile}
-                            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                            placeholder="e.g. 9876543210"
-                            className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-base font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
-                            autoFocus
-                            onKeyDown={(e) => e.key === 'Enter' && handleOTPLoginStart()}
-                          />
-                        </div>
+                {/* Password Login Form */}
+                <motion.div key="pw" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Email, Mobile or HYID</label>
+                      <div className="relative group">
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Input
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          placeholder="Enter your credential"
+                          className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          autoFocus
+                        />
                       </div>
-                      <Button
-                        onClick={handleOTPLoginStart}
-                        disabled={loading || mobile.length !== 10}
-                        className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-2"
-                      >
-                        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send OTP <ArrowRight className="ml-2 h-5 w-5" /></>}
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center px-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Password</label>
+                        <Link href="/forgot-password" className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors">Forgot?</Link>
+                      </div>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter password"
+                          className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={loading || !identifier || !password}
+                      className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-2"
+                    >
+                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Sign In <ArrowRight className="ml-2 h-5 w-5" /></>}
+                    </Button>
+                  </form>
+                </motion.div>
 
                 {/* ─── OR Divider ─── */}
                 <div className="relative my-6">
