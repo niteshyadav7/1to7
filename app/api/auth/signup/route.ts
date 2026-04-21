@@ -4,6 +4,7 @@ import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import nodemailer from 'nodemailer'
+import { generateSequentialInfluencerId } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {
@@ -28,15 +29,7 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // 3. Generate Influencer ID
-    const { data: influencerData, error: idError } = await supabase
-      .rpc('generate_influencer_id')
-    
-    if (idError) {
-      console.error('Error generating ID:', idError)
-      return NextResponse.json({ error: 'Failed to generate Influencer ID' }, { status: 500 })
-    }
-
-    const newInfluencerId = influencerData
+    const newInfluencerId = await generateSequentialInfluencerId()
 
     // 4. Insert into users table
     const { data: newUser, error: insertError } = await supabase

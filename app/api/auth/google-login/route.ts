@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { generateSequentialInfluencerId } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {
@@ -106,8 +107,8 @@ export async function POST(request: Request) {
     }
 
     // New user — create account fully linked with both email and verified mobile
-    // Generate influencer ID in code (RPC returns null via anon key)
-    const newInfluencerId = `HY${Math.floor(10000 + Math.random() * 90000)}`
+    // Generate sequential influencer ID safely
+    const newInfluencerId = await generateSequentialInfluencerId()
 
     const { data: newUser, error: insertError } = await supabase
       .from('users')

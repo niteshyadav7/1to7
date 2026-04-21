@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Instagram, Youtube, ShoppingBag, Users, FileText, 
   Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, 
-  CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon
+  CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon,
+  CheckCircle,
+  TrendingUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,6 +96,7 @@ export default function CampaignDetailModal({
   const [showOTPModal, setShowOTPModal] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
+  const [isSuccess, setIsSuccess] = useState(false)
   
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
@@ -148,6 +151,7 @@ export default function CampaignDetailModal({
       setCustomFormData({})
       setCommentText('')
       setSavingProfile(false)
+      setIsSuccess(false)
       // Force refresh user data to ensure we have the latest completeness status
       refreshUserProfile()
     }
@@ -240,9 +244,8 @@ export default function CampaignDetailModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
-      toast.success(data.message || 'Application submitted!')
-      setShowCustomForm(false)
-      onClose()
+      
+      setIsSuccess(true)
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit application')
     } finally {
@@ -285,9 +288,7 @@ export default function CampaignDetailModal({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
 
-      toast.success(data.message || 'Application submitted successfully!')
-      setShowProfileInline(false)
-      onClose()
+      setIsSuccess(true)
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong')
     } finally {
@@ -310,7 +311,7 @@ export default function CampaignDetailModal({
   return (
     <>
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && !isSuccess && (
         <>
           {/* Backdrop */}
           <motion.div
@@ -874,6 +875,79 @@ export default function CampaignDetailModal({
             </div>
           </motion.div>
         </>
+      )}
+
+      {/* ===== SUCCESS SCREEN ===== */}
+      {isOpen && isSuccess && campaign && (
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95, y: 20 }}
+           animate={{ opacity: 1, scale: 1, y: 0 }}
+           exit={{ opacity: 0, scale: 0.95, y: 20 }}
+           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col p-6">
+            <div className="flex flex-col items-center justify-center text-center space-y-4 py-2">
+              <div className="relative">
+                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <CheckCircle className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-2xl font-bold text-white tracking-tight">Application Sent! 🎉</h3>
+                <p className="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
+                  Your application for <span className="text-purple-400 font-medium">{campaign.brand_name}</span> has been securely submitted.
+                </p>
+              </div>
+
+              <div className="w-full bg-slate-900/50 border border-emerald-500/20 rounded-2xl p-4 text-left space-y-3 mt-2">
+                <div className="flex gap-3 items-start border-b border-white/5 pb-3">
+                  <div className="h-8 w-8 rounded-full bg-blue-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <TrendingUp className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white mb-1">Increase Your Chances</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-start">
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white mb-1">What's Next?</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      You will be notified once the brand reviews your application and makes a decision!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full space-y-2 pt-2">
+                <Button
+                  onClick={() => window.location.href = '/dashboard/applications'}
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
+                >
+                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsSuccess(false)
+                    onClose()
+                  }}
+                  className="w-full h-11 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+                >
+                  Close & Explore Campaigns
+                </Button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
 

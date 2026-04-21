@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { sendApplicationSubmittedEmail } from '@/lib/mailer'
+import { generateSequentialInfluencerId } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {
@@ -31,6 +32,15 @@ export async function POST(request: Request) {
         )
       }
       userId = payload.id
+
+      // Verify the user actually still exists in DB (handle stale cookies from deleted accounts)
+      const { data: dbUser } = await supabase.from('users').select('id').eq('id', userId).single()
+      if (!dbUser) {
+        return NextResponse.json(
+          { error: 'Your account appears to have been deleted. Please clear your cookies/return to home page.' },
+          { status: 401 }
+        )
+      }
     } else if (verifiedUserId) {
       // Existing user who passed the email challenge
       userId = verifiedUserId
@@ -52,6 +62,8 @@ export async function POST(request: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30
         })
+      } else {
+        return NextResponse.json({ error: 'Session mismatch: User was deleted or not found. Please refresh and try again.' }, { status: 400 })
       }
     } else if (mobile) {
       // Guest Checkout Logic — New user with profile data
@@ -64,8 +76,8 @@ export async function POST(request: Request) {
       if (existingUser) {
         userId = existingUser.id
       } else {
-        // Generate influencer ID in code (RPC returns null via anon key)
-        const newInfluencerId = `HY${Math.floor(10000 + Math.random() * 90000)}`
+        // Generate a sequential, unique influencer ID checking against the DB
+        const newInfluencerId = await generateSequentialInfluencerId()
         
         const { data: newUser, error: insertError } = await supabase
           .from('users')
@@ -76,7 +88,12 @@ export async function POST(request: Request) {
              password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
              influencer_id: newInfluencerId,
              is_mobile_verified: false,
-             is_email_verified: false
+             is_email_verified: false,
+             instagram_username: guestProfile?.instagram_username || null,
+             followers: guestProfile?.followers ? parseInt(guestProfile.followers, 10) : 0,
+             gender: guestProfile?.gender || null,
+             state: guestProfile?.state || null,
+             city: guestProfile?.city || null
           }])
           .select('id, influencer_id, mobile')
           .single()

@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck } from 'lucide-react'
+import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 
 interface FormField {
   id: string
@@ -26,8 +27,8 @@ interface Campaign {
   brand_name: string
 }
 
-// Guest flow steps: 'mobile' -> 'email-challenge' | 'new-profile' -> 'application'
-type GuestStep = 'mobile' | 'email-challenge' | 'new-profile' | 'application'
+// Guest flow steps: 'mobile' -> 'email-challenge' | 'new-profile' -> 'application' -> 'success'
+type GuestStep = 'mobile' | 'email-challenge' | 'new-profile' | 'application' | 'success'
 
 export default function ApplicationFormModal({
   campaign,
@@ -54,6 +55,11 @@ export default function ApplicationFormModal({
   const [emailChallenge, setEmailChallenge] = useState('')
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
+  const [guestInstagram, setGuestInstagram] = useState('')
+  const [guestFollowers, setGuestFollowers] = useState('')
+  const [guestGender, setGuestGender] = useState('')
+  const [guestState, setGuestState] = useState('')
+  const [guestCity, setGuestCity] = useState('')
   const [checkingMobile, setCheckingMobile] = useState(false)
   const [mobileStatus, setMobileStatus] = useState<'idle' | 'exists' | 'new'>('idle')
   const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null)
@@ -255,6 +261,11 @@ export default function ApplicationFormModal({
           payload.guestProfile = {
             full_name: guestName.trim(),
             email: guestEmail.trim(),
+            instagram_username: guestInstagram.trim(),
+            followers: guestFollowers.trim(),
+            gender: guestGender,
+            state: guestState,
+            city: guestCity
           }
         }
       }
@@ -268,14 +279,10 @@ export default function ApplicationFormModal({
 
       if (!res.ok) throw new Error(data.error || 'Application failed')
 
-      toast.success('🎉 Application submitted successfully!')
-      onSuccess()
-      onClose()
-
-      // If a new account was auto-created, refresh the page to pick up the auto-login cookie
-      if (!user) {
-        setTimeout(() => window.location.reload(), 500)
-      }
+      // Do not show toast and do not call onSuccess()/onClose() here.
+      // We want the modal to remain OPEN and display the beautiful success screen.
+      setGuestStep('success')
+      
     } catch (err: any) {
       toast.error(err.message)
     } finally {
@@ -288,6 +295,9 @@ export default function ApplicationFormModal({
   // Logged-in users go straight to Form step
   const isLoggedIn = !!user
   const showFormStep = isLoggedIn || guestStep === 'application'
+
+  // Only show the top header if not in success state
+  const showHeader = guestStep !== 'success'
 
   return (
     <AnimatePresence>
@@ -320,29 +330,31 @@ export default function ApplicationFormModal({
               </button>
 
               {/* Header */}
-              <div className="p-8 pb-6 bg-gradient-to-b from-white/[0.03] to-transparent border-b border-white/5">
-                <div className="flex items-center gap-3 mb-2">
-                   <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                      <Send className="h-5 w-5 text-purple-400" />
-                   </div>
-                   <h2 className="text-xl font-bold text-white tracking-tight">
-                    Apply to Campaign
-                  </h2>
+              {showHeader && (
+                <div className="p-8 pb-6 bg-gradient-to-b from-white/[0.03] to-transparent border-b border-white/5">
+                  <div className="flex items-center gap-3 mb-2">
+                     <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <Send className="h-5 w-5 text-purple-400" />
+                     </div>
+                     <h2 className="text-xl font-bold text-white tracking-tight">
+                      Apply to Campaign
+                    </h2>
+                  </div>
+                  
+                  {/* Campaign Info Bar */}
+                  <div className="flex items-center gap-6 mt-4 py-3 px-4 rounded-xl bg-white/[0.02] border border-white/5">
+                     <div className="space-y-0.5">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Campaign</p>
+                        <p className="text-sm font-semibold text-purple-400">{campaign.campaign_code}</p>
+                     </div>
+                     <div className="w-px h-8 bg-white/5" />
+                     <div className="space-y-0.5">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Brand</p>
+                        <p className="text-sm font-semibold text-white">{campaign.brand_name}</p>
+                     </div>
+                  </div>
                 </div>
-                
-                {/* Campaign Info Bar */}
-                <div className="flex items-center gap-6 mt-4 py-3 px-4 rounded-xl bg-white/[0.02] border border-white/5">
-                   <div className="space-y-0.5">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Campaign</p>
-                      <p className="text-sm font-semibold text-purple-400">{campaign.campaign_code}</p>
-                   </div>
-                   <div className="w-px h-8 bg-white/5" />
-                   <div className="space-y-0.5">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Brand</p>
-                      <p className="text-sm font-semibold text-white">{campaign.brand_name}</p>
-                   </div>
-                </div>
-              </div>
+              )}
 
               {/* Content Area */}
               <div className="flex-1 overflow-y-auto p-8 pt-6">
@@ -470,6 +482,97 @@ export default function ApplicationFormModal({
                           />
                         </div>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                            Instagram Username <span className="text-pink-500">*</span>
+                          </Label>
+                          <Input
+                            value={guestInstagram}
+                            onChange={(e) => setGuestInstagram(e.target.value)}
+                            placeholder="@username"
+                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                            Followers <span className="text-pink-500">*</span>
+                          </Label>
+                          <Input
+                            type="number"
+                            value={guestFollowers}
+                            onChange={(e) => setGuestFollowers(e.target.value)}
+                            placeholder="e.g. 10000"
+                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                            Gender <span className="text-pink-500">*</span>
+                          </Label>
+                          <Select
+                            value={guestGender || ""}
+                            onValueChange={(v) => setGuestGender(v || '')}
+                          >
+                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
+                              <SelectItem value="Male" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Male</SelectItem>
+                              <SelectItem value="Female" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Female</SelectItem>
+                              <SelectItem value="Other" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                            State <span className="text-pink-500">*</span>
+                          </Label>
+                          <Select
+                            value={guestState}
+                            onValueChange={(v) => {
+                              setGuestState(v || '')
+                              setGuestCity('')
+                            }}
+                          >
+                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl">
+                              <SelectValue placeholder="Select State" />
+                            </SelectTrigger>
+                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 max-h-[250px]">
+                              {STATES.map((state) => (
+                                <SelectItem key={state} value={state} className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2 text-xs">
+                                  {state}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                            City <span className="text-pink-500">*</span>
+                          </Label>
+                          <Select
+                            value={guestCity}
+                            onValueChange={(v) => setGuestCity(v || '')}
+                            disabled={!guestState}
+                          >
+                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl disabled:opacity-50">
+                              <SelectValue placeholder={guestState ? "Select City" : "State first"} />
+                            </SelectTrigger>
+                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 max-h-[250px]">
+                              {guestState && INDIA_DATA[guestState as keyof typeof INDIA_DATA]?.map((city) => (
+                                <SelectItem key={city} value={city} className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2 text-xs">
+                                  {city}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex gap-3">
@@ -482,7 +585,7 @@ export default function ApplicationFormModal({
                       </Button>
                       <Button
                         onClick={handleNewProfile}
-                        disabled={!guestName.trim() || !guestEmail.includes('@')}
+                        disabled={!guestName.trim() || !guestEmail.includes('@') || !guestInstagram.trim() || !guestFollowers.trim() || !guestGender || !guestState.trim() || !guestCity.trim()}
                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white font-bold shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
                       >
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
@@ -625,6 +728,73 @@ export default function ApplicationFormModal({
                         </Button>
                       </div>
                     </form>
+                  </motion.div>
+                )}
+
+                {/* ===== GUEST STEP 4: Success ===== */}
+                {guestStep === 'success' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center text-center space-y-4 py-4"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                      <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                        <CheckCircle className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h3 className="text-2xl font-bold text-white tracking-tight">Application Sent! 🎉</h3>
+                      <p className="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
+                        Your application for <span className="text-purple-400 font-medium">{campaign.brand_name}</span> has been securely submitted.
+                      </p>
+                    </div>
+
+                    <div className="w-full bg-slate-900/50 border border-emerald-500/20 rounded-2xl p-4 text-left space-y-3 mt-2">
+                      <div className="flex gap-3 items-start border-b border-white/5 pb-3">
+                        <div className="h-8 w-8 rounded-full bg-blue-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                          <TrendingUp className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white mb-1">Increase Your Chances</p>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 items-start">
+                        <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white mb-1">Track Your Application</p>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            We've automatically linked your account to your mobile number. You can login anytime to check if your application is approved!
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-full space-y-2 pt-2">
+                      <Button
+                        onClick={() => window.location.href = !isLoggedIn ? '/login' : '/dashboard/applications'}
+                        className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
+                      >
+                        {!isLoggedIn ? 'Login to Track Details' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          onSuccess()
+                          onClose()
+                        }}
+                        className="w-full h-11 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+                      >
+                        Close & Explore Campaigns
+                      </Button>
+                    </div>
                   </motion.div>
                 )}
               </div>
