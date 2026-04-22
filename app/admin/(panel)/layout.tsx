@@ -16,7 +16,8 @@ import {
   ClipboardList,
   CreditCard,
   BarChart3,
-  PieChart
+  PieChart,
+  FileUp
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -44,6 +45,7 @@ const sidebarLinks = [
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   // { href: '/admin/requests', label: 'Requests', icon: PieChart },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/admin/import', label: 'Import Sync', icon: FileUp },
   { href: '/admin/influencers', label: 'Influencers', icon: Users },
 ]
 
