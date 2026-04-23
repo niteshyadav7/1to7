@@ -109,13 +109,13 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
   const total = data.reduce((s, d) => s + d.value, 0)
   if (total === 0) return <p className="text-sm text-slate-500 text-center">No data</p>
 
-  let cumulative = 0
-  const segments = data.map(d => {
+  const { segments } = data.reduce((acc, d) => {
     const pct = (d.value / total) * 100
-    const start = cumulative
-    cumulative += pct
-    return { ...d, pct, start }
-  })
+    const start = acc.cumulative
+    acc.segments.push({ ...d, pct, start })
+    acc.cumulative += pct
+    return acc
+  }, { segments: [] as any[], cumulative: 0 })
 
   // Build conic gradient
   const gradientParts = segments.map(s => `${s.color} ${s.start}% ${s.start + s.pct}%`).join(', ')

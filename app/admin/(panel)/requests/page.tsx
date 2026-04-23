@@ -92,7 +92,7 @@ function usePopover() {
     if (open) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
-  return { open, setOpen, ref }
+  return { open, setOpen, popoverRef: ref }
 }
 
 // ─── SortableHeader ────────────────────────────────────────

@@ -586,7 +586,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             {/* External Form Link */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">External Form Link (Optional)</Label>
-              <p className="text-xs text-slate-500 mb-1">If set, clicking "Apply" will redirect influencers to this link instead of showing the built-in form.</p>
+              <p className="text-xs text-slate-500 mb-1">If set, clicking &quot;Apply&quot; will redirect influencers to this link instead of showing the built-in form.</p>
               <Input
                 value={formData.form_link}
                 onChange={(e) => setFormData({ ...formData, form_link: e.target.value })}

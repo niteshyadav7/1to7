@@ -919,7 +919,7 @@ export default function CampaignDetailModal({
                     <CheckCircle className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white mb-1">What's Next?</p>
+                    <p className="text-sm font-bold text-white mb-1">What&apos;s Next?</p>
                     <p className="text-xs text-slate-400 leading-relaxed">
                       You will be notified once the brand reviews your application and makes a decision!
                     </p>

@@ -409,7 +409,7 @@ export default function ApplicationFormModal({
                             initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
                             className="flex items-center gap-2 text-blue-400 text-xs font-medium pt-2 pl-1"
                           >
-                            <User className="h-3.5 w-3.5" /> New Creator! We'll set up your profile next.
+                            <User className="h-3.5 w-3.5" /> New Creator! We&apos;ll set up your profile next.
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -771,7 +771,7 @@ export default function ApplicationFormModal({
                         <div>
                           <p className="text-sm font-bold text-white mb-1">Track Your Application</p>
                           <p className="text-xs text-slate-400 leading-relaxed">
-                            We've automatically linked your account to your mobile number. You can login anytime to check if your application is approved!
+                            We&apos;ve automatically linked your account to your mobile number. You can login anytime to check if your application is approved!
                           </p>
                         </div>
                       </div>

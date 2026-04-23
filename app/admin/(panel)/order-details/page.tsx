@@ -180,7 +180,7 @@ function usePopover() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
-  return { open, setOpen, ref }
+  return { open, setOpen, popoverRef: ref }
 }
 
 // ─── FilterDropdown Component ──────────────────────────────
@@ -199,13 +199,13 @@ function FilterDropdown({
   onToggle: (val: string) => void
   onClear: () => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const count = selected.length
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={() => popover.setOpen(!popover.open)}
+        onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
           count > 0
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25 shadow-lg shadow-indigo-500/5'
@@ -219,11 +219,11 @@ function FilterDropdown({
             {count}
           </span>
         )}
-        <ChevronDown className={`h-3 w-3 transition-transform ${popover.open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -278,14 +278,14 @@ function DateRangeDropdown({
   value: string
   onChange: (val: string) => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const currentLabel = dateRanges.find(d => d.value === value)?.label || 'All Time'
   const isActive = value !== 'all'
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={() => popover.setOpen(!popover.open)}
+        onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
           isActive
             ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25 shadow-lg shadow-indigo-500/5'
@@ -294,11 +294,11 @@ function DateRangeDropdown({
       >
         <Calendar className="h-3.5 w-3.5" />
         {currentLabel}
-        <ChevronDown className={`h-3 w-3 transition-transform ${popover.open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -313,7 +313,7 @@ function DateRangeDropdown({
               {dateRanges.map(d => (
                 <button
                   key={d.value}
-                  onClick={() => { onChange(d.value); popover.setOpen(false) }}
+                  onClick={() => { onChange(d.value); setOpen(false) }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
                     value === d.value
                       ? 'bg-indigo-500/15 text-indigo-300'
@@ -340,7 +340,7 @@ function ColumnToggle({
   columns: Record<string, boolean>
   onChange: (col: string) => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const labels: Record<string, string> = {
     influencer: 'Influencer',
     campaign: 'Campaign',
@@ -352,9 +352,9 @@ function ColumnToggle({
   }
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={() => popover.setOpen(!popover.open)}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer"
       >
         <Columns3 className="h-3.5 w-3.5" />
@@ -362,7 +362,7 @@ function ColumnToggle({
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -406,7 +406,7 @@ function DensityToggle({
   density: RowDensity
   onChange: (d: RowDensity) => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const icons: Record<RowDensity, React.ElementType> = {
     compact: AlignJustify,
     default: AlignCenter,
@@ -415,9 +415,9 @@ function DensityToggle({
   const DensityIcon = icons[density]
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={() => popover.setOpen(!popover.open)}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer"
       >
         <DensityIcon className="h-3.5 w-3.5" />
@@ -425,7 +425,7 @@ function DensityToggle({
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -439,7 +439,7 @@ function DensityToggle({
                 return (
                   <button
                     key={d}
-                    onClick={() => { onChange(d); popover.setOpen(false) }}
+                    onClick={() => { onChange(d); setOpen(false) }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer capitalize ${
                       density === d ? 'bg-indigo-500/15 text-indigo-300' : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}
@@ -459,12 +459,12 @@ function DensityToggle({
 
 // ─── ExportDropdown Component ──────────────────────────────
 function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={() => popover.setOpen(!popover.open)}
+        onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer"
       >
         <Download className="h-3.5 w-3.5" />
@@ -472,7 +472,7 @@ function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => vo
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -482,14 +482,14 @@ function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => vo
           >
             <div className="p-1.5">
               <button
-                onClick={() => { onExport('csv'); popover.setOpen(false) }}
+                onClick={() => { onExport('csv'); setOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Export as CSV
               </button>
               <button
-                onClick={() => { onExport('json'); popover.setOpen(false) }}
+                onClick={() => { onExport('json'); setOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
               >
                 <FileJson className="h-3.5 w-3.5" />
@@ -514,19 +514,19 @@ function ActionsDropdown({
   onInitiatePayment: (app: OrderEntry) => void
   onReject: (app: OrderEntry) => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
 
   return (
-    <div className="relative" ref={popover.ref}>
+    <div className="relative" ref={popoverRef}>
       <button
-        onClick={(e) => { e.stopPropagation(); popover.setOpen(!popover.open) }}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
         className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
       <AnimatePresence>
-        {popover.open && (
+        {open && (
            <motion.div
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -536,19 +536,19 @@ function ActionsDropdown({
           >
              <div className="p-1">
                {app.status !== 'Completed' && (
-                 <button onClick={(e) => { e.stopPropagation(); onStatusChange(app.id, 'Completed'); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-purple-400 hover:bg-purple-500/10 cursor-pointer">
+                 <button onClick={(e) => { e.stopPropagation(); onStatusChange(app.id, 'Completed'); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-purple-400 hover:bg-purple-500/10 cursor-pointer">
                    <CheckCircle2 className="h-3.5 w-3.5" />
                    Mark Completed
                  </button>
                )}
                {app.status !== 'Payment Initiated' && (
-                 <button onClick={(e) => { e.stopPropagation(); onInitiatePayment(app); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-amber-400 hover:bg-amber-500/10 cursor-pointer">
+                 <button onClick={(e) => { e.stopPropagation(); onInitiatePayment(app); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-amber-400 hover:bg-amber-500/10 cursor-pointer">
                    <DollarSign className="h-3.5 w-3.5" />
                    Initiate Payment
                  </button>
                )}
                {app.status !== 'Rejected' && (
-                 <button onClick={(e) => { e.stopPropagation(); onReject(app); popover.setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-500/10 cursor-pointer">
+                 <button onClick={(e) => { e.stopPropagation(); onReject(app); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-500/10 cursor-pointer">
                    <XCircle className="h-3.5 w-3.5" />
                    Reject Order
                  </button>

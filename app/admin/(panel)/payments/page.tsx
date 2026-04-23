@@ -130,7 +130,7 @@ function usePopover() {
     if (open) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
-  return { open, setOpen, ref }
+  return { open, setOpen, popoverRef: ref }
 }
 
 // ─── FilterDropdown ────────────────────────────────────────
@@ -138,20 +138,20 @@ function FilterDropdown({ label, icon: Icon, options, selected, onToggle, onClea
   label: string; icon: React.ElementType; options: string[]; selected: string[]
   onToggle: (val: string) => void; onClear: () => void
 }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const count = selected.length
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={() => popover.setOpen(!popover.open)}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
           count > 0 ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25' : 'bg-slate-800/60 text-slate-400 border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10'
         }`}>
         <Icon className="h-3.5 w-3.5" /> {label}
         {count > 0 && <span className="flex items-center justify-center h-4 w-4 rounded-full bg-indigo-500 text-[10px] font-bold text-white">{count}</span>}
-        <ChevronDown className={`h-3 w-3 transition-transform ${popover.open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full left-0 mt-2 z-50 min-w-[200px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-2 border-b border-white/5 flex items-center justify-between">
@@ -180,25 +180,25 @@ function FilterDropdown({ label, icon: Icon, options, selected, onToggle, onClea
 
 // ─── DateRangeDropdown ─────────────────────────────────────
 function DateRangeDropdown({ value, onChange }: { value: string; onChange: (val: string) => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const currentLabel = dateRanges.find(d => d.value === value)?.label || 'All Time'
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={() => popover.setOpen(!popover.open)}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
           value !== 'all' ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25' : 'bg-slate-800/60 text-slate-400 border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10'
         }`}>
         <Calendar className="h-3.5 w-3.5" /> {currentLabel}
-        <ChevronDown className={`h-3 w-3 transition-transform ${popover.open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full left-0 mt-2 z-50 min-w-[180px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-2 border-b border-white/5"><span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold px-2">Date Range</span></div>
             <div className="p-1.5">
               {dateRanges.map(d => (
-                <button key={d.value} onClick={() => { onChange(d.value); popover.setOpen(false) }}
+                <button key={d.value} onClick={() => { onChange(d.value); setOpen(false) }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs cursor-pointer ${
                     value === d.value ? 'bg-indigo-500/15 text-indigo-300' : 'text-slate-400 hover:bg-white/5 hover:text-white'
                   }`}>
@@ -216,19 +216,19 @@ function DateRangeDropdown({ value, onChange }: { value: string; onChange: (val:
 
 // ─── ColumnToggle ──────────────────────────────────────────
 function ColumnToggle({ columns, onChange }: { columns: Record<string, boolean>; onChange: (col: string) => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const labels: Record<string, string> = {
     influencer: 'Influencer', campaign: 'Campaign', partialPayment: 'Partial', finalPayment: 'Final',
     pending: 'Pending', total: 'Total', paymentRequest: 'Request', status: 'Status', date: 'Date', actions: 'Actions',
   }
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={() => popover.setOpen(!popover.open)}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer">
         <Columns3 className="h-3.5 w-3.5" /> Columns
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-2 z-50 min-w-[180px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-2 border-b border-white/5"><span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold px-2">Toggle Columns</span></div>
@@ -252,24 +252,24 @@ function ColumnToggle({ columns, onChange }: { columns: Record<string, boolean>;
 
 // ─── DensityToggle ─────────────────────────────────────────
 function DensityToggle({ density, onChange }: { density: RowDensity; onChange: (d: RowDensity) => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   const icons: Record<RowDensity, React.ElementType> = { compact: AlignJustify, default: AlignCenter, comfortable: AlignStartVertical }
   const DensityIcon = icons[density]
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={() => popover.setOpen(!popover.open)}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer">
         <DensityIcon className="h-3.5 w-3.5" /> Density
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-2 z-50 min-w-[160px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-1.5">
               {(['compact', 'default', 'comfortable'] as RowDensity[]).map(d => {
                 const Icon = icons[d]
                 return (
-                  <button key={d} onClick={() => { onChange(d); popover.setOpen(false) }}
+                  <button key={d} onClick={() => { onChange(d); setOpen(false) }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs cursor-pointer capitalize ${
                       density === d ? 'bg-indigo-500/15 text-indigo-300' : 'text-slate-400 hover:bg-white/5 hover:text-white'
                     }`}><Icon className="h-3.5 w-3.5" /> {d}</button>
@@ -285,23 +285,23 @@ function DensityToggle({ density, onChange }: { density: RowDensity; onChange: (
 
 // ─── ExportDropdown ────────────────────────────────────────
 function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={() => popover.setOpen(!popover.open)}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer">
         <Download className="h-3.5 w-3.5" /> Export
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-2 z-50 min-w-[160px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-1.5">
-              <button onClick={() => { onExport('csv'); popover.setOpen(false) }}
+              <button onClick={() => { onExport('csv'); setOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:bg-white/5 hover:text-white cursor-pointer">
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Export as CSV
               </button>
-              <button onClick={() => { onExport('json'); popover.setOpen(false) }}
+              <button onClick={() => { onExport('json'); setOpen(false) }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs text-slate-400 hover:bg-white/5 hover:text-white cursor-pointer">
                 <FileJson className="h-3.5 w-3.5" /> Export as JSON
               </button>
@@ -1352,15 +1352,15 @@ export default function PaymentsPage() {
 
 // ─── ActionsMenu ───────────────────────────────────────────
 function ActionsMenu({ payment, onInitiatePayment, onRejectPayment }: { payment: PaymentEntry; onInitiatePayment: (p: PaymentEntry) => void; onRejectPayment: (p: PaymentEntry) => void }) {
-  const popover = usePopover()
+  const { open, setOpen, popoverRef } = usePopover()
   return (
-    <div className="relative" ref={popover.ref}>
-      <button onClick={e => { e.stopPropagation(); popover.setOpen(!popover.open) }}
+    <div className="relative" ref={popoverRef}>
+      <button onClick={e => { e.stopPropagation(); setOpen(!open) }}
         className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 cursor-pointer">
         <MoreHorizontal className="h-4 w-4" />
       </button>
       <AnimatePresence>
-        {popover.open && (
+        {open && (
           <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
             className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden">
             <div className="p-1">
@@ -1370,11 +1370,11 @@ function ActionsMenu({ payment, onInitiatePayment, onRejectPayment }: { payment:
                 </div>
               ) : (
                 <>
-                  <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); popover.setOpen(false) }}
+                  <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); setOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-amber-400 hover:bg-amber-500/10">
                     <DollarSign className="h-3.5 w-3.5" /> Initiate Payment
                   </button>
-                  <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); popover.setOpen(false) }}
+                  <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); setOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-red-400 hover:bg-red-500/10">
                     <X className="h-3.5 w-3.5" /> Reject Payment
                   </button>
