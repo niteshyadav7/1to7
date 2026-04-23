@@ -251,10 +251,10 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                       <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                         <span>{user?.influencer_id}</span>
                         {user?.instagram_username && (
-                          <span className="flex items-center gap-0.5">
+                          <a href={`https://instagram.com/${user.instagram_username.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
                             <Instagram className="h-3 w-3 text-pink-400" />
                             {user.instagram_username}
-                          </span>
+                          </a>
                         )}
                         {user?.followers > 0 && (
                           <span className="flex items-center gap-0.5">
@@ -299,11 +299,14 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                         </div>
                         <div>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
-                          <p className="text-slate-300 flex items-center gap-1">
+                          <div className="text-slate-300 flex items-center gap-1">
                             {user?.instagram_username ? (
-                              <><Instagram className="h-3 w-3 text-pink-400" />{user.instagram_username}</>
+                              <a href={`https://instagram.com/${user.instagram_username.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
+                                <Instagram className="h-3 w-3 text-pink-400" />
+                                {user.instagram_username}
+                              </a>
                             ) : '—'}
-                          </p>
+                          </div>
                         </div>
                         <div>
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>

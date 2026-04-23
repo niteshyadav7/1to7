@@ -1224,10 +1224,16 @@ export default function AllApplicationsPage() {
                           <td className={`px-4 ${densityPadding[density]}`}>
                             {user?.instagram_username ? (
                               <div className="min-w-0">
-                                <p className="text-[12px] text-slate-300 flex items-center gap-1.5 truncate">
+                                <a 
+                                  href={`https://instagram.com/${user.instagram_username.replace('@', '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[12px] text-slate-300 hover:text-indigo-400 hover:underline flex items-center gap-1.5 truncate transition-colors"
+                                >
                                   <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
                                   <span className="truncate">{user.instagram_username}</span>
-                                </p>
+                                </a>
                                 <p className="text-[11px] text-slate-500 mt-0.5">
                                   {formatFollowers(user.followers)} followers
                                 </p>
@@ -1326,11 +1332,20 @@ export default function AllApplicationsPage() {
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
-                                      <p className="text-slate-300 flex items-center gap-1">
+                                      <div className="text-slate-300 flex items-center gap-1">
                                         {user?.instagram_username ? (
-                                          <><Instagram className="h-3 w-3 text-pink-400" />{user.instagram_username}</>
+                                          <a
+                                            href={`https://instagram.com/${user.instagram_username.replace('@', '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors"
+                                          >
+                                            <Instagram className="h-3 w-3 text-pink-400" />
+                                            {user.instagram_username}
+                                          </a>
                                         ) : '—'}
-                                      </p>
+                                      </div>
                                     </div>
                                     <div>
                                       <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>
