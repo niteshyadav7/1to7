@@ -22,6 +22,10 @@ interface ImportRow {
   final_payment?: number
   pending_amount?: number
   order_id?: string
+  account_name?: string
+  account_number?: string
+  ifsc_code?: string
+  category?: string
 }
 
 export async function POST(request: Request) {
@@ -34,9 +38,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { rows, campaign_id } = body as { rows: ImportRow[]; campaign_id: string }
 
-    if (!campaign_id) {
-      return NextResponse.json({ error: 'Campaign ID is required' }, { status: 400 })
-    }
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json({ error: 'No rows provided' }, { status: 400 })
     }
@@ -44,15 +45,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Maximum 1000 rows per import' }, { status: 400 })
     }
 
-    // Verify the campaign exists
-    const { data: campaign, error: campaignError } = await supabase
-      .from('campaigns')
-      .select('id, campaign_code, brand_name')
-      .eq('id', campaign_id)
-      .single()
+    let campaign: { id: string; campaign_code: string; brand_name: string } | null = null
+    if (campaign_id) {
+      // Verify the campaign exists
+      const { data, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('id, campaign_code, brand_name')
+        .eq('id', campaign_id)
+        .single()
 
-    if (campaignError || !campaign) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+      if (campaignError || !data) {
+        return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+      }
+      campaign = data
     }
 
     // Valid application statuses
@@ -89,23 +94,24 @@ export async function POST(request: Request) {
             // 1. Find or create user by influencer_id or mobile
             let userId: string
 
-            let existingUser: { id: string } | null = null
-            
-            if (influencerIdInput) {
-              const { data } = await supabase.from('users').select('id').eq('influencer_id', influencerIdInput).single()
-              existingUser = data
-            }
-            if (!existingUser && mobile) {
-              const { data } = await supabase.from('users').select('id').eq('mobile', mobile).single()
-              existingUser = data
-            }
+            const { data: existingUser } = await supabase
+              .from('users')
+              .select('id, account_number, account_name, ifsc_code, category')
+              .or(`influencer_id.eq.${influencerIdInput || 'none'},mobile.eq.${mobile || 'none'}`)
+              .limit(1)
+              .maybeSingle()
 
             if (existingUser) {
               userId = existingUser.id
               results.existing_users++
 
-              // Optionally update user profile fields if provided and non-empty
+              // Check if we need to update bank details or category for existing user
               const updates: Record<string, any> = {}
+              if (!existingUser.account_name && row.account_name) updates.account_name = row.account_name
+              if (!existingUser.account_number && row.account_number) updates.account_number = row.account_number
+              if (!existingUser.ifsc_code && row.ifsc_code) updates.ifsc_code = row.ifsc_code
+              if (!existingUser.category && row.category) updates.category = row.category
+              
               if (row.full_name?.trim()) updates.full_name = row.full_name.trim()
               if (row.instagram_username?.trim()) updates.instagram_username = row.instagram_username.trim()
               if (row.gender?.trim()) updates.gender = row.gender.trim()
@@ -142,6 +148,10 @@ export async function POST(request: Request) {
                   gender: row.gender?.trim() || null,
                   state: row.state?.trim() || null,
                   city: row.city?.trim() || null,
+                  account_name: row.account_name?.trim() || null,
+                  account_number: row.account_number?.trim() || null,
+                  ifsc_code: row.ifsc_code?.trim() || null,
+                  category: row.category?.trim() || null,
                 }])
                 .select('id')
                 .single()
@@ -166,6 +176,10 @@ export async function POST(request: Request) {
                       gender: row.gender?.trim() || null,
                       state: row.state?.trim() || null,
                       city: row.city?.trim() || null,
+                      account_name: row.account_name?.trim() || null,
+                      account_number: row.account_number?.trim() || null,
+                      ifsc_code: row.ifsc_code?.trim() || null,
+                      category: row.category?.trim() || null,
                     }])
                     .select('id')
                     .single()
@@ -188,77 +202,79 @@ export async function POST(request: Request) {
               results.created_users++
             }
 
-            // 2. Determine application status
-            const status = row.status?.trim()
-            const applicationStatus = validStatuses.includes(status || '') ? status! : 'Applied'
+            if (campaign_id) {
+              // 2. Determine application status
+              const status = row.status?.trim()
+              const applicationStatus = validStatuses.includes(status || '') ? status! : 'Applied'
 
-            // 3. Check if application already exists for this user + campaign
-            const { data: existingApp } = await supabase
-              .from('applications')
-              .select('id, form_data')
-              .eq('user_id', userId)
-              .eq('campaign_id', campaign_id)
-              .single()
+              // 3. Check if application already exists for this user + campaign
+              const { data: existingApp } = await supabase
+                .from('applications')
+                .select('id, form_data')
+                .eq('user_id', userId)
+                .eq('campaign_id', campaign_id)
+                .single()
 
-            // Prepare form data including order_details if needed
-            const formData = row.form_data || {}
-            if (row.order_id) {
-              formData.order_details = formData.order_details || {}
-              formData.order_details.orderId = row.order_id
-              formData.order_details_approved = true // Auto-approve imported orders
-            }
-
-            if (existingApp) {
-              // Update existing application
-              const updatePayload: Record<string, any> = {
-                status: applicationStatus,
-                updated_at: new Date().toISOString(),
+              // Prepare form data including order_details if needed
+              const formData = row.form_data || {}
+              if (row.order_id) {
+                formData.order_details = formData.order_details || {}
+                formData.order_details.orderId = row.order_id
+                formData.order_details_approved = true // Auto-approve imported orders
               }
-              
-              if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
-              if (row.final_payment !== undefined) updatePayload.final_payment = row.final_payment
-              if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
 
-              if (Object.keys(formData).length > 0) {
-                // Merge with existing form_data
-                const existingFormData = typeof existingApp.form_data === 'object' && existingApp.form_data !== null ? existingApp.form_data : {}
-                updatePayload.form_data = { ...existingFormData, ...formData }
-                // Merge nested order_details specifically
-                if (formData.order_details && existingFormData.order_details) {
-                  updatePayload.form_data.order_details = { ...existingFormData.order_details, ...formData.order_details }
+              if (existingApp) {
+                // Update existing application
+                const updatePayload: Record<string, any> = {
+                  status: applicationStatus,
+                  updated_at: new Date().toISOString(),
                 }
+                
+                if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
+                if (row.final_payment !== undefined) updatePayload.final_payment = row.final_payment
+                if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
+
+                if (Object.keys(formData).length > 0) {
+                  // Merge with existing form_data
+                  const existingFormData = typeof existingApp.form_data === 'object' && existingApp.form_data !== null ? existingApp.form_data : {}
+                  updatePayload.form_data = { ...existingFormData, ...formData }
+                  // Merge nested order_details specifically
+                  if (formData.order_details && existingFormData.order_details) {
+                    updatePayload.form_data.order_details = { ...existingFormData.order_details, ...formData.order_details }
+                  }
+                }
+
+                await supabase
+                  .from('applications')
+                  .update(updatePayload)
+                  .eq('id', existingApp.id)
+
+                results.applications_updated++
+              } else {
+                // Create new application
+                const appPayload: Record<string, any> = {
+                  user_id: userId,
+                  campaign_id: campaign_id,
+                  status: applicationStatus,
+                  form_data: formData,
+                }
+
+                if (row.partial_payment !== undefined) appPayload.partial_payment = row.partial_payment
+                if (row.final_payment !== undefined) appPayload.final_payment = row.final_payment
+                if (row.pending_amount !== undefined) appPayload.pending_amount = row.pending_amount
+
+                const { error: appError } = await supabase
+                  .from('applications')
+                  .insert(appPayload)
+
+                if (appError) {
+                  results.errors.push({ row: rowIndex, mobile: mobile || influencerIdInput || 'Unknown', error: `Failed to create application: ${appError.message}` })
+                  results.skipped++
+                  return
+                }
+
+                results.applications_created++
               }
-
-              await supabase
-                .from('applications')
-                .update(updatePayload)
-                .eq('id', existingApp.id)
-
-              results.applications_updated++
-            } else {
-              // Create new application
-              const appPayload: Record<string, any> = {
-                user_id: userId,
-                campaign_id: campaign_id,
-                status: applicationStatus,
-                form_data: formData,
-              }
-
-              if (row.partial_payment !== undefined) appPayload.partial_payment = row.partial_payment
-              if (row.final_payment !== undefined) appPayload.final_payment = row.final_payment
-              if (row.pending_amount !== undefined) appPayload.pending_amount = row.pending_amount
-
-              const { error: appError } = await supabase
-                .from('applications')
-                .insert(appPayload)
-
-              if (appError) {
-                results.errors.push({ row: rowIndex, mobile: mobile || influencerIdInput || 'Unknown', error: `Failed to create application: ${appError.message}` })
-                results.skipped++
-                return
-              }
-
-              results.applications_created++
             }
           } catch (err: any) {
             results.errors.push({ row: rowIndex, mobile: mobile || influencerIdInput || 'Unknown', error: err.message || 'Unknown error' })
@@ -270,7 +286,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      campaign: { code: campaign.campaign_code, name: campaign.brand_name },
+      campaign: campaign ? { code: campaign.campaign_code, name: campaign.brand_name } : undefined,
       results,
     })
   } catch (error: any) {

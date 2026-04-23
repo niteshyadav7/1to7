@@ -1,0 +1,31 @@
+User id,Mobile Number,Name,Email,Instagram Username,Followers,Gender,State,City,Account Name,Account Number,IFSC Code,Category
+HY5001,5000000001,Aarav Patel,aarav@mock.com,https://instagram.com/aarav_p,15000,Male,Gujarat,Ahmedabad,Aarav Patel,5000001,HDFC0001,Lifestyle
+HY5002,5000000002,Vivaan Sharma,vivaan@mock.com,https://instagram.com/vivaan_s,22000,Male,Delhi,New Delhi,Vivaan Sharma,5000002,SBIN0001,Tech
+HY5003,5000000003,Aditya Singh,aditya@mock.com,https://instagram.com/aditya_vlogs,10500,Male,Uttar Pradesh,Lucknow,Aditya Singh,5000003,ICIC0001,Travel
+HY5004,5000000004,Vihaan Gupta,vihaan@mock.com,https://instagram.com/vihaan_g,35000,Male,Maharashtra,Mumbai,Vihaan Gupta,5000004,AXIS0001,Fashion
+HY5005,5000000005,Arjun Kumar,arjun@mock.com,https://instagram.com/arjun_moto,42000,Male,Karnataka,Bangalore,Arjun Kumar,5000005,PUNB0001,Automotive
+HY5006,5000000006,Sai Reddy,sai@mock.com,https://instagram.com/sai_r,8000,Male,Telangana,Hyderabad,Sai Reddy,5000006,KKBK0001,Food
+HY5007,5000000007,Riyansh Das,riyansh@mock.com,https://instagram.com/riyansh_d,18000,Male,West Bengal,Kolkata,Riyansh Das,5000007,HDFC0002,Tech
+HY5008,5000000008,Krishna Rao,krishna@mock.com,https://instagram.com/krishna_gaming,50000,Male,Andhra Pradesh,Vizag,Krishna Rao,5000008,SBIN0002,Gaming
+HY5009,5000000009,Ishaan Mehta,ishaan@mock.com,https://instagram.com/ishaan_m,28000,Male,Gujarat,Surat,Ishaan Mehta,5000009,ICIC0002,Fashion
+HY5010,5000000010,Shaurya Joshi,shaurya@mock.com,https://instagram.com/shaurya_art,12000,Male,Madhya Pradesh,Indore,Shaurya Joshi,5000010,AXIS0002,Art
+HY5011,5000000011,Diya Patel,diya@mock.com,https://instagram.com/diya_p,45000,Female,Gujarat,Ahmedabad,Diya Patel,5000011,HDFC0003,Beauty
+HY5012,5000000012,Aadhya Sharma,aadhya@mock.com,https://instagram.com/aadhya_s,60000,Female,Delhi,New Delhi,Aadhya Sharma,5000012,SBIN0003,Lifestyle
+HY5013,5000000013,Kiara Singh,kiara@mock.com,https://instagram.com/kiara_fashion,110000,Female,Maharashtra,Pune,Kiara Singh,5000013,ICIC0003,Fashion
+HY5014,5000000014,Saanvi Gupta,saanvi@mock.com,https://instagram.com/saanvi_g,32000,Female,Uttar Pradesh,Kanpur,Saanvi Gupta,5000014,AXIS0003,Travel
+HY5015,5000000015,Ananya Kumar,ananya@mock.com,https://instagram.com/ananya_k,55000,Female,Karnataka,Bangalore,Ananya Kumar,5000015,PUNB0002,Food
+HY5016,5000000016,Riya Reddy,riya@mock.com,https://instagram.com/riya_r,15000,Female,Telangana,Hyderabad,Riya Reddy,5000016,KKBK0002,Beauty
+HY5017,5000000017,Aanya Das,aanya@mock.com,https://instagram.com/aanya_d,21000,Female,West Bengal,Kolkata,Aanya Das,5000017,HDFC0004,Fashion
+HY5018,5000000018,Myra Rao,myra@mock.com,https://instagram.com/myra_r,80000,Female,Andhra Pradesh,Vizag,Myra Rao,5000018,SBIN0004,Lifestyle
+HY5019,5000000019,Kavya Mehta,kavya@mock.com,https://instagram.com/kavya_m,42000,Female,Gujarat,Surat,Kavya Mehta,5000019,ICIC0004,Tech
+HY5020,5000000020,Pari Joshi,pari@mock.com,https://instagram.com/pari_j,14000,Female,Madhya Pradesh,Indore,Pari Joshi,5000020,AXIS0004,Art
+HY5021,5000000021,Aryan Malhotra,aryan@mock.com,https://instagram.com/aryan_m,100000,Male,Punjab,Chandigarh,Aryan Malhotra,5000021,HDFC0005,Automotive
+HY5022,5000000022,Kabir Iyer,kabir@mock.com,https://instagram.com/kabir_i,75000,Male,Tamil Nadu,Chennai,Kabir Iyer,5000022,SBIN0005,Tech
+HY5023,5000000023,Rohan Nair,rohan@mock.com,https://instagram.com/rohan_n,30000,Male,Kerala,Kochi,Rohan Nair,5000023,ICIC0005,Travel
+HY5024,5000000024,Dhruv Kapoor,dhruv@mock.com,https://instagram.com/dhruv_k,62000,Male,Delhi,New Delhi,Dhruv Kapoor,5000024,AXIS0005,Fashion
+HY5025,5000000025,Reyansh Sen,reyansh@mock.com,https://instagram.com/reyansh_s,19000,Male,West Bengal,Howrah,Reyansh Sen,5000025,PUNB0003,Food
+HY5026,5000000026,Navya Malhotra,navya@mock.com,https://instagram.com/navya_m,85000,Female,Punjab,Chandigarh,Navya Malhotra,5000026,HDFC0006,Beauty
+HY5027,5000000027,Avni Iyer,avni@mock.com,https://instagram.com/avni_i,50000,Female,Tamil Nadu,Chennai,Avni Iyer,5000027,SBIN0006,Fashion
+HY5028,5000000028,Isha Nair,isha@mock.com,https://instagram.com/isha_n,125000,Female,Kerala,Trivandrum,Isha Nair,5000028,ICIC0006,Lifestyle
+HY5029,5000000029,Prisha Kapoor,prisha@mock.com,https://instagram.com/prisha_k,9000,Female,Delhi,New Delhi,Prisha Kapoor,5000029,AXIS0006,Art
+HY5030,5000000030,Anika Sen,anika@mock.com,https://instagram.com/anika_s,40000,Female,West Bengal,Howrah,Anika Sen,5000030,PUNB0004,Food

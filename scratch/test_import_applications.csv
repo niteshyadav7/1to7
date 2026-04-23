@@ -1,0 +1,21 @@
+User id,Mobile Number,Name,Email,Instagram Username,Followers,Gender,State,City,Account Name,Account Number,IFSC Code,Category
+HY99001,8000000001,Aman Sharma,aman@test.com,https://instagram.com/aman,50000,Male,Delhi,New Delhi,Aman Sharma,100020003000,HDFC0001234,Tech
+HY99002,8000000002,Neha Singh,neha@test.com,https://instagram.com/neha_creates,120000,Female,Maharashtra,Mumbai,Neha Singh,100020003001,SBIN0001234,Fashion
+HY99003,8000000003,Rahul Verma,rahul@test.com,https://instagram.com/rahul_vlogs,8000,Male,Karnataka,Bangalore,Rahul Verma,100020003002,ICIC0001234,Travel
+HY99004,8000000004,Priya Patel,priya.p@test.com,https://instagram.com/priyapatel_official,25000,Female,Gujarat,Ahmedabad,Priya Patel,100020003003,AXIS0001234,Beauty
+HY99005,8000000005,Vikram Singh,vikram.s@test.com,https://instagram.com/vikram_fitness,75000,Male,Rajasthan,Jaipur,Vikram Singh,100020003004,PUNB0001234,Fitness
+HY99006,8000000006,Sneha Reddy,sneha.r@test.com,https://instagram.com/sneha_fashion,150000,Female,Telangana,Hyderabad,Sneha Reddy,100020003005,KKBK0001234,Fashion
+HY99007,8000000007,Amit Kumar,amit.k@test.com,https://instagram.com/amit_tech,30000,Male,Haryana,Gurgaon,Amit Kumar,100020003006,HDFC0001235,Tech
+HY99008,8000000008,Kavita Gupta,kavita.g@test.com,https://instagram.com/kavita_lifestyle,45000,Female,Uttar Pradesh,Lucknow,Kavita Gupta,100020003007,SBIN0001235,Lifestyle
+HY99009,8000000009,Rohan Desai,rohan.d@test.com,https://instagram.com/rohan_travels,90000,Male,Maharashtra,Pune,Rohan Desai,100020003008,ICIC0001235,Travel
+HY99010,8000000010,Anjali Joshi,anjali.j@test.com,https://instagram.com/anjali_art,15000,Female,Madhya Pradesh,Indore,Anjali Joshi,100020003009,AXIS0001235,Art
+HY99011,8000000011,Karan Malhotra,karan.m@test.com,https://instagram.com/karan_moto,200000,Male,Punjab,Chandigarh,Karan Malhotra,100020003010,PUNB0001235,Automotive
+HY99012,8000000012,Shruti Iyer,shruti.i@test.com,https://instagram.com/shruti_dance,60000,Female,Tamil Nadu,Chennai,Shruti Iyer,100020003011,KKBK0001235,Entertainment
+HY99013,8000000013,Nitin Das,nitin.d@test.com,https://instagram.com/nitin_foodie,85000,Male,West Bengal,Kolkata,Nitin Das,100020003012,HDFC0001236,Food
+HY99014,8000000014,Pooja Nair,pooja.n@test.com,https://instagram.com/pooja_beauty,110000,Female,Kerala,Kochi,Pooja Nair,100020003013,SBIN0001236,Beauty
+HY99015,8000000015,Sanjay Rao,sanjay.r@test.com,https://instagram.com/sanjay_gaming,40000,Male,Karnataka,Mysore,Sanjay Rao,100020003014,ICIC0001236,Gaming
+HY99016,8000000016,Megha Kapoor,megha.k@test.com,https://instagram.com/megha_styles,95000,Female,Delhi,New Delhi,Megha Kapoor,100020003015,AXIS0001236,Fashion
+HY99017,8000000017,Arjun Nair,arjun.n@test.com,https://instagram.com/arjun_photography,130000,Male,Kerala,Trivandrum,Arjun Nair,100020003016,PUNB0001236,Photography
+HY99018,8000000018,Swati Mishra,swati.m@test.com,https://instagram.com/swati_cooks,22000,Female,Uttar Pradesh,Kanpur,Swati Mishra,100020003017,KKBK0001236,Food
+HY99019,8000000019,Devendra Yadav,dev.y@test.com,https://instagram.com/dev_fitness,55000,Male,Haryana,Faridabad,Devendra Yadav,100020003018,HDFC0001237,Fitness
+HY99020,8000000020,Ritika Sen,ritika.s@test.com,https://instagram.com/ritika_daily,70000,Female,West Bengal,Howrah,Ritika Sen,100020003019,SBIN0001237,Lifestyle

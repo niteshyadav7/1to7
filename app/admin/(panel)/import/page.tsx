@@ -37,6 +37,10 @@ interface ParsedRow {
   final_payment?: string
   pending_amount?: string
   order_id?: string
+  account_name?: string
+  account_number?: string
+  ifsc_code?: string
+  category?: string
   _valid: boolean
   _errors: string[]
 }
@@ -93,6 +97,15 @@ const COLUMN_MAP: Record<string, string> = {
   'pending_amount': 'pending_amount',
   'order id': 'order_id',
   'order_id': 'order_id',
+  'account name': 'account_name',
+  'account_name': 'account_name',
+  'account number': 'account_number',
+  'account_number': 'account_number',
+  'account no': 'account_number',
+  'ifsc': 'ifsc_code',
+  'ifsc code': 'ifsc_code',
+  'ifsc_code': 'ifsc_code',
+  'category': 'category',
 }
 
 const VALID_STATUSES = ['Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Requested']
@@ -170,6 +183,7 @@ export default function ImportPage() {
   const [step, setStep] = useState(1)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
+  const [importMode, setImportMode] = useState<'campaign' | 'users'>('campaign')
   const [campaignSearch, setCampaignSearch] = useState('')
   const [campaignDropdownOpen, setCampaignDropdownOpen] = useState(false)
   const [loadingCampaigns, setLoadingCampaigns] = useState(true)
@@ -315,7 +329,7 @@ export default function ImportPage() {
 
   // ─── Import Submit ──────────────────────────────────────
   const handleImport = async () => {
-    if (!selectedCampaign || parsedRows.length === 0) return
+    if ((importMode === 'campaign' && !selectedCampaign) || parsedRows.length === 0) return
 
     const validRows = parsedRows.filter(r => r._valid)
     if (validRows.length === 0) {
@@ -341,6 +355,10 @@ export default function ImportPage() {
         final_payment: r.final_payment ? Number(r.final_payment.replace(/[^0-9.]/g, '')) : undefined,
         pending_amount: r.pending_amount ? Number(r.pending_amount.replace(/[^0-9.]/g, '')) : undefined,
         order_id: r.order_id?.toString().trim() || undefined,
+        account_name: r.account_name?.trim() || undefined,
+        account_number: r.account_number?.toString().trim() || undefined,
+        ifsc_code: r.ifsc_code?.toString().trim() || undefined,
+        category: r.category?.trim() || undefined,
         form_data: (r as any).form_data || undefined,
       }))
 
@@ -349,7 +367,7 @@ export default function ImportPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rows: payload,
-          campaign_id: selectedCampaign.id,
+          campaign_id: importMode === 'campaign' ? selectedCampaign?.id : undefined,
         }),
       })
 
@@ -373,6 +391,7 @@ export default function ImportPage() {
   const handleReset = () => {
     setStep(1)
     setSelectedCampaign(null)
+    setImportMode('campaign')
     setParsedRows([])
     setRawHeaders([])
     setFileName('')
@@ -618,18 +637,34 @@ export default function ImportPage() {
                 </div>
 
                 {/* Next Button */}
-                <button
-                  onClick={() => selectedCampaign && setStep(2)}
-                  disabled={!selectedCampaign}
-                  className={`mt-6 w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    selectedCampaign
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 cursor-pointer'
-                      : 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
-                  }`}
-                >
-                  Next: Upload CSV
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={() => { setImportMode('campaign'); selectedCampaign && setStep(2) }}
+                    disabled={!selectedCampaign}
+                    className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
+                      selectedCampaign
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 cursor-pointer'
+                        : 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                    }`}
+                  >
+                    Next: Upload CSV
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-grow border-t border-white/5"></div>
+                    <span className="flex-shrink-0 mx-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">Or</span>
+                    <div className="flex-grow border-t border-white/5"></div>
+                  </div>
+
+                  <button
+                    onClick={() => { setImportMode('users'); setStep(2) }}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all bg-slate-800 text-slate-300 hover:bg-slate-700 border border-white/5 hover:border-white/10 hover:text-white cursor-pointer"
+                  >
+                    Skip & Import Users Only
+                    <Users className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -652,12 +687,21 @@ export default function ImportPage() {
                 </button>
 
                 {/* Selected Campaign Tag */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-6">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-                  <span className="text-xs text-indigo-300 font-medium">
-                    Importing for: <span className="text-white">{selectedCampaign?.brand_name} ({selectedCampaign?.campaign_code})</span>
-                  </span>
-                </div>
+                {importMode === 'campaign' ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-6">
+                    <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                    <span className="text-xs text-indigo-300 font-medium">
+                      Importing for: <span className="text-white">{selectedCampaign?.brand_name} ({selectedCampaign?.campaign_code})</span>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-6">
+                    <Users className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="text-xs text-amber-300 font-medium">
+                      Importing <span className="text-white font-bold">Users Only</span> (No campaign assigned)
+                    </span>
+                  </div>
+                )}
 
                 <h2 className="text-lg font-bold text-white mb-1">Upload CSV File</h2>
                 <p className="text-sm text-slate-400 mb-6">
