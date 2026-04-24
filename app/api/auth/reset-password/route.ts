@@ -37,10 +37,11 @@ export async function POST(request: Request) {
     // 3. Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10)
 
-    // 4. Update user's password
+    // 4. Update user's password and mark email as verified
+    //    (user proved email ownership by receiving and entering the OTP)
     const { error: updateError } = await supabase
       .from('users')
-      .update({ password_hash: hashedPassword })
+      .update({ password_hash: hashedPassword, is_email_verified: true })
       .eq('email', email)
 
     if (updateError) {

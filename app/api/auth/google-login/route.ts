@@ -60,7 +60,13 @@ export async function POST(request: Request) {
       if (existingUser.email !== email) {
         updates.email = email
         existingUser.email = email
+        needsUpdate = true
+      }
+
+      // Google OAuth inherently verifies email ownership
+      if (!existingUser.is_email_verified) {
         updates.is_email_verified = true
+        existingUser.is_email_verified = true
         needsUpdate = true
       }
       

@@ -29,6 +29,12 @@ export async function POST(request: Request) {
       .update({ is_used: true })
       .eq('id', otpData.id)
 
+    // Mark user's email as verified (they proved ownership by entering the OTP)
+    await supabase
+      .from('users')
+      .update({ is_email_verified: true })
+      .eq('email', email)
+
     return NextResponse.json({ success: true, message: 'Email verified successfully' })
   } catch (error) {
     console.error('API /auth/verify-email-otp Error:', error)
