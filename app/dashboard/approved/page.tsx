@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Loader2, CreditCard, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
+import { useRealtime } from '@/hooks/useRealtime'
 
 interface Application {
   id: string
@@ -33,21 +34,13 @@ export default function ApprovedCampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 
-  useEffect(() => {
-    fetchApproved()
-  }, [])
-
-  const fetchApproved = async () => {
+  const fetchApproved = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
-      // Filter for approved/completed statuses
       const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
       const filtered = (data.applications || []).filter((app: Application) => {
         if (!validStatuses.includes(app.status)) return false
-        
-        // If it requires an order form, ONLY show on the Approved page
-        // after order_details have been submitted AND approved by admin
         if (app.campaigns?.order_form && app.status === 'Approved') {
           if (!app.form_data?.order_details_approved) {
             return false
@@ -61,7 +54,14 @@ export default function ApprovedCampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchApproved()
+  }, [fetchApproved])
+
+  // Auto-refresh when admin updates applications
+  useRealtime({ table: 'applications', onChange: fetchApproved })
 
   if (loading) {
     return (

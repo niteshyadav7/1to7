@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useRealtime } from '@/hooks/useRealtime'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -671,9 +672,7 @@ export default function AllApplicationsPage() {
   )
 
   // ─── Fetch ─────────────────────────────────────────────
-  useEffect(() => { fetchApplications() }, [])
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/applications`)
       const data = await res.json()
@@ -683,7 +682,12 @@ export default function AllApplicationsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => { fetchApplications() }, [fetchApplications])
+
+  // Auto-refresh when influencers apply or data changes
+  useRealtime({ table: 'applications', onChange: fetchApplications })
 
   // ─── Filter + Sort + Paginate ──────────────────────────
   const processedData = useMemo(() => {

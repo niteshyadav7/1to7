@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
+import { useRealtime } from '@/hooks/useRealtime'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -705,9 +706,7 @@ export default function OrderDetailsPage() {
   )
 
   // ─── Fetch ────────────────────────────────────────────
-  useEffect(() => { fetchOrders() }, [])
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/order-details')
       const data = await res.json()
@@ -717,7 +716,12 @@ export default function OrderDetailsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // Auto-refresh when influencers submit orders
+  useRealtime({ table: 'applications', onChange: fetchOrders })
 
   // ─── Filter + Sort + Paginate ─────────────────────────
   const processedData = useMemo(() => {

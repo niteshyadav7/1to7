@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
+import { useRealtime } from '@/hooks/useRealtime'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -502,16 +503,19 @@ export default function PaymentsPage() {
     return { totalPaid, totalPending, totalPartial, totalFinal, totalRevenue: totalPaid + totalPending }
   }, [payments])
 
-  useEffect(() => { fetchPayments() }, [])
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
       setPayments(data.payments || [])
     } catch { toast.error('Failed to load payments') }
     finally { setLoading(false) }
-  }
+  }, [])
+
+  useEffect(() => { fetchPayments() }, [fetchPayments])
+
+  // Auto-refresh when influencers request payments
+  useRealtime({ table: 'applications', onChange: fetchPayments })
 
   const processedData = useMemo(() => {
     let result = [...payments]

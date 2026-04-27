@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText } from 'lucide-react'
 import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { useRealtime } from '@/hooks/useRealtime'
 
 interface Application {
   id: string
@@ -46,11 +47,7 @@ export default function AppliedCampaignsPage() {
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const { user } = useAuth()
 
-  useEffect(() => {
-    fetchApplications()
-  }, [])
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
@@ -60,7 +57,14 @@ export default function AppliedCampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchApplications()
+  }, [fetchApplications])
+
+  // Auto-refresh when admin updates any application
+  useRealtime({ table: 'applications', onChange: fetchApplications })
 
   // Only show Applied & Rejected here — Approved and beyond are on the Approved page
   // BUT: if the campaign requires an order form and order_details haven't been approved yet,
