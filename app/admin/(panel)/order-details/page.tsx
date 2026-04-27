@@ -8,10 +8,10 @@ import {
   DollarSign, Phone, Search, Filter, Megaphone,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
   AlignJustify, AlignCenter, AlignStartVertical,
-  Calendar, X, MoreHorizontal, SlidersHorizontal,
+  Calendar, X, SlidersHorizontal,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX,
-  Image, ExternalLink, Package, Eye
+  Image, ExternalLink, Package, Eye, Clock
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -86,7 +86,7 @@ const statusDots: Record<string, string> = {
   'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Approved', 'Payment Requested', 'Completed', 'Payment Initiated']
+const statusFilters = ['All', 'Approved', 'Rejected', 'Payment Requested']
 
 const dateRanges = [
   { label: 'All Time', value: 'all' },
@@ -103,7 +103,6 @@ const defaultColumns: Record<string, boolean> = {
   screenshot: true,
   status: true,
   date: true,
-  actions: true,
 }
 
 const densityPadding: Record<RowDensity, string> = {
@@ -349,7 +348,6 @@ function ColumnToggle({
     screenshot: 'Screenshot',
     status: 'Status',
     date: 'Submitted',
-    actions: 'Actions',
   }
 
   return (
@@ -504,63 +502,7 @@ function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => vo
   )
 }
 
-function ActionsDropdown({
-  app,
-  onStatusChange,
-  onInitiatePayment,
-  onReject,
-}: {
-  app: OrderEntry
-  onStatusChange: (id: string, status: string) => void
-  onInitiatePayment: (app: OrderEntry) => void
-  onReject: (app: OrderEntry) => void
-}) {
-  const { open, setOpen, popoverRef } = usePopover()
-
-  return (
-    <div className="relative" ref={popoverRef}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
-        className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-
-      <AnimatePresence>
-        {open && (
-           <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.98 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
-          >
-             <div className="p-1">
-               {app.status !== 'Completed' && (
-                 <button onClick={(e) => { e.stopPropagation(); onStatusChange(app.id, 'Completed'); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-purple-400 hover:bg-purple-500/10 cursor-pointer">
-                   <CheckCircle2 className="h-3.5 w-3.5" />
-                   Mark Completed
-                 </button>
-               )}
-               {app.status !== 'Payment Initiated' && (
-                 <button onClick={(e) => { e.stopPropagation(); onInitiatePayment(app); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-amber-400 hover:bg-amber-500/10 cursor-pointer">
-                   <DollarSign className="h-3.5 w-3.5" />
-                   Initiate Payment
-                 </button>
-               )}
-               {app.status !== 'Rejected' && (
-                 <button onClick={(e) => { e.stopPropagation(); onReject(app); setOpen(false) }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-500/10 cursor-pointer">
-                   <XCircle className="h-3.5 w-3.5" />
-                   Reject Order
-                 </button>
-               )}
-             </div>
-           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
+// ActionsDropdown removed – bulk actions now use Verify & Reject same as expanded row
 
 // ─── SortableHeader Component ──────────────────────────────
 function SortableHeader({
@@ -678,6 +620,13 @@ export default function OrderDetailsPage() {
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
+
+  // Bulk modal states
+  const [bulkVerifyModal, setBulkVerifyModal] = useState(false)
+  const [bulkRejectModal, setBulkRejectModal] = useState(false)
+  const [bulkPaymentAmount, setBulkPaymentAmount] = useState('')
+  const [bulkPaymentCommission, setBulkPaymentCommission] = useState('')
+  const [bulkRejectReason, setBulkRejectReason] = useState('')
 
   // Image preview
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
@@ -839,39 +788,86 @@ export default function OrderDetailsPage() {
     setSelectedIds(new Set())
   }, [])
 
-  // ─── Bulk actions ─────────────────────────────────────
-  const handleBulkAction = async (newStatus: string) => {
+  // ─── Bulk Verify & Approve ────────────────────────────
+  const handleBulkVerifySubmit = async () => {
     if (selectedIds.size === 0) return
+    const amt = parseFloat(bulkPaymentAmount) || 0
+    const comm = parseFloat(bulkPaymentCommission) || 0
+    const total = amt + comm
+
+    if (total <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
     setBulkUpdating(true)
+    let successCount = 0
     try {
-      const res = await fetch('/api/admin/applications/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationIds: Array.from(selectedIds), status: newStatus }),
-      })
-      if (!res.ok) throw new Error('Failed')
-      setOrders(prev => prev.map(o => selectedIds.has(o.id) ? { ...o, status: newStatus } : o))
-      toast.success(`${selectedIds.size} orders updated to ${newStatus}`)
+      for (const id of selectedIds) {
+        const order = orders.find(o => o.id === id)
+        if (!order) continue
+        const updatedFormData = { ...order.form_data, order_details_approved: true }
+        const res = await fetch(`/api/admin/applications/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Approved', pending_amount: total, form_data: updatedFormData }),
+        })
+        if (res.ok) {
+          successCount++
+          setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Approved', pending_amount: total, form_data: updatedFormData } : o))
+        }
+      }
+      toast.success(`${successCount} order(s) verified & approved`)
       setSelectedIds(new Set())
+      setBulkVerifyModal(false)
+      setBulkPaymentAmount('')
+      setBulkPaymentCommission('')
     } catch {
-      toast.error('Failed to perform bulk action')
+      toast.error('Failed to verify & approve orders')
     } finally {
       setBulkUpdating(false)
     }
   }
 
-  const updateSingleStatus = async (id: string, newStatus: string) => {
+  // ─── Bulk Reject ──────────────────────────────────────
+  const handleBulkRejectSubmit = async () => {
+    if (selectedIds.size === 0) return
+    if (!bulkRejectReason.trim()) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+
+    setBulkUpdating(true)
+    let successCount = 0
     try {
-      const res = await fetch('/api/admin/applications/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationIds: [id], status: newStatus }),
-      })
-      if (!res.ok) throw new Error('Failed')
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o))
-      toast.success(`Order marked as ${newStatus}`)
+      for (const id of selectedIds) {
+        const order = orders.find(o => o.id === id)
+        if (!order) continue
+        const currentHistory = order.form_data?.order_history || []
+        const historyEntry = {
+          order_details: order.form_data?.order_details || {},
+          rejection_reason: bulkRejectReason,
+          rejected_at: new Date().toISOString(),
+        }
+        const newFormData = { ...order.form_data, rejection_reason: bulkRejectReason, order_details_approved: false, order_history: [...currentHistory, historyEntry] }
+        const res = await fetch(`/api/admin/applications/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Rejected', form_data: newFormData }),
+        })
+        if (res.ok) {
+          successCount++
+          setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Rejected', form_data: newFormData } : o))
+        }
+      }
+      toast.success(`${successCount} order(s) rejected`)
+      setSelectedIds(new Set())
+      setBulkRejectModal(false)
+      setBulkRejectReason('')
     } catch {
-      toast.error('Failed to update status')
+      toast.error('Failed to reject orders')
+    } finally {
+      setBulkUpdating(false)
     }
   }
 
@@ -921,7 +917,13 @@ export default function OrderDetailsPage() {
     }
 
     try {
-      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason, order_details_approved: false }
+      const currentHistory = rejectApp.form_data?.order_history || []
+      const historyEntry = {
+        order_details: rejectApp.form_data?.order_details || {},
+        rejection_reason: rejectReason,
+        rejected_at: new Date().toISOString(),
+      }
+      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason, order_details_approved: false, order_history: [...currentHistory, historyEntry] }
       const res = await fetch(`/api/admin/applications/${rejectApp.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1086,11 +1088,10 @@ export default function OrderDetailsPage() {
       <AnimatePresence>
         {showFilters && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+            animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+            exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
           >
             <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-slate-900/40 border border-white/5">
               <FilterDropdown
@@ -1142,21 +1143,21 @@ export default function OrderDetailsPage() {
             <div className="h-4 w-px bg-indigo-500/30" />
             <Button
               size="sm"
-              onClick={() => handleBulkAction('Completed')}
+              onClick={() => setBulkVerifyModal(true)}
               disabled={bulkUpdating}
-              className="h-8 px-3 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/20 hover:bg-purple-500/25 text-xs font-medium cursor-pointer"
+              className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 text-xs font-bold border-none cursor-pointer"
             >
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              Mark Completed
+              <DollarSign className="mr-1 h-3.5 w-3.5" />
+              Verify & Approved
             </Button>
             <Button
               size="sm"
-              onClick={() => handleBulkAction('Payment Initiated')}
+              onClick={() => setBulkRejectModal(true)}
               disabled={bulkUpdating}
-              className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer"
+              className="h-8 px-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 text-xs font-bold border-none cursor-pointer"
             >
-              <DollarSign className="mr-1 h-3.5 w-3.5" />
-              Initiate Payment
+              <XCircle className="mr-1 h-3.5 w-3.5" />
+              Reject (with reason)
             </Button>
             <button
               onClick={() => setSelectedIds(new Set())}
@@ -1190,7 +1191,7 @@ export default function OrderDetailsPage() {
               <thead>
                 <tr className="border-b border-white/[0.06] bg-slate-950/40">
                   {/* Checkbox */}
-                  <th className="px-3 py-3 w-10">
+                  <th className="px-3 py-3 w-12">
                     <button onClick={handleSelectAll} className="cursor-pointer">
                       <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
                         selectedIds.size === paginatedData.length && paginatedData.length > 0
@@ -1210,19 +1211,19 @@ export default function OrderDetailsPage() {
                   </th>
                   {/* Influencer */}
                   {visibleCols.influencer && (
-                    <th className="px-3 py-3 text-left w-[22%]">
+                    <th className="px-3 py-3 text-left w-[24%]">
                       <SortableHeader label="Influencer" column="name" sortConfig={sortConfig} onSort={handleSort} />
                     </th>
                   )}
                   {/* Campaign */}
                   {visibleCols.campaign && (
-                    <th className="px-3 py-3 text-left w-[18%]">
+                    <th className="px-3 py-3 text-left w-[20%]">
                       <SortableHeader label="Campaign" column="brand" sortConfig={sortConfig} onSort={handleSort} />
                     </th>
                   )}
                   {/* Order Info */}
                   {visibleCols.orderFields && (
-                    <th className="px-3 py-3 text-left w-[16%]">
+                    <th className="px-3 py-3 text-left w-[18%]">
                       <SortableHeader label="Order Info" column="amount" sortConfig={sortConfig} onSort={handleSort} />
                     </th>
                   )}
@@ -1234,22 +1235,17 @@ export default function OrderDetailsPage() {
                   )}
                   {/* Status */}
                   {visibleCols.status && (
-                    <th className="px-3 py-3 text-left w-[13%]">
+                    <th className="px-3 py-3 text-left w-[14%]">
                       <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} />
                     </th>
                   )}
                   {/* Date */}
                   {visibleCols.date && (
-                    <th className="px-3 py-3 text-left w-[12%]">
+                    <th className="px-3 py-3 text-left w-[14%]">
                       <SortableHeader label="Submitted" column="date" sortConfig={sortConfig} onSort={handleSort} />
                     </th>
                   )}
-                  {/* Actions */}
-                  {/* {visibleCols.actions && (
-                    <th className="px-2 py-3 text-left w-10">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500" />
-                    </th>
-                  )} */}
+
                 </tr>
               </thead>
               <tbody>
@@ -1397,12 +1393,7 @@ export default function OrderDetailsPage() {
                           </td>
                         )}
 
-                        {/* Actions */}
-                        {visibleCols.actions && (
-                          <td className={`px-2 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
-                            <ActionsDropdown app={order} onStatusChange={updateSingleStatus} onInitiatePayment={setInitiatePaymentApp} onReject={setRejectApp} />
-                          </td>
-                        )}
+
                       </motion.tr>
 
                       {/* Expanded Row */}
@@ -1534,6 +1525,65 @@ export default function OrderDetailsPage() {
                                         )
                                       })}
                                     </div>
+
+                                    {/* Previous Rejected Submissions History */}
+                                    {order.form_data?.order_history && order.form_data.order_history.length > 0 && (
+                                      <div className="mt-6 pt-4 border-t border-red-500/15">
+                                        <p className="text-[11px] text-red-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
+                                          <Clock className="h-3.5 w-3.5" />
+                                          Previous Submissions ({order.form_data.order_history.length})
+                                        </p>
+                                        <div className="space-y-4">
+                                          {[...order.form_data.order_history].reverse().map((entry: any, idx: number) => (
+                                            <div key={idx} className="bg-red-500/5 border border-red-500/15 rounded-xl p-4">
+                                              <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[10px] font-bold uppercase border border-red-500/20">
+                                                    Rejected
+                                                  </span>
+                                                  <span className="text-[10px] text-slate-500">
+                                                    Submission #{order.form_data.order_history.length - idx}
+                                                  </span>
+                                                </div>
+                                                <span className="text-[10px] text-slate-500">
+                                                  {entry.rejected_at ? new Date(entry.rejected_at).toLocaleString('en-IN') : '—'}
+                                                </span>
+                                              </div>
+                                              {entry.rejection_reason && (
+                                                <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/15">
+                                                  <p className="text-[10px] text-red-400 uppercase tracking-wider font-bold mb-0.5">Rejection Reason</p>
+                                                  <p className="text-xs text-red-300">{entry.rejection_reason}</p>
+                                                </div>
+                                              )}
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                                                {Object.entries(entry.order_details || {}).map(([key, value]: [string, any]) => {
+                                                  const isImg = isImageValue(key, value)
+                                                  return (
+                                                    <div key={key} className="bg-slate-900/60 p-2.5 rounded-lg border border-white/5">
+                                                      <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">
+                                                        {key.replace(/[_-]/g, ' ')}
+                                                      </p>
+                                                      {isImg ? (
+                                                        <button
+                                                          onClick={() => setPreviewImage({ src: String(value), alt: key })}
+                                                          className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-indigo-400 transition-colors bg-black cursor-pointer w-full mt-1"
+                                                        >
+                                                          <img src={String(value)} alt={key} className="h-20 w-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
+                                                        </button>
+                                                      ) : (
+                                                        <p className="text-slate-300 font-medium break-words text-sm">
+                                                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                                        </p>
+                                                      )}
+                                                    </div>
+                                                  )
+                                                })}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
 
                                     {/* Action Buttons & Status */}
                                     <div className="mt-6 pt-4 border-t border-indigo-500/20">
@@ -1855,6 +1905,130 @@ export default function OrderDetailsPage() {
                 </Button>
                 <Button onClick={handleRejectSubmit} className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-none font-bold cursor-pointer">
                   Reject Order
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Verify & Approve Modal */}
+      <AnimatePresence>
+        {bulkVerifyModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => setBulkVerifyModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6">
+                <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-amber-500" />
+                  Bulk Verify & Approve
+                </h3>
+                <p className="text-xs text-slate-400 mb-4">
+                  Approve {selectedIds.size} selected order(s). Enter the deal amount and commission that will be applied to all.
+                </p>
+
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Amount (₹)</label>
+                    <Input
+                      type="number"
+                      value={bulkPaymentAmount}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBulkPaymentAmount(e.target.value)}
+                      placeholder="e.g. 1000"
+                      className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Commission (₹)</label>
+                    <Input
+                      type="number"
+                      value={bulkPaymentCommission}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBulkPaymentCommission(e.target.value)}
+                      placeholder="e.g. 200"
+                      className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                    />
+                  </div>
+                  {(bulkPaymentAmount || bulkPaymentCommission) ? (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                      <p className="text-[10px] text-amber-500 uppercase tracking-wider font-bold mb-1">Total per Influencer</p>
+                      <p className="text-lg font-bold text-amber-400">
+                        ₹{((parseFloat(bulkPaymentAmount) || 0) + (parseFloat(bulkPaymentCommission) || 0)).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setBulkVerifyModal(false)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
+                    Cancel
+                  </Button>
+                  <Button onClick={handleBulkVerifySubmit} disabled={bulkUpdating} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-none font-bold cursor-pointer">
+                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Approve {selectedIds.size} Order(s)
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Reject Modal */}
+      <AnimatePresence>
+        {bulkRejectModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => setBulkRejectModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6"
+            >
+              <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                <XCircle className="h-5 w-5 text-red-500" />
+                Bulk Reject Orders
+              </h3>
+              <p className="text-xs text-slate-400 mb-4">
+                Reject {selectedIds.size} selected order(s). The reason below will apply to all.
+              </p>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Reason for Rejection *</label>
+                  <textarea
+                    value={bulkRejectReason}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBulkRejectReason(e.target.value)}
+                    placeholder="Explain why the orders are being rejected..."
+                    rows={4}
+                    className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500/50 resize-none placeholder:text-slate-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setBulkRejectModal(false)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
+                  Cancel
+                </Button>
+                <Button onClick={handleBulkRejectSubmit} disabled={bulkUpdating} className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-none font-bold cursor-pointer">
+                  {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Reject {selectedIds.size} Order(s)
                 </Button>
               </div>
             </motion.div>
