@@ -779,7 +779,7 @@ export default function ApplicationFormModal({
 
                     <div className="w-full space-y-2 pt-2">
                       <Button
-                        onClick={() => window.location.href = !isLoggedIn ? '/login' : '/dashboard/applications'}
+                        onClick={() => window.location.href = !isLoggedIn ? '/login' : '/dashboard/campaigns'}
                         className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
                       >
                         {!isLoggedIn ? 'Login to Track Details' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />

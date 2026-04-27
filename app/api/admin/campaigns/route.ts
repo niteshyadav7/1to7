@@ -63,6 +63,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const {
+      campaign_code,
       brand_name,
       category,
       platform,
@@ -91,8 +92,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Brand name and platform are required' }, { status: 400 })
     }
 
-    // Auto-generate campaign code
-    const code = `CAM-${Date.now().toString(36).toUpperCase()}`
+    // Use provided code or auto-generate
+    const code = campaign_code && campaign_code.trim() !== '' 
+      ? campaign_code.trim().toUpperCase()
+      : `CAM-${Date.now().toString(36).toUpperCase()}`
 
     await client.connect()
     const query = `
@@ -120,8 +123,11 @@ export async function POST(request: Request) {
     const campaign = res.rows[0]
 
     return NextResponse.json({ success: true, campaign })
-  } catch (error) {
+  } catch (error: any) {
     console.error('API /admin/campaigns POST Error:', error)
+    if (error.code === '23505') { // Postgres unique violation error code
+      return NextResponse.json({ error: 'Campaign ID already exists. Please use a unique ID.' }, { status: 409 })
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   } finally {
     await client.end()

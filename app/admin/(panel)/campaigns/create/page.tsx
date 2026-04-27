@@ -16,6 +16,7 @@ export default function AdminCreateCampaignPage() {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
+    campaign_code: '',
     brand_name: '',
     category: '',
     platform: 'Instagram',
@@ -121,6 +122,27 @@ export default function AdminCreateCampaignPage() {
             <h3 className="text-sm font-semibold text-white">Campaign Details</h3>
           </div>
           <div className="p-6 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5 col-span-1 sm:col-span-2">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Campaign ID / Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={formData.campaign_code}
+                    onChange={(e) => setFormData({ ...formData, campaign_code: e.target.value.toUpperCase() })}
+                    placeholder="e.g. CAM-SUMMER24 (Leave blank to auto-generate)"
+                    className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={() => setFormData({ ...formData, campaign_code: `CAM-${Date.now().toString(36).toUpperCase()}` })}
+                    className="h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-white/10 shrink-0"
+                  >
+                    Auto Generate
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Brand Name *</Label>

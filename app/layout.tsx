@@ -1,7 +1,6 @@
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
-import { ConditionalNavbar } from "@/components/ConditionalNavbar";
 import { Toaster } from "sonner";
 
 const fontSans = Plus_Jakarta_Sans({
@@ -27,7 +26,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <AuthProvider>
           <div className="min-h-screen flex flex-col bg-slate-50">
-            <ConditionalNavbar />
             <main className="flex-grow">
               {children}
             </main>

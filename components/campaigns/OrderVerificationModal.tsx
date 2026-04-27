@@ -225,6 +225,13 @@ export default function OrderVerificationModal({
                         </label>
                       )}
                     </div>
+                  ) : field.type === 'date' ? (
+                    <Input
+                      type="date"
+                      value={orderFormData[field.name] || ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                      className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none [color-scheme:dark]"
+                    />
                   ) : (
                     <Input
                       value={orderFormData[field.name] || ''}
