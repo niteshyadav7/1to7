@@ -19,8 +19,7 @@ declare global {
 
 type View =
   | 'details'        // Fill in basic details
-  | 'verify-mobile'  // Enter mobile OTP
-  | 'verify-email'   // Enter email OTP
+  | 'verify-all'     // Enter mobile OTP AND email OTP together
 
 export default function SignupPage() {
   const [view, setView] = useState<View>('details')
@@ -60,7 +59,7 @@ export default function SignupPage() {
   }, [emailCountdown])
 
   // Initialize invisible reCAPTCHA when needed
-  const needsRecaptcha = view === 'verify-mobile' || view === 'details'
+  const needsRecaptcha = view === 'verify-all' || view === 'details'
   useEffect(() => {
     if (needsRecaptcha && !window.recaptchaVerifierSignup) {
       try {
@@ -88,7 +87,7 @@ export default function SignupPage() {
     }
   }, [needsRecaptcha])
 
-  // ─── Step 1: Submit Details & Send Mobile OTP ───
+  // ─── Step 1: Submit Details & Send OTPs ───
   const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -128,9 +127,13 @@ export default function SignupPage() {
         return
       }
 
-      // 2. Send Mobile OTP
-      await sendFirebaseOTP(cleanMobile)
-      setView('verify-mobile')
+      // 2. Send both OTPs simultaneously
+      await Promise.all([
+        sendFirebaseOTP(cleanMobile),
+        sendEmailOTP(email)
+      ])
+      
+      setView('verify-all')
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong. Please try again.')
     } finally {
@@ -152,32 +155,6 @@ export default function SignupPage() {
     const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, window.recaptchaVerifierSignup)
     confirmationRef.current = confirmation
     setCountdown(30)
-    toast.success(`OTP sent to +91 ${mobileNum}`)
-  }
-
-  // ─── Step 2: Verify Mobile OTP & Send Email OTP ───
-  const handleVerifyMobile = async () => {
-    if (mobileOtp.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP')
-      return
-    }
-
-    setLoading(true)
-    try {
-      if (!confirmationRef.current) throw new Error('Session expired. Please start over.')
-      await confirmationRef.current.confirm(mobileOtp)
-      
-      toast.success('Mobile verified successfully!')
-      
-      // Send Email OTP
-      await sendEmailOTP(email)
-      setView('verify-email')
-    } catch (err: any) {
-      console.error(err)
-      toast.error(err.message || 'Invalid Mobile OTP. Please try again.')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const sendEmailOTP = async (emailAddr: string) => {
@@ -190,18 +167,40 @@ export default function SignupPage() {
     if (!res.ok) throw new Error(data.error || 'Failed to send email OTP')
     
     setEmailCountdown(60)
-    toast.success(`Verification code sent to ${emailAddr}`)
   }
 
-  // ─── Step 3: Verify Email OTP & Create Account ───
-  const handleVerifyEmail = async () => {
-    if (emailOtp.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP')
+  const handleResendMobile = async () => {
+    try {
+      await sendFirebaseOTP(mobile.replace(/\D/g, ''))
+      toast.success(`OTP sent to +91 ${mobile}`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend Mobile OTP.')
+    }
+  }
+
+  const handleResendEmail = async () => {
+    try {
+      await sendEmailOTP(email)
+      toast.success(`Verification code sent to ${email}`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to resend Email OTP.')
+    }
+  }
+
+  // ─── Step 2: Verify Both OTPs & Create Account ───
+  const handleVerifyAll = async () => {
+    if (mobileOtp.length !== 6 || emailOtp.length !== 6) {
+      toast.error('Please enter valid 6-digit OTPs for both Mobile and Email')
       return
     }
 
     setLoading(true)
     try {
+      // 1. Verify Mobile OTP via Firebase
+      if (!confirmationRef.current) throw new Error('Mobile session expired. Please go back and try again.')
+      await confirmationRef.current.confirm(mobileOtp)
+      
+      // 2. Verify Email OTP via Backend
       const verifyRes = await fetch('/api/auth/verify-email-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -210,12 +209,11 @@ export default function SignupPage() {
       const verifyData = await verifyRes.json()
       if (!verifyRes.ok) throw new Error(verifyData.error || 'Invalid Email OTP')
 
-      toast.success('Email verified successfully!')
-
-      // Proceed to create the account
+      // Both verified successfully, proceed to create the account
       await finalizeSignup()
     } catch (err: any) {
-      toast.error(err.message || 'Verification failed. Please try again.')
+      console.error(err)
+      toast.error(err.message || 'Verification failed. Please check your OTPs.')
       setLoading(false)
     }
   }
@@ -437,7 +435,7 @@ export default function SignupPage() {
                     disabled={loading}
                     className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-4"
                   >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Continue to Verification <ArrowRight className="ml-2 h-5 w-5" /></>}
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes <ArrowRight className="ml-2 h-5 w-5" /></>}
                   </Button>
                 </form>
 
@@ -450,78 +448,74 @@ export default function SignupPage() {
               </motion.div>
             )}
 
-            {/* ══════════════ VIEW: VERIFY MOBILE ══════════════ */}
-            {view === 'verify-mobile' && (
-              <motion.div key="verify-mobile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+            {/* ══════════════ VIEW: VERIFY ALL (Mobile & Email) ══════════════ */}
+            {view === 'verify-all' && (
+              <motion.div key="verify-all" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                 <button onClick={() => setView('details')} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to details
                 </button>
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/20 mb-3">
-                    <Phone className="h-6 w-6 text-blue-400" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-blue-500/20 border border-emerald-500/20 mb-3">
+                    <Shield className="h-6 w-6 text-emerald-400" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Verify Mobile Number</h2>
-                  <p className="text-sm text-slate-400">Enter the 6-digit code sent to <strong className="text-white">+91 {mobile}</strong></p>
+                  <h2 className="text-2xl font-bold text-white">Verify Your Identity</h2>
+                  <p className="text-sm text-slate-400">Enter the codes sent to your mobile and email.</p>
                 </div>
-                <Input
-                  value={mobileOtp}
-                  onChange={(e) => setMobileOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  className="bg-white/5 border-white/10 text-white h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] focus-visible:ring-blue-500 placeholder:text-slate-700 placeholder:tracking-[0.5em]"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyMobile()}
-                />
-                <Button
-                  onClick={handleVerifyMobile}
-                  disabled={loading || mobileOtp.length !== 6}
-                  className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white font-bold text-base shadow-xl shadow-blue-500/20 disabled:opacity-50"
-                >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Verify Mobile</>}
-                </Button>
-                <div className="text-center pt-2">
-                  {countdown > 0 ? (
-                    <span className="text-xs text-slate-500">Resend SMS in <span className="text-blue-400 font-medium">{countdown}s</span></span>
-                  ) : (
-                    <button onClick={() => sendFirebaseOTP(mobile)} className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">Resend OTP</button>
-                  )}
-                </div>
-              </motion.div>
-            )}
 
-            {/* ══════════════ VIEW: VERIFY EMAIL ══════════════ */}
-            {view === 'verify-email' && (
-              <motion.div key="verify-email" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20 mb-3">
-                    <Mail className="h-6 w-6 text-emerald-400" />
+                <div className="space-y-5">
+                  {/* Mobile OTP Input */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between px-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> Mobile OTP
+                      </label>
+                      {countdown > 0 ? (
+                        <span className="text-[10px] text-slate-500">Resend in <span className="text-blue-400 font-medium">{countdown}s</span></span>
+                      ) : (
+                        <button onClick={handleResendMobile} className="text-[10px] text-blue-400 hover:text-blue-300 font-medium transition-colors">Resend SMS</button>
+                      )}
+                    </div>
+                    <Input
+                      value={mobileOtp}
+                      onChange={(e) => setMobileOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="bg-white/5 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-blue-500 placeholder:text-slate-700 placeholder:tracking-[0.4em]"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleVerifyAll()}
+                    />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Verify Email Address</h2>
-                  <p className="text-sm text-slate-400">Enter the verification code sent to <strong className="text-white">{email}</strong></p>
+
+                  {/* Email OTP Input */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between px-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                        <Mail className="h-3 w-3" /> Email OTP
+                      </label>
+                      {emailCountdown > 0 ? (
+                        <span className="text-[10px] text-slate-500">Resend in <span className="text-emerald-400 font-medium">{emailCountdown}s</span></span>
+                      ) : (
+                        <button onClick={handleResendEmail} className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Resend Email</button>
+                      )}
+                    </div>
+                    <Input
+                      value={emailOtp}
+                      onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="bg-white/5 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-emerald-500 placeholder:text-slate-700 placeholder:tracking-[0.4em]"
+                      onKeyDown={(e) => e.key === 'Enter' && handleVerifyAll()}
+                    />
+                  </div>
                 </div>
-                <Input
-                  value={emailOtp}
-                  onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  className="bg-white/5 border-white/10 text-white h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] focus-visible:ring-emerald-500 placeholder:text-slate-700 placeholder:tracking-[0.5em]"
-                  autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && handleVerifyEmail()}
-                />
+
                 <Button
-                  onClick={handleVerifyEmail}
-                  disabled={loading || emailOtp.length !== 6}
-                  className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+                  onClick={handleVerifyAll}
+                  disabled={loading || mobileOtp.length !== 6 || emailOtp.length !== 6}
+                  className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base shadow-xl shadow-emerald-500/20 disabled:opacity-50 mt-4"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Verify & Create Account</>}
                 </Button>
-                <div className="text-center pt-2">
-                  {emailCountdown > 0 ? (
-                    <span className="text-xs text-slate-500">Resend Email in <span className="text-emerald-400 font-medium">{emailCountdown}s</span></span>
-                  ) : (
-                    <button onClick={() => sendEmailOTP(email)} className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Resend Code</button>
-                  )}
-                </div>
               </motion.div>
             )}
 
