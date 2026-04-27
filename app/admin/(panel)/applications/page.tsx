@@ -1392,99 +1392,53 @@ export default function AllApplicationsPage() {
                                   </div>
                                 </div>
 
-                                {/* Application Form + Order Data */}
-                                {/* <OrderDetailsPage /> */}
-                                {/* {app.form_data && (() => {
-                                  const { order_details, ...regularData } = app.form_data
-                                  const hasRegularData = Object.keys(regularData).length > 0
-                                  const hasOrderDetails = order_details && Object.keys(order_details).length > 0
+                                {/* Application Form Responses (Custom Fields) */}
+                                {app.form_data && (() => {
+                                  const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+                                  const customEntries = Object.entries(app.form_data).filter(([key]) => !internalKeys.includes(key))
+                                  if (customEntries.length === 0) return null
+
+                                  const isImage = (key: string, value: any) => {
+                                    if (typeof value !== 'string') return false
+                                    return value.startsWith('http') && (value.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo'))
+                                  }
 
                                   return (
-                                    <div className="space-y-6">
-                                      {hasRegularData && (
-                                        <div>
-                                          <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                            <ClipboardList className="h-3.5 w-3.5" />
-                                            Application Form Responses
-                                          </p>
-                                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
-                                            {Object.entries(regularData).map(([key, value]) => (
-                                              <div key={key}>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-                                                  {key.replace(/[_-]/g, ' ')}
-                                                </p>
-                                                <p className="text-slate-300 break-words">
-                                                  {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                                                </p>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {hasOrderDetails && (
-                                        <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-5 shadow-inner">
-                                          <div className="flex items-center justify-between mb-4">
-                                            <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold flex items-center gap-2">
-                                              <ClipboardList className="h-4 w-4" />
-                                              Submitted Order Details
+                                    <div className="bg-purple-500/5 border border-purple-500/15 rounded-2xl p-5">
+                                      <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
+                                        <ClipboardList className="h-3.5 w-3.5" />
+                                        Application Form Responses
+                                        <span className="ml-auto text-[10px] text-slate-500 normal-case tracking-normal font-medium">{customEntries.length} field{customEntries.length !== 1 ? 's' : ''}</span>
+                                      </p>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                                        {customEntries.map(([key, value]) => (
+                                          <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">
+                                              {key.replace(/[_-]/g, ' ')}
                                             </p>
-                                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold tracking-widest uppercase border border-emerald-500/20">
-                                              Action Required
-                                            </span>
+                                            {isImage(key, value) ? (
+                                              <div className="mt-1">
+                                                <a href={String(value)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-purple-400 transition-colors bg-black">
+                                                  <img src={String(value)} alt={key} className="h-28 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View Full</span>
+                                                  </div>
+                                                </a>
+                                              </div>
+                                            ) : (
+                                              <p className="text-white font-medium break-words">
+                                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                              </p>
+                                            )}
                                           </div>
-                                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-                                            {Object.entries(order_details).map(([key, value]) => {
-                                              const isImage = typeof value === 'string' && (value.includes('http') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('image'))
-                                              return (
-                                                <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
-                                                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">
-                                                    {key.replace(/[_-]/g, ' ')}
-                                                  </p>
-                                                  {isImage ? (
-                                                    <div className="mt-2">
-                                                      <a href={String(value)} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-indigo-400 transition-colors bg-black">
-                                                        <img src={String(value)} alt={key} className="h-32 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                          <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View Full</span>
-                                                        </div>
-                                                      </a>
-                                                    </div>
-                                                  ) : (
-                                                    <p className="text-white font-medium break-words text-lg">
-                                                      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              )
-                                            })}
-                                          </div>
-                                          <div className="mt-6 flex flex-wrap items-center gap-3 pt-4 border-t border-indigo-500/20">
-                                            <Button
-                                              size="sm"
-                                              onClick={() => updateSingleStatus(app.id, 'Completed')}
-                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer"
-                                            >
-                                              <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                                              Verify & Mark Completed
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              onClick={() => updateSingleStatus(app.id, 'Payment Initiated')}
-                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
-                                            >
-                                              <DollarSign className="mr-1.5 h-4 w-4" />
-                                              Verify & Initiate Payment
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      )}
+                                        ))}
+                                      </div>
                                     </div>
                                   )
-                                })()} */}
+                                })()}
 
                                 {/* Payment Info */}
-                                {/* {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
+                                {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
                                   <div>
                                     <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
                                       <DollarSign className="h-3.5 w-3.5" />
@@ -1494,21 +1448,18 @@ export default function AllApplicationsPage() {
                                       <div>
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Partial Payment</p>
                                         <p className="text-slate-300 flex items-center gap-1">
-                                          <DollarSign className="h-3 w-3" />
                                           {app.partial_payment > 0 ? `₹${app.partial_payment.toLocaleString()}` : '—'}
                                         </p>
                                       </div>
                                       <div>
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Final Payment</p>
                                         <p className="text-slate-300 flex items-center gap-1">
-                                          <DollarSign className="h-3 w-3" />
                                           {app.final_payment > 0 ? `₹${app.final_payment.toLocaleString()}` : '—'}
                                         </p>
                                       </div>
                                       <div>
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Pending Amount</p>
                                         <p className="text-slate-300 flex items-center gap-1">
-                                          <DollarSign className="h-3 w-3" />
                                           {app.pending_amount > 0 ? `₹${app.pending_amount.toLocaleString()}` : '—'}
                                         </p>
                                       </div>
@@ -1523,7 +1474,7 @@ export default function AllApplicationsPage() {
                                       )}
                                     </div>
                                   </div>
-                                )} */}
+                                )}
 
                                 {/* Meta */}
                                 <div className="flex items-center justify-between pt-3 border-t border-white/5">

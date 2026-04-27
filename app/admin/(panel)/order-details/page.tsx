@@ -1485,6 +1485,54 @@ export default function OrderDetailsPage() {
                                     </div>
                                   </div>
 
+                                  {/* Application Form Responses (Custom Fields) */}
+                                  {order.form_data && (() => {
+                                    const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+                                    const customEntries = Object.entries(order.form_data).filter(([key]) => !internalKeys.includes(key))
+                                    if (customEntries.length === 0) return null
+
+                                    const isImg = (key: string, value: any) => {
+                                      if (typeof value !== 'string') return false
+                                      return value.startsWith('http') && (value.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo'))
+                                    }
+
+                                    return (
+                                      <div className="bg-purple-500/5 border border-purple-500/15 rounded-2xl p-5">
+                                        <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
+                                          <ClipboardList className="h-3.5 w-3.5" />
+                                          Application Form Responses
+                                          <span className="ml-auto text-[10px] text-slate-500 normal-case tracking-normal font-medium">{customEntries.length} field{customEntries.length !== 1 ? 's' : ''}</span>
+                                        </p>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                                          {customEntries.map(([key, value]) => (
+                                            <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
+                                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">
+                                                {key.replace(/[_-]/g, ' ')}
+                                              </p>
+                                              {isImg(key, value) ? (
+                                                <div className="mt-1">
+                                                  <button
+                                                    onClick={() => setPreviewImage({ src: String(value), alt: key })}
+                                                    className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full"
+                                                  >
+                                                    <img src={String(value)} alt={key} className="h-28 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View Full</span>
+                                                    </div>
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <p className="text-white font-medium break-words">
+                                                  {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                                </p>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
+
                                   {/* Full Order Details */}
                                   <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-5 shadow-inner">
                                     <div className="flex items-center justify-between mb-4">
