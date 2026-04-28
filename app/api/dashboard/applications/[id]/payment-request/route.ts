@@ -26,7 +26,7 @@ export async function PUT(
     // Verify ownership
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('user_id, form_data, pending_amount')
+      .select('user_id, form_data, pending_amount, partial_payment, final_payment')
       .eq('id', id)
       .single()
 

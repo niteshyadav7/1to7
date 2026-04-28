@@ -25,6 +25,7 @@ interface Application {
     deliverables: string
     payment_form_fields?: any[]
   }
+  form_data?: any
 }
 
 interface ApprovedCampaignModalProps {
