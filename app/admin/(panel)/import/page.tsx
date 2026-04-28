@@ -196,6 +196,7 @@ export default function ImportPage() {
   const [dragging, setDragging] = useState(false)
 
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; processed: number } | null>(null)
   const [importResults, setImportResults] = useState<ImportResults | null>(null)
   const [previewSearch, setPreviewSearch] = useState('')
 
@@ -340,52 +341,97 @@ export default function ImportPage() {
     }
 
     setImporting(true)
+    
+    const BATCH_SIZE = 500
+    const totalBatches = Math.ceil(validRows.length / BATCH_SIZE)
+    setImportProgress({ current: 0, total: totalBatches, processed: 0 })
+
+    const accumulatedResults: ImportResults = {
+      total: 0,
+      created_users: 0,
+      existing_users: 0,
+      applications_created: 0,
+      applications_updated: 0,
+      skipped: 0,
+      errors: [],
+    }
 
     try {
-      const payload = validRows.map(r => ({
-        mobile: r.mobile ? r.mobile.replace(/[\s\-\+]/g, '') : '',
-        influencer_id: r.influencer_id || undefined,
-        full_name: r.full_name || undefined,
-        email: r.email || undefined,
-        instagram_username: r.instagram_username || undefined,
-        followers: r.followers || undefined,
-        gender: r.gender || undefined,
-        state: r.state || undefined,
-        city: r.city || undefined,
-        status: r.status || 'Applied',
-        partial_payment: r.partial_payment ? Number(r.partial_payment.replace(/[^0-9.]/g, '')) : undefined,
-        final_payment: r.final_payment ? Number(r.final_payment.replace(/[^0-9.]/g, '')) : undefined,
-        pending_amount: r.pending_amount ? Number(r.pending_amount.replace(/[^0-9.]/g, '')) : undefined,
-        order_id: r.order_id?.toString().trim() || undefined,
-        account_name: r.account_name?.trim() || undefined,
-        account_number: r.account_number?.toString().trim() || undefined,
-        ifsc_code: r.ifsc_code?.toString().trim() || undefined,
-        category: r.category?.trim() || undefined,
-        form_data: (r as any).form_data || undefined,
-      }))
+      for (let i = 0; i < totalBatches; i++) {
+        setImportProgress({ current: i + 1, total: totalBatches, processed: i * BATCH_SIZE })
+        
+        const batch = validRows.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE)
+        
+        const payload = batch.map(r => ({
+          mobile: r.mobile ? r.mobile.replace(/[\s\-\+]/g, '') : '',
+          influencer_id: r.influencer_id || undefined,
+          full_name: r.full_name || undefined,
+          email: r.email || undefined,
+          instagram_username: r.instagram_username || undefined,
+          followers: r.followers || undefined,
+          gender: r.gender || undefined,
+          state: r.state || undefined,
+          city: r.city || undefined,
+          status: r.status || 'Applied',
+          partial_payment: r.partial_payment ? Number(r.partial_payment.replace(/[^0-9.]/g, '')) : undefined,
+          final_payment: r.final_payment ? Number(r.final_payment.replace(/[^0-9.]/g, '')) : undefined,
+          pending_amount: r.pending_amount ? Number(r.pending_amount.replace(/[^0-9.]/g, '')) : undefined,
+          order_id: r.order_id?.toString().trim() || undefined,
+          account_name: r.account_name?.trim() || undefined,
+          account_number: r.account_number?.toString().trim() || undefined,
+          ifsc_code: r.ifsc_code?.toString().trim() || undefined,
+          category: r.category?.trim() || undefined,
+          form_data: (r as any).form_data || undefined,
+        }))
 
-      const res = await fetch('/api/admin/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rows: payload,
-          campaign_id: importMode === 'campaign' ? selectedCampaign?.id : undefined,
-        }),
-      })
+        const res = await fetch('/api/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rows: payload,
+            campaign_id: importMode === 'campaign' ? selectedCampaign?.id : undefined,
+          }),
+        })
 
-      const data = await res.json()
+        const data = await res.json()
 
-      if (!res.ok) {
-        toast.error(data.error || 'Import failed')
-        return
+        if (!res.ok) {
+          throw new Error(data.error || `Batch ${i + 1} failed`)
+        }
+        
+        // Aggregate results
+        accumulatedResults.total += data.results.total
+        accumulatedResults.created_users += data.results.created_users
+        accumulatedResults.existing_users += data.results.existing_users
+        accumulatedResults.applications_created += data.results.applications_created
+        accumulatedResults.applications_updated += data.results.applications_updated
+        accumulatedResults.skipped += data.results.skipped
+        
+        // Adjust error rows to match original CSV index
+        if (data.results.errors && data.results.errors.length > 0) {
+          const adjustedErrors = data.results.errors.map((e: any) => {
+            // e.row is 1-indexed relative to the batch
+            const originalRow = batch[e.row - 1]?._rowIndex || 'Unknown'
+            return {
+              ...e,
+              row: originalRow
+            }
+          })
+          accumulatedResults.errors.push(...adjustedErrors)
+        }
       }
 
-      setImportResults(data.results)
-      toast.success(`Import complete! ${data.results.applications_created} new, ${data.results.applications_updated} updated`)
+      setImportResults(accumulatedResults)
+      toast.success(`Import complete! ${accumulatedResults.applications_created} new, ${accumulatedResults.applications_updated} updated`)
     } catch (err: any) {
-      toast.error(err.message || 'Import failed')
+      toast.error(err.message || 'Import failed midway')
+      // Show what we got so far if it failed midway
+      if (accumulatedResults.total > 0) {
+        setImportResults(accumulatedResults)
+      }
     } finally {
       setImporting(false)
+      setImportProgress(null)
     }
   }
 
@@ -400,6 +446,7 @@ export default function ImportPage() {
     setImportResults(null)
     setPreviewSearch('')
     setCampaignSearch('')
+    setImportProgress(null)
   }
 
   // ─── Stats for preview ─────────────────────────────────
@@ -942,7 +989,7 @@ export default function ImportPage() {
                   {importing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Importing {validCount} rows...
+                      {importProgress ? `Importing batch ${importProgress.current} of ${importProgress.total}...` : `Importing ${validCount} rows...`}
                     </>
                   ) : (
                     <>
