@@ -65,6 +65,10 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
       toast.error('Please enter a valid amount')
       return
     }
+    if (balance > 0 && amt > balance) {
+      toast.error(`Amount cannot exceed the current balance (₹${balance.toLocaleString()})`)
+      return
+    }
     setSubmittingPartial(true)
     try {
       const res = await fetch(`/api/dashboard/applications/${application.id}/request`, {
@@ -152,9 +156,15 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
       }
     }
 
-  const totalAmount = (application?.partial_payment || 0) + (application?.final_payment || 0) + (application?.pending_amount || 0)
+  const totalAmount = application?.form_data?.total_deal 
+    ? Number(application.form_data.total_deal)
+    : ((application?.partial_payment || 0) + (application?.final_payment || 0) + (application?.pending_amount || 0))
+  
   const received = (application?.partial_payment || 0) + (application?.final_payment || 0)
-  const balance = application?.pending_amount || 0
+  
+  // Only show balance if they have submitted the payment form
+  const hasRequested = !!application?.form_data?.payment_request;
+  const balance = hasRequested ? (application?.pending_amount || 0) : 0;
 
   return (
     <>
@@ -266,10 +276,12 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
                     <span className="text-[11px] sm:text-xs font-bold text-cyan-300 text-center">Partial Request</span>
                   </button>
                 )}
-                <button onClick={() => { setShowAppealModal(true); setAppealReason(''); setAppealScreenshot('') }} className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors group cursor-pointer">
-                  <AlertCircle className="h-6 w-6 text-red-400 group-hover:scale-110 transition-transform mb-3" />
-                  <span className="text-[11px] sm:text-xs font-bold text-red-300 text-center">Raise Appeal</span>
-                </button>
+                {application?.status === 'Payment Initiated' && (
+                  <button onClick={() => { setShowAppealModal(true); setAppealReason(''); setAppealScreenshot('') }} className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors group cursor-pointer">
+                    <AlertCircle className="h-6 w-6 text-red-400 group-hover:scale-110 transition-transform mb-3" />
+                    <span className="text-[11px] sm:text-xs font-bold text-red-300 text-center">Raise Appeal</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

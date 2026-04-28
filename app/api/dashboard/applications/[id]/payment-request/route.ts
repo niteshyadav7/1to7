@@ -40,11 +40,30 @@ export async function PUT(
 
     // Merge payment request into form_data
     const currentFormData = application.form_data || {}
+    // Calculate and preserve the actual Total Deal BEFORE mutating pending_amount
+    const oldPending = application.pending_amount || 0;
+    const existingTotalDeal = currentFormData.total_deal 
+      ? parseFloat(currentFormData.total_deal) 
+      : (oldPending + (application.partial_payment || 0) + (application.final_payment || 0));
+
     const updatedFormData = {
       ...currentFormData,
+      total_deal: existingTotalDeal, // Securely lock in the Total Deal so it doesn't mutate
       payment_request: {
         ...body,
         submitted_at: new Date().toISOString(),
+      }
+    }
+
+    // Now safely mutate pending_amount to the requested amount (capped by Total Deal)
+    let newPending = oldPending;
+    const requestedAmount = parseFloat(body.payment_amount) || 0;
+    
+    if (requestedAmount > 0) {
+      if (existingTotalDeal > 0) {
+        newPending = Math.min(requestedAmount, existingTotalDeal);
+      } else {
+        newPending = requestedAmount;
       }
     }
 
@@ -52,6 +71,7 @@ export async function PUT(
     const updatePayload: Record<string, any> = {
       form_data: updatedFormData,
       status: 'Payment Requested',
+      pending_amount: newPending,
       updated_at: new Date().toISOString(),
     }
 

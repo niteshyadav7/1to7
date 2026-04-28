@@ -102,9 +102,12 @@ export default function ApprovedCampaignsPage() {
           {applications.map((app, i) => {
             const campCode = app.campaigns?.campaign_code || app.id.split('-')[0].toUpperCase()
             const brandName = app.campaigns?.brand_name || 'Brand'
-            const totalDeal = (app.partial_payment || 0) + (app.final_payment || 0) + (app.pending_amount || 0)
+            const totalDeal = app?.form_data?.total_deal 
+              ? Number(app.form_data.total_deal)
+              : ((app?.partial_payment || 0) + (app?.final_payment || 0) + (app?.pending_amount || 0))
             const received = (app.partial_payment || 0) + (app.final_payment || 0)
-            const pending = app.pending_amount || 0
+            const hasRequested = !!app?.form_data?.payment_request
+            const pending = hasRequested ? (app.pending_amount || 0) : 0
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
             const statusDisplay = progress >= 100 ? 'FULLY PAID' :
                                   app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : 

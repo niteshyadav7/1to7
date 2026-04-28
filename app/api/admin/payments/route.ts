@@ -48,14 +48,14 @@ export async function GET() {
 
     if (error) throw error
 
-    // Show all applications that are Approved, Payment Initiated, or Completed
-    // so admin can enter/edit payment details for any relevant application
+    // Show applications ONLY when they have submitted the payment form
+    // or when payment is already initiated/completed.
     const payments = (applications || []).filter((app: any) => {
-      const hasAdminPayment = (app.partial_payment > 0) || (app.final_payment > 0) || (app.pending_amount > 0)
       const hasPaymentRequest = app.form_data?.payment_request && Object.keys(app.form_data.payment_request).length > 0
       const hasPartialRequests = Array.isArray(app.form_data?.requests) && app.form_data.requests.length > 0
-      const isPaymentRelevant = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed'].includes(app.status)
-      return hasAdminPayment || hasPaymentRequest || hasPartialRequests || isPaymentRelevant
+      const isPaymentStatus = ['Payment Requested', 'Payment Initiated', 'Completed'].includes(app.status)
+      
+      return hasPaymentRequest || hasPartialRequests || isPaymentStatus
     })
 
     return NextResponse.json({ payments })

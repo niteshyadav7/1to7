@@ -19,6 +19,7 @@ import {
   PieChart,
   FileUp
 } from 'lucide-react'
+import NotificationBell from '@/components/ui/NotificationBell'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -194,7 +195,12 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
             </div>
             <span className="text-sm font-bold text-white">Admin</span>
           </div>
-          <div className="w-9" />
+          <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
+        </header>
+
+        {/* Desktop Top Bar */}
+        <header className="hidden lg:flex sticky top-0 z-30 bg-slate-950/80 backdrop-blur-lg border-b border-white/5 px-8 py-3 items-center justify-end">
+          <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
         </header>
 
         {/* Page Content */}

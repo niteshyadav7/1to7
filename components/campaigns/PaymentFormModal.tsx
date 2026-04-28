@@ -94,6 +94,16 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
       }
     }
 
+    const requestedAmount = parseFloat(formData.payment_amount) || 0
+    const totalDeal = application?.form_data?.total_deal 
+      ? Number(application.form_data.total_deal)
+      : ((application?.partial_payment || 0) + (application?.final_payment || 0) + (application?.pending_amount || 0))
+    
+    if (totalDeal > 0 && requestedAmount > totalDeal) {
+      toast.error(`Please enter an amount less than or equal to the Total Deal amount (₹${totalDeal.toLocaleString()})`)
+      return
+    }
+
     try {
       setSubmitting(true)
       

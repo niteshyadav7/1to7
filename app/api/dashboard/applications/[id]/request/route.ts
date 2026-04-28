@@ -50,12 +50,29 @@ export async function PUT(
     }
     if (screenshot) newRequest.screenshot = screenshot
 
-    // Append to existing requests array in form_data
+    // Append to existing requests array in form_data (with dedup)
     const currentFormData = application.form_data || {}
     const existingRequests = currentFormData.requests || []
+
+    // Dedup: if a pending request with same type & amount exists, increment its count
+    const existingMatch = existingRequests.find(
+      (r: any) => r.type === newRequest.type && r.amount === newRequest.amount && r.status === 'pending'
+    )
+
+    let updatedRequests
+    if (existingMatch) {
+      updatedRequests = existingRequests.map((r: any) =>
+        r.id === existingMatch.id
+          ? { ...r, count: (r.count || 1) + 1, reason: newRequest.reason || r.reason, submitted_at: newRequest.submitted_at }
+          : r
+      )
+    } else {
+      updatedRequests = [...existingRequests, { ...newRequest, count: 1 }]
+    }
+
     const updatedFormData = {
       ...currentFormData,
-      requests: [...existingRequests, newRequest],
+      requests: updatedRequests,
     }
 
     const { error: updateErr } = await supabase

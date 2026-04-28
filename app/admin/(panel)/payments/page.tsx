@@ -17,6 +17,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 
@@ -83,8 +93,8 @@ const dateRanges = [
   { label: 'Last 90 days', value: '90d' },
 ]
 const defaultColumns: Record<string, boolean> = {
-  influencer: true, campaign: true, partialPayment: true, finalPayment: true,
-  pending: true, total: true, paymentRequest: true, status: true, date: true, actions: true,
+  influencer: true, campaign: true, total: true, pending: true, totalPaid: true,
+  paymentRequest: true, status: true, date: true, actions: true,
 }
 const densityPadding: Record<RowDensity, string> = {
   compact: 'py-2', default: 'py-3', comfortable: 'py-5',
@@ -117,7 +127,18 @@ function isInDateRange(dateStr: string, range: string): boolean {
 
 function isImageValue(key: string, value: any): boolean {
   if (typeof value !== 'string') return false
-  return value.startsWith('http') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('document') || key.toLowerCase().includes('image')
+  const lowerKey = key.toLowerCase()
+  const lowerVal = value.toLowerCase()
+  // Only treat as image if: key suggests image/screenshot/document, OR URL has image extension
+  const isImageKey = lowerKey.includes('screenshot') || lowerKey.includes('document') || lowerKey.includes('image') || lowerKey.includes('photo') || lowerKey.includes('proof')
+  const hasImageExt = /\.(jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?.*)?$/i.test(lowerVal)
+  const isUploadUrl = lowerVal.includes('/upload') || lowerVal.includes('supabase') || lowerVal.includes('cloudinary') || lowerVal.includes('imgur')
+  return isImageKey || hasImageExt || (value.startsWith('http') && isUploadUrl)
+}
+
+function isUrlValue(value: any): boolean {
+  if (typeof value !== 'string') return false
+  return /^https?:\/\//i.test(value.trim())
 }
 
 // ─── usePopover ────────────────────────────────────────────
@@ -219,8 +240,8 @@ function DateRangeDropdown({ value, onChange }: { value: string; onChange: (val:
 function ColumnToggle({ columns, onChange }: { columns: Record<string, boolean>; onChange: (col: string) => void }) {
   const { open, setOpen, popoverRef } = usePopover()
   const labels: Record<string, string> = {
-    influencer: 'Influencer', campaign: 'Campaign', partialPayment: 'Partial', finalPayment: 'Final',
-    pending: 'Pending', total: 'Total', paymentRequest: 'Request', status: 'Status', date: 'Date', actions: 'Actions',
+    influencer: 'Influencer', campaign: 'Campaign', total: 'Total Deal', pending: 'Pending', 
+    totalPaid: 'Paid Amount', paymentRequest: 'Request', status: 'Status', date: 'Date', actions: 'Actions',
   }
   return (
     <div className="relative" ref={popoverRef}>
@@ -344,13 +365,14 @@ function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; on
 }
 
 // ─── EditableAmountCell (Inline Click-to-Edit) ─────────────
-function EditableAmountCell({ value, paymentId, field, color, onSave }: {
-  value: number; paymentId: string; field: string; color: string
+function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMessage }: {
+  value: number; paymentId: string; field: string; color: string; confirmMessage?: string;
   onSave: (id: string, field: string, value: number) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
   const [inputVal, setInputVal] = useState(String(value || 0))
   const [saving, setSaving] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -363,12 +385,22 @@ function EditableAmountCell({ value, paymentId, field, color, onSave }: {
   const handleSave = async () => {
     const num = parseFloat(inputVal) || 0
     if (num === (value || 0)) { setEditing(false); return }
+
     setSaving(true)
     try {
       await onSave(paymentId, field, num)
       setEditing(false)
     } catch { /* error handled in parent */ }
     finally { setSaving(false) }
+  }
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (confirmMessage) {
+      setShowConfirm(true)
+    } else {
+      setEditing(true)
+    }
   }
 
   if (editing) {
@@ -391,14 +423,47 @@ function EditableAmountCell({ value, paymentId, field, color, onSave }: {
   }
 
   return (
-    <button
-      onClick={e => { e.stopPropagation(); setEditing(true) }}
-      className={`group/edit flex items-center gap-1 cursor-pointer text-xs font-semibold ${value > 0 ? color : 'text-slate-600'} hover:text-white transition-colors`}
-      title="Click to edit"
-    >
-      {value > 0 ? `₹${value.toLocaleString()}` : '₹0'}
-      <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/edit:opacity-60 transition-opacity" />
-    </button>
+    <>
+      <button
+        onClick={handleEditClick}
+        className={`group/edit flex items-center gap-1 cursor-pointer text-xs font-semibold ${value > 0 ? color : 'text-slate-600'} hover:text-white transition-colors`}
+        title="Click to edit"
+      >
+        {value > 0 ? `₹${value.toLocaleString()}` : '₹0'}
+        <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/edit:opacity-60 transition-opacity" />
+      </button>
+
+      {confirmMessage && (
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          <AlertDialogContent className="bg-slate-900/95 backdrop-blur-xl border border-white/10 text-white shadow-2xl shadow-black/60 rounded-3xl p-8 max-w-[400px]">
+            <AlertDialogHeader className="relative">
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.15)]">
+                <AlertCircle className="h-10 w-10 text-amber-500" />
+              </div>
+              <div className="pt-8">
+                <AlertDialogTitle className="text-center text-2xl font-black tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+                  Wait a Second!
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-center text-slate-400 mt-4 leading-relaxed font-medium">
+                  {confirmMessage}
+                </AlertDialogDescription>
+              </div>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-8 flex flex-col sm:flex-row gap-3">
+              <AlertDialogCancel className="w-full sm:flex-1 bg-slate-800/50 border-white/5 hover:bg-slate-800 hover:text-white rounded-xl py-6 transition-all duration-300">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => { setShowConfirm(false); setEditing(true); }}
+                className="w-full sm:flex-1 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-xl py-6 shadow-[0_10px_20px_rgba(245,158,11,0.2)] hover:shadow-[0_15px_30px_rgba(245,158,11,0.3)] transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Yes, I Need to Edit
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   )
 }
 
@@ -486,6 +551,7 @@ export default function PaymentsPage() {
   // Reject Payment popup state
   const [rejectPaymentApp, setRejectPaymentApp] = useState<PaymentEntry | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [activePartialReqId, setActivePartialReqId] = useState<string | null>(null)
 
   const uniqueBrands = useMemo(() => [...new Set(payments.map(p => p.campaigns?.brand_name).filter(Boolean))].sort(), [payments])
   const uniquePlatforms = useMemo(() => [...new Set(payments.map(p => p.campaigns?.platform).filter(Boolean))].sort(), [payments])
@@ -610,17 +676,53 @@ export default function PaymentsPage() {
     } catch { toast.error('Failed') }
   }
 
-  // Inline payment field update (Partial, Final, Pending, Manager Phone)
+  // Inline payment field update (Partial, Final, Pending, Manager Phone, Total Deal)
   const updatePaymentField = async (id: string, field: string, value: number | string) => {
     try {
+      const isFormData = field.startsWith('form_data.');
+      let bodyData: any = {};
+      
+      if (isFormData) {
+        const formDataKey = field.split('.')[1];
+        const payment = payments.find(p => p.id === id);
+        const currentFormData = payment?.form_data || {};
+        
+        if (formDataKey === 'total_deal') {
+          const totalPaid = (payment?.partial_payment || 0) + (payment?.final_payment || 0);
+          const newPending = Math.max(0, Number(value) - totalPaid);
+          bodyData = { 
+            form_data: { ...currentFormData, [formDataKey]: value },
+            pending_amount: newPending 
+          };
+        } else {
+          bodyData = { form_data: { ...currentFormData, [formDataKey]: value } };
+        }
+      } else {
+        bodyData = { [field]: value };
+      }
+
       const res = await fetch(`/api/admin/applications/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify(bodyData),
       })
       if (!res.ok) throw new Error('Failed to update')
-      setPayments(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
-      toast.success(`${field.replace(/_/g, ' ')} updated to ${typeof value === 'number' ? '₹' + value.toLocaleString() : value}`)
+      
+      if (isFormData) {
+        const formDataKey = field.split('.')[1];
+        if (formDataKey === 'total_deal') {
+          setPayments(prev => prev.map(p => p.id === id ? { 
+            ...p, 
+            form_data: { ...(p.form_data || {}), total_deal: value },
+            pending_amount: Math.max(0, Number(value) - ((p.partial_payment || 0) + (p.final_payment || 0)))
+          } : p))
+        } else {
+          setPayments(prev => prev.map(p => p.id === id ? { ...p, form_data: { ...(p.form_data || {}), [formDataKey]: value } } : p))
+        }
+      } else {
+        setPayments(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+      }
+      toast.success(`${field.replace(/_/g, ' ').replace('form data.', '')} updated to ${typeof value === 'number' ? '₹' + value.toLocaleString() : value}`)
     } catch {
       toast.error('Failed to update payment')
       throw new Error('Failed') // rethrow for EditableAmountCell
@@ -630,26 +732,111 @@ export default function PaymentsPage() {
   const handleExport = useCallback((format: 'csv' | 'json') => {
     const data = processedData.map(p => {
       const pr = p.form_data?.payment_request || {}
+      const piInfo = p.form_data?.payment_initiated || {}
+      const allRequests = (p.form_data?.requests || []) as any[]
+      const partialRequests = allRequests.filter((r: any) => r.type !== 'appeal')
+      const appeals = allRequests.filter((r: any) => r.type === 'appeal')
+      const totalDeal = p.form_data?.total_deal || ((p.partial_payment || 0) + (p.final_payment || 0) + (p.pending_amount || 0))
+
+      // Flatten all payment request custom fields (reel links, dates, etc.)
+      const prFields: Record<string, string> = {}
+      Object.entries(pr).forEach(([key, value]) => {
+        if (key !== 'submitted_at') {
+          prFields[`pr_${key.replace(/\s+/g, '_')}`] = String(value || '')
+        }
+      })
+
+      // Flatten partial request details (up to 10 requests)
+      const reqFields: Record<string, string> = {}
+      partialRequests.forEach((req: any, idx: number) => {
+        const n = idx + 1
+        reqFields[`request_${n}_amount`] = String(req.amount || 0)
+        reqFields[`request_${n}_status`] = req.status || ''
+        reqFields[`request_${n}_approved_amount`] = String(req.approved_amount || '')
+        reqFields[`request_${n}_bank_code`] = req.bank_code || ''
+        reqFields[`request_${n}_reason`] = req.reason || ''
+        reqFields[`request_${n}_date`] = req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : ''
+        reqFields[`request_${n}_count`] = String(req.count || 1)
+      })
+
+      // Flatten appeal details
+      const appealFields: Record<string, string> = {}
+      appeals.forEach((req: any, idx: number) => {
+        const n = idx + 1
+        appealFields[`appeal_${n}_reason`] = req.reason || ''
+        appealFields[`appeal_${n}_status`] = req.status || ''
+        appealFields[`appeal_${n}_date`] = req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : ''
+      })
+
       return {
-        influencer_name: p.users?.full_name || '', influencer_id: p.users?.influencer_id || '',
-        email: p.users?.email || '', mobile: p.users?.mobile || '',
-        brand: p.campaigns?.brand_name || '', campaign_code: p.campaigns?.campaign_code || '',
-        status: p.status, partial_payment: p.partial_payment, final_payment: p.final_payment,
-        pending_amount: p.pending_amount, total_paid: (p.partial_payment || 0) + (p.final_payment || 0),
-        manager_phone: p.manager_phone || '', bank_name: p.users?.account_name || '',
-        bank_account: p.users?.account_number || '', ifsc: p.users?.ifsc_code || '',
-        ...pr, updated_at: p.updated_at,
+        // Influencer Profile
+        influencer_name: p.users?.full_name || '',
+        influencer_id: p.users?.influencer_id || '',
+        email: p.users?.email || '',
+        mobile: p.users?.mobile || '',
+        instagram: p.users?.instagram_username || '',
+        followers: p.users?.followers || '',
+        city: p.users?.city || '',
+        state: p.users?.state || '',
+        gender: p.users?.gender || '',
+
+        // Bank Details
+        bank_account_name: p.users?.account_name || '',
+        bank_account_number: p.users?.account_number || '',
+        ifsc_code: p.users?.ifsc_code || '',
+
+        // Campaign Info
+        brand_name: p.campaigns?.brand_name || '',
+        campaign_code: p.campaigns?.campaign_code || '',
+        platform: p.campaigns?.platform || '',
+
+        // Financial Summary
+        status: p.status,
+        total_deal: totalDeal,
+        partial_payment: p.partial_payment || 0,
+        final_payment: p.final_payment || 0,
+        pending_amount: p.pending_amount || 0,
+        total_paid: (p.partial_payment || 0) + (p.final_payment || 0),
+
+        // Payment Initiated Info
+        initiated_amount: piInfo.amount || '',
+        initiated_bank_code: piInfo.bank_code || '',
+        initiated_at: piInfo.initiated_at ? new Date(piInfo.initiated_at).toLocaleString('en-IN') : '',
+
+        // Manager
+        manager_phone: p.manager_phone || '',
+
+        // Payment Request Form Fields (all custom fields)
+        pr_submitted_at: pr.submitted_at ? new Date(pr.submitted_at).toLocaleString('en-IN') : '',
+        ...prFields,
+
+        // Partial Request History
+        total_partial_requests: partialRequests.length,
+        pending_requests: partialRequests.filter((r: any) => r.status === 'pending').length,
+        approved_requests: partialRequests.filter((r: any) => r.status === 'approved').length,
+        ...reqFields,
+
+        // Appeals
+        total_appeals: appeals.length,
+        ...appealFields,
+
+        // Timestamps
+        created_at: p.created_at ? new Date(p.created_at).toLocaleString('en-IN') : '',
+        updated_at: p.updated_at ? new Date(p.updated_at).toLocaleString('en-IN') : '',
       }
     })
     let content: string, mime: string, ext: string
     if (format === 'csv') {
-      const headers = Object.keys(data[0] || {})
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h]).replace(/"/g, '""')}"`).join(','))
+      // Collect ALL unique headers across all rows
+      const headerSet = new Set<string>()
+      data.forEach(row => Object.keys(row).forEach(k => headerSet.add(k)))
+      const headers = [...headerSet]
+      const rows = data.map(row => headers.map(h => `"${String((row as any)[h] ?? '').replace(/"/g, '""')}"`).join(','))
       content = [headers.join(','), ...rows].join('\n'); mime = 'text/csv'; ext = 'csv'
     } else { content = JSON.stringify(data, null, 2); mime = 'application/json'; ext = 'json' }
     const blob = new Blob([content], { type: mime })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `payments-export.${ext}`; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = `payments-export-${new Date().toISOString().split('T')[0]}.${ext}`; a.click()
     URL.revokeObjectURL(url)
     toast.success(`Exported ${data.length} records as ${ext.toUpperCase()}`)
   }, [processedData])
@@ -732,7 +919,12 @@ export default function PaymentsPage() {
       {/* Advanced Filters */}
       <AnimatePresence>
         {showFilters && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+          <motion.div 
+            initial={{ opacity: 0, height: 0, overflow: 'hidden' }} 
+            animate={{ opacity: 1, height: 'auto', overflow: 'visible' }} 
+            exit={{ opacity: 0, height: 0, overflow: 'hidden' }} 
+            transition={{ duration: 0.2 }}
+          >
             <div className="flex flex-wrap items-center gap-2 p-3 rounded-2xl bg-slate-900/40 border border-white/5">
               <FilterDropdown label="Brand" icon={Megaphone} options={uniqueBrands} selected={filters.brand} onToggle={(v) => toggleFilter('brand', v)} onClear={() => clearFilter('brand')} />
               <FilterDropdown label="Platform" icon={Instagram} options={uniquePlatforms} selected={filters.platform} onToggle={(v) => toggleFilter('platform', v)} onClear={() => clearFilter('platform')} />
@@ -788,14 +980,13 @@ export default function PaymentsPage() {
                       </div>
                     </button>
                   </th>
-                  {visibleCols.influencer && <th className="px-3 py-3 text-left w-[17%]"><SortableHeader label="Influencer" column="name" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.campaign && <th className="px-3 py-3 text-left w-[13%]"><SortableHeader label="Campaign" column="brand" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.partialPayment && <th className="px-3 py-3 text-left w-[9%]"><SortableHeader label="Partial" column="partial" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.finalPayment && <th className="px-3 py-3 text-left w-[9%]"><SortableHeader label="Final" column="final" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.pending && <th className="px-3 py-3 text-left w-[9%]"><SortableHeader label="Pending" column="pending" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.total && <th className="px-3 py-3 text-left w-[10%]"><SortableHeader label="Total" column="total" sortConfig={sortConfig} onSort={handleSort} /></th>}
-                  {visibleCols.paymentRequest && <th className="px-3 py-3 text-left w-[9%]"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Request</span></th>}
-                  {visibleCols.status && <th className="px-3 py-3 text-left w-[11%]"><SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.influencer && <th className="px-3 py-3 text-left w-[18%]"><SortableHeader label="Influencer" column="name" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.campaign && <th className="px-3 py-3 text-left w-[14%]"><SortableHeader label="Campaign" column="brand" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.total && <th className="px-3 py-3 text-left w-[12%]"><SortableHeader label="Total Deal" column="total" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.pending && <th className="px-3 py-3 text-left w-[10%]"><SortableHeader label="Pending" column="pending" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.totalPaid && <th className="px-3 py-3 text-left w-[10%]"><SortableHeader label="Paid Amount" column="totalPaid" sortConfig={sortConfig} onSort={handleSort} /></th>}
+                  {visibleCols.paymentRequest && <th className="px-3 py-3 text-left w-[10%]"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Request</span></th>}
+                  {visibleCols.status && <th className="px-3 py-3 text-left w-[12%]"><SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} /></th>}
                   {visibleCols.date && <th className="px-3 py-3 text-left w-[10%]"><SortableHeader label="Updated" column="date" sortConfig={sortConfig} onSort={handleSort} /></th>}
                   {visibleCols.actions && <th className="px-2 py-3 w-10" />}
                 </tr>
@@ -807,6 +998,7 @@ export default function PaymentsPage() {
                   const pr = payment.form_data?.payment_request || {}
                   const allRequests = (payment.form_data?.requests || []) as any[]
                   const partialRequests = allRequests.filter((r: any) => r.type !== 'appeal')
+                  const pendingPartialCount = partialRequests.filter((r: any) => r.status === 'pending').length
                   const appealRequests = allRequests.filter((r: any) => r.type === 'appeal')
                   const isExpanded = expandedId === payment.id
                   const isSelected = selectedIds.has(payment.id)
@@ -853,26 +1045,33 @@ export default function PaymentsPage() {
                             </div>
                           </td>
                         )}
-                        {/* Partial */}
-                        {visibleCols.partialPayment && (
+                        {/* Total Deal */}
+                        {visibleCols.total && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            <EditableAmountCell value={payment.partial_payment || 0} paymentId={payment.id} field="partial_payment" color="text-blue-400" onSave={updatePaymentField} />
-                          </td>
-                        )}
-                        {/* Final */}
-                        {visibleCols.finalPayment && (
-                          <td className={`px-3 ${densityPadding[density]}`}>
-                            <EditableAmountCell value={payment.final_payment || 0} paymentId={payment.id} field="final_payment" color="text-purple-400" onSave={updatePaymentField} />
+                            <span className={`text-xs font-bold text-white`}>
+                              {(() => {
+                                const tDeal = payment.form_data?.total_deal 
+                                  ? Number(payment.form_data.total_deal)
+                                  : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0));
+                                return tDeal > 0 ? `₹${tDeal.toLocaleString()}` : '—';
+                              })()}
+                            </span>
                           </td>
                         )}
                         {/* Pending */}
                         {visibleCols.pending && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            <EditableAmountCell value={payment.pending_amount || 0} paymentId={payment.id} field="pending_amount" color="text-amber-400" onSave={updatePaymentField} />
+                            {(hasPR || hasPartialReqs || hasAppeals || payment.status !== 'Approved') ? (
+                              <span className="text-xs font-bold text-amber-400">
+                                ₹{(payment.pending_amount || 0).toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-slate-600 text-xs font-medium">—</span>
+                            )}
                           </td>
                         )}
-                        {/* Total */}
-                        {visibleCols.total && (
+                        {/* Total Paid */}
+                        {visibleCols.totalPaid && (
                           <td className={`px-3 ${densityPadding[density]}`}>
                             <span className={`text-xs font-bold ${totalPaid > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>
                               {totalPaid > 0 ? `₹${totalPaid.toLocaleString()}` : '—'}
@@ -888,7 +1087,7 @@ export default function PaymentsPage() {
                                   <FileText className="h-3 w-3" /> Submitted
                                 </span>}
                                 {hasPartialReqs && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/15 text-cyan-400 border border-cyan-500/25">
-                                  <IndianRupee className="h-3 w-3" /> {partialRequests.filter((r: any) => r.status === 'pending').length} Partial
+                                  <IndianRupee className="h-3 w-3" /> {pendingPartialCount > 0 ? `${pendingPartialCount} Pending` : `${partialRequests.length} Done`}
                                 </span>}
                                 {hasAppeals && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/25">
                                   <AlertCircle className="h-3 w-3" /> {appealRequests.filter((r: any) => r.status === 'pending').length} Appeal
@@ -963,22 +1162,54 @@ export default function PaymentsPage() {
                                   {/* Payment Summary — Editable */}
                                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5">
                                     <p className="text-[11px] text-emerald-400 uppercase tracking-wider font-bold mb-4 flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Payment Summary <span className="text-[9px] text-slate-500 font-normal ml-1">(click amounts to edit)</span></p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                       {[
-                                        { l: 'Partial Payment', field: 'partial_payment', v: payment.partial_payment, c: 'text-blue-400', border: 'border-blue-500/20 focus-within:border-blue-500/50' },
-                                        { l: 'Final Payment', field: 'final_payment', v: payment.final_payment, c: 'text-purple-400', border: 'border-purple-500/20 focus-within:border-purple-500/50' },
-                                        { l: 'Pending Amount', field: 'pending_amount', v: payment.pending_amount, c: 'text-amber-400', border: 'border-amber-500/20 focus-within:border-amber-500/50' },
+                                        { 
+                                          l: 'Total Deal', 
+                                          field: 'form_data.total_deal', 
+                                          v: payment.form_data?.total_deal 
+                                               ? Number(payment.form_data.total_deal) 
+                                               : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0)), 
+                                          c: 'text-white', 
+                                          border: 'border-white/20 focus-within:border-white/50',
+                                          confirmMessage: "WARNING: You are about to change the Total Deal amount. This is a critical financial field. Are you sure?"
+                                        },
+                                        { 
+                                          l: 'Pending Amount', 
+                                          field: 'pending_amount', 
+                                          v: payment.pending_amount, 
+                                          c: 'text-amber-400', 
+                                          border: 'border-amber-500/20 focus-within:border-amber-500/50', 
+                                          hideUntilRequest: true,
+                                          confirmMessage: "WARNING: You are about to change the Pending Amount. This directly affects how much the influencer is owed. Are you sure?"
+                                        },
                                         { l: 'Total Paid', field: '', v: totalPaid, c: 'text-emerald-400', border: 'border-white/5' },
-                                      ].map(f => (
-                                        <div key={f.l} className={`bg-slate-900/50 p-3 rounded-xl border ${f.border} transition-colors`}>
-                                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{f.l}</p>
-                                          {f.field ? (
-                                            <EditableAmountCell value={f.v || 0} paymentId={payment.id} field={f.field} color={f.c} onSave={updatePaymentField} />
-                                          ) : (
-                                            <p className={`text-lg font-bold ${f.c}`}>{f.v > 0 ? `₹${f.v.toLocaleString()}` : '₹0'}</p>
-                                          )}
-                                        </div>
-                                      ))}
+                                      ].map(f => {
+                                        const shouldHide = f.hideUntilRequest && !(hasPR || hasPartialReqs || hasAppeals || payment.status !== 'Approved');
+                                        return (
+                                          <div key={f.l} className={`bg-slate-900/50 p-3 rounded-xl border ${f.border} transition-colors`}>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{f.l}</p>
+                                            {shouldHide ? (
+                                              <p className={`text-lg font-bold text-slate-600`}>—</p>
+                                            ) : f.field ? (
+                                              f.field === 'pending_amount' ? (
+                                                <p className={`text-lg font-bold ${f.c}`}>₹{(f.v || 0).toLocaleString()}</p>
+                                              ) : (
+                                                <EditableAmountCell 
+                                                  value={f.v || 0} 
+                                                  paymentId={payment.id} 
+                                                  field={f.field} 
+                                                  color={f.c} 
+                                                  onSave={updatePaymentField}
+                                                  confirmMessage={(f as any).confirmMessage}
+                                                />
+                                              )
+                                            ) : (
+                                              <p className={`text-lg font-bold ${f.c}`}>{f.v > 0 ? `₹${f.v.toLocaleString()}` : '₹0'}</p>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
                                     </div>
                                     {/* Manager Phone — Editable */}
                                     <div className="mt-4 flex items-center gap-3">
@@ -1000,6 +1231,7 @@ export default function PaymentsPage() {
                                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {Object.entries(pr).filter(([k]) => k !== 'submitted_at').map(([key, value]) => {
                                           const isImg = isImageValue(key, value)
+                                          const isUrl = !isImg && isUrlValue(value)
                                           return (
                                             <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
                                               <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">{key.replace(/[_-]/g, ' ')}</p>
@@ -1011,6 +1243,15 @@ export default function PaymentsPage() {
                                                     <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View</span>
                                                   </div>
                                                 </button>
+                                              ) : isUrl ? (
+                                                <a href={String(value)} target="_blank" rel="noopener noreferrer"
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-medium break-all text-sm transition-colors group cursor-pointer">
+                                                  <span className="underline underline-offset-2 decoration-indigo-500/40 group-hover:decoration-indigo-400">{String(value).length > 50 ? String(value).substring(0, 50) + '...' : String(value)}</span>
+                                                  <svg className="h-3.5 w-3.5 shrink-0 opacity-60 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                  </svg>
+                                                </a>
                                               ) : (
                                                 <p className="text-white font-medium break-words text-base">
                                                   {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
@@ -1031,53 +1272,92 @@ export default function PaymentsPage() {
                                     <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-5">
                                       <div className="flex items-center justify-between mb-4">
                                         <p className="text-[11px] text-cyan-400 uppercase tracking-wider font-bold flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Partial Payment Requests</p>
-                                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 text-[10px] font-bold border border-cyan-500/20">{partialRequests.length} REQUEST{partialRequests.length > 1 ? 'S' : ''}</span>
+                                        <div className="flex items-center gap-2">
+                                          {pendingPartialCount > 0 && <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/20">{pendingPartialCount} PENDING</span>}
+                                          <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-400 text-[10px] font-bold border border-cyan-500/20">{partialRequests.length} TOTAL</span>
+                                        </div>
                                       </div>
                                       <div className="space-y-3">
-                                        {partialRequests.map((req: any, idx: number) => (
-                                          <div key={req.id || idx} className="bg-slate-900/50 p-4 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center gap-3">
-                                            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        {partialRequests.map((req: any, idx: number) => {
+                                          const isPending = req.status === 'pending'
+                                          const isApproved = req.status === 'approved'
+                                          const isRejected = req.status === 'rejected'
+                                          const isSettled = isPending && (payment.pending_amount !== undefined && payment.pending_amount <= 0)
+                                          const displayStatus = isSettled ? 'settled' : req.status
+                                          const reqCount = req.count || 1
+                                          return (
+                                          <div key={req.id || idx} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center gap-3 ${
+                                            isPending && !isSettled ? 'bg-slate-900/50 border-white/5' : 
+                                            isApproved || isSettled ? 'bg-emerald-500/[0.03] border-emerald-500/10' : 
+                                            'bg-red-500/[0.03] border-red-500/10'
+                                          }`}>
+                                            <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-3">
                                               <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Amount</p>
-                                                <p className="text-sm font-bold text-white">₹{(req.amount || 0).toLocaleString()}</p>
+                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Requested</p>
+                                                <div className="flex items-center gap-1.5">
+                                                  <p className="text-sm font-bold text-white">₹{(req.amount || 0).toLocaleString()}</p>
+                                                  {reqCount > 1 && <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[9px] font-bold border border-indigo-500/20">×{reqCount}</span>}
+                                                </div>
                                               </div>
+                                              {isApproved && req.approved_amount !== undefined && (
+                                                <div>
+                                                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Approved</p>
+                                                  <p className="text-sm font-bold text-emerald-400">₹{(req.approved_amount || 0).toLocaleString()}</p>
+                                                </div>
+                                              )}
+                                              {isApproved && (req.bank_code || payment.form_data?.payment_initiated?.bank_code) && (
+                                                <div>
+                                                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Bank Code</p>
+                                                  <p className="text-xs font-mono text-slate-300">{req.bank_code || payment.form_data?.payment_initiated?.bank_code}</p>
+                                                </div>
+                                              )}
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Reason</p>
                                                 <p className="text-xs text-slate-300 truncate">{req.reason || '—'}</p>
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
-                                                {(() => {
-                                                  const isEffectivelySettled = req.status === 'pending' && (payment.pending_amount !== undefined && payment.pending_amount <= 0);
-                                                  const displayStatus = isEffectivelySettled ? 'settled' : req.status;
-                                                  return (
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                                      displayStatus === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
-                                                      (displayStatus === 'approved' || displayStatus === 'settled') ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
-                                                      'bg-red-500/15 text-red-400 border-red-500/20'
-                                                    }`}>{displayStatus}</span>
-                                                  )
-                                                })()}
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                  displayStatus === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
+                                                  (displayStatus === 'approved' || displayStatus === 'settled') ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
+                                                  'bg-red-500/15 text-red-400 border-red-500/20'
+                                                }`}>
+                                                  {displayStatus === 'approved' && <CheckCircle2 className="h-3 w-3" />}
+                                                  {displayStatus === 'rejected' && <X className="h-3 w-3" />}
+                                                  {displayStatus === 'pending' && <Clock className="h-3 w-3" />}
+                                                  {displayStatus}
+                                                </span>
                                               </div>
                                               <div>
                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
                                                 <p className="text-xs text-slate-400">{req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : '—'}</p>
                                               </div>
                                             </div>
-                                            {req.status === 'pending' && (payment.pending_amount === undefined || payment.pending_amount > 0) && (
+                                            {isPending && !isSettled && (payment.pending_amount === undefined || payment.pending_amount > 0) && (
                                               <div className="flex items-center gap-2 shrink-0">
-                                                <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode('') }}
+                                                 <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
                                                   <DollarSign className="mr-1 h-3.5 w-3.5" /> Initiate
                                                 </Button>
-                                                <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
+                                                 <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 text-xs font-medium cursor-pointer">
                                                   <X className="mr-1 h-3.5 w-3.5" /> Reject
                                                 </Button>
                                               </div>
                                             )}
+                                            {(isApproved || isSettled) && (
+                                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold shrink-0">
+                                                <CheckCircle2 className="h-3 w-3" /> Done
+                                              </div>
+                                            )}
+                                            {isRejected && (
+                                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold shrink-0">
+                                                <X className="h-3 w-3" /> Rejected
+                                              </div>
+                                            )}
                                           </div>
-                                        ))}
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -1135,8 +1415,13 @@ export default function PaymentsPage() {
                                   )}
 
                                   {/* Action Buttons */}
-                                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                                    {(payment.pending_amount === undefined || payment.pending_amount <= 0) ? (
+                                   <div className="flex flex-wrap items-center gap-3 pt-2">
+                                     {payment.status === 'Payment Initiated' ? (
+                                       <div className="flex items-center gap-2 text-amber-400 text-sm font-bold bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl">
+                                         <Clock className="h-4 w-4" />
+                                         Payment Process Started
+                                       </div>
+                                     ) : (payment.pending_amount !== undefined && payment.pending_amount <= 0) ? (
                                       <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
                                         <CheckCircle2 className="h-4 w-4" />
                                         Fully Paid
@@ -1262,6 +1547,8 @@ export default function PaymentsPage() {
                 <Button onClick={async () => {
                   const amt = parseFloat(initiateAmount) || 0
                   if (amt <= 0 || !initiateBankCode.trim()) { toast.error('Please enter amount and bank code'); return }
+                  const balance = initiatePaymentApp.pending_amount || 0
+                  if (amt > balance) { toast.error(`Amount cannot exceed the current balance (₹${balance.toLocaleString()})`); return }
                   try {
                     const currentPartial = initiatePaymentApp.partial_payment || 0
                     const currentPending = initiatePaymentApp.pending_amount || 0
@@ -1274,7 +1561,17 @@ export default function PaymentsPage() {
                       ? (existingBankCode.includes(newBankCode) ? existingBankCode : `${existingBankCode}, ${newBankCode}`)
                       : newBankCode
                     
-                    const updatedFormData = { ...currentFormData, payment_initiated: { amount: amt, bank_code: updatedBankCode, initiated_at: new Date().toISOString() } }
+                     const updatedRequests = (currentFormData.requests || []).map((r: any, idx: number) => {
+                       const rid = r.id || String(idx)
+                       if (rid === activePartialReqId) return { ...r, status: 'approved', approved_at: new Date().toISOString(), approved_amount: amt, bank_code: initiateBankCode.trim() }
+                       return r
+                     })
+
+                     const updatedFormData = { 
+                       ...currentFormData, 
+                       requests: updatedRequests,
+                       payment_initiated: { amount: amt, bank_code: updatedBankCode, initiated_at: new Date().toISOString() } 
+                     }
                     const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData })
@@ -1283,6 +1580,7 @@ export default function PaymentsPage() {
                     setPayments(prev => prev.map(p => p.id === initiatePaymentApp.id ? { ...p, status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData } : p))
                     toast.success(`Payment of ₹${amt.toLocaleString()} initiated successfully`)
                     setInitiatePaymentApp(null)
+                    setActivePartialReqId(null)
                   } catch { toast.error('Failed to initiate payment') }
                 }} className="flex-[2] rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/20 border-none cursor-pointer">
                   <DollarSign className="mr-1.5 h-4 w-4" /> Confirm Payment
@@ -1332,7 +1630,14 @@ export default function PaymentsPage() {
                   if (!rejectReason.trim()) { toast.error('Please enter a rejection reason'); return }
                   try {
                     const currentFormData = rejectPaymentApp.form_data || {}
-                    const updatedFormData = { ...currentFormData, payment_rejection: { reason: rejectReason.trim(), rejected_at: new Date().toISOString() } }
+                    
+                    const updatedRequests = (currentFormData.requests || []).map((r: any, idx: number) => {
+                      const rid = r.id || String(idx)
+                      if (rid === activePartialReqId) return { ...r, status: 'rejected', rejected_at: new Date().toISOString(), reject_reason: rejectReason.trim() }
+                      return r
+                    })
+
+                    const updatedFormData = { ...currentFormData, requests: updatedRequests, payment_rejection: { reason: rejectReason.trim(), rejected_at: new Date().toISOString() } }
                     const res = await fetch(`/api/admin/applications/${rejectPaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ status: 'Approved', form_data: updatedFormData })
@@ -1341,6 +1646,7 @@ export default function PaymentsPage() {
                     setPayments(prev => prev.map(p => p.id === rejectPaymentApp.id ? { ...p, status: 'Approved', form_data: updatedFormData } : p))
                     toast.success('Payment request rejected')
                     setRejectPaymentApp(null)
+                    setActivePartialReqId(null)
                   } catch { toast.error('Failed to reject payment') }
                 }} className="flex-[2] rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold shadow-lg shadow-red-500/20 border-none cursor-pointer">
                   <X className="mr-1.5 h-4 w-4" /> Confirm Rejection
