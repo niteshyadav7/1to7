@@ -62,7 +62,7 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10 w-full max-w-2xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        className="relative z-10 w-full max-w-4xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         
         {/* Header (Cover & Avatar) */}
         <div className="relative h-32 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border-b border-white/5 shrink-0">
@@ -87,7 +87,7 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
         </div>
 
         {/* Content Body */}
-        <div className="pt-16 p-6 sm:p-8 overflow-y-auto space-y-8">
+        <div className="pt-16 p-6 sm:p-8 overflow-y-auto overflow-x-hidden space-y-8">
            
            {/* Section 1: Overview stats */}
            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -123,64 +123,64 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Contact Information */}
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0 w-full">
                  <div className="flex items-center gap-2 border-b border-white/10 pb-2">
                     <User className="h-4 w-4 text-indigo-400" />
                     <h3 className="text-sm font-bold text-slate-200">Contact & Demographics</h3>
                  </div>
                  
                  <div className="space-y-3 text-sm">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 w-full">
                        <Mail className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                       <div className="min-w-0">
-                         <p className="text-slate-300 font-medium truncate">{user.email}</p>
-                         <p className="text-[10px] text-slate-500">
+                       <div className="min-w-0 flex-1 w-full">
+                         <p className="text-slate-300 font-medium text-[11px] break-all whitespace-normal leading-tight">{user.email}</p>
+                         <p className="text-[10px] text-slate-500 mt-0.5">
                            {user.is_email_verified ? <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span> : 'Unverified'}
                          </p>
                        </div>
                     </div>
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 w-full">
                        <Phone className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                       <div>
-                         <p className="text-slate-300 font-medium">{user.mobile}</p>
-                         <p className="text-[10px] text-slate-500">
+                       <div className="min-w-0 flex-1 w-full">
+                         <p className="text-slate-300 font-medium text-[11px] break-all whitespace-normal leading-tight">{user.mobile}</p>
+                         <p className="text-[10px] text-slate-500 mt-0.5">
                            {user.is_mobile_verified ? <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span> : 'Unverified'}
                          </p>
                        </div>
                     </div>
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 w-full">
                        <MapPin className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                       <div>
-                         <p className="text-slate-300 font-medium">{user.city ? `${user.city}, ` : ''}{user.state}</p>
-                         <p className="text-[10px] text-slate-500">Location</p>
+                       <div className="min-w-0 flex-1 w-full">
+                         <p className="text-slate-300 font-medium text-[11px] break-words whitespace-normal leading-tight">{user.city ? `${user.city}, ` : ''}{user.state}</p>
+                         <p className="text-[10px] text-slate-500 mt-0.5">Location</p>
                        </div>
                     </div>
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 w-full">
                        <Instagram className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-                       <div>
-                         <p className="text-slate-300 font-medium capitalize">{user.gender || 'Not specified'}</p>
-                         <p className="text-[10px] text-slate-500">Gender</p>
+                       <div className="min-w-0 flex-1 w-full">
+                         <p className="text-slate-300 font-medium text-[11px] capitalize break-words whitespace-normal leading-tight">{user.gender || 'Not specified'}</p>
+                         <p className="text-[10px] text-slate-500 mt-0.5">Gender</p>
                        </div>
                     </div>
                  </div>
               </div>
 
               {/* Socials & Bank */}
-              <div className="space-y-6">
+              <div className="space-y-6 min-w-0 w-full">
                  
                  {/* Social Media */}
-                 <div className="space-y-4">
+                 <div className="space-y-4 w-full">
                    <div className="flex items-center gap-2 border-b border-white/10 pb-2">
                       <Instagram className="h-4 w-4 text-pink-400" />
                       <h3 className="text-sm font-bold text-slate-200">Social Presence</h3>
                    </div>
-                   <div className="bg-gradient-to-r from-pink-500/10 to-orange-500/10 border border-pink-500/20 rounded-xl p-4 flex items-center gap-4">
+                   <div className="bg-gradient-to-r from-pink-500/10 to-orange-500/10 border border-pink-500/20 rounded-xl p-4 flex items-start gap-3 w-full">
                      <div className="h-10 w-10 rounded-full bg-pink-500/20 flex items-center justify-center shrink-0">
                        <Instagram className="h-5 w-5 text-pink-400" />
                      </div>
-                     <div className="min-w-0">
-                       <p className="text-sm font-bold text-white truncate">@{user.instagram_username || 'N/A'}</p>
-                       <p className="text-xs text-pink-400">{user.followers > 0 ? `${user.followers.toLocaleString()} Followers` : 'Follower count unknown'}</p>
+                     <div className="min-w-0 flex-1 w-full">
+                       <p className="text-[11px] font-bold text-white break-all whitespace-normal leading-tight">@{user.instagram_username || 'N/A'}</p>
+                       <p className="text-[10px] text-pink-400 mt-1">{user.followers > 0 ? `${user.followers.toLocaleString()} Followers` : 'Follower count unknown'}</p>
                      </div>
                    </div>
                  </div>
@@ -491,26 +491,28 @@ export default function InfluencersDirectoryPage() {
                        </td>
                        
                        {/* Contact Info */}
-                       <td className="px-4 py-3">
-                         <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1 truncate">
+                       <td className="px-4 py-3 max-w-[200px]">
+                         <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
                            <Mail className="h-3 w-3 text-slate-500 shrink-0" />
-                           <span className="truncate">{user.email}</span>
+                           <span className="truncate" title={user.email}>{user.email}</span>
                          </div>
                          <div className="flex items-center gap-2 text-[12px] text-slate-300">
                            <Phone className="h-3 w-3 text-slate-500 shrink-0" />
-                           <span>{user.mobile}</span>
+                           <span className="truncate">{user.mobile}</span>
                          </div>
                        </td>
                        
                        {/* Social */}
-                       <td className="px-4 py-3">
-                         <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1 truncate">
+                       <td className="px-4 py-3 max-w-[200px]">
+                         <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
                            <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
-                           <span className="truncate">{user.instagram_username ? `@${user.instagram_username}` : 'N/A'}</span>
+                           <span className="truncate" title={user.instagram_username ? `@${user.instagram_username}` : 'N/A'}>
+                             {user.instagram_username ? `@${user.instagram_username}` : 'N/A'}
+                           </span>
                          </div>
                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
                            <Users className="h-3 w-3 text-slate-500 shrink-0" />
-                           <span>{user.followers > 0 ? user.followers.toLocaleString() : '—'}</span>
+                           <span className="truncate">{user.followers > 0 ? user.followers.toLocaleString() : '—'}</span>
                          </div>
                        </td>
 
