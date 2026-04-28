@@ -342,7 +342,7 @@ export default function CampaignDetailModal({
                     className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
                   >
                     {/* Header with campaign info */}
-                    <div className="p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-slate-900 to-slate-800">
+                    <div className="p-4 sm:p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-slate-900 to-slate-800">
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -386,7 +386,7 @@ export default function CampaignDetailModal({
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-8 space-y-5">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
                       {missingFields.filter(f => f !== 'city').map((field) => (
                         <div key={field}>
                            {field === 'gender' ? (
@@ -589,7 +589,7 @@ export default function CampaignDetailModal({
                       )}
                     </div>
 
-                    <div className="p-8 pt-4 border-t border-white/5 flex gap-4">
+                    <div className="p-4 sm:p-8 pt-4 border-t border-white/5 flex gap-4">
                        <Button 
                          variant="ghost" 
                          onClick={() => setShowProfileInline(false)}
@@ -623,7 +623,7 @@ export default function CampaignDetailModal({
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                     className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
                   >
-                    <div className="p-8 pb-4 border-b border-white/5">
+                    <div className="p-4 sm:p-8 pb-4 border-b border-white/5">
                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
                           <FileText className="h-5 w-5 text-purple-400" />
                           Application Form
@@ -631,7 +631,7 @@ export default function CampaignDetailModal({
                        <p className="text-slate-400 text-sm mt-1">Fill in the details below to apply for <span className="text-white font-medium">{campaign.brand_name}</span></p>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-8 space-y-5">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
                       {campaign.form_fields.map((field, idx) => (
                         <div key={idx} className="space-y-2">
                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
@@ -674,7 +674,7 @@ export default function CampaignDetailModal({
                       ))}
                     </div>
 
-                    <div className="p-8 pt-4 border-t border-white/5 flex gap-4">
+                    <div className="p-4 sm:p-8 pt-4 border-t border-white/5 flex gap-4">
                        <Button 
                          variant="ghost" 
                          onClick={() => setShowCustomForm(false)}
@@ -708,7 +708,7 @@ export default function CampaignDetailModal({
               </button>
 
               {/* Header */}
-              <div className="p-8 pb-4">
+              <div className="p-4 sm:p-8 pb-4">
                 <div className="flex items-center gap-5">
                   <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-3xl shadow-inner">
                     {emoji}
@@ -728,7 +728,7 @@ export default function CampaignDetailModal({
               </div>
 
               {/* Scrollable Body - Grid Layout */}
-              <div className="flex-1 overflow-y-auto p-8 pt-4 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-4 space-y-6">
                 
                 {/* Top Quick Stats */}
                 <div className="grid grid-cols-2 gap-4">

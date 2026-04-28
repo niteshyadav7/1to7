@@ -127,9 +127,9 @@ export default function CampaignCard({
           </p>
 
           {/* ── Meta ── */}
-          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2 sm:gap-4 text-[11px] text-slate-500 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <Users className="h-3 w-3 text-slate-600" />
+              <Users className="h-3 w-3 text-slate-600 shrink-0" />
               <span>{campaign.gender_required === 'Any' ? 'All genders' : campaign.gender_required}</span>
             </div>
             {campaign.followers && (

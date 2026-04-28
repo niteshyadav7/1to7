@@ -1606,7 +1606,7 @@ export default function AllApplicationsPage() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-5 px-6 py-3.5 bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/30 rounded-2xl lg:ml-32"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-wrap justify-center items-center gap-3 sm:gap-5 px-4 sm:px-6 py-3.5 w-[90vw] sm:w-auto max-w-lg bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/30 rounded-2xl lg:ml-32"
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold text-white">{selectedIds.size} selected</span>

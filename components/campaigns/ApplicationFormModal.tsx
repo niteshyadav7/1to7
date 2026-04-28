@@ -331,7 +331,7 @@ export default function ApplicationFormModal({
 
               {/* Header */}
               {showHeader && (
-                <div className="p-8 pb-6 bg-gradient-to-b from-white/[0.03] to-transparent border-b border-white/5">
+                <div className="p-4 sm:p-8 pb-6 bg-gradient-to-b from-white/[0.03] to-transparent border-b border-white/5">
                   <div className="flex items-center gap-3 mb-2">
                      <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
                         <Send className="h-5 w-5 text-purple-400" />
@@ -357,7 +357,7 @@ export default function ApplicationFormModal({
               )}
 
               {/* Content Area */}
-              <div className="flex-1 overflow-y-auto p-8 pt-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-6">
 
                 {/* ===== GUEST STEP 1: Mobile Number ===== */}
                 {!isLoggedIn && guestStep === 'mobile' && (

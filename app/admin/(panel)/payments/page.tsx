@@ -859,7 +859,7 @@ export default function PaymentsPage() {
           </div>
           <p className="text-sm text-slate-500 mt-1 ml-[3px]">{totalFiltered} payment record{totalFiltered !== 1 ? 's' : ''} across all campaigns</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
           <DensityToggle density={density} onChange={setDensity} />
           <ExportDropdown onExport={handleExport} />
@@ -965,8 +965,8 @@ export default function PaymentsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-sm overflow-hidden shadow-xl shadow-black/10">
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full table-fixed min-w-[1000px]">
               <thead>
                 <tr className="border-b border-white/[0.06] bg-slate-950/40">
                   <th className="px-3 py-3 w-10">

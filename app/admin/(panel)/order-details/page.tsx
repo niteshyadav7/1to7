@@ -1038,7 +1038,7 @@ export default function OrderDetailsPage() {
             {totalFiltered} order{totalFiltered !== 1 ? 's' : ''} submitted across all campaigns
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
           <DensityToggle density={density} onChange={setDensity} />
           <ExportDropdown onExport={handleExport} />
@@ -1202,8 +1202,8 @@ export default function OrderDetailsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-sm overflow-hidden shadow-xl shadow-black/10">
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full table-fixed min-w-[900px]">
               <thead>
                 <tr className="border-b border-white/[0.06] bg-slate-950/40">
                   {/* Checkbox */}

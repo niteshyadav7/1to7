@@ -180,7 +180,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top Bar (mobile) */}
         <header className="lg:hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex items-center justify-between">
           <button
@@ -204,7 +204,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

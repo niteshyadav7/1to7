@@ -200,7 +200,7 @@ export default function AdminCampaignsPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-white/5 mt-auto">
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 mt-auto">
                   {/* Live Toggle */}
                   <button
                     onClick={() => toggleLive(campaign)}

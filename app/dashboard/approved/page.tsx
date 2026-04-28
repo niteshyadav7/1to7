@@ -125,8 +125,8 @@ export default function ApprovedCampaignsPage() {
               >
                 {/* Card Top / Header */}
                 <div className="bg-slate-950/50 border-b border-white/5 p-4 flex flex-col gap-2 shrink-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-white truncate max-w-[50%] flex items-center gap-1.5">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-white truncate w-full sm:max-w-[50%] flex items-center gap-1.5">
                       <span className="opacity-50 text-indigo-400">#</span> {campCode}
                     </span>
                     <span className={`text-[9px] font-bold px-2 py-1 flex items-center shrink-0 uppercase tracking-wider rounded-sm border ${progress >= 100 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20'}`}>
@@ -138,7 +138,7 @@ export default function ApprovedCampaignsPage() {
                 {/* Card Middle / Body */}
                 <div className="p-5 flex-1 flex flex-col">
                   {/* Brand Row */}
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-2 mb-6">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-sm bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 font-bold flex items-center justify-center text-xs">
                         {brandName.charAt(0)}

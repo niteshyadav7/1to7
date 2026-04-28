@@ -135,7 +135,7 @@ export default function AppliedCampaignsPage() {
               className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden hover:bg-slate-900/80 transition-colors"
             >
               {/* Campaign Header - Dark gradient bar */}
-              <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 px-5 py-4 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 px-4 sm:px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-700/80 text-white font-bold text-sm shrink-0">
                     {app.campaigns?.brand_name?.charAt(0) || 'C'}
