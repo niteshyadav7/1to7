@@ -846,33 +846,54 @@ export default function AllApplicationsPage() {
 
   // ─── Export ────────────────────────────────────────────
   const handleExport = useCallback((format: 'csv' | 'json') => {
-    const data = processedData.map(a => ({
-      name: a.users?.full_name || '',
-      influencer_id: a.users?.influencer_id || '',
-      email: a.users?.email || '',
-      mobile: a.users?.mobile || '',
-      instagram: a.users?.instagram_username || '',
-      followers: a.users?.followers || 0,
-      gender: a.users?.gender || '',
-      state: a.users?.state || '',
-      city: a.users?.city || '',
-      brand: a.campaigns?.brand_name || '',
-      campaign_code: a.campaigns?.campaign_code || '',
-      platform: a.campaigns?.platform || '',
-      status: a.status,
-      partial_payment: a.partial_payment,
-      final_payment: a.final_payment,
-      pending_amount: a.pending_amount,
-      applied_on: a.created_at,
-    }))
+    const data = processedData.map(a => {
+      const base = {
+        name: a.users?.full_name || '',
+        influencer_id: a.users?.influencer_id || '',
+        email: a.users?.email || '',
+        mobile: a.users?.mobile || '',
+        instagram: a.users?.instagram_username || '',
+        followers: a.users?.followers || 0,
+        gender: a.users?.gender || '',
+        state: a.users?.state || '',
+        city: a.users?.city || '',
+        brand: a.campaigns?.brand_name || '',
+        campaign_code: a.campaigns?.campaign_code || '',
+        platform: a.campaigns?.platform || '',
+        status: a.status,
+        partial_payment: a.partial_payment,
+        final_payment: a.final_payment,
+        pending_amount: a.pending_amount,
+        applied_on: a.created_at,
+      }
+
+      const customFields: Record<string, any> = {}
+      if (a.form_data) {
+        Object.entries(a.form_data).forEach(([k, v]) => {
+          if (k === 'order_details' && typeof v === 'object' && v !== null) {
+            Object.entries(v).forEach(([ok, ov]) => {
+              customFields[`order_details_${ok}`] = typeof ov === 'object' ? JSON.stringify(ov) : String(ov)
+            })
+          } else if (k === 'order_history' || k === 'payment_requests') {
+            customFields[k] = JSON.stringify(v)
+          } else {
+            customFields[k] = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)
+          }
+        })
+      }
+
+      return { ...base, ...customFields }
+    })
 
     let content: string
     let mime: string
     let ext: string
 
     if (format === 'csv') {
-      const headers = Object.keys(data[0] || {})
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h]).replace(/"/g, '""')}"`).join(','))
+      const headerSet = new Set<string>()
+      data.forEach(row => Object.keys(row).forEach(k => headerSet.add(k)))
+      const headers = Array.from(headerSet)
+      const rows = data.map(row => headers.map(h => `"${String((row as any)[h] || '').replace(/"/g, '""')}"`).join(','))
       content = [headers.join(','), ...rows].join('\n')
       mime = 'text/csv'
       ext = 'csv'

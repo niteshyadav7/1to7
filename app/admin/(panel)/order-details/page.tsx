@@ -947,6 +947,19 @@ export default function OrderDetailsPage() {
   const handleExport = useCallback((format: 'csv' | 'json') => {
     const data = processedData.map(o => {
       const details = getOrderDetails(o)
+
+      const customFields: Record<string, any> = {}
+      if (o.form_data) {
+        Object.entries(o.form_data).forEach(([k, v]) => {
+          if (k === 'order_details') return // Already extracted by getOrderDetails
+          if (k === 'order_history' || k === 'payment_requests') {
+            customFields[k] = JSON.stringify(v)
+          } else {
+            customFields[k] = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)
+          }
+        })
+      }
+
       return {
         influencer_name: o.users?.full_name || '',
         influencer_id: o.users?.influencer_id || '',
@@ -957,6 +970,7 @@ export default function OrderDetailsPage() {
         platform: o.campaigns?.platform || '',
         status: o.status,
         ...details,
+        ...customFields,
         partial_payment: o.partial_payment,
         final_payment: o.final_payment,
         pending_amount: o.pending_amount,
@@ -969,8 +983,10 @@ export default function OrderDetailsPage() {
     let ext: string
 
     if (format === 'csv') {
-      const headers = Object.keys(data[0] || {})
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h]).replace(/"/g, '""')}"`).join(','))
+      const headerSet = new Set<string>()
+      data.forEach(row => Object.keys(row).forEach(k => headerSet.add(k)))
+      const headers = Array.from(headerSet)
+      const rows = data.map(row => headers.map(h => `"${String((row as any)[h] || '').replace(/"/g, '""')}"`).join(','))
       content = [headers.join(','), ...rows].join('\n')
       mime = 'text/csv'
       ext = 'csv'
