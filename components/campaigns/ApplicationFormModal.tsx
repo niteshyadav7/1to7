@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp } from 'lucide-react'
+import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +25,7 @@ interface Campaign {
   id: string
   campaign_code: string
   brand_name: string
+  form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
 }
 
 // Guest flow steps: 'mobile' -> 'email-challenge' | 'new-profile' -> 'application' -> 'success'
@@ -46,6 +47,7 @@ export default function ApplicationFormModal({
   const [pitch, setPitch] = useState('')
   const [loading, setLoading] = useState(false)
   const [fieldsLoading, setFieldsLoading] = useState(false)
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const { user } = useAuth()
 
   // Guest flow state
@@ -82,20 +84,63 @@ export default function ApplicationFormModal({
     }
   }, [isOpen, campaign])
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, and WebP images are allowed')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB')
+      return
+    }
+
+    setUploadingFields(p => ({ ...p, [fieldName]: true }))
+
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      })
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      setFormData(p => ({ ...p, [fieldName]: data.url }))
+      toast.success('Image uploaded successfully')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image')
+    } finally {
+      setUploadingFields(p => ({ ...p, [fieldName]: false }))
+    }
+  }
+
   const fetchFormConfig = async () => {
     if (!campaign) return
     setFieldsLoading(true)
     try {
       const res = await fetch(`/api/apply/form-config/${campaign.campaign_code}`)
       const data = await res.json()
+      const initialData: Record<string, string> = {}
       if (data.formConfig) {
         setFields(data.formConfig)
-        const initialData: Record<string, string> = {}
         data.formConfig.forEach((f: FormField) => {
           initialData[f.field_name] = ''
         })
-        setFormData(initialData)
       }
+      // Also initialize custom campaign form_fields
+      if (campaign.form_fields && campaign.form_fields.length > 0) {
+        campaign.form_fields.forEach((f) => {
+          initialData[f.name] = ''
+        })
+      }
+      setFormData(initialData)
     } catch {
       toast.error('Failed to load application form')
     } finally {
@@ -228,11 +273,21 @@ export default function ApplicationFormModal({
     e.preventDefault()
     if (!campaign) return
 
-    // Validate required fields
+    // Validate required legacy form config fields
     for (const field of fields) {
       if (field.is_required && !formData[field.field_name]?.trim()) {
         toast.error(`"${field.field_name}" is required`)
         return
+      }
+    }
+
+    // Validate required custom campaign form_fields
+    if (campaign.form_fields && campaign.form_fields.length > 0) {
+      for (const field of campaign.form_fields) {
+        if (field.required && !formData[field.name]?.trim()) {
+          toast.error(`"${field.name}" is required`)
+          return
+        }
       }
     }
 
@@ -295,6 +350,7 @@ export default function ApplicationFormModal({
   // Logged-in users go straight to Form step
   const isLoggedIn = !!user
   const showFormStep = isLoggedIn || guestStep === 'application'
+  const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
 
   // Only show the top header if not in success state
   const showHeader = guestStep !== 'success'
@@ -678,6 +734,118 @@ export default function ApplicationFormModal({
                             </div>
                           </div>
                         ))}
+
+                          {/* Custom Campaign Questions (form_fields) */}
+                          {hasCustomFields && (
+                            <>
+                              <div className="border-t border-white/10 pt-5 mt-2">
+                                <p className="text-[11px] font-bold text-purple-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                  <FileText className="h-3.5 w-3.5" />
+                                  Campaign Questions
+                                </p>
+                              </div>
+                              {campaign.form_fields!.map((field, idx) => (
+                                <div key={`cf-${idx}`} className="space-y-2.5">
+                                  <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider flex items-center">
+                                    {field.name}
+                                    {field.required && <span className="text-pink-500 ml-1.5">*</span>}
+                                  </Label>
+
+                                  <div className="relative group">
+                                    {field.type === 'textarea' ? (
+                                      <>
+                                        <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                        <textarea
+                                          value={formData[field.name] || ''}
+                                          onChange={(e) =>
+                                            setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
+                                          }
+                                          placeholder={`Enter ${field.name.toLowerCase()}...`}
+                                          rows={3}
+                                          className="w-full bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 text-sm rounded-2xl pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all resize-none hover:border-white/20"
+                                        />
+                                      </>
+                                    ) : field.type === 'dropdown' ? (
+                                      <>
+                                        <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
+                                        <Select
+                                          value={formData[field.name] || ''}
+                                          onValueChange={(value) =>
+                                            setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
+                                          }
+                                        >
+                                          <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-12 text-sm rounded-2xl pl-11 focus:ring-purple-500/30 transition-all hover:border-white/20">
+                                            <SelectValue placeholder={`Select ${field.name}`} />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-slate-900 border-white/10 text-white rounded-2xl shadow-2xl p-1 overflow-hidden">
+                                            {field.options?.map((opt) => (
+                                              <SelectItem
+                                                key={opt}
+                                                value={opt}
+                                                className="focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer py-3 rounded-lg"
+                                              >
+                                                {opt}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </>
+                                    ) : field.type === 'image' ? (
+                                      <div className="space-y-2">
+                                        {formData[field.name] ? (
+                                          <div className="relative rounded-xl border border-white/10 overflow-hidden bg-white/5 aspect-video max-h-[200px] flex items-center justify-center">
+                                            <img src={formData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                                            <button
+                                              type="button"
+                                              onClick={() => setFormData(p => ({ ...p, [field.name]: '' }))}
+                                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                            >
+                                              <X className="h-4 w-4" />
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed border-white/10 hover:border-purple-500/50 bg-white/5 hover:bg-purple-500/5 transition-all cursor-pointer group">
+                                            {uploadingFields[field.name] ? (
+                                              <div className="flex flex-col items-center gap-2">
+                                                <Loader2 className="h-6 w-6 text-purple-500 animate-spin" />
+                                                <span className="text-xs text-slate-400">Uploading...</span>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <UploadCloud className="h-8 w-8 text-slate-400 group-hover:text-purple-400 mb-2 transition-colors" />
+                                                <span className="text-sm font-medium text-slate-300">Tap to select image</span>
+                                                <span className="text-[10px] text-slate-500 mt-1">PNG, JPG formats supported</span>
+                                              </>
+                                            )}
+                                            <input
+                                              type="file"
+                                              accept="image/png, image/jpeg, image/webp"
+                                              className="hidden"
+                                              disabled={uploadingFields[field.name]}
+                                              onChange={(e) => handleImageUpload(e, field.name)}
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                        <Input
+                                          type={field.type === 'number' ? 'number' : 'text'}
+                                          value={formData[field.name] || ''}
+                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                            setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
+                                          }
+                                          placeholder={`Enter ${field.name.toLowerCase()}...`}
+                                          className="bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 h-12 pl-11 pr-4 text-sm rounded-2xl focus-visible:ring-purple-500/30 transition-all hover:border-white/20"
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          )}
 
                           {/* Mandatory Pitch Field */}
                           <div className="space-y-2.5">
