@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { SignJWT } from 'jose'
-import { sendEmail } from '@/lib/mailer'
+import { sendNotificationEmail } from '@/lib/mailer'
 
 const secretKey = process.env.JWT_SECRET_KEY || 'default_super_secret_dev_key_1to7'
 const key = new TextEncoder().encode(secretKey)
@@ -37,19 +37,19 @@ export async function POST(request: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const verificationUrl = `${baseUrl}/api/mobile/verify-magic?token=${magicToken}`
 
-    // Send email
-    await sendEmail({
+    // Send email using existing mailer
+    await sendNotificationEmail({
       to: email,
       subject: 'Login to 1to7 Media 🚀',
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; text-align: center;">
-          <h2>Hello ${user.full_name.split(' ')[0] || 'Creator'}!</h2>
-          <p>Click the button below to magically log in to the 1to7 Media app. This link expires in 15 minutes.</p>
-          <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #a855f7; color: #fff; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">
+      bodyHtml: `
+        <p style="font-size: 16px; color: #333; margin-top: 0;">Hello ${user.full_name?.split(' ')[0] || 'Creator'}! 👋</p>
+        <p style="font-size: 16px; color: #333;">Click the button below to magically log in to the 1to7 Media app. This link expires in <strong>15 minutes</strong>.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" style="display: inline-block; padding: 14px 28px; background-color: #a855f7; color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 15px;">
             Log in to App
           </a>
-          <p style="margin-top: 30px; font-size: 12px; color: #666;">If you didn't request this, you can safely ignore this email.</p>
         </div>
+        <p style="font-size: 13px; color: #94a3b8;">If you didn't request this, you can safely ignore this email.</p>
       `,
     })
 
