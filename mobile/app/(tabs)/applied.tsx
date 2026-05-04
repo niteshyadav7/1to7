@@ -135,10 +135,8 @@ export default function AppliedScreen() {
 
           return (
             <Animated.View entering={FadeInUp.delay(100 + (index * 100)).duration(600)}>
-              <TouchableOpacity 
-                style={s.card} 
-                activeOpacity={0.8}
-                onPress={() => router.push(`/campaign/${app.campaigns?.id}`)}
+              <View 
+                style={s.card}
               >
                 <View style={s.cardHeader}>
                   <View style={s.brandAvatar}>
@@ -198,7 +196,7 @@ export default function AppliedScreen() {
                   <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
                   <Text style={s.dateText}>Applied on {appliedDate}</Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             </Animated.View>
           )
         }}
