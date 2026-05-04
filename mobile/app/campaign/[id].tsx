@@ -11,7 +11,9 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { Colors } from '@/constants/colors'
 import { api } from '@/services/api'
 import { useAuth } from '@/contexts/AuthContext'
+import { useToast } from '@/contexts/ToastContext'
 import { DetailSkeleton } from '@/components/SkeletonLoader'
+import * as Clipboard from 'expo-clipboard'
 import type { Campaign } from '@/types'
 
 export default function CampaignDetailScreen() {
@@ -19,7 +21,13 @@ export default function CampaignDetailScreen() {
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
+  const { showToast } = useToast()
   const router = useRouter()
+
+  const copyToClipboard = async (text: string, label: string) => {
+    await Clipboard.setStringAsync(text)
+    showToast({ type: 'success', title: 'Copied!', message: `${label} copied to clipboard` })
+  }
 
   useEffect(() => {
     fetchCampaign()
@@ -97,7 +105,10 @@ export default function CampaignDetailScreen() {
                 <Text style={s.brandAvatarText}>{campaign.brand_name?.charAt(0)}</Text>
               </View>
               <Text style={s.brandName}>{campaign.brand_name}</Text>
-              <Text style={s.campaignCode}>ID: {campaign.campaign_code}</Text>
+              <TouchableOpacity onPress={() => copyToClipboard(campaign.campaign_code, 'Campaign ID')} style={s.copyRow}>
+                <Text style={s.campaignCode}>ID: {campaign.campaign_code}</Text>
+                <Ionicons name="copy-outline" size={14} color={Colors.purpleLight} />
+              </TouchableOpacity>
               <View style={s.badgeRow}>
                 <View style={s.platformBadge}>
                   <Ionicons name={platformIcon as any} size={14} color="#fff" />
@@ -131,10 +142,15 @@ export default function CampaignDetailScreen() {
                   <Text style={s.sectionTitle}>Product Links</Text>
                 </View>
                 {campaign.product_links.map((link, i) => (
-                  <TouchableOpacity key={i} onPress={() => Linking.openURL(link)} style={s.linkRow}>
-                    <Ionicons name="open-outline" size={14} color={Colors.info} />
-                    <Text style={s.linkText} numberOfLines={1}>{link}</Text>
-                  </TouchableOpacity>
+                  <View key={i} style={s.linkRowWrap}>
+                    <TouchableOpacity onPress={() => Linking.openURL(link)} style={s.linkRow}>
+                      <Ionicons name="open-outline" size={14} color={Colors.info} />
+                      <Text style={s.linkText} numberOfLines={1}>{link}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => copyToClipboard(link, 'Link')} style={s.copyBtn}>
+                      <Ionicons name="copy-outline" size={18} color={Colors.purpleLight} />
+                    </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             )}
@@ -197,6 +213,7 @@ const s = StyleSheet.create({
   brandAvatarText: { fontSize: 32, fontWeight: '800', color: '#fff' },
   brandName: { fontSize: 26, fontWeight: '800', color: '#fff', marginBottom: 4 },
   campaignCode: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  copyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8 },
   badgeRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   platformBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 },
   platformText: { fontSize: 12, fontWeight: '700', color: '#fff' },
@@ -208,8 +225,10 @@ const s = StyleSheet.create({
   iconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
   sectionContent: { fontSize: 15, color: Colors.textSecondary, lineHeight: 24 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 8, paddingHorizontal: 12, marginTop: 4 },
+  linkRowWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  linkRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 8, paddingHorizontal: 12 },
   linkText: { fontSize: 14, color: Colors.info, flex: 1, fontWeight: '500' },
+  copyBtn: { width: 40, height: 40, borderRadius: 8, backgroundColor: 'rgba(168,85,247,0.1)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(168,85,247,0.2)' },
   bottomBarWrap: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   bottomBar: { padding: 20, paddingBottom: Platform.OS === 'ios' ? 34 : 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   bottomBarAndroid: { backgroundColor: 'rgba(2, 6, 23, 0.95)' },

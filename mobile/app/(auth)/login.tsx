@@ -5,6 +5,7 @@ import {
   StyleSheet, Dimensions, StatusBar
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
+import * as Linking from 'expo-linking'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
@@ -20,9 +21,56 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [magicLoading, setMagicLoading] = useState(false)
   const { login } = useAuth()
   const router = useRouter()
   const { showToast } = useToast()
+  const url = Linking.useURL()
+
+  React.useEffect(() => {
+    if (url) {
+      handleDeepLink(url)
+    }
+  }, [url])
+
+  const handleDeepLink = async (deepUrl: string) => {
+    try {
+      const parsed = Linking.parse(deepUrl)
+      if (parsed.path === 'magic-login' && parsed.queryParams?.token) {
+        setLoading(true)
+        const { ok, data } = await api.post('/api/mobile/magic-login', { token: parsed.queryParams.token })
+        if (ok) {
+          showToast({ type: 'success', title: 'Magic!', message: 'Successfully logged in via magic link' })
+          login(data.user)
+        } else {
+          showToast({ type: 'error', title: 'Link Expired', message: data.error || 'Magic link is invalid' })
+        }
+        setLoading(false)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleMagicLink = async () => {
+    if (!identifier.trim() || !identifier.includes('@')) {
+      showToast({ type: 'warning', title: 'Invalid Email', message: 'Please enter a valid email address above to send a magic link.' })
+      return
+    }
+    setMagicLoading(true)
+    try {
+      const { ok, data } = await api.post('/api/mobile/magic-link', { email: identifier.trim() })
+      if (ok) {
+        showToast({ type: 'success', title: 'Email Sent', message: 'Check your inbox for the magic login link!' })
+      } else {
+        showToast({ type: 'error', title: 'Error', message: data.error || 'Failed to send magic link' })
+      }
+    } catch (e: any) {
+      showToast({ type: 'error', title: 'Error', message: 'Network error. Please try again.' })
+    } finally {
+      setMagicLoading(false)
+    }
+  }
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
@@ -164,9 +212,20 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8} onPress={() => showToast({ type: 'info', title: 'Coming Soon', message: 'Google sign-in will be enabled in a future update.' })}>
-            <Ionicons name="logo-google" size={20} color="#fff" />
-            <Text style={styles.googleBtnText}>Sign in with Google</Text>
+          <TouchableOpacity 
+            style={styles.googleBtn} 
+            activeOpacity={0.8} 
+            onPress={handleMagicLink}
+            disabled={magicLoading}
+          >
+            {magicLoading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="mail" size={20} color="#fff" />
+                <Text style={styles.googleBtnText}>Send Magic Link</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.signupRow}>

@@ -52,7 +52,17 @@ export default function AppliedScreen() {
   }
 
   const filtered = applications.filter(app => {
-    if (activeTab === 'All') return true
+    // Order form campaigns that are Approved but admin hasn't approved order_details yet
+    const needsOrderForm = app.campaigns?.order_form && app.status === 'Approved' && !app.form_data?.order_details_approved
+
+    if (activeTab === 'All') {
+      // Show everything EXCEPT regular approved campaigns (those go to Approved tab)
+      // But DO show order_form campaigns that still need order details
+      if (app.status === 'Approved' && !needsOrderForm) return false
+      return true
+    }
+    if (activeTab === 'Approved') return needsOrderForm
+    if (activeTab === 'Pending') return app.status === 'Applied'
     return app.status === activeTab
   })
 
@@ -111,6 +121,17 @@ export default function AppliedScreen() {
           const code = app.campaigns?.campaign_code || 'ID'
           const statusColor = statusColors[app.status] || Colors.textMuted
           const appliedDate = new Date(app.created_at).toLocaleDateString()
+          const needsOrderForm = app.campaigns?.order_form && app.status === 'Approved' && !app.form_data?.order_details_approved
+          const hasSubmittedOrder = !!app.form_data?.order_details
+          const wasRejectedWithOrder = app.status === 'Rejected' && !!app.form_data?.order_details && app.campaigns?.order_form
+
+          // Determine display status for order form campaigns
+          const displayStatus = needsOrderForm
+            ? (hasSubmittedOrder ? 'Order Pending' : 'Fill Order Form')
+            : app.status
+          const displayStatusColor = needsOrderForm
+            ? (hasSubmittedOrder ? Colors.warning : '#3b82f6')
+            : statusColor
 
           return (
             <Animated.View entering={FadeInUp.delay(100 + (index * 100)).duration(600)}>
@@ -127,16 +148,50 @@ export default function AppliedScreen() {
                     <Text style={s.brandName}>{brand}</Text>
                     <Text style={s.campaignCode}>ID: {code}</Text>
                   </View>
-                  <View style={[s.statusBadge, { backgroundColor: statusColor + '20', borderColor: statusColor + '40' }]}>
-                    <Text style={[s.statusText, { color: statusColor }]}>{app.status}</Text>
+                  <View style={[s.statusBadge, { backgroundColor: displayStatusColor + '20', borderColor: displayStatusColor + '40' }]}>
+                    <Text style={[s.statusText, { color: displayStatusColor }]}>{displayStatus}</Text>
                   </View>
                 </View>
 
-                {app.status === 'Rejected' && app.rejection_reason && (
+                {app.status === 'Rejected' && app.form_data?.rejection_reason && (
                   <View style={s.reasonBox}>
                     <Ionicons name="information-circle" size={16} color={Colors.error} />
-                    <Text style={s.reasonText}>{app.rejection_reason}</Text>
+                    <Text style={s.reasonText}>{app.form_data.rejection_reason}</Text>
                   </View>
+                )}
+
+                {/* Order Form Action Button */}
+                {(needsOrderForm || wasRejectedWithOrder) && (
+                  <TouchableOpacity
+                    style={[
+                      s.orderBtn,
+                      hasSubmittedOrder && !wasRejectedWithOrder && s.orderBtnSubmitted,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      e.stopPropagation()
+                      if (!hasSubmittedOrder || wasRejectedWithOrder) {
+                        router.push(`/order-form/${app.id}`)
+                      }
+                    }}
+                    disabled={hasSubmittedOrder && !wasRejectedWithOrder}
+                  >
+                    <Ionicons
+                      name={hasSubmittedOrder && !wasRejectedWithOrder ? 'checkmark-circle' : 'cloud-upload-outline'}
+                      size={16}
+                      color={hasSubmittedOrder && !wasRejectedWithOrder ? Colors.success : '#3b82f6'}
+                    />
+                    <Text style={[
+                      s.orderBtnText,
+                      hasSubmittedOrder && !wasRejectedWithOrder && { color: Colors.success }
+                    ]}>
+                      {hasSubmittedOrder && !wasRejectedWithOrder
+                        ? 'Order Details Submitted'
+                        : wasRejectedWithOrder
+                          ? 'Update Order Details'
+                          : 'Upload Order Details'}
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
                 <View style={s.cardFooter}>
@@ -175,6 +230,9 @@ const s = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   reasonBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, padding: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
   reasonText: { flex: 1, fontSize: 12, color: Colors.error, fontWeight: '500' },
+  orderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.25)' },
+  orderBtnSubmitted: { backgroundColor: 'rgba(34, 197, 94, 0.08)', borderColor: 'rgba(34, 197, 94, 0.2)' },
+  orderBtnText: { fontSize: 13, fontWeight: '700', color: '#3b82f6' },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
   dateText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
   empty: { alignItems: 'center', paddingVertical: 80, gap: 12 },

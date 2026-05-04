@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { LinearGradient } from 'expo-linear-gradient'
 import { BlurView } from 'expo-blur'
+import * as Clipboard from 'expo-clipboard'
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
 import { Colors } from '@/constants/colors'
 import { api, getToken, BASE_URL } from '@/services/api'
@@ -30,6 +31,12 @@ export default function ApprovedDetailScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const { showToast } = useToast()
+
+  const copyToClipboard = async (text: string, label: string) => {
+    if (!text) return
+    await Clipboard.setStringAsync(text)
+    showToast({ type: 'success', title: 'Copied!', message: `${label} copied to clipboard` })
+  }
 
   useEffect(() => { fetchApplication() }, [id])
 
@@ -198,7 +205,10 @@ export default function ApprovedDetailScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.brandName}>{application.campaigns?.brand_name}</Text>
-                <Text style={s.campaignCode}>ID: {application.campaigns?.campaign_code}</Text>
+                <TouchableOpacity onPress={() => copyToClipboard(application.campaigns?.campaign_code || '', 'Campaign ID')} style={s.copyRow}>
+                  <Text style={s.campaignCode}>ID: {application.campaigns?.campaign_code}</Text>
+                  <Ionicons name="copy-outline" size={14} color={Colors.purpleLight} />
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -351,9 +361,10 @@ const s = StyleSheet.create({
   summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
   brandAvatar: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   brandAvatarText: { fontSize: 24, fontWeight: '800', color: '#fff' },
-  brandName: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 2 },
-  campaignCode: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '600' },
-  financeBox: { flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 16, padding: 16 },
+  brandName: { fontSize: 24, fontWeight: '800', color: '#fff' },
+  campaignCode: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '600' },
+  copyRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, alignSelf: 'flex-start' },
+  financeBox: { flexDirection: 'row', marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
   financeCol: { flex: 1, gap: 4 },
   financeLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   financeValue: { fontSize: 22, fontWeight: '800', color: '#fff' },

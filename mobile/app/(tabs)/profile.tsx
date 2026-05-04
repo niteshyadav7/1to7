@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated'
+import * as Clipboard from 'expo-clipboard'
 import { Colors } from '@/constants/colors'
 import { api } from '@/services/api'
 import { useAuth } from '@/contexts/AuthContext'
@@ -81,6 +82,12 @@ export default function ProfileScreen() {
   const strength = Math.round(((9 - getMissingFields().length) / 9) * 100)
   const isComplete = strength === 100
 
+  const copyToClipboard = async (text: string, label: string) => {
+    if (!text) return
+    await Clipboard.setStringAsync(text)
+    showToast({ type: 'success', title: 'Copied!', message: `${label} copied to clipboard` })
+  }
+
   const Field = ({ label, icon, value, onChangeText, placeholder, kbType, prefix }: any) => (
     <View style={s.fieldGroup}>
       <Text style={s.label}>{label}</Text>
@@ -129,10 +136,10 @@ export default function ProfileScreen() {
               <View style={s.heroInfo}>
                 <Text style={s.name}>{user?.full_name || 'Creator'}</Text>
                 <View style={s.badges}>
-                  <View style={s.badge}>
-                    <Ionicons name="shield-checkmark" size={12} color={Colors.purpleLight} />
+                  <TouchableOpacity onPress={() => copyToClipboard(user?.influencer_id || '', 'Influencer ID')} style={s.badge}>
+                    <Ionicons name="copy-outline" size={12} color={Colors.purpleLight} />
                     <Text style={s.badgeText}>{user?.influencer_id || 'HY...'}</Text>
-                  </View>
+                  </TouchableOpacity>
                   {user?.is_mobile_verified && (
                     <View style={[s.badge, { backgroundColor: 'rgba(34, 197, 94, 0.2)', borderColor: 'rgba(34, 197, 94, 0.3)' }]}>
                       <Ionicons name="checkmark-circle" size={12} color={Colors.success} />

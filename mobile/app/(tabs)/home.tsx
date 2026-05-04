@@ -97,7 +97,10 @@ export default function HomeScreen() {
                   <Text style={s.greeting}>Hello, {user?.full_name?.split(' ')[0] || 'Creator'} 👋</Text>
                   <Text style={s.subGreeting}>Track your campaigns and performance</Text>
                 </View>
-                <TouchableOpacity style={s.notificationBtn}>
+                <TouchableOpacity 
+                  style={s.notificationBtn}
+                  onPress={() => router.push('/notifications')}
+                >
                   <Ionicons name="notifications-outline" size={22} color="#fff" />
                   <View style={s.notificationDot} />
                 </TouchableOpacity>

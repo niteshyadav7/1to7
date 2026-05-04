@@ -49,8 +49,15 @@ export default function ApprovedScreen() {
   }
 
   // Filter only approved/active campaigns
+  // Mirror website logic: hide order_form campaigns until order_details_approved
   const activeStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
-  const approvedApps = applications.filter(app => activeStatuses.includes(app.status))
+  const approvedApps = applications.filter(app => {
+    if (!activeStatuses.includes(app.status)) return false
+    if (app.campaigns?.order_form && app.status === 'Approved') {
+      if (!app.form_data?.order_details_approved) return false
+    }
+    return true
+  })
 
   if (loading) {
     return (
