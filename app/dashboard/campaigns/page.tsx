@@ -6,6 +6,7 @@ import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, Ch
 import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useRealtime } from '@/hooks/useRealtime'
+import BrandLoader from '@/components/ui/BrandLoader'
 
 interface Application {
   id: string
@@ -84,8 +85,8 @@ export default function AppliedCampaignsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-[#f50057] animate-spin" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <BrandLoader />
       </div>
     )
   }

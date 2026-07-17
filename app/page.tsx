@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import CampaignCard from '@/components/campaigns/CampaignCard'
 import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
 import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
+import BrandLoader from '@/components/ui/BrandLoader'
 
 interface Campaign {
   id: string
@@ -215,9 +216,7 @@ export default function Home() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 className="h-10 w-10 text-primary-container animate-spin" />
-            </div>
+            <BrandLoader className="py-16" />
           ) : filteredCampaigns.length === 0 ? (
             <div className="text-center py-24 bg-white rounded-lg border border-border-subtle max-w-lg mx-auto">
               <Search className="h-12 w-12 text-secondary mx-auto mb-4" />

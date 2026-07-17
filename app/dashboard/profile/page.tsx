@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
+import BrandLoader from '@/components/ui/BrandLoader'
 
 interface UserProfile {
   id: string
@@ -146,8 +147,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-[#f50057] animate-spin" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <BrandLoader />
       </div>
     )
   }
@@ -160,7 +161,6 @@ export default function ProfilePage() {
     <div className="space-y-5 w-full pb-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-charcoal-surface">Profile</h1>
         <p className="text-sm text-secondary mt-1">Manage your creator profile and payout details</p>
       </div>
 
@@ -238,18 +238,17 @@ export default function ProfilePage() {
       <div className="rounded-md border border-border-subtle bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           {/* Step 1 */}
-          <button 
+          <button
             type="button"
             onClick={() => setCurrentStep(1)}
             className="flex items-center gap-2 group cursor-pointer focus:outline-none"
           >
-            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${
-              currentStep === 1 
+            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${currentStep === 1
                 ? 'bg-[#f50057] text-white shadow-sm'
-                : currentStep > 1 
-                  ? 'bg-emerald-500 text-white' 
+                : currentStep > 1
+                  ? 'bg-emerald-500 text-white'
                   : 'bg-slate-100 text-slate-450 border border-slate-200'
-            }`}>
+              }`}>
               {currentStep > 1 ? <CheckCircle2 className="h-4 w-4" /> : '1'}
             </div>
             <span className={`text-xs font-bold transition-all ${currentStep === 1 ? 'text-[#f50057]' : 'text-secondary group-hover:text-charcoal-surface'}`}>Socials</span>
@@ -259,18 +258,17 @@ export default function ProfilePage() {
           <div className={`flex-1 h-0.5 mx-4 rounded-full transition-all ${currentStep > 1 ? 'bg-emerald-500' : 'bg-slate-100'}`} />
 
           {/* Step 2 */}
-          <button 
+          <button
             type="button"
             onClick={() => setCurrentStep(2)}
             className="flex items-center gap-2 group cursor-pointer focus:outline-none"
           >
-            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${
-              currentStep === 2 
+            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${currentStep === 2
                 ? 'bg-[#f50057] text-white shadow-sm'
-                : currentStep > 2 
-                  ? 'bg-emerald-500 text-white' 
+                : currentStep > 2
+                  ? 'bg-emerald-500 text-white'
                   : 'bg-slate-100 text-slate-450 border border-slate-200'
-            }`}>
+              }`}>
               {currentStep > 2 ? <CheckCircle2 className="h-4 w-4" /> : '2'}
             </div>
             <span className={`text-xs font-bold transition-all ${currentStep === 2 ? 'text-[#f50057]' : 'text-secondary group-hover:text-charcoal-surface'}`}>Location</span>
@@ -280,16 +278,15 @@ export default function ProfilePage() {
           <div className={`flex-1 h-0.5 mx-4 rounded-full transition-all ${currentStep > 2 ? 'bg-emerald-500' : 'bg-slate-100'}`} />
 
           {/* Step 3 */}
-          <button 
+          <button
             type="button"
             onClick={() => setCurrentStep(3)}
             className="flex items-center gap-2 group cursor-pointer focus:outline-none"
           >
-            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${
-              currentStep === 3 
+            <div className={`flex h-8 w-8 items-center justify-center rounded-md font-bold text-xs transition-all ${currentStep === 3
                 ? 'bg-[#f50057] text-white shadow-sm'
                 : 'bg-slate-100 text-slate-450 border border-slate-200'
-            }`}>
+              }`}>
               3
             </div>
             <span className={`text-xs font-bold transition-all ${currentStep === 3 ? 'text-[#f50057]' : 'text-secondary group-hover:text-charcoal-surface'}`}>Bank Details</span>
@@ -413,10 +410,10 @@ export default function ProfilePage() {
                   value={formData.category || ""}
                   onValueChange={(v) => {
                     if (v === '__custom__') {
-                       setShowCustomCategory(true)
-                       setFormData({ ...formData, category: '' })
+                      setShowCustomCategory(true)
+                      setFormData({ ...formData, category: '' })
                     } else {
-                       setFormData({ ...formData, category: v || '' })
+                      setFormData({ ...formData, category: v || '' })
                     }
                   }}
                 >

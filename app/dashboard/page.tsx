@@ -8,6 +8,7 @@ import CampaignCard from '@/components/campaigns/CampaignCard'
 import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
 import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
 import { Input } from '@/components/ui/input'
+import BrandLoader from '@/components/ui/BrandLoader'
 
 interface Stats {
   total: number
@@ -94,8 +95,8 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-[#f50057] animate-spin" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <BrandLoader />
       </div>
     )
   }

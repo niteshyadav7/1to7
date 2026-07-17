@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, CreditCard, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
 import { useRealtime } from '@/hooks/useRealtime'
+import BrandLoader from '@/components/ui/BrandLoader'
 
 interface Application {
   id: string
@@ -65,8 +66,8 @@ export default function ApprovedCampaignsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-[#f50057] animate-spin" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <BrandLoader />
       </div>
     )
   }
