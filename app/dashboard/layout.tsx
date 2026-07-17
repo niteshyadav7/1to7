@@ -58,13 +58,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }`}
       >
         {/* Logo */}
-        <div className="p-6 pb-2">
+        <div className="p-6 pb-2 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md">
               <Sparkles className="h-4 w-4 text-black" />
             </div>
             <span className="text-lg font-bold text-charcoal-surface">1to7 Media</span>
           </Link>
+          <div className="hidden lg:block">
+            <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
+          </div>
         </div>
 
         {/* User Info */}
@@ -151,11 +154,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <span className="text-sm font-bold text-charcoal-surface">1to7 Media</span>
           </div>
-          <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
-        </header>
-
-        {/* Desktop Top Bar */}
-        <header className="hidden lg:flex absolute top-8 right-8 z-30 items-center justify-end">
           <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
         </header>
 
