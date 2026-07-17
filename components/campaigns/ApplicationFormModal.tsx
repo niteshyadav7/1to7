@@ -365,7 +365,7 @@ export default function ApplicationFormModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-charcoal-surface/40 backdrop-blur-sm z-50"
           />
 
           {/* Modal */}
@@ -376,37 +376,37 @@ export default function ApplicationFormModal({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col">
+            <div className="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-md border border-border-subtle bg-white shadow-xl flex flex-col text-foreground">
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-6 right-6 z-10 rounded-full p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+                className="absolute top-6 right-6 z-10 rounded-md p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
 
               {/* Header */}
               {showHeader && (
-                <div className="p-4 sm:p-8 pb-6 bg-gradient-to-b from-white/[0.03] to-transparent border-b border-white/5">
+                <div className="p-4 sm:p-8 pb-6 bg-gray-muted border-b border-border-subtle">
                   <div className="flex items-center gap-3 mb-2">
-                     <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                        <Send className="h-5 w-5 text-purple-400" />
+                     <div className="p-2 rounded-md bg-primary-container/20 border border-primary-container/30">
+                        <Send className="h-5 w-5 text-primary" />
                      </div>
-                     <h2 className="text-xl font-bold text-white tracking-tight">
+                     <h2 className="text-xl font-bold text-charcoal-surface tracking-tight">
                       Apply to Campaign
                     </h2>
                   </div>
                   
                   {/* Campaign Info Bar */}
-                  <div className="flex items-center gap-6 mt-4 py-3 px-4 rounded-xl bg-white/[0.02] border border-white/5">
+                  <div className="flex items-center gap-6 mt-4 py-3 px-4 rounded-md bg-white border border-border-subtle">
                      <div className="space-y-0.5">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Campaign</p>
-                        <p className="text-sm font-semibold text-purple-400">{campaign.campaign_code}</p>
+                        <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Campaign</p>
+                        <p className="text-sm font-bold text-primary">{campaign.campaign_code}</p>
                      </div>
-                     <div className="w-px h-8 bg-white/5" />
+                     <div className="w-px h-8 bg-border-subtle" />
                      <div className="space-y-0.5">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Brand</p>
-                        <p className="text-sm font-semibold text-white">{campaign.brand_name}</p>
+                        <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Brand</p>
+                        <p className="text-sm font-semibold text-charcoal-surface">{campaign.brand_name}</p>
                      </div>
                   </div>
                 </div>
@@ -423,26 +423,26 @@ export default function ApplicationFormModal({
                     className="space-y-5"
                   >
                     <div className="text-center space-y-2 mb-6">
-                      <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center">
-                        <Phone className="h-7 w-7 text-purple-400" />
+                      <div className="mx-auto h-14 w-14 rounded-md bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
+                        <Phone className="h-7 w-7 text-primary" />
                       </div>
-                      <h3 className="text-lg font-bold text-white">Enter Your Mobile</h3>
-                      <p className="text-sm text-slate-400">We&apos;ll use this to track your application</p>
+                      <h3 className="text-lg font-bold text-charcoal-surface">Enter Your Mobile</h3>
+                      <p className="text-sm text-secondary">We&apos;ll use this to track your application</p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                        Mobile Number <span className="text-pink-500">*</span>
+                      <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                        Mobile Number <span className="text-primary">*</span>
                       </Label>
                       <Input
                         type="text"
                         value={guestMobile}
                         onChange={(e) => setGuestMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                         placeholder="e.g. 9876543210"
-                        className={`bg-slate-950/80 border text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl transition-all font-medium ${
-                          mobileStatus === 'exists' ? 'border-emerald-500/50 focus-visible:ring-emerald-500/50' : 
-                          mobileStatus === 'new' ? 'border-blue-500/50 focus-visible:ring-blue-500/50' : 
-                          'border-purple-500/30 focus-visible:ring-purple-500/50'
+                        className={`bg-white border text-foreground placeholder:text-secondary h-11 px-4 text-sm rounded-md transition-all font-medium ${
+                          mobileStatus === 'exists' ? 'border-primary-container focus-visible:ring-primary-container' : 
+                          mobileStatus === 'new' ? 'border-primary-container focus-visible:ring-primary-container' : 
+                          'border-border-subtle focus-visible:ring-primary-container'
                         }`}
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && handleMobileCheck()}
@@ -452,18 +452,18 @@ export default function ApplicationFormModal({
                         {mobileStatus === 'exists' && (
                           <motion.div 
                             initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-2 text-emerald-400 text-xs font-medium pt-2 pl-1"
+                            className="flex items-center gap-2 text-primary text-xs font-semibold pt-2 pl-1"
                           >
                             <CheckCircle className="h-3.5 w-3.5 shrink-0" /> 
                             <span>
-                              Account Found{maskedEmail ? <span className="text-emerald-500/70"> ({maskedEmail})</span> : ''}! You can quick apply.
+                              Account Found{maskedEmail ? <span className="text-primary/70"> ({maskedEmail})</span> : ''}! You can quick apply.
                             </span>
                           </motion.div>
                         )}
                         {mobileStatus === 'new' && (
                           <motion.div 
                             initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-2 text-blue-400 text-xs font-medium pt-2 pl-1"
+                            className="flex items-center gap-2 text-primary text-xs font-semibold pt-2 pl-1"
                           >
                             <User className="h-3.5 w-3.5" /> New Creator! We&apos;ll set up your profile next.
                           </motion.div>
@@ -474,11 +474,7 @@ export default function ApplicationFormModal({
                     <Button
                       onClick={handleMobileCheck}
                       disabled={checkingMobile || guestMobile.replace(/\D/g, '').length !== 10 || mobileStatus === 'idle'}
-                      className={`w-full h-12 rounded-xl text-white font-bold shadow-lg cursor-pointer disabled:opacity-50 transition-all ${
-                        mobileStatus === 'exists' ? 'bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 shadow-emerald-500/20' : 
-                        mobileStatus === 'new' ? 'bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 shadow-blue-500/20' : 
-                        'bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 shadow-purple-500/20'
-                      }`}
+                      className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm"
                     >
                       {checkingMobile ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
@@ -499,94 +495,94 @@ export default function ApplicationFormModal({
                     className="space-y-5"
                   >
                     <div className="text-center space-y-2 mb-6">
-                      <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/20 flex items-center justify-center">
-                        <User className="h-7 w-7 text-blue-400" />
+                      <div className="mx-auto h-14 w-14 rounded-md bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
+                        <User className="h-7 w-7 text-primary" />
                       </div>
-                      <h3 className="text-lg font-bold text-white">Quick Profile Setup</h3>
-                      <p className="text-sm text-slate-400">Fill in a few details to apply instantly</p>
+                      <h3 className="text-lg font-bold text-charcoal-surface">Quick Profile Setup</h3>
+                      <p className="text-sm text-secondary">Fill in a few details to apply instantly</p>
                     </div>
 
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                          Full Name <span className="text-pink-500">*</span>
+                        <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                          Full Name <span className="text-primary">*</span>
                         </Label>
                         <div className="relative group">
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                           <Input
                             value={guestName}
                             onChange={(e) => setGuestName(e.target.value)}
                             placeholder="Your full name"
-                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 pl-11 pr-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                             autoFocus
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                          Email Address <span className="text-pink-500">*</span>
+                        <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                          Email Address <span className="text-primary">*</span>
                         </Label>
                         <div className="relative group">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                           <Input
                             type="email"
                             value={guestEmail}
                             onChange={(e) => setGuestEmail(e.target.value)}
                             placeholder="your.email@example.com"
-                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 pl-11 pr-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                            Instagram Username <span className="text-pink-500">*</span>
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            Instagram Username <span className="text-primary">*</span>
                           </Label>
                           <Input
                             value={guestInstagram}
                             onChange={(e) => setGuestInstagram(e.target.value)}
                             placeholder="@username"
-                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 px-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                            Followers <span className="text-pink-500">*</span>
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            Followers <span className="text-primary">*</span>
                           </Label>
                           <Input
                             type="number"
                             value={guestFollowers}
                             onChange={(e) => setGuestFollowers(e.target.value)}
                             placeholder="e.g. 10000"
-                            className="bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-600 h-12 px-4 text-sm rounded-xl focus-visible:ring-blue-500/50 transition-all hover:border-white/20"
+                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 px-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                            Gender <span className="text-pink-500">*</span>
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            Gender <span className="text-primary">*</span>
                           </Label>
                           <Select
                             value={guestGender || ""}
                             onValueChange={(v) => setGuestGender(v || '')}
                           >
-                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl">
+                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md">
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                              <SelectItem value="Male" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Male</SelectItem>
-                              <SelectItem value="Female" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Female</SelectItem>
-                              <SelectItem value="Other" className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2">Other</SelectItem>
+                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg">
+                              <SelectItem value="Male" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Male</SelectItem>
+                              <SelectItem value="Female" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Female</SelectItem>
+                              <SelectItem value="Other" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Other</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                            State <span className="text-pink-500">*</span>
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            State <span className="text-primary">*</span>
                           </Label>
                           <Select
                             value={guestState}
@@ -595,12 +591,12 @@ export default function ApplicationFormModal({
                               setGuestCity('')
                             }}
                           >
-                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl">
+                            <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md">
                               <SelectValue placeholder="Select State" />
                             </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 max-h-[250px]">
+                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[250px]">
                               {STATES.map((state) => (
-                                <SelectItem key={state} value={state} className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2 text-xs">
+                                <SelectItem key={state} value={state} className="focus:bg-primary-container focus:text-black cursor-pointer py-2 text-xs">
                                   {state}
                                 </SelectItem>
                               ))}
@@ -608,20 +604,20 @@ export default function ApplicationFormModal({
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                            City <span className="text-pink-500">*</span>
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            City <span className="text-primary">*</span>
                           </Label>
                           <Select
                             value={guestCity}
                             onValueChange={(v) => setGuestCity(v || '')}
                             disabled={!guestState}
                           >
-                            <SelectTrigger className="bg-slate-950/80 border-white/10 text-white h-12 px-4 text-sm focus:ring-blue-500/50 rounded-xl disabled:opacity-50">
+                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md disabled:opacity-50">
                               <SelectValue placeholder={guestState ? "Select City" : "State first"} />
                             </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 max-h-[250px]">
+                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[250px]">
                               {guestState && INDIA_DATA[guestState as keyof typeof INDIA_DATA]?.map((city) => (
-                                <SelectItem key={city} value={city} className="focus:bg-blue-500/30 focus:text-white cursor-pointer py-2 text-xs">
+                                <SelectItem key={city} value={city} className="focus:bg-primary-container focus:text-black cursor-pointer py-2 text-xs">
                                   {city}
                                 </SelectItem>
                               ))}
@@ -635,14 +631,14 @@ export default function ApplicationFormModal({
                       <Button
                         variant="ghost"
                         onClick={() => setGuestStep('mobile')}
-                        className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+                        className="flex-1 h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted font-bold"
                       >
                         Back
                       </Button>
                       <Button
                         onClick={handleNewProfile}
                         disabled={!guestName.trim() || !guestEmail.includes('@') || !guestInstagram.trim() || !guestFollowers.trim() || !guestGender || !guestState.trim() || !guestCity.trim()}
-                        className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white font-bold shadow-lg shadow-blue-500/20 cursor-pointer disabled:opacity-50"
+                        className="flex-[2] h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold shadow-sm cursor-pointer disabled:opacity-50"
                       >
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
@@ -659,22 +655,22 @@ export default function ApplicationFormModal({
                     <form onSubmit={handleSubmit} className="space-y-6">
                       {fieldsLoading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
-                          <Loader2 className="h-10 w-10 text-purple-500 animate-spin" />
-                          <p className="text-sm text-slate-500 font-medium">Preparing application form...</p>
+                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                          <p className="text-sm text-secondary font-medium">Preparing application form...</p>
                         </div>
                       ) : (
                         <>
                           {fields.length > 0 && fields.map((field) => (
                             <div key={field.id} className="space-y-2.5">
-                            <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider flex items-center">
+                            <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
                               {field.field_name}
-                              {field.is_required && <span className="text-pink-500 ml-1.5">*</span>}
+                              {field.is_required && <span className="text-primary ml-1.5">*</span>}
                             </Label>
 
                             <div className="relative group">
                               {field.field_type === 'textarea' ? (
                                 <>
-                                  <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                  <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                   <textarea
                                     value={formData[field.field_name] || ''}
                                     onChange={(e) =>
@@ -682,22 +678,22 @@ export default function ApplicationFormModal({
                                     }
                                     placeholder={`Enter ${field.field_name.toLowerCase()}...`}
                                     rows={4}
-                                    className="w-full bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 text-sm rounded-2xl pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all resize-none hover:border-white/20"
+                                    className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
                                   />
                                 </>
                               ) : field.field_type === 'dropdown' ? (
                                 <>
-                                  <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
+                                  <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                                   <Select
                                     value={formData[field.field_name] || ''}
                                     onValueChange={(value) =>
                                       setFormData((prev) => ({ ...prev, [field.field_name]: value || '' }))
                                     }
                                   >
-                                    <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-12 text-sm rounded-2xl pl-11 focus:ring-purple-500/30 transition-all hover:border-white/20">
+                                    <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
                                       <SelectValue placeholder="Select an option" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-white/10 text-white rounded-2xl shadow-2xl p-1 overflow-hidden">
+                                    <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
                                       {(Array.isArray(field.field_options)
                                         ? field.field_options
                                         : JSON.parse(field.field_options as unknown as string || '[]')
@@ -705,7 +701,7 @@ export default function ApplicationFormModal({
                                         <SelectItem
                                           key={option}
                                           value={option}
-                                          className="focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer py-3 rounded-lg"
+                                          className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
                                         >
                                           {option}
                                         </SelectItem>
@@ -716,9 +712,9 @@ export default function ApplicationFormModal({
                               ) : (
                                 <>
                                   {field.field_name.toLowerCase().includes('follower') ? (
-                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                   ) : (
-                                    <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                    <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                   )}
                                   <Input
                                     type={field.field_type === 'number' ? 'number' : 'text'}
@@ -727,7 +723,7 @@ export default function ApplicationFormModal({
                                       setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
                                     }
                                     placeholder={`Enter ${field.field_name.toLowerCase()}...`}
-                                    className="bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 h-12 pl-11 pr-4 text-sm rounded-2xl focus-visible:ring-purple-500/30 transition-all hover:border-white/20"
+                                    className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                                   />
                                 </>
                               )}
@@ -738,23 +734,23 @@ export default function ApplicationFormModal({
                           {/* Custom Campaign Questions (form_fields) */}
                           {hasCustomFields && (
                             <>
-                              <div className="border-t border-white/10 pt-5 mt-2">
-                                <p className="text-[11px] font-bold text-purple-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                              <div className="border-t border-border-subtle pt-5 mt-2">
+                                <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-1 flex items-center gap-2">
                                   <FileText className="h-3.5 w-3.5" />
                                   Campaign Questions
                                 </p>
                               </div>
                               {campaign.form_fields!.map((field, idx) => (
                                 <div key={`cf-${idx}`} className="space-y-2.5">
-                                  <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider flex items-center">
+                                  <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
                                     {field.name}
-                                    {field.required && <span className="text-pink-500 ml-1.5">*</span>}
+                                    {field.required && <span className="text-primary ml-1.5">*</span>}
                                   </Label>
 
                                   <div className="relative group">
                                     {field.type === 'textarea' ? (
                                       <>
-                                        <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                        <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                         <textarea
                                           value={formData[field.name] || ''}
                                           onChange={(e) =>
@@ -762,27 +758,27 @@ export default function ApplicationFormModal({
                                           }
                                           placeholder={`Enter ${field.name.toLowerCase()}...`}
                                           rows={3}
-                                          className="w-full bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 text-sm rounded-2xl pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all resize-none hover:border-white/20"
+                                          className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
                                         />
                                       </>
                                     ) : field.type === 'dropdown' ? (
                                       <>
-                                        <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10" />
+                                        <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                                         <Select
                                           value={formData[field.name] || ''}
                                           onValueChange={(value) =>
                                             setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
                                           }
                                         >
-                                          <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-12 text-sm rounded-2xl pl-11 focus:ring-purple-500/30 transition-all hover:border-white/20">
+                                          <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
                                             <SelectValue placeholder={`Select ${field.name}`} />
                                           </SelectTrigger>
-                                          <SelectContent className="bg-slate-900 border-white/10 text-white rounded-2xl shadow-2xl p-1 overflow-hidden">
+                                          <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
                                             {field.options?.map((opt) => (
                                               <SelectItem
                                                 key={opt}
                                                 value={opt}
-                                                className="focus:bg-purple-500/20 focus:text-purple-300 cursor-pointer py-3 rounded-lg"
+                                                className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
                                               >
                                                 {opt}
                                               </SelectItem>
@@ -793,28 +789,28 @@ export default function ApplicationFormModal({
                                     ) : field.type === 'image' ? (
                                       <div className="space-y-2">
                                         {formData[field.name] ? (
-                                          <div className="relative rounded-xl border border-white/10 overflow-hidden bg-white/5 aspect-video max-h-[200px] flex items-center justify-center">
+                                          <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
                                             <img src={formData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
                                             <button
                                               type="button"
                                               onClick={() => setFormData(p => ({ ...p, [field.name]: '' }))}
-                                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                              className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-red-500/80 transition-colors"
                                             >
                                               <X className="h-4 w-4" />
                                             </button>
                                           </div>
                                         ) : (
-                                          <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed border-white/10 hover:border-purple-500/50 bg-white/5 hover:bg-purple-500/5 transition-all cursor-pointer group">
+                                          <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-border-subtle hover:border-primary-container bg-gray-muted hover:bg-primary-container/5 transition-all cursor-pointer group">
                                             {uploadingFields[field.name] ? (
                                               <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="h-6 w-6 text-purple-500 animate-spin" />
-                                                <span className="text-xs text-slate-400">Uploading...</span>
+                                                <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                                <span className="text-xs text-secondary">Uploading...</span>
                                               </div>
                                             ) : (
                                               <>
-                                                <UploadCloud className="h-8 w-8 text-slate-400 group-hover:text-purple-400 mb-2 transition-colors" />
-                                                <span className="text-sm font-medium text-slate-300">Tap to select image</span>
-                                                <span className="text-[10px] text-slate-500 mt-1">PNG, JPG formats supported</span>
+                                                <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                                                <span className="text-sm font-medium text-charcoal-surface">Tap to select image</span>
+                                                <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
                                               </>
                                             )}
                                             <input
@@ -829,7 +825,7 @@ export default function ApplicationFormModal({
                                       </div>
                                     ) : (
                                       <>
-                                        <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                                        <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                         <Input
                                           type={field.type === 'number' ? 'number' : 'text'}
                                           value={formData[field.name] || ''}
@@ -837,7 +833,7 @@ export default function ApplicationFormModal({
                                             setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
                                           }
                                           placeholder={`Enter ${field.name.toLowerCase()}...`}
-                                          className="bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 h-12 pl-11 pr-4 text-sm rounded-2xl focus-visible:ring-purple-500/30 transition-all hover:border-white/20"
+                                          className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
                                         />
                                       </>
                                     )}
@@ -849,52 +845,52 @@ export default function ApplicationFormModal({
 
                           {/* Mandatory Pitch Field */}
                           <div className="space-y-2.5">
-                            <Label className="text-slate-400 text-[11px] font-bold uppercase tracking-wider flex items-center">
-                              Pitch to Brand
-                              <span className="text-pink-500 ml-1.5">*</span>
-                            </Label>
-                            <div className="relative group">
-                               <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-                               <textarea
-                                 value={pitch}
-                                 onChange={(e) => setPitch(e.target.value)}
-                                 placeholder="Why are you a good fit for this campaign?"
-                                 rows={4}
-                                 className="w-full bg-slate-950/50 border border-white/10 text-white placeholder:text-slate-600 text-sm rounded-2xl pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-all resize-none hover:border-white/20"
-                               />
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-1 pl-1 font-medium">
-                              Brands value thoughtful comments. Stand out by explaining how you can bring value to the campaign.
-                            </p>
-                          </div>
-                        </>
-                      )}
+                             <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
+                               Pitch to Brand
+                               <span className="text-primary ml-1.5">*</span>
+                             </Label>
+                             <div className="relative group">
+                                <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                <textarea
+                                  value={pitch}
+                                  onChange={(e) => setPitch(e.target.value)}
+                                  placeholder="Why are you a good fit for this campaign?"
+                                  rows={4}
+                                  className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
+                                />
+                             </div>
+                             <p className="text-[10px] text-secondary mt-1 pl-1 font-medium">
+                               Brands value thoughtful comments. Stand out by explaining how you can bring value to the campaign.
+                             </p>
+                           </div>
+                         </>
+                       )}
 
-                      {/* Buttons */}
-                      <div className="flex gap-3 pt-4">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={!isLoggedIn ? () => setGuestStep(verifiedUserId ? 'mobile' : guestEmail ? 'mobile' : 'mobile') : onClose}
-                          className="flex-1 h-12 rounded-2xl text-slate-400 hover:text-white hover:bg-white/5 font-semibold"
-                        >
-                          {isLoggedIn ? 'Cancel' : 'Back'}
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={loading}
-                          className="flex-[2] h-12 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-xl shadow-emerald-500/20 transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50"
-                        >
-                          {loading ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : (
-                            <div className="flex items-center justify-center gap-2">
-                              <CheckCircle className="h-4 w-4" />
-                              Submit Application
-                            </div>
-                          )}
-                        </Button>
-                      </div>
+                       {/* Buttons */}
+                       <div className="flex gap-3 pt-4">
+                         <Button
+                           type="button"
+                           variant="ghost"
+                           onClick={!isLoggedIn ? () => setGuestStep(verifiedUserId ? 'mobile' : guestEmail ? 'mobile' : 'mobile') : onClose}
+                           className="flex-1 h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted font-bold"
+                         >
+                           {isLoggedIn ? 'Cancel' : 'Back'}
+                         </Button>
+                         <Button
+                           type="submit"
+                           disabled={loading}
+                           className="flex-[2] h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm shadow-sm transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50"
+                         >
+                           {loading ? (
+                             <Loader2 className="h-5 w-5 animate-spin" />
+                           ) : (
+                             <div className="flex items-center justify-center gap-2">
+                               <CheckCircle className="h-4 w-4" />
+                               Submit Application
+                             </div>
+                           )}
+                         </Button>
+                       </div>
                     </form>
                   </motion.div>
                 )}
@@ -914,31 +910,31 @@ export default function ApplicationFormModal({
                     </div>
                     
                     <div className="space-y-3">
-                      <h3 className="text-2xl font-bold text-white tracking-tight">Application Sent! 🎉</h3>
-                      <p className="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
-                        Your application for <span className="text-purple-400 font-medium">{campaign.brand_name}</span> has been securely submitted.
+                      <h3 className="text-2xl font-bold text-charcoal-surface tracking-tight">Application Sent! 🎉</h3>
+                      <p className="text-secondary text-sm max-w-[280px] mx-auto leading-relaxed">
+                        Your application for <span className="text-primary font-semibold">{campaign.brand_name}</span> has been securely submitted.
                       </p>
                     </div>
 
-                    <div className="w-full bg-slate-900/50 border border-emerald-500/20 rounded-2xl p-4 text-left space-y-3 mt-2">
-                      <div className="flex gap-3 items-start border-b border-white/5 pb-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                          <TrendingUp className="h-4 w-4 text-blue-400" />
+                    <div className="w-full bg-gray-muted border border-border-subtle rounded-md p-4 text-left space-y-3 mt-2">
+                      <div className="flex gap-3 items-start border-b border-border-subtle pb-3">
+                        <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                          <TrendingUp className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-white mb-1">Increase Your Chances</p>
-                          <p className="text-xs text-slate-400 leading-relaxed">
+                          <p className="text-sm font-bold text-charcoal-surface mb-1">Increase Your Chances</p>
+                          <p className="text-xs text-secondary leading-relaxed">
                             Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
                           </p>
                         </div>
                       </div>
                       <div className="flex gap-3 items-start">
-                        <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                        <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                          <ShieldCheck className="h-4 w-4 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-white mb-1">Track Your Application</p>
-                          <p className="text-xs text-slate-400 leading-relaxed">
+                          <p className="text-sm font-bold text-charcoal-surface mb-1">Track Your Application</p>
+                          <p className="text-xs text-secondary leading-relaxed">
                             We&apos;ve automatically linked your account to your mobile number. You can login anytime to check if your application is approved!
                           </p>
                         </div>
@@ -948,7 +944,7 @@ export default function ApplicationFormModal({
                     <div className="w-full space-y-2 pt-2">
                       <Button
                         onClick={() => window.location.href = !isLoggedIn ? '/login' : '/dashboard/campaigns'}
-                        className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
+                        className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold shadow-sm"
                       >
                         {!isLoggedIn ? 'Login to Track Details' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
@@ -958,7 +954,7 @@ export default function ApplicationFormModal({
                           onSuccess()
                           onClose()
                         }}
-                        className="w-full h-11 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+                        className="w-full h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted"
                       >
                         Close & Explore Campaigns
                       </Button>

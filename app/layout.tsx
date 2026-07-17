@@ -1,9 +1,9 @@
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Toaster } from "sonner";
 
-const fontSans = Plus_Jakarta_Sans({
+const fontSans = Montserrat({
   variable: "--font-sans",
   subsets: ["latin"],
 });

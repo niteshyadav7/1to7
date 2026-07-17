@@ -297,12 +297,12 @@ export default function CampaignDetailModal({
   }
 
   const DetailCard = ({ label, value, icon: Icon, color }: { label: string, value: string | React.ReactNode, icon?: any, color?: string }) => (
-    <div className="bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-1.5 transition-all hover:bg-white/[0.07] hover:border-white/10">
-      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-        {Icon && <Icon className={`h-3 w-3 ${color || 'text-slate-500'}`} />}
+    <div className="bg-gray-muted border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5 transition-all hover:bg-surface-container">
+      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5">
+        {Icon && <Icon className={`h-3 w-3 ${color || 'text-secondary'}`} />}
         {label}
       </span>
-      <span className="text-sm font-semibold text-slate-200">{value}</span>
+      <span className="text-sm font-bold text-charcoal-surface">{value}</span>
     </div>
   )
 
@@ -319,7 +319,7 @@ export default function CampaignDetailModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]"
+            className="fixed inset-0 bg-charcoal-surface/40 backdrop-blur-sm z-[100]"
           />
 
           {/* Modal */}
@@ -330,7 +330,7 @@ export default function CampaignDetailModal({
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col pointer-events-auto">
+            <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-lg border border-border-subtle bg-white shadow-xl flex flex-col pointer-events-auto text-foreground">
               
               {/* Inline Profile Completion View */}
               <AnimatePresence>
@@ -339,20 +339,20 @@ export default function CampaignDetailModal({
                     initial={{ opacity: 0, scale: 1.05 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.05 }}
-                    className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
+                    className="absolute inset-0 z-20 bg-white flex flex-col pointer-events-auto"
                   >
                     {/* Header with campaign info */}
-                    <div className="p-4 sm:p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-slate-900 to-slate-800">
+                    <div className="p-4 sm:p-6 pb-4 border-b border-border-subtle bg-gray-muted">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-charcoal-surface flex items-center gap-2">
                             ✈️ Apply to Campaign
                           </h3>
-                          <p className="text-slate-400 text-sm mt-0.5">{campaign.brand_name}</p>
+                          <p className="text-secondary text-sm mt-0.5">{campaign.brand_name}</p>
                         </div>
                         <button 
                           onClick={() => setShowProfileInline(false)}
-                          className="p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                          className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors"
                         >
                           <X className="h-5 w-5" />
                         </button>
@@ -361,25 +361,25 @@ export default function CampaignDetailModal({
                       {/* Campaign + Instagram Info Cards */}
                       <div className="mt-4 space-y-3">
                         {/* Campaign Card */}
-                        <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
-                          <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-white font-bold text-sm shrink-0">
+                        <div className="flex items-center gap-3 rounded-md bg-gray-muted border border-border-subtle p-3">
+                          <div className="flex items-center justify-center h-10 w-10 rounded-md bg-primary-container text-black font-extrabold text-sm shrink-0">
                             {campaign.brand_name?.charAt(0) || 'C'}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{campaign.brand_name}</p>
-                            <p className="text-[11px] text-slate-500">Campaign ID: {campaign.campaign_code}</p>
+                            <p className="text-sm font-bold text-charcoal-surface truncate">{campaign.brand_name}</p>
+                            <p className="text-[11px] text-secondary">Campaign ID: {campaign.campaign_code}</p>
                           </div>
                         </div>
 
                         {/* Instagram Profile Card */}
                         {user?.instagram_username && (
-                          <div className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-pink-500/20 to-orange-500/20 shrink-0">
-                              <Instagram className="h-5 w-5 text-pink-400" />
+                          <div className="flex items-center gap-3 rounded-md bg-gray-muted border border-border-subtle p-3">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-md bg-secondary text-white shrink-0">
+                              <Instagram className="h-5 w-5 text-white" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-white truncate">@{user.instagram_username}</p>
-                              <p className="text-[11px] text-slate-500">Primary Instagram Profile</p>
+                              <p className="text-sm font-bold text-charcoal-surface truncate">@{user.instagram_username}</p>
+                              <p className="text-[11px] text-secondary">Primary Instagram Profile</p>
                             </div>
                           </div>
                         )}
@@ -391,17 +391,17 @@ export default function CampaignDetailModal({
                         <div key={field}>
                            {field === 'gender' ? (
                              <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                                   {FIELD_LABELS[field] || field}
                                </label>
                                <Select 
                                  value={inlineData[field] || ""} 
                                  onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
                                >
-                                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                  <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
                                      <SelectValue placeholder="Select Gender" />
                                   </SelectTrigger>
-                                  <SelectContent className="bg-slate-900 border-white/10 text-white">
+                                  <SelectContent className="bg-white border border-border-subtle text-foreground">
                                      <SelectItem value="Male" className="cursor-pointer">Male</SelectItem>
                                      <SelectItem value="Female" className="cursor-pointer">Female</SelectItem>
                                      <SelectItem value="Other" className="cursor-pointer">Other</SelectItem>
@@ -412,17 +412,17 @@ export default function CampaignDetailModal({
                               <div className="grid grid-cols-2 gap-4">
                                 {/* State */}
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                                      State
                                   </label>
                                   <Select 
                                     value={inlineData.state || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
                                   >
-                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                    <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
                                        <SelectValue placeholder="Select State" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                    <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                        {STATES.map(s => (
                                          <SelectItem key={s} value={s} className="cursor-pointer">{s}</SelectItem>
                                        ))}
@@ -431,7 +431,7 @@ export default function CampaignDetailModal({
                                 </div>
                                 {/* City */}
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                                      City
                                   </label>
                                   <Select 
@@ -439,10 +439,10 @@ export default function CampaignDetailModal({
                                     value={inlineData.city || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
                                   >
-                                    <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                    <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
                                        <SelectValue placeholder="Select City" />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                    <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                        {(inlineData.state || user?.state) && INDIA_DATA[inlineData.state || user?.state!]?.map(c => (
                                          <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>
                                        ))}
@@ -452,25 +452,25 @@ export default function CampaignDetailModal({
                               </div>
                            ) : (
                              <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                                   {FIELD_LABELS[field] || field}
                                </label>
                                <div className="relative">
                                   {field.includes('account') || field.includes('ifsc') ? (
-                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
                                   ) : field.includes('instagram') ? (
-                                    <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
                                   ) : field === 'followers' ? (
-                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
                                   ) : (
-                                    <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
                                   )}
                                   <Input 
                                     value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
                                     type={field === 'followers' ? 'number' : 'text'}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
                                     placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
-                                    className="bg-white/5 border-white/10 text-white h-12 pl-11 rounded-xl focus-visible:ring-purple-500"
+                                    className="bg-white border-border-subtle text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container"
                                   />
                                   </div>
                                 </div>
@@ -480,14 +480,14 @@ export default function CampaignDetailModal({
 
 
                       {/* Comments - Always shown */}
-                          <div className="border-t border-white/10 pt-5 mt-2">
-                            <p className="text-[11px] font-bold text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <div className="border-t border-border-subtle pt-5 mt-2">
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
                               <MessageSquare className="h-3.5 w-3.5" />
                               Comments / Notes
                             </p>
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                            <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                               Your Comments (Optional)
                             </label>
                             <textarea
@@ -495,7 +495,7 @@ export default function CampaignDetailModal({
                               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
                               placeholder="Add any comments, notes, or questions for the brand..."
                               rows={4}
-                              className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none placeholder:text-slate-600"
+                              className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
                             />
                           </div>
 
@@ -503,15 +503,15 @@ export default function CampaignDetailModal({
                       {/* Custom Campaign Questions */}
                       {hasCustomFields && (
                         <>
-                          <div className="border-t border-white/10 pt-5 mt-2">
-                            <p className="text-[11px] font-bold text-purple-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <div className="border-t border-border-subtle pt-5 mt-2">
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
                               <FileText className="h-3.5 w-3.5" />
                               Campaign Questions
                             </p>
                           </div>
                           {campaign.form_fields!.map((field, idx) => (
                             <div key={`cf-${idx}`} className="space-y-2">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                              <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center gap-2">
                                 {field.name}
                                 {field.required && <span className="text-red-400">*</span>}
                               </label>
@@ -520,10 +520,10 @@ export default function CampaignDetailModal({
                                   value={customFormData[field.name] || ""}
                                   onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
                                 >
-                                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                  <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
                                     <SelectValue placeholder={`Select ${field.name}`} />
                                   </SelectTrigger>
-                                  <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                  <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                     {field.options?.map(opt => (
                                       <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
                                     ))}
@@ -535,33 +535,33 @@ export default function CampaignDetailModal({
                                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
                                   placeholder={`Enter ${field.name}...`}
                                   rows={3}
-                                  className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-600"
+                                  className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
                                 />
                               ) : field.type === 'image' ? (
                                 <div className="space-y-2">
                                   {customFormData[field.name] ? (
-                                    <div className="relative rounded-xl border border-white/10 overflow-hidden bg-white/5 aspect-video max-h-[200px] flex items-center justify-center">
+                                    <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
                                       <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
                                       <button
                                         type="button"
                                         onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
-                                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                        className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors"
                                       >
                                         <X className="h-4 w-4" />
                                       </button>
                                     </div>
                                   ) : (
-                                    <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-xl border-2 border-dashed border-white/10 hover:border-purple-500/50 bg-white/5 hover:bg-purple-500/5 transition-all cursor-pointer group">
+                                    <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-border-subtle hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group">
                                       {uploadingFields[field.name] ? (
                                         <div className="flex flex-col items-center gap-2">
-                                          <Loader2 className="h-6 w-6 text-purple-500 animate-spin" />
-                                          <span className="text-xs text-slate-400">Uploading...</span>
+                                          <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                          <span className="text-xs text-secondary">Uploading...</span>
                                         </div>
                                       ) : (
                                         <>
-                                          <UploadCloud className="h-8 w-8 text-slate-400 group-hover:text-purple-400 mb-2 transition-colors" />
-                                          <span className="text-sm font-medium text-slate-300">Tap to select image</span>
-                                          <span className="text-[10px] text-slate-500 mt-1">PNG, JPG formats supported</span>
+                                          <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                                          <span className="text-sm font-medium text-secondary">Tap to select image</span>
+                                          <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
                                         </>
                                       )}
                                       <input
@@ -580,7 +580,7 @@ export default function CampaignDetailModal({
                                   type={field.type === 'number' ? 'number' : 'text'}
                                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
                                   placeholder={`Enter ${field.name}...`}
-                                  className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-purple-500"
+                                  className="bg-white border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
                                 />
                               )}
                             </div>
@@ -589,11 +589,11 @@ export default function CampaignDetailModal({
                       )}
                     </div>
 
-                    <div className="p-4 sm:p-8 pt-4 border-t border-white/5 flex gap-4">
+                    <div className="p-4 sm:p-8 pt-4 border-t border-border-subtle flex gap-4">
                        <Button 
-                         variant="ghost" 
+                         variant="outline" 
                          onClick={() => setShowProfileInline(false)}
-                         className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white"
+                         className="flex-1 h-12 rounded-md text-secondary border-border-subtle"
                        >
                          Back
                        </Button>
@@ -604,7 +604,7 @@ export default function CampaignDetailModal({
                            (!isProfileComplete() && !isProfileFormValid()) || 
                            (hasCustomFields && !isCustomFormValid())
                          }
-                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                         className="flex-[2] h-12 rounded-md bg-primary-container text-black font-bold uppercase disabled:opacity-50"
                        >
                          {savingProfile ? 'Submitting...' : 'Save & Apply'}
                        </Button>
@@ -621,20 +621,20 @@ export default function CampaignDetailModal({
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 50 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="absolute inset-0 z-20 bg-slate-900 flex flex-col pointer-events-auto"
+                    className="absolute inset-0 z-20 bg-white flex flex-col pointer-events-auto"
                   >
-                    <div className="p-4 sm:p-8 pb-4 border-b border-white/5">
-                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-purple-400" />
+                    <div className="p-4 sm:p-8 pb-4 border-b border-border-subtle">
+                       <h3 className="text-xl font-bold text-charcoal-surface flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
                           Application Form
                        </h3>
-                       <p className="text-slate-400 text-sm mt-1">Fill in the details below to apply for <span className="text-white font-medium">{campaign.brand_name}</span></p>
+                       <p className="text-secondary text-sm mt-1">Fill in the details below to apply for <span className="text-charcoal-surface font-semibold">{campaign.brand_name}</span></p>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
                       {campaign.form_fields.map((field, idx) => (
                         <div key={idx} className="space-y-2">
-                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
+                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center gap-2">
                               {field.name}
                               {field.required && <span className="text-red-400">*</span>}
                            </label>
@@ -644,12 +644,12 @@ export default function CampaignDetailModal({
                                value={customFormData[field.name] || ""} 
                                onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
                              >
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus:ring-purple-500">
+                                <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
                                    <SelectValue placeholder={`Select ${field.name}`} />
                                 </SelectTrigger>
-                                <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                                <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                    {field.options?.map(opt => (
-                                     <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-purple-500/20 focus:text-white">{opt}</SelectItem>
+                                     <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
                                    ))}
                                 </SelectContent>
                              </Select>
@@ -659,7 +659,7 @@ export default function CampaignDetailModal({
                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
                                placeholder={`Enter ${field.name}...`}
                                rows={3}
-                               className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-600"
+                               className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
                              />
                            ) : (
                              <Input 
@@ -667,18 +667,18 @@ export default function CampaignDetailModal({
                                type={field.type === 'number' ? 'number' : 'text'}
                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
                                placeholder={`Enter ${field.name}...`}
-                               className="bg-white/5 border-white/10 text-white h-12 rounded-xl focus-visible:ring-purple-500"
+                               className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
                              />
                            )}
                         </div>
                       ))}
                     </div>
 
-                    <div className="p-4 sm:p-8 pt-4 border-t border-white/5 flex gap-4">
+                    <div className="p-4 sm:p-8 pt-4 border-t border-border-subtle flex gap-4">
                        <Button 
-                         variant="ghost" 
+                         variant="outline" 
                          onClick={() => setShowCustomForm(false)}
-                         className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white cursor-pointer"
+                         className="flex-1 h-12 rounded-md text-secondary border-border-subtle"
                        >
                          <ArrowLeft className="mr-2 h-4 w-4" />
                          Back
@@ -686,7 +686,7 @@ export default function CampaignDetailModal({
                        <Button 
                          onClick={handleCustomFormSubmit}
                          disabled={submitting || !isCustomFormValid()}
-                         className="flex-[2] h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                         className="flex-[2] h-12 rounded-md bg-primary-container text-black font-bold uppercase disabled:opacity-50"
                        >
                          {submitting ? (
                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
@@ -702,7 +702,7 @@ export default function CampaignDetailModal({
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-6 right-6 z-10 rounded-full p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+                className="absolute top-6 right-6 z-10 rounded-full p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -710,16 +710,16 @@ export default function CampaignDetailModal({
               {/* Header */}
               <div className="p-4 sm:p-8 pb-4">
                 <div className="flex items-center gap-5">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-3xl shadow-inner">
+                  <div className="h-14 w-14 rounded-lg bg-gray-muted border border-border-subtle flex items-center justify-center text-3xl shadow-inner">
                     {emoji}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-baseline gap-2">
-                       <h2 className="text-2xl font-bold text-white tracking-tight">{campaign.brand_name}</h2>
-                       <span className="text-[10px] font-mono text-slate-500 uppercase tracking-tighter">ID: {campaign.campaign_code}</span>
+                       <h2 className="text-2xl font-bold text-charcoal-surface tracking-tight">{campaign.brand_name}</h2>
+                       <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter">ID: {campaign.campaign_code}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/10">
+                      <span className="text-[11px] font-bold text-primary bg-primary-container/10 px-2.5 py-1 rounded-full border border-primary-container/20">
                         {campaign.category}
                       </span>
                     </div>
@@ -840,16 +840,16 @@ export default function CampaignDetailModal({
                 {/* Terms Checkbox */}
                 <div className="pt-4">
                     <button 
-                      className="w-full flex items-start gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5 cursor-pointer group hover:bg-white/[0.05] transition-colors text-left"
+                      className="w-full flex items-start gap-3 p-4 rounded-md bg-gray-muted border border-border-subtle cursor-pointer group hover:bg-surface-container transition-colors text-left"
                       onClick={() => setAgreementChecked(!agreementChecked)}
                     >
-                      <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-purple-600 border-purple-600' : 'bg-slate-950 border-white/20'}`}>
-                        {agreementChecked && <Check className="h-3.5 w-3.5 text-white" />}
+                      <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-primary-container border-primary-container' : 'bg-white border-border-subtle'}`}>
+                        {agreementChecked && <Check className="h-3.5 w-3.5 text-black font-extrabold" />}
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-300">
+                        <p className="text-sm font-medium text-charcoal-surface">
                           I have read all the requirements carefully. 
-                          <span className="text-red-400 ml-1">Backout not allowed.</span>
+                          <span className="text-error ml-1 font-bold">Backout not allowed.</span>
                         </p>
                       </div>
                     </button>
@@ -861,7 +861,7 @@ export default function CampaignDetailModal({
                 <Button
                   onClick={handleApplyClick}
                   disabled={!agreementChecked}
-                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-lg shadow-xl shadow-purple-500/20 transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-14 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-lg transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {!isLoggedIn 
                     ? 'Quick Apply' 
@@ -884,9 +884,9 @@ export default function CampaignDetailModal({
            animate={{ opacity: 1, scale: 1, y: 0 }}
            exit={{ opacity: 0, scale: 0.95, y: 20 }}
            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-charcoal-surface/40 backdrop-blur-sm"
         >
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl flex flex-col p-6">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-border-subtle bg-white shadow-xl flex flex-col p-6 text-foreground">
             <div className="flex flex-col items-center justify-center text-center space-y-4 py-2">
               <div className="relative">
                 <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
@@ -896,31 +896,31 @@ export default function CampaignDetailModal({
               </div>
               
               <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-white tracking-tight">Application Sent! 🎉</h3>
-                <p className="text-slate-400 text-sm max-w-[280px] mx-auto leading-relaxed">
-                  Your application for <span className="text-purple-400 font-medium">{campaign.brand_name}</span> has been securely submitted.
+                <h3 className="text-2xl font-bold text-charcoal-surface tracking-tight">Application Sent! 🎉</h3>
+                <p className="text-secondary text-sm max-w-[280px] mx-auto leading-relaxed">
+                  Your application for <span className="text-primary font-semibold">{campaign.brand_name}</span> has been securely submitted.
                 </p>
               </div>
 
-              <div className="w-full bg-slate-900/50 border border-emerald-500/20 rounded-2xl p-4 text-left space-y-3 mt-2">
-                <div className="flex gap-3 items-start border-b border-white/5 pb-3">
-                  <div className="h-8 w-8 rounded-full bg-blue-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                    <TrendingUp className="h-4 w-4 text-blue-400" />
+              <div className="w-full bg-gray-muted border border-border-subtle rounded-md p-4 text-left space-y-3 mt-2">
+                <div className="flex gap-3 items-start border-b border-border-subtle pb-3">
+                  <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <TrendingUp className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white mb-1">Increase Your Chances</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-sm font-bold text-charcoal-surface mb-1">Increase Your Chances</p>
+                    <p className="text-xs text-secondary leading-relaxed">
                       Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start">
-                  <div className="h-8 w-8 rounded-full bg-emerald-500/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                    <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                    <CheckCircle className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white mb-1">What&apos;s Next?</p>
-                    <p className="text-xs text-slate-400 leading-relaxed">
+                    <p className="text-sm font-bold text-charcoal-surface mb-1">What&apos;s Next?</p>
+                    <p className="text-xs text-secondary leading-relaxed">
                       You will be notified once the brand reviews your application and makes a decision!
                     </p>
                   </div>
@@ -930,7 +930,7 @@ export default function CampaignDetailModal({
               <div className="w-full space-y-2 pt-2">
                 <Button
                   onClick={() => window.location.href = '/dashboard/campaigns'}
-                  className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20"
+                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold"
                 >
                   Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -940,7 +940,7 @@ export default function CampaignDetailModal({
                     setIsSuccess(false)
                     onClose()
                   }}
-                  className="w-full h-11 rounded-xl text-slate-400 hover:text-white hover:bg-white/5"
+                  className="w-full h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted"
                 >
                   Close & Explore Campaigns
                 </Button>

@@ -16,7 +16,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp"
 
-const inputClasses = "bg-slate-950/50 border-white/10 text-white placeholder:text-slate-500 h-12 px-10 text-sm focus-visible:ring-purple-500 transition-all rounded-xl shadow-inner group-hover:border-white/20"
+const inputClasses = "bg-white border border-border-subtle text-foreground placeholder:text-secondary h-12 px-10 text-sm focus-visible:ring-primary-container transition-all rounded-md"
 
 type Step = 'email' | 'otp' | 'password'
 
@@ -118,38 +118,43 @@ export default function ForgotPasswordPage() {
   const currentStepIndex = steps.findIndex(s => s.key === step)
 
   return (
-    <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-purple-500/30">
-      {/* Left Section (Branding) */}
-      <div className="relative hidden lg:w-3/5 flex-col justify-between overflow-hidden p-12 lg:flex">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-900 via-slate-900 to-pink-900 opacity-60" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.4),transparent_50%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.3),transparent_50%)]" />
-        
+    <div className="flex min-h-screen bg-background font-sans selection:bg-primary-container/30">
+      {/* Left Section (Branding Banner Image & Text Overlay) */}
+      <div className="relative hidden w-full lg:w-1/2 lg:flex flex-col justify-between overflow-hidden p-12 bg-charcoal-surface">
+        {/* Background Image - Full Bleed object-cover */}
+        <img 
+          src="/signup_banner_clean.png" 
+          alt="1to7 Media Banner Background" 
+          className="absolute inset-0 h-full w-full object-cover opacity-50"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(254,189,28,0.15),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(94,94,94,0.2),transparent_60%)]" />
+
         <div className="relative z-10 flex flex-col gap-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl transition-transform group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center gap-2 group w-fit bg-black/35 backdrop-blur-md px-4 py-2 rounded-md border border-white/10 shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md transition-transform group-hover:scale-105">
+              <Sparkles className="h-4 w-4 text-black" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">1to7 Media</span>
+            <span className="text-lg font-bold tracking-tight text-white">1to7 Media</span>
           </Link>
-          
+
           <div className="mt-20">
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight"
+              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight drop-shadow-md"
             >
-              Reset Your <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              Reset Your <br />
+              <span className="text-primary-container">
                 Password
               </span>
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-lg text-slate-300 max-w-md"
+              className="text-lg text-secondary-container max-w-md drop-shadow-sm font-medium"
             >
               No worries! Enter your email and we&apos;ll send you a verification code to reset your password securely.
             </motion.p>
@@ -157,7 +162,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="relative z-10 space-y-6">
-          <ul className="space-y-3 text-slate-300">
+          <ul className="space-y-3 text-secondary-container">
             {[
               "Secure OTP-based verification",
               "Password updated instantly",
@@ -167,11 +172,11 @@ export default function ForgotPasswordPage() {
                 key={i}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 + (i * 0.1) }}
-                className="flex items-center gap-2 text-sm font-medium"
+                transition={{ duration: 0.5, delay: 0.2 + (i * 0.1) }}
+                className="flex items-center gap-2 text-sm font-medium drop-shadow-sm"
               >
-                <div className="h-5 w-5 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  <div className="h-2 w-2 rounded-full bg-purple-400" />
+                <div className="h-5 w-5 rounded-full bg-primary-container/20 flex items-center justify-center">
+                  <div className="h-2 w-2 rounded-full bg-primary-container" />
                 </div>
                 {benefit}
               </motion.li>
@@ -181,30 +186,30 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* Right Section (Form) */}
-      <div className="flex w-full items-center justify-center p-6 lg:w-2/5 relative bg-slate-950">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.1),transparent_70%)] lg:hidden" />
-        
-        <motion.div 
+      <div className="flex w-full items-center justify-center p-6 lg:w-1/2 relative bg-background">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
+
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-lg xl:max-w-xl space-y-8 p-8 md:p-12 relative z-10"
+          className="w-full max-w-md space-y-6 relative z-10"
         >
-          {/* Mobile Logo */}
-          <Link href="/" className="flex items-center gap-2 lg:hidden mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl">
-              <Sparkles className="h-5 w-5 text-white" />
+          {/* Centered Logo */}
+          <Link href="/" className="flex items-center gap-2 mb-8 justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
+              <Sparkles className="h-5 w-5 text-black" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">1to7 Media</span>
+            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
           </Link>
 
           {/* Header */}
           <div className="space-y-2 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600/20 to-pink-500/20 border border-purple-500/20 mb-2 mx-auto">
-              <ShieldCheck className="h-7 w-7 text-purple-400" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary-container/20 border border-primary-container/30 mb-2 mx-auto">
+              <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Forgot Password</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Forgot Password</h2>
+            <p className="text-sm text-secondary">
               {step === 'email' && "Enter your registered email to receive a reset code"}
               {step === 'otp' && "Enter the 6-digit code sent to your email"}
               {step === 'password' && "Create a new secure password for your account"}
@@ -215,19 +220,17 @@ export default function ForgotPasswordPage() {
           <div className="flex items-center justify-center gap-2">
             {steps.map((s, i) => (
               <div key={s.key} className="flex items-center gap-2">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${
-                  i < currentStepIndex 
-                    ? 'bg-emerald-500 text-white' 
-                    : i === currentStepIndex 
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-lg shadow-purple-500/30' 
-                      : 'bg-slate-800 text-slate-500 border border-white/10'
-                }`}>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${i < currentStepIndex
+                    ? 'bg-emerald-500 text-white'
+                    : i === currentStepIndex
+                      ? 'bg-primary-container text-black shadow-md'
+                      : 'bg-slate-100 text-secondary border border-border-subtle'
+                  }`}>
                   {i < currentStepIndex ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
                 </div>
                 {i < steps.length - 1 && (
-                  <div className={`w-12 h-0.5 rounded-full transition-all duration-300 ${
-                    i < currentStepIndex ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
+                  <div className={`w-12 h-0.5 rounded-full transition-all duration-300 ${i < currentStepIndex ? 'bg-emerald-500' : 'bg-slate-200'
+                    }`} />
                 )}
               </div>
             ))}
@@ -245,9 +248,9 @@ export default function ForgotPasswordPage() {
                 className="space-y-5"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-300 font-medium">Email Address</Label>
+                  <Label htmlFor="email" className="text-secondary font-medium">Email Address</Label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="email"
                       type="email"
@@ -257,14 +260,13 @@ export default function ForgotPasswordPage() {
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendOtp()}
                       className={inputClasses}
                     />
-                    <div className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 blur transition-opacity group-focus-within:opacity-20" />
                   </div>
                 </div>
 
                 <Button
                   onClick={handleSendOtp}
                   loading={loading}
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-semibold text-base shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] group cursor-pointer"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 transition-all cursor-pointer"
                 >
                   Send Verification Code
                   {!loading && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
@@ -281,12 +283,12 @@ export default function ForgotPasswordPage() {
                 transition={{ duration: 0.3 }}
                 className="space-y-5"
               >
-                <div className="p-5 rounded-xl border border-white/10 bg-slate-900/50 backdrop-blur space-y-5">
+                <div className="p-5 rounded-md border border-border-subtle bg-white/40 space-y-5">
                   <div className="text-center space-y-1">
-                    <p className="text-slate-300 text-sm">Code sent to</p>
-                    <p className="text-purple-400 font-medium text-sm">{email}</p>
+                    <p className="text-secondary text-sm">Code sent to</p>
+                    <p className="text-primary font-bold text-sm">{email}</p>
                   </div>
-                  
+
                   <div className="flex justify-center">
                     <InputOTP
                       className=""
@@ -297,11 +299,11 @@ export default function ForgotPasswordPage() {
                       pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
                     >
                       <InputOTPGroup className="gap-2">
-                        {[0,1,2,3,4,5].map((index) => (
-                          <InputOTPSlot 
-                            key={index} 
-                            index={index} 
-                            className="w-10 h-12 bg-slate-950/80 border-white/20 text-white rounded-lg text-lg font-bold shadow-inner" 
+                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                          <InputOTPSlot
+                            key={index}
+                            index={index}
+                            className="w-10 h-12 bg-white border border-border-subtle text-charcoal-surface rounded-md text-lg font-bold focus-visible:ring-primary-container"
                           />
                         ))}
                       </InputOTPGroup>
@@ -312,14 +314,14 @@ export default function ForgotPasswordPage() {
                     <Button
                       variant="ghost"
                       onClick={() => { setStep('email'); setOtp('') }}
-                      className="flex-1 h-11 text-slate-400 hover:text-white cursor-pointer"
+                      className="flex-1 h-11 text-secondary hover:text-charcoal-surface cursor-pointer"
                     >
                       <ArrowLeft className="mr-1 h-4 w-4" />
                       Back
                     </Button>
                     <Button
                       onClick={handleVerifyOtp}
-                      className="flex-1 h-11 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-white font-semibold cursor-pointer"
+                      className="flex-1 h-11 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 cursor-pointer"
                     >
                       Verify Code
                     </Button>
@@ -329,7 +331,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  className="w-full text-center text-sm text-slate-500 hover:text-purple-400 transition-colors cursor-pointer"
+                  className="w-full text-center text-sm text-secondary hover:text-primary transition-colors cursor-pointer"
                 >
                   Didn&apos;t receive the code? <span className="underline">Resend</span>
                 </button>
@@ -347,9 +349,9 @@ export default function ForgotPasswordPage() {
               >
                 {/* New Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-slate-300 font-medium">New Password</Label>
+                  <Label htmlFor="newPassword" className="text-secondary font-medium">New Password</Label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="newPassword"
                       type={showPassword ? "text" : "password"}
@@ -360,31 +362,30 @@ export default function ForgotPasswordPage() {
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-400 transition-colors z-10 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors z-10 cursor-pointer"
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                    <div className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 blur transition-opacity group-focus-within:opacity-20" />
                   </div>
 
                   {/* Strength Meter */}
                   {newPassword.length > 0 && (
                     <div className="flex space-x-1 mt-1.5 h-1">
-                      <div className={`flex-1 rounded-full ${strengthScore >= 1 ? (strengthScore >= 3 ? 'bg-emerald-500' : strengthScore === 2 ? 'bg-amber-400' : 'bg-red-400') : 'bg-white/10'}`} />
-                      <div className={`flex-1 rounded-full ${strengthScore >= 2 ? (strengthScore >= 3 ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-white/10'}`} />
-                      <div className={`flex-1 rounded-full ${strengthScore >= 3 ? 'bg-emerald-500' : 'bg-white/10'}`} />
-                      <div className={`flex-1 rounded-full ${strengthScore >= 4 ? 'bg-emerald-500' : 'bg-white/10'}`} />
+                      <div className={`flex-1 rounded-full ${strengthScore >= 1 ? (strengthScore >= 3 ? 'bg-emerald-500' : strengthScore === 2 ? 'bg-amber-400' : 'bg-red-400') : 'bg-slate-200'}`} />
+                      <div className={`flex-1 rounded-full ${strengthScore >= 2 ? (strengthScore >= 3 ? 'bg-emerald-500' : 'bg-amber-400') : 'bg-slate-200'}`} />
+                      <div className={`flex-1 rounded-full ${strengthScore >= 3 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                      <div className={`flex-1 rounded-full ${strengthScore >= 4 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
                     </div>
                   )}
                 </div>
 
                 {/* Confirm Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-slate-300 font-medium">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-secondary font-medium">Confirm Password</Label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
@@ -392,33 +393,31 @@ export default function ForgotPasswordPage() {
                       value={confirmPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleResetPassword()}
-                      className={`${inputClasses} pr-10 ${
-                        confirmPassword.length > 0 && confirmPassword === newPassword 
-                          ? 'border-emerald-500/50 focus-visible:ring-emerald-500' 
-                          : confirmPassword.length > 0 
-                            ? 'border-red-500/50 focus-visible:ring-red-500' 
+                      className={`${inputClasses} pr-10 ${confirmPassword.length > 0 && confirmPassword === newPassword
+                          ? 'border-emerald-500/50 focus-visible:ring-emerald-500'
+                          : confirmPassword.length > 0
+                            ? 'border-red-500/50 focus-visible:ring-red-500'
                             : ''
-                      }`}
+                        }`}
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-400 transition-colors z-10 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors z-10 cursor-pointer"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       tabIndex={-1}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
-                    <div className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 opacity-0 blur transition-opacity group-focus-within:opacity-20" />
                   </div>
                   {confirmPassword.length > 0 && confirmPassword !== newPassword && (
-                    <p className="text-xs text-red-400">Passwords do not match</p>
+                    <p className="text-xs text-red-500">Passwords do not match</p>
                   )}
                 </div>
 
                 <Button
                   onClick={handleResetPassword}
                   loading={loading}
-                  className="w-full h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-semibold text-base shadow-lg shadow-purple-500/25 transition-all active:scale-[0.98] group cursor-pointer"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 transition-all cursor-pointer"
                 >
                   Reset Password
                   {!loading && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
@@ -428,9 +427,9 @@ export default function ForgotPasswordPage() {
           </AnimatePresence>
 
           {/* Back to Login */}
-          <div className="text-center text-sm font-medium text-slate-400">
+          <div className="text-center text-sm font-medium text-secondary">
             Remember your password?{' '}
-            <Link href="/login" className="text-purple-400 hover:text-purple-300 hover:underline transition-all cursor-pointer">
+            <Link href="/login" className="text-primary hover:text-surface-tint hover:underline transition-all cursor-pointer font-bold">
               Sign In
             </Link>
           </div>

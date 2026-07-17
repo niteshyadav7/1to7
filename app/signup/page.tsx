@@ -23,7 +23,7 @@ type View =
 
 export default function SignupPage() {
   const [view, setView] = useState<View>('details')
-  
+
   // Form State
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -38,7 +38,7 @@ export default function SignupPage() {
   const [emailOtp, setEmailOtp] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [emailCountdown, setEmailCountdown] = useState(0)
-  
+
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
   const { login } = useAuth()
@@ -65,7 +65,7 @@ export default function SignupPage() {
       try {
         window.recaptchaVerifierSignup = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
           size: 'invisible',
-          callback: () => {},
+          callback: () => { },
           'expired-callback': () => {
             toast.error('reCAPTCHA expired. Please try again.')
             if (window.recaptchaVerifierSignup) {
@@ -81,7 +81,7 @@ export default function SignupPage() {
 
     return () => {
       if (!needsRecaptcha && window.recaptchaVerifierSignup) {
-        try { window.recaptchaVerifierSignup.clear() } catch (e) {}
+        try { window.recaptchaVerifierSignup.clear() } catch (e) { }
         window.recaptchaVerifierSignup = null
       }
     }
@@ -90,7 +90,7 @@ export default function SignupPage() {
   // ─── Step 1: Submit Details & Send OTPs ───
   const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Basic validations
     if (!fullName || !email || !mobile || !password || !gender) {
       toast.error('Please fill in all required fields.')
@@ -112,7 +112,7 @@ export default function SignupPage() {
     setLoading(true)
     try {
       const cleanMobile = mobile.replace(/\D/g, '')
-      
+
       // 1. Check if user already exists
       const res = await fetch('/api/auth/check-user-exists', {
         method: 'POST',
@@ -120,7 +120,7 @@ export default function SignupPage() {
         body: JSON.stringify({ mobile: cleanMobile, email })
       })
       const data = await res.json()
-      
+
       if (data.exists) {
         toast.error(data.message || 'User already exists.')
         setLoading(false)
@@ -132,7 +132,7 @@ export default function SignupPage() {
         sendFirebaseOTP(cleanMobile),
         sendEmailOTP(email)
       ])
-      
+
       setView('verify-all')
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong. Please try again.')
@@ -146,7 +146,7 @@ export default function SignupPage() {
       try {
         window.recaptchaVerifierSignup = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
           size: 'invisible',
-          callback: () => {},
+          callback: () => { },
         })
       } catch (e) {
         throw new Error('Verification service not ready. Please refresh the page.')
@@ -165,7 +165,7 @@ export default function SignupPage() {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to send email OTP')
-    
+
     setEmailCountdown(60)
   }
 
@@ -199,7 +199,7 @@ export default function SignupPage() {
       // 1. Verify Mobile OTP via Firebase
       if (!confirmationRef.current) throw new Error('Mobile session expired. Please go back and try again.')
       await confirmationRef.current.confirm(mobileOtp)
-      
+
       // 2. Verify Email OTP via Backend
       const verifyRes = await fetch('/api/auth/verify-email-otp', {
         method: 'POST',
@@ -233,7 +233,7 @@ export default function SignupPage() {
       }),
     })
     const data = await res.json()
-    
+
     if (!res.ok) {
       toast.error(data.error || 'Failed to create account.')
       setLoading(false)
@@ -246,19 +246,24 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-purple-500/30">
-      {/* Left Section (Branding) */}
-      <div className="relative hidden w-full lg:w-1/2 xl:w-3/5 flex-col justify-between overflow-hidden p-12 lg:flex">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-900 via-slate-900 to-pink-900 opacity-60" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.4),transparent_50%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.3),transparent_50%)]" />
+    <div className="flex min-h-screen bg-background font-sans selection:bg-primary-container/30">
+      {/* Left Section (Branding Banner Image & Text Overlay) */}
+      <div className="relative hidden w-full lg:w-1/2 lg:flex flex-col justify-between overflow-hidden p-12 bg-charcoal-surface">
+        {/* Background Image - Full Bleed object-cover */}
+        <img 
+          src="/signup_banner_clean.png" 
+          alt="1to7 Media Banner Background" 
+          className="absolute inset-0 h-full w-full object-cover opacity-50"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(254,189,28,0.15),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(94,94,94,0.2),transparent_60%)]" />
 
         <div className="relative z-10 flex flex-col gap-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl transition-transform group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center gap-2 group w-fit bg-black/35 backdrop-blur-md px-4 py-2 rounded-md border border-white/10 shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md transition-transform group-hover:scale-105">
+              <Sparkles className="h-4 w-4 text-black" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">1to7 Media</span>
+            <span className="text-lg font-bold tracking-tight text-white">1to7 Media</span>
           </Link>
 
           <div className="mt-20">
@@ -266,10 +271,10 @@ export default function SignupPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight"
+              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight drop-shadow-md"
             >
               Join the Elite <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              <span className="text-primary-container">
                 Creator Network
               </span>
             </motion.h1>
@@ -277,7 +282,7 @@ export default function SignupPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-lg text-slate-300 max-w-md"
+              className="text-lg text-secondary-container max-w-md drop-shadow-sm font-medium"
             >
               Create your account to start applying to premium brand campaigns, manage your collaborations, and get paid quickly.
             </motion.p>
@@ -289,33 +294,33 @@ export default function SignupPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex items-center gap-3 bg-white/5 backdrop-blur-md rounded-2xl p-4 w-fit border border-white/10"
+            className="flex items-center gap-3 bg-white/5 backdrop-blur-md rounded-md p-4 w-fit border border-white/10 shadow-lg"
           >
             <div className="flex -space-x-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-medium text-slate-300">
+                <div key={i} className="w-8 h-8 rounded-full border-2 border-charcoal-surface bg-secondary flex items-center justify-center text-xs font-medium text-white">
                   {String.fromCharCode(64 + i)}
                 </div>
               ))}
             </div>
             <div>
-              <div className="flex text-amber-400 text-sm">★★★★★</div>
-              <p className="text-xs text-slate-300 font-medium">Trusted by 10,000+ Creators</p>
+              <div className="flex text-primary-container text-sm">★★★★★</div>
+              <p className="text-xs text-secondary-container font-medium">Trusted by 10,000+ Creators</p>
             </div>
           </motion.div>
         </div>
       </div>
 
       {/* Right Section (Signup Flow) */}
-      <div className="flex w-full items-center justify-center p-6 lg:w-1/2 xl:w-2/5 relative bg-slate-950 overflow-y-auto">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.1),transparent_70%)] lg:hidden" />
+      <div className="flex w-full items-center justify-center p-6 lg:w-1/2 relative bg-background overflow-y-auto">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
 
         <div className="w-full max-w-md space-y-6 relative z-10 py-10">
           <Link href="/" className="flex items-center gap-2 lg:hidden mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
+              <Sparkles className="h-5 w-5 text-black" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">1to7 Media</span>
+            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
           </Link>
 
           <AnimatePresence mode="wait">
@@ -324,21 +329,21 @@ export default function SignupPage() {
             {view === 'details' && (
               <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold tracking-tight text-white">Create Account</h2>
-                  <p className="text-sm text-slate-400">Join 1to7 Media to unlock brand deals.</p>
+                  <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Create Account</h2>
+                  <p className="text-sm text-secondary">Join 1to7 Media to unlock brand deals.</p>
                 </div>
 
                 <form onSubmit={handleDetailsSubmit} className="space-y-4">
                   {/* Full Name */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Full Name *</label>
+                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Full Name *</label>
                     <div className="relative group">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                       <Input
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="John Doe"
-                        className="bg-white/5 border-white/10 text-white h-12 pl-12 rounded-xl text-sm focus-visible:ring-purple-500 placeholder:text-slate-600"
+                        className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
                         required
                       />
                     </div>
@@ -347,28 +352,28 @@ export default function SignupPage() {
                   {/* Email & Mobile */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Email *</label>
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Email *</label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="you@example.com"
-                          className="bg-white/5 border-white/10 text-white h-12 pl-12 rounded-xl text-sm focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
                           required
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Mobile *</label>
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Mobile *</label>
                       <div className="relative group">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={mobile}
                           onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                           placeholder="9876543210"
-                          className="bg-white/5 border-white/10 text-white h-12 pl-12 rounded-xl text-sm focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
                           required
                         />
                       </div>
@@ -377,22 +382,22 @@ export default function SignupPage() {
 
                   {/* Password */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Password *</label>
+                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Password *</label>
                     <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Create a password"
-                        className="bg-white/5 border-white/10 text-white h-12 pl-12 pr-12 rounded-xl text-sm focus-visible:ring-purple-500 placeholder:text-slate-600"
+                        className="bg-white border border-border-subtle text-foreground h-11 pl-12 pr-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-purple-400 transition-colors cursor-pointer"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
                         tabIndex={-1}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -403,28 +408,28 @@ export default function SignupPage() {
                   {/* Gender & Instagram */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Gender *</label>
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Gender *</label>
                       <select
                         value={gender}
                         onChange={(e) => setGender(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 text-white h-12 px-4 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer"
+                        className="w-full bg-white border border-border-subtle text-foreground h-11 px-4 rounded-md text-sm focus:ring-2 focus:ring-primary-container focus:outline-none appearance-none cursor-pointer"
                         required
                       >
-                        <option value="" disabled className="text-slate-900">Select Gender</option>
-                        <option value="Male" className="text-slate-900">Male</option>
-                        <option value="Female" className="text-slate-900">Female</option>
-                        <option value="Other" className="text-slate-900">Other</option>
+                        <option value="" disabled className="text-secondary">Select Gender</option>
+                        <option value="Male" className="text-charcoal-surface">Male</option>
+                        <option value="Female" className="text-charcoal-surface">Female</option>
+                        <option value="Other" className="text-charcoal-surface">Other</option>
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Instagram Handle</label>
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Instagram Handle</label>
                       <div className="relative group">
-                        <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={instagramUsername}
                           onChange={(e) => setInstagramUsername(e.target.value.replace('@', ''))}
                           placeholder="username"
-                          className="bg-white/5 border-white/10 text-white h-12 pl-12 rounded-xl text-sm focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
                         />
                       </div>
                     </div>
@@ -433,15 +438,15 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-4"
+                    className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-4"
                   >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes <ArrowRight className="ml-2 h-5 w-5" /></>}
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes <ArrowRight className="ml-2 h-4 w-4" /></>}
                   </Button>
                 </form>
 
-                <p className="mt-6 text-center text-sm text-slate-400">
+                <p className="mt-6 text-center text-sm text-secondary">
                   Already have an account?{' '}
-                  <Link href="/login" className="font-semibold text-purple-400 hover:text-purple-300 transition-colors">
+                  <Link href="/login" className="font-bold text-primary hover:underline transition-colors">
                     Log in here
                   </Link>
                 </p>
@@ -451,28 +456,28 @@ export default function SignupPage() {
             {/* ══════════════ VIEW: VERIFY ALL (Mobile & Email) ══════════════ */}
             {view === 'verify-all' && (
               <motion.div key="verify-all" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <button onClick={() => setView('details')} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors mb-2">
+                <button onClick={() => setView('details')} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to details
                 </button>
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-blue-500/20 border border-emerald-500/20 mb-3">
-                    <Shield className="h-6 w-6 text-emerald-400" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-primary-container/20 border border-primary-container/30 mb-3">
+                    <Shield className="h-6 w-6 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Verify Your Identity</h2>
-                  <p className="text-sm text-slate-400">Enter the codes sent to your mobile and email.</p>
+                  <h2 className="text-2xl font-bold text-charcoal-surface">Verify Your Identity</h2>
+                  <p className="text-sm text-secondary">Enter the codes sent to your mobile and email.</p>
                 </div>
 
                 <div className="space-y-5">
                   {/* Mobile OTP Input */}
                   <div className="space-y-2">
                     <div className="flex justify-between px-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1">
                         <Phone className="h-3 w-3" /> Mobile OTP
                       </label>
                       {countdown > 0 ? (
-                        <span className="text-[10px] text-slate-500">Resend in <span className="text-blue-400 font-medium">{countdown}s</span></span>
+                        <span className="text-[10px] text-secondary">Resend in <span className="text-primary font-medium">{countdown}s</span></span>
                       ) : (
-                        <button onClick={handleResendMobile} className="text-[10px] text-blue-400 hover:text-blue-300 font-medium transition-colors">Resend SMS</button>
+                        <button onClick={handleResendMobile} className="text-[10px] text-primary hover:underline font-bold transition-colors">Resend SMS</button>
                       )}
                     </div>
                     <Input
@@ -480,7 +485,7 @@ export default function SignupPage() {
                       onChange={(e) => setMobileOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="000000"
                       maxLength={6}
-                      className="bg-white/5 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-blue-500 placeholder:text-slate-700 placeholder:tracking-[0.4em]"
+                      className="bg-white border border-border-subtle text-charcoal-surface h-12 rounded-md text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-primary-container placeholder:text-secondary placeholder:tracking-[0.4em]"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && handleVerifyAll()}
                     />
@@ -489,13 +494,13 @@ export default function SignupPage() {
                   {/* Email OTP Input */}
                   <div className="space-y-2">
                     <div className="flex justify-between px-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1">
                         <Mail className="h-3 w-3" /> Email OTP
                       </label>
                       {emailCountdown > 0 ? (
-                        <span className="text-[10px] text-slate-500">Resend in <span className="text-emerald-400 font-medium">{emailCountdown}s</span></span>
+                        <span className="text-[10px] text-secondary">Resend in <span className="text-primary font-medium">{emailCountdown}s</span></span>
                       ) : (
-                        <button onClick={handleResendEmail} className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Resend Email</button>
+                        <button onClick={handleResendEmail} className="text-[10px] text-primary hover:underline font-bold transition-colors">Resend Email</button>
                       )}
                     </div>
                     <Input
@@ -503,7 +508,7 @@ export default function SignupPage() {
                       onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="000000"
                       maxLength={6}
-                      className="bg-white/5 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-emerald-500 placeholder:text-slate-700 placeholder:tracking-[0.4em]"
+                      className="bg-white border border-border-subtle text-charcoal-surface h-12 rounded-md text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-primary-container placeholder:text-secondary placeholder:tracking-[0.4em]"
                       onKeyDown={(e) => e.key === 'Enter' && handleVerifyAll()}
                     />
                   </div>
@@ -512,9 +517,9 @@ export default function SignupPage() {
                 <Button
                   onClick={handleVerifyAll}
                   disabled={loading || mobileOtp.length !== 6 || emailOtp.length !== 6}
-                  className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base shadow-xl shadow-emerald-500/20 disabled:opacity-50 mt-4"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-4"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Verify & Create Account</>}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Create Account</>}
                 </Button>
               </motion.div>
             )}

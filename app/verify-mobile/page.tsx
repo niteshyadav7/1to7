@@ -148,10 +148,10 @@ export default function VerifyMobilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 font-sans selection:bg-primary-container/30">
       {/* Background effects */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(124,58,237,0.15),transparent)]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:24px_24px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(254,189,28,0.1),transparent)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(rgba(0,0,0,0.01)_1px,transparent_1px)] [background-size:24px_24px]" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -161,27 +161,27 @@ export default function VerifyMobilePage() {
       >
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 justify-center mb-8">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl">
-            <Sparkles className="h-4 w-4 text-white" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary-container shadow-md">
+            <Sparkles className="h-4 w-4 text-black" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-white">1to7 Media</span>
+          <span className="text-lg font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
         </Link>
 
         {/* Card */}
-        <div className="rounded-3xl border border-white/10 bg-slate-900/80 backdrop-blur-xl shadow-2xl overflow-hidden">
+        <div className="rounded-lg border border-border-subtle bg-white shadow-xl overflow-hidden text-foreground">
           {/* Header */}
-          <div className="p-8 pb-6 text-center border-b border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
+          <div className="p-8 pb-6 text-center border-b border-border-subtle bg-gray-muted">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-primary-container/20 border border-primary-container/30">
               {step === 'success' ? (
-                <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+                <CheckCircle2 className="h-8 w-8 text-primary" />
               ) : (
-                <Phone className="h-8 w-8 text-purple-400" />
+                <Phone className="h-8 w-8 text-primary" />
               )}
             </div>
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-charcoal-surface">
               {step === 'success' ? 'Mobile Verified!' : 'Verify Your Mobile'}
             </h2>
-            <p className="text-sm text-slate-400 mt-2">
+            <p className="text-sm text-secondary mt-2">
               {step === 'input' && 'Enter your mobile number to receive an OTP verification code'}
               {step === 'otp' && `Enter the 6-digit code sent to +91 ${mobile}`}
               {step === 'success' && 'Redirecting you to the dashboard...'}
@@ -195,16 +195,16 @@ export default function VerifyMobilePage() {
             {step === 'input' && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                     Mobile Number
                   </label>
                   <div className="relative group">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                     <Input
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="e.g. 9876543210"
-                      className="bg-white/5 border-white/10 text-white h-14 pl-11 rounded-xl text-base font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                      className="bg-white border border-border-subtle text-foreground h-11 pl-11 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && handleSendOTP()}
                     />
@@ -214,12 +214,12 @@ export default function VerifyMobilePage() {
                 <Button
                   onClick={handleSendOTP}
                   disabled={sending || mobile.replace(/\D/g, '').length !== 10}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50"
                 >
                   {sending ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Sending OTP...</>
                   ) : (
-                    <><Shield className="mr-2 h-5 w-5" /> Send Verification Code</>
+                    <><Shield className="mr-2 h-4 w-4" /> Send Verification Code</>
                   )}
                 </Button>
               </>
@@ -229,7 +229,7 @@ export default function VerifyMobilePage() {
             {step === 'otp' && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                     Enter 6-Digit OTP
                   </label>
                   <Input
@@ -241,7 +241,7 @@ export default function VerifyMobilePage() {
                     }}
                     placeholder="000000"
                     maxLength={6}
-                    className="bg-white/5 border-white/10 text-white h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] focus-visible:ring-purple-500 placeholder:text-slate-700 placeholder:tracking-[0.5em]"
+                    className="bg-white border border-border-subtle text-charcoal-surface h-12 rounded-md text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-primary-container placeholder:text-secondary placeholder:tracking-[0.4em]"
                     autoFocus
                     onKeyDown={(e) => e.key === 'Enter' && handleVerifyOTP()}
                   />
@@ -250,7 +250,7 @@ export default function VerifyMobilePage() {
                 <Button
                   onClick={handleVerifyOTP}
                   disabled={verifying || otp.length !== 6}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm"
                 >
                   {verifying ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying...</>
@@ -261,13 +261,13 @@ export default function VerifyMobilePage() {
 
                 <div className="text-center">
                   {countdown > 0 ? (
-                    <p className="text-xs text-slate-500">
-                      Resend OTP in <span className="text-purple-400 font-medium">{countdown}s</span>
+                    <p className="text-xs text-secondary">
+                      Resend OTP in <span className="text-primary font-medium">{countdown}s</span>
                     </p>
                   ) : (
                     <button
                       onClick={() => { setStep('input'); setOtp(''); setError(''); confirmationRef.current = null }}
-                      className="text-xs text-purple-400 hover:text-purple-300 font-medium cursor-pointer transition-colors"
+                      className="text-xs text-primary font-bold hover:underline cursor-pointer transition-colors"
                     >
                       Resend OTP
                     </button>
@@ -283,14 +283,14 @@ export default function VerifyMobilePage() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 15 }}
-                  className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30"
+                  className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary-container/20 border border-primary-container/30"
                 >
-                  <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+                  <CheckCircle2 className="h-10 w-10 text-primary" />
                 </motion.div>
-                <p className="text-base text-emerald-300 font-semibold">
+                <p className="text-base text-primary font-semibold">
                   +91 {mobile} is now verified
                 </p>
-                <p className="text-xs text-slate-500 mt-2">Redirecting to your dashboard...</p>
+                <p className="text-xs text-secondary mt-2">Redirecting to your dashboard...</p>
               </div>
             )}
 
@@ -299,10 +299,10 @@ export default function VerifyMobilePage() {
               <motion.div
                 initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3"
+                className="flex items-center gap-2 rounded-md bg-error/10 border border-error/20 px-4 py-3"
               >
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                <p className="text-xs text-red-300">{error}</p>
+                <AlertCircle className="h-4 w-4 text-error shrink-0" />
+                <p className="text-xs text-error font-medium">{error}</p>
               </motion.div>
             )}
           </div>

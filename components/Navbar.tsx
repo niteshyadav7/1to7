@@ -11,8 +11,9 @@ export function Navbar() {
   const router = useRouter()
 
   return (
-    <nav className="border-b px-6 py-4 flex justify-between items-center bg-white shadow-sm z-50 relative">
-      <Link href="/" className="font-bold text-2xl text-blue-900 tracking-tight">
+    <nav className="border-b border-border-subtle px-6 py-4 flex justify-between items-center bg-white z-50 relative">
+      <Link href="/" className="font-bold text-2xl text-charcoal-surface tracking-tight flex items-center gap-2">
+        <span className="h-8 w-8 rounded-lg bg-primary-container text-black flex items-center justify-center font-extrabold text-sm">17</span>
         1to7 Media
       </Link>
 

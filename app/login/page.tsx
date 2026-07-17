@@ -365,29 +365,35 @@ export default function LoginPage() {
   // ═══════════════════════════════════════════
   return (
     <div className="flex min-h-screen bg-slate-950 font-sans selection:bg-purple-500/30">
-      {/* Left Section (Branding) */}
-      <div className="relative hidden w-full lg:w-1/2 xl:w-3/5 flex-col justify-between overflow-hidden p-12 lg:flex">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-purple-900 via-slate-900 to-pink-900 opacity-60" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.4),transparent_50%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(236,72,153,0.3),transparent_50%)]" />
+      {/* Left Section (Branding Banner Image & Text Overlay) */}
+      <div className="relative hidden w-full lg:w-1/2 lg:flex flex-col justify-between overflow-hidden p-12 bg-charcoal-surface">
+        {/* Background Image - Full Bleed object-cover */}
+        <img 
+          src="/signup_banner_clean.png" 
+          alt="1to7 Media Banner Background" 
+          className="absolute inset-0 h-full w-full object-cover opacity-80"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(254,189,28,0.15),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(94,94,94,0.2),transparent_60%)]" />
 
         <div className="relative z-10 flex flex-col gap-6">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl transition-transform group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-white" />
+          {/* Link commented out per user preferences */}
+          {/* <Link href="/" className="flex items-center gap-2 group w-fit bg-black/35 backdrop-blur-md px-4 py-2 rounded-md border border-white/10 shadow-lg">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md transition-transform group-hover:scale-105">
+              <Sparkles className="h-4 w-4 text-black" />
             </div>
-            <span className="text-2xl font-bold tracking-tight text-white">1to7 Media</span>
-          </Link>
+            <span className="text-lg font-bold tracking-tight text-white">1to7 Media</span>
+          </Link> */}
 
           <div className="mt-20">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight"
+              className="text-5xl font-extrabold tracking-tight text-white mb-6 leading-tight drop-shadow-md"
             >
               Turn Your Influence <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              <span className="text-primary-container">
                 Into Income
               </span>
             </motion.h1>
@@ -395,7 +401,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-lg text-slate-300 max-w-md"
+              className="text-lg text-secondary-container max-w-md drop-shadow-sm font-medium"
             >
               Join thousands of creators collaborating with top brands. Manage campaigns, track earnings, and grow your audience in one place.
             </motion.p>
@@ -407,33 +413,33 @@ export default function LoginPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex items-center gap-3 bg-white/5 backdrop-blur-md rounded-2xl p-4 w-fit border border-white/10"
+            className="flex items-center gap-3 bg-white/5 backdrop-blur-md rounded-md p-4 w-fit border border-white/10 shadow-lg"
           >
             <div className="flex -space-x-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-xs font-medium text-slate-300">
+                <div key={i} className="w-8 h-8 rounded-full border-2 border-charcoal-surface bg-secondary flex items-center justify-center text-xs font-medium text-white">
                   {String.fromCharCode(64 + i)}
                 </div>
               ))}
             </div>
             <div>
-              <div className="flex text-amber-400 text-sm">★★★★★</div>
-              <p className="text-xs text-slate-300 font-medium">Trusted by 10,000+ Creators</p>
+              <div className="flex text-primary-container text-sm">★★★★★</div>
+              <p className="text-xs text-secondary-container font-medium">Trusted by 10,000+ Creators</p>
             </div>
           </motion.div>
         </div>
       </div>
 
       {/* Right Section (Login Flow) */}
-      <div className="flex w-full items-center justify-center p-6 lg:w-1/2 xl:w-2/5 relative bg-slate-950">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.1),transparent_70%)] lg:hidden" />
+      <div className="flex w-full items-center justify-center p-6 lg:w-1/2 relative bg-background">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
 
         <div className="w-full max-w-md space-y-6 relative z-10">
-          <Link href="/" className="flex items-center gap-2 lg:hidden mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 shadow-xl">
-              <Sparkles className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center gap-2 mb-8 justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
+              <Sparkles className="h-5 w-5 text-black" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">1to7 Media</span>
+            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
           </Link>
 
           <AnimatePresence mode="wait">
@@ -442,44 +448,44 @@ export default function LoginPage() {
             {view === 'main' && (
               <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold tracking-tight text-white">Welcome Back</h2>
-                  <p className="text-sm text-slate-400">Sign in to your creator account to continue.</p>
+                  <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Welcome Back</h2>
+                  <p className="text-sm text-secondary">Sign in to your creator account to continue.</p>
                 </div>
 
                 {/* Password Login Form */}
                 <motion.div key="pw" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                   <form onSubmit={handlePasswordSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Email, Mobile or HYID</label>
+                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Email, Mobile or HYID</label>
                       <div className="relative group">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={identifier}
                           onChange={(e) => setIdentifier(e.target.value)}
                           placeholder="Enter your credential"
-                          className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          className="bg-white border border-border-subtle text-foreground h-12 pl-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
                           autoFocus
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Password</label>
-                        <Link href="/forgot-password" className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors">Forgot?</Link>
+                        <label className="text-[10px] font-bold text-secondary uppercase tracking-widest">Password</label>
+                        <Link href="/forgot-password" className="text-[10px] text-primary font-bold hover:underline transition-colors">Forgot?</Link>
                       </div>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="Enter password"
-                          className="bg-white/5 border-white/10 text-white h-14 pl-12 pr-12 rounded-xl text-sm font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                          className="bg-white border border-border-subtle text-foreground h-12 pl-12 pr-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-purple-400 transition-colors cursor-pointer"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
                           tabIndex={-1}
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -489,9 +495,9 @@ export default function LoginPage() {
                     <Button
                       type="submit"
                       disabled={loading || !identifier || !password}
-                      className="w-full h-14 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold text-base shadow-xl shadow-purple-500/20 disabled:opacity-50 mt-2"
+                      className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
                     >
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Sign In <ArrowRight className="ml-2 h-5 w-5" /></>}
+                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Sign In <ArrowRight className="ml-2 h-4 w-4" /></>}
                     </Button>
                   </form>
                 </motion.div>
@@ -499,10 +505,10 @@ export default function LoginPage() {
                 {/* ─── OR Divider ─── */}
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-white/10" />
+                    <span className="w-full border-t border-border-subtle" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-slate-950 px-3 text-slate-500 font-bold tracking-widest">Or</span>
+                    <span className="bg-background px-3 text-secondary font-bold tracking-widest">Or</span>
                   </div>
                 </div>
 
@@ -510,7 +516,7 @@ export default function LoginPage() {
                 <Button
                   onClick={handleGoogleStart}
                   disabled={loading}
-                  className="w-full h-14 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-base shadow-xl shadow-white/10 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 border border-white/20"
+                  className="w-full h-12 rounded-md bg-white hover:bg-gray-muted text-charcoal-surface font-semibold text-sm border border-border-subtle transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   <div className="flex items-center justify-center gap-3">
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -523,9 +529,9 @@ export default function LoginPage() {
                   </div>
                 </Button>
 
-                <p className="mt-6 text-center text-sm text-slate-400">
+                <p className="mt-6 text-center text-sm text-secondary">
                   New to 1to7 Media?{' '}
-                  <Link href="/signup" className="font-semibold text-purple-400 hover:text-purple-300 transition-colors">
+                  <Link href="/signup" className="font-semibold text-primary hover:text-surface-tint transition-colors">
                     Create an account
                   </Link>
                 </p>
@@ -535,25 +541,25 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: VERIFY MOBILE (for Google flow) ══════════════ */}
             {view === 'verify-mobile' && (
               <motion.div key="verify-mobile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors mb-2">
+                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to login
                 </button>
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/20 mb-3">
-                    <Phone className="h-6 w-6 text-blue-400" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
+                    <Phone className="h-6 w-6 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Verify Your Mobile</h2>
-                  <p className="text-sm text-slate-400">Enter your registered mobile number to continue with Google Sign-In.</p>
+                  <h2 className="text-2xl font-bold text-charcoal-surface">Verify Your Mobile</h2>
+                  <p className="text-sm text-secondary">Enter your registered mobile number to continue with Google Sign-In.</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Mobile Number</label>
+                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Mobile Number</label>
                   <div className="relative group">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                     <Input
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       placeholder="e.g. 9876543210"
-                      className="bg-white/5 border-white/10 text-white h-14 pl-12 rounded-xl text-base font-medium focus-visible:ring-purple-500 placeholder:text-slate-600"
+                      className="bg-white border border-border-subtle text-foreground h-12 pl-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && handleGoogleMobileSubmit()}
                     />
@@ -562,9 +568,9 @@ export default function LoginPage() {
                 <Button
                   onClick={handleGoogleMobileSubmit}
                   disabled={loading || mobile.length !== 10}
-                  className="w-full h-14 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white font-bold text-base shadow-xl shadow-blue-500/20 disabled:opacity-50"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Continue <ArrowRight className="ml-2 h-5 w-5" /></>}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}
                 </Button>
               </motion.div>
             )}
@@ -572,38 +578,38 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: VERIFY OTP (shared) ══════════════ */}
             {view === 'verify-otp' && (
               <motion.div key="verify-otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors mb-2">
+                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to login
                 </button>
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 mb-3">
-                    <Shield className="h-6 w-6 text-purple-400" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
+                    <Shield className="h-6 w-6 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Verify OTP</h2>
-                  <p className="text-sm text-slate-400">Enter the 6-digit code sent to <strong className="text-white">+91 {mobile}</strong></p>
+                  <h2 className="text-2xl font-bold text-charcoal-surface">Verify OTP</h2>
+                  <p className="text-sm text-secondary">Enter the 6-digit code sent to <strong className="text-charcoal-surface">+91 {mobile}</strong></p>
                 </div>
                 <Input
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="000000"
                   maxLength={6}
-                  className="bg-white/5 border-white/10 text-white h-16 rounded-xl text-center text-3xl font-mono tracking-[0.5em] focus-visible:ring-purple-500 placeholder:text-slate-700 placeholder:tracking-[0.5em]"
+                  className="bg-white border border-border-subtle text-charcoal-surface h-12 rounded-md text-center text-2xl font-mono tracking-[0.4em] focus-visible:ring-primary-container placeholder:text-secondary placeholder:tracking-[0.4em]"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleVerifyOTP()}
                 />
                 <Button
                   onClick={handleVerifyOTP}
                   disabled={loading || otp.length !== 6}
-                  className="w-full h-14 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-base shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
                 >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Verify & Continue</>}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Continue</>}
                 </Button>
                 <div className="text-center pt-2">
-                  <button onClick={goBack} className="text-xs text-slate-500 hover:text-white mr-4 transition-colors">Change Number</button>
+                  <button onClick={goBack} className="text-xs text-secondary hover:text-charcoal-surface mr-4 transition-colors">Change Number</button>
                   {countdown > 0 ? (
-                    <span className="text-xs text-slate-500">Resend in <span className="text-purple-400 font-medium">{countdown}s</span></span>
+                    <span className="text-xs text-secondary">Resend in <span className="text-primary font-medium">{countdown}s</span></span>
                   ) : (
-                    <button onClick={() => sendFirebaseOTP(mobile.replace(/\D/g, ''))} className="text-xs text-purple-400 hover:text-purple-300 font-medium transition-colors">Resend OTP</button>
+                    <button onClick={() => sendFirebaseOTP(mobile.replace(/\D/g, ''))} className="text-xs text-primary hover:text-surface-tint font-medium transition-colors">Resend OTP</button>
                   )}
                 </div>
               </motion.div>
@@ -612,31 +618,31 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: GOOGLE READY ══════════════ */}
             {view === 'google-ready' && (
               <motion.div key="google-ready" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-white transition-colors mb-2">
+                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
                   <ArrowLeft className="h-3.5 w-3.5" /> Back to login
                 </button>
                 <div className="text-center space-y-2">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-emerald-500/20 mb-3">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
+                    <CheckCircle2 className="h-6 w-6 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white">Mobile Verified!</h2>
-                  <p className="text-sm text-slate-400">
-                    <strong className="text-white">+91 {mobile}</strong> is confirmed. Now sign in with your Google account.
+                  <h2 className="text-2xl font-bold text-charcoal-surface">Mobile Verified!</h2>
+                  <p className="text-sm text-secondary">
+                    <strong className="text-charcoal-surface">+91 {mobile}</strong> is confirmed. Now sign in with your Google account.
                   </p>
                   {maskedEmail && (
-                    <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 w-full">
-                      <p className="text-xs text-slate-400 mb-0.5">We found your account linked to:</p>
-                      <p className="text-sm font-semibold text-emerald-400">{maskedEmail}</p>
+                    <div className="mt-3 p-3 rounded-md bg-primary-container/10 border border-primary-container/20 w-full text-center">
+                      <p className="text-xs text-secondary mb-0.5">We found your account linked to:</p>
+                      <p className="text-sm font-semibold text-primary">{maskedEmail}</p>
                     </div>
                   )}
                 </div>
                 <Button
                   onClick={handleGooglePopup}
                   disabled={loading}
-                  className="w-full h-14 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-semibold text-base shadow-xl shadow-white/10 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60 border border-white/20"
+                  className="w-full h-12 rounded-md bg-white hover:bg-gray-muted text-charcoal-surface font-semibold text-sm border border-border-subtle transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   {loading ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-slate-600" />
+                    <Loader2 className="h-5 w-5 animate-spin" />
                   ) : (
                     <div className="flex items-center justify-center gap-3">
                       <svg className="h-5 w-5" viewBox="0 0 24 24">
