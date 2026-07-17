@@ -195,21 +195,20 @@ export default function ForgotPasswordPage() {
           transition={{ duration: 0.4 }}
           className="w-full max-w-md space-y-6 relative z-10"
         >
-          {/* Centered Logo */}
-          <Link href="/" className="flex items-center gap-2 mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
-              <Sparkles className="h-5 w-5 text-black" />
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-surface text-white shadow-md">
+              <Sparkles className="h-5.5 w-5.5 text-primary-container" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
-          </Link>
+            <span className="text-2xl font-bold tracking-wider text-charcoal-surface uppercase font-sans">1to7 Media</span>
+          </div>
 
           {/* Header */}
           <div className="space-y-2 text-center">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-primary-container/20 border border-primary-container/30 mb-2 mx-auto">
               <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Forgot Password</h2>
-            <p className="text-sm text-secondary">
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Forgot Password</h2>
+            <p className="text-sm text-slate-500 font-medium">
               {step === 'email' && "Enter your registered email to receive a reset code"}
               {step === 'otp' && "Enter the 6-digit code sent to your email"}
               {step === 'password' && "Create a new secure password for your account"}
@@ -248,17 +247,15 @@ export default function ForgotPasswordPage() {
                 className="space-y-5"
               >
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-secondary font-medium">Email Address</Label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="email"
                       type="email"
-                      placeholder="hello@creator.com"
+                      placeholder="Email Address"
                       value={email}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendOtp()}
-                      className={inputClasses}
+                      className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -266,10 +263,9 @@ export default function ForgotPasswordPage() {
                 <Button
                   onClick={handleSendOtp}
                   loading={loading}
-                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 transition-all cursor-pointer"
+                  className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
-                  Send Verification Code
-                  {!loading && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
+                  Send Reset Code
                 </Button>
               </motion.div>
             )}
@@ -321,7 +317,7 @@ export default function ForgotPasswordPage() {
                     </Button>
                     <Button
                       onClick={handleVerifyOtp}
-                      className="flex-1 h-11 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 cursor-pointer"
+                      className="flex-1 h-11 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md cursor-pointer"
                     >
                       Verify Code
                     </Button>
@@ -333,7 +329,7 @@ export default function ForgotPasswordPage() {
                   onClick={handleSendOtp}
                   className="w-full text-center text-sm text-secondary hover:text-primary transition-colors cursor-pointer"
                 >
-                  Didn&apos;t receive the code? <span className="underline">Resend</span>
+                  Didn&apos;t receive the code? <span className="underline font-bold">Resend</span>
                 </button>
               </motion.div>
             )}
@@ -349,20 +345,18 @@ export default function ForgotPasswordPage() {
               >
                 {/* New Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-secondary font-medium">New Password</Label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="newPassword"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Min 8 characters, symbols"
+                      placeholder="New Password (min 8 chars)"
                       value={newPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
-                      className={`${inputClasses} pr-10`}
+                      className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 pr-12 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all shadow-sm"
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors z-10 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors z-10 cursor-pointer"
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex={-1}
                     >
@@ -383,17 +377,15 @@ export default function ForgotPasswordPage() {
 
                 {/* Confirm Password */}
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-secondary font-medium">Confirm Password</Label>
                   <div className="relative group">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Re-enter your new password"
+                      placeholder="Confirm Password"
                       value={confirmPassword}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleResetPassword()}
-                      className={`${inputClasses} pr-10 ${confirmPassword.length > 0 && confirmPassword === newPassword
+                      className={`bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 pr-12 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all shadow-sm ${confirmPassword.length > 0 && confirmPassword === newPassword
                           ? 'border-emerald-500/50 focus-visible:ring-emerald-500'
                           : confirmPassword.length > 0
                             ? 'border-red-500/50 focus-visible:ring-red-500'
@@ -402,7 +394,7 @@ export default function ForgotPasswordPage() {
                     />
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors z-10 cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors z-10 cursor-pointer"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       tabIndex={-1}
                     >
@@ -417,19 +409,18 @@ export default function ForgotPasswordPage() {
                 <Button
                   onClick={handleResetPassword}
                   loading={loading}
-                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm hover:bg-primary-container/95 transition-all cursor-pointer"
+                  className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   Reset Password
-                  {!loading && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
                 </Button>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Back to Login */}
-          <div className="text-center text-sm font-medium text-secondary">
+          <div className="text-center text-sm font-medium text-slate-600 font-medium">
             Remember your password?{' '}
-            <Link href="/login" className="text-primary hover:text-surface-tint hover:underline transition-all cursor-pointer font-bold">
+            <Link href="/login" className="text-slate-800 hover:underline transition-all cursor-pointer font-bold">
               Sign In
             </Link>
           </div>

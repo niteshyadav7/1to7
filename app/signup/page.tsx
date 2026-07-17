@@ -316,12 +316,12 @@ export default function SignupPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
 
         <div className="w-full max-w-md space-y-6 relative z-10 py-10">
-          <Link href="/" className="flex items-center gap-2 lg:hidden mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
-              <Sparkles className="h-5 w-5 text-black" />
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-surface text-white shadow-md">
+              <Sparkles className="h-5.5 w-5.5 text-primary-container" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
-          </Link>
+            <span className="text-2xl font-bold tracking-wider text-charcoal-surface uppercase font-sans">1to7 Media</span>
+          </div>
 
           <AnimatePresence mode="wait">
 
@@ -329,21 +329,19 @@ export default function SignupPage() {
             {view === 'details' && (
               <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Create Account</h2>
-                  <p className="text-sm text-secondary">Join 1to7 Media to unlock brand deals.</p>
+                  <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Create Account</h2>
+                  <p className="text-sm text-slate-500 font-medium">Join 1to7 Media to unlock brand deals.</p>
                 </div>
 
                 <form onSubmit={handleDetailsSubmit} className="space-y-4">
                   {/* Full Name */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Full Name *</label>
                     <div className="relative group">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                       <Input
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        placeholder="John Doe"
-                        className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
+                        placeholder="Full Name"
+                        className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                         required
                       />
                     </div>
@@ -352,28 +350,24 @@ export default function SignupPage() {
                   {/* Email & Mobile */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Email *</label>
                       <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
+                          placeholder="Email Address"
+                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                           required
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Mobile *</label>
                       <div className="relative group">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={mobile}
                           onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          placeholder="9876543210"
-                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
+                          placeholder="Mobile Number"
+                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                           required
                         />
                       </div>
@@ -382,25 +376,23 @@ export default function SignupPage() {
 
                   {/* Password */}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Password *</label>
                     <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Create a password"
-                        className="bg-white border border-border-subtle text-foreground h-11 pl-12 pr-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
+                        placeholder="Password (min 6 characters)"
+                        className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 pr-12 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
                         tabIndex={-1}
                       >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
                   </div>
@@ -408,28 +400,25 @@ export default function SignupPage() {
                   {/* Gender & Instagram */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Gender *</label>
                       <select
                         value={gender}
                         onChange={(e) => setGender(e.target.value)}
-                        className="w-full bg-white border border-border-subtle text-foreground h-11 px-4 rounded-md text-sm focus:ring-2 focus:ring-primary-container focus:outline-none appearance-none cursor-pointer"
+                        className="w-full bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-4 rounded-md text-base font-medium focus:ring-2 focus:ring-primary-container focus:outline-none appearance-none cursor-pointer placeholder:text-slate-400 focus:bg-white transition-all"
                         required
                       >
-                        <option value="" disabled className="text-secondary">Select Gender</option>
-                        <option value="Male" className="text-charcoal-surface">Male</option>
-                        <option value="Female" className="text-charcoal-surface">Female</option>
-                        <option value="Other" className="text-charcoal-surface">Other</option>
+                        <option value="" disabled className="text-slate-400">Select Gender</option>
+                        <option value="Male" className="text-slate-900">Male</option>
+                        <option value="Female" className="text-slate-900">Female</option>
+                        <option value="Other" className="text-slate-900">Other</option>
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Instagram Handle</label>
                       <div className="relative group">
-                        <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={instagramUsername}
                           onChange={(e) => setInstagramUsername(e.target.value.replace('@', ''))}
-                          placeholder="username"
-                          className="bg-white border border-border-subtle text-foreground h-11 pl-12 rounded-md text-sm focus-visible:ring-primary-container placeholder:text-secondary"
+                          placeholder="Instagram Handle"
+                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                         />
                       </div>
                     </div>
@@ -438,15 +427,15 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-4"
+                    className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-4 cursor-pointer"
                   >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes <ArrowRight className="ml-2 h-4 w-4" /></>}
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes</>}
                   </Button>
                 </form>
 
-                <p className="mt-6 text-center text-sm text-secondary">
+                <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Already have an account?{' '}
-                  <Link href="/login" className="font-bold text-primary hover:underline transition-colors">
+                  <Link href="/login" className="font-bold text-slate-800 hover:underline transition-colors">
                     Log in here
                   </Link>
                 </p>

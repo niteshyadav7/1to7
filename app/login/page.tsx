@@ -435,12 +435,12 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
 
         <div className="w-full max-w-md space-y-6 relative z-10">
-          <Link href="/" className="flex items-center gap-2 mb-8 justify-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-container shadow-md">
-              <Sparkles className="h-5 w-5 text-black" />
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-surface text-white shadow-md">
+              <Sparkles className="h-5.5 w-5.5 text-primary-container" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-charcoal-surface">1to7 Media</span>
-          </Link>
+            <span className="text-2xl font-bold tracking-wider text-charcoal-surface uppercase font-sans">1to7 Media</span>
+          </div>
 
           <AnimatePresence mode="wait">
 
@@ -448,56 +448,54 @@ export default function LoginPage() {
             {view === 'main' && (
               <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-extrabold tracking-tight text-charcoal-surface">Welcome Back</h2>
-                  <p className="text-sm text-secondary">Sign in to your creator account to continue.</p>
+                  <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Hi, Welcome Back</h2>
+                  <p className="text-sm text-slate-500 font-medium">Enter your credentials to continue</p>
                 </div>
 
                 {/* Password Login Form */}
                 <motion.div key="pw" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                   <form onSubmit={handlePasswordSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Email, Mobile or HYID</label>
                       <div className="relative group">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           value={identifier}
                           onChange={(e) => setIdentifier(e.target.value)}
-                          placeholder="Enter your credential"
-                          className="bg-white border border-border-subtle text-foreground h-12 pl-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
+                          placeholder="Work Email Address, Mobile or HYID"
+                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                           autoFocus
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-bold text-secondary uppercase tracking-widest">Password</label>
-                        <Link href="/forgot-password" className="text-[10px] text-primary font-bold hover:underline transition-colors">Forgot?</Link>
-                      </div>
                       <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-secondary group-focus-within:text-primary transition-colors" />
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Enter password"
-                          className="bg-white border border-border-subtle text-foreground h-12 pl-12 pr-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
+                          placeholder="Password"
+                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 pr-12 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
                           tabIndex={-1}
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
+                      <div className="flex justify-end px-1 mt-1">
+                        <Link href="/forgot-password" className="text-sm font-semibold text-slate-600 hover:text-slate-900 hover:underline transition-colors">
+                          Forgot Password?
+                        </Link>
+                      </div>
                     </div>
                     <Button
                       type="submit"
                       disabled={loading || !identifier || !password}
-                      className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
+                      className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-2 cursor-pointer"
                     >
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Sign In <ArrowRight className="ml-2 h-4 w-4" /></>}
+                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>SIGN IN</>}
                     </Button>
                   </form>
                 </motion.div>
@@ -505,10 +503,10 @@ export default function LoginPage() {
                 {/* ─── OR Divider ─── */}
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border-subtle" />
+                    <span className="w-full border-t border-slate-200/80" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-3 text-secondary font-bold tracking-widest">Or</span>
+                    <span className="bg-background px-3 text-slate-500 font-bold tracking-widest">Or</span>
                   </div>
                 </div>
 
@@ -516,7 +514,7 @@ export default function LoginPage() {
                 <Button
                   onClick={handleGoogleStart}
                   disabled={loading}
-                  className="w-full h-12 rounded-md bg-white hover:bg-gray-muted text-charcoal-surface font-semibold text-sm border border-border-subtle transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                  className="w-full h-13 rounded-md bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm border border-slate-200/80 transition-all active:scale-[0.98] cursor-pointer shadow-sm"
                 >
                   <div className="flex items-center justify-center gap-3">
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -525,13 +523,13 @@ export default function LoginPage() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Sign in with Google
+                    Sign-in with Google
                   </div>
                 </Button>
 
-                <p className="mt-6 text-center text-sm text-secondary">
-                  New to 1to7 Media?{' '}
-                  <Link href="/signup" className="font-semibold text-primary hover:text-surface-tint transition-colors">
+                <p className="mt-6 text-center text-sm text-slate-600 font-medium">
+                  Don&apos;t have an account?{' '}
+                  <Link href="/signup" className="font-bold text-slate-800 hover:underline transition-colors">
                     Create an account
                   </Link>
                 </p>
