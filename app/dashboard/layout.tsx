@@ -136,7 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen min-w-0 bg-background">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 bg-background relative">
         {/* Top Bar (mobile) */}
         <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b border-border-subtle px-4 py-3 flex items-center justify-between">
           <button
@@ -155,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Desktop Top Bar */}
-        <header className="hidden lg:flex sticky top-0 z-30 bg-transparent px-8 py-4 items-center justify-end">
+        <header className="hidden lg:flex absolute top-8 right-8 z-30 items-center justify-end">
           <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
         </header>
 
