@@ -126,12 +126,14 @@ export default function DashboardPage() {
             className="relative rounded-md border border-border-subtle bg-white p-5 overflow-hidden shadow-sm"
           >
             <div className={`absolute top-0 right-0 w-20 h-20 rounded-full ${card.bg} blur-2xl -translate-y-1/2 translate-x-1/2`} />
-            <div className="relative">
-              <div className={`inline-flex items-center justify-center rounded-md bg-gradient-to-br ${card.gradient} p-2.5 shadow-md mb-3`}>
+            <div className="flex items-center justify-between relative min-h-[64px]">
+              <div>
+                <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">{card.label}</p>
+                <p className="text-3xl font-extrabold text-charcoal-surface mt-1">{card.value}</p>
+              </div>
+              <div className={`inline-flex items-center justify-center rounded-md bg-gradient-to-br ${card.gradient} p-3.5 shadow-md shrink-0`}>
                 <card.icon className="h-5 w-5 text-white" />
               </div>
-              <p className="text-3xl font-bold text-charcoal-surface">{card.value}</p>
-              <p className="text-xs text-secondary mt-1 font-semibold">{card.label}</p>
             </div>
           </motion.div>
         ))}
@@ -139,25 +141,28 @@ export default function DashboardPage() {
 
       {/* Live Campaigns Grid */}
       <div className="space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-charcoal-surface tracking-wide whitespace-nowrap">Live Campaigns</h2>
-          
-          <div className="relative w-full md:max-w-xl mx-auto md:mx-4 flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-            <Input
-              placeholder="Search campaigns by brand, code, or platform..."
-              value={searchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-50 border border-slate-200/80 text-charcoal-surface placeholder:text-secondary rounded-md h-10 w-full focus-visible:ring-primary-container"
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold text-charcoal-surface tracking-wide">Live Campaigns</h2>
+            <p className="text-xs text-secondary font-medium">Browse and apply to active brand collaborations</p>
           </div>
-
-          <Link
-            href="/dashboard/campaigns"
-            className="text-sm font-semibold text-[#f50057] hover:text-[#d8004c] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
-          >
-            Manage Applications →
-          </Link>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+              <Input
+                placeholder="Search campaigns by brand, code, platform..."
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-slate-50 border border-slate-200/80 text-charcoal-surface placeholder:text-secondary rounded-md h-10 w-full focus-visible:ring-primary-container"
+              />
+            </div>
+            <Link
+              href="/dashboard/campaigns"
+              className="inline-flex items-center justify-center text-xs font-bold text-[#f50057] hover:text-[#d8004c] border border-border-subtle bg-white px-4 py-2.5 rounded-md shadow-sm hover:shadow transition-all whitespace-nowrap"
+            >
+              Manage Applications →
+            </Link>
+          </div>
         </div>
 
         {(() => {

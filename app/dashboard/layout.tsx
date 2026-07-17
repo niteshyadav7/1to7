@@ -58,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }`}
       >
         {/* Logo */}
-        <div className="p-5 border-b border-border-subtle">
+        <div className="p-6 pb-2">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md">
               <Sparkles className="h-4 w-4 text-black" />
@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* User Info */}
-        <div className="p-4 border-b border-border-subtle">
+        <div className="px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-black shadow-sm">
               {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 p-3 space-y-1 bg-slate-50/30">
+        <nav className="flex-1 px-4 py-2 space-y-1">
           {sidebarLinks.map((link) => {
             const isActive = pathname === link.href
             return (
@@ -104,7 +104,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* Logout */}
-        <div className="p-3 border-t border-border-subtle">
+        <div className="p-4 mt-auto">
           <AlertDialog>
             <AlertDialogTrigger className="flex items-center gap-3 w-full rounded-md px-4 py-2.5 text-sm font-semibold text-secondary hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer">
               <LogOut className="h-4.5 w-4.5" />
@@ -155,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Desktop Top Bar */}
-        <header className="hidden lg:flex sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-border-subtle px-8 py-3 items-center justify-end">
+        <header className="hidden lg:flex sticky top-0 z-30 bg-transparent px-8 py-4 items-center justify-end">
           <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
         </header>
 
