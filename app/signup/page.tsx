@@ -427,7 +427,7 @@ export default function SignupPage() {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-4 cursor-pointer"
+                    className="w-full h-13 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-4 cursor-pointer"
                   >
                     {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Send Verification Codes</>}
                   </Button>
@@ -506,7 +506,7 @@ export default function SignupPage() {
                 <Button
                   onClick={handleVerifyAll}
                   disabled={loading || mobileOtp.length !== 6 || emailOtp.length !== 6}
-                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-4"
+                  className="w-full h-12 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-4 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Create Account</>}
                 </Button>

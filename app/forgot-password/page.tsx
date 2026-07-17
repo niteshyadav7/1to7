@@ -263,7 +263,7 @@ export default function ForgotPasswordPage() {
                 <Button
                   onClick={handleSendOtp}
                   loading={loading}
-                  className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                  className="w-full h-13 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   Send Reset Code
                 </Button>
@@ -317,7 +317,7 @@ export default function ForgotPasswordPage() {
                     </Button>
                     <Button
                       onClick={handleVerifyOtp}
-                      className="flex-1 h-11 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                      className="flex-1 h-11 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md cursor-pointer"
                     >
                       Verify Code
                     </Button>
@@ -409,7 +409,7 @@ export default function ForgotPasswordPage() {
                 <Button
                   onClick={handleResetPassword}
                   loading={loading}
-                  className="w-full h-13 rounded-md bg-[#e91e63] hover:bg-[#d81b60] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
+                  className="w-full h-13 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer"
                 >
                   Reset Password
                 </Button>
