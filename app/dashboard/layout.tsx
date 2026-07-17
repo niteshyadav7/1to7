@@ -162,17 +162,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
           {!isProfileComplete() && (
-            <div className="mb-6 rounded-md bg-primary-container/10 border border-primary-container/30 p-4 lg:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="mb-6 rounded-md bg-primary-container/5 border border-primary-container/25 py-2.5 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 shrink-0 rounded-full bg-primary-container/20 flex items-center justify-center border border-primary-container/30">
-                  <AlertTriangle className="h-5 w-5 text-primary" />
+                <div className="h-8 w-8 shrink-0 rounded-md bg-primary-container/20 flex items-center justify-center border border-primary-container/20">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-charcoal-surface font-extrabold text-sm lg:text-base">🚀 Your application is under review!</h3>
-                  <p className="text-secondary text-xs lg:text-sm mt-0.5 max-w-xl leading-relaxed">Please complete your profile (Instagram & Bank Details) so brands can verify your applications and we can process your payments faster.</p>
+                  <h3 className="text-charcoal-surface font-extrabold text-xs lg:text-sm flex items-center gap-1.5">
+                    🚀 Your application is under review!
+                  </h3>
+                  <p className="text-secondary text-[11px] lg:text-xs mt-0.5 max-w-2xl leading-normal">
+                    Please complete your profile (Instagram & Bank Details) so brands can verify your applications and we can process your payments faster.
+                  </p>
                 </div>
               </div>
-              <Link href="/dashboard/profile" className="shrink-0 bg-primary-container hover:bg-primary-container/90 text-black px-5 py-2.5 rounded-md font-bold text-sm transition-all shadow-md w-full sm:w-auto text-center cursor-pointer">
+              <Link href="/dashboard/profile" className="shrink-0 bg-primary-container hover:bg-primary-container/90 text-black px-4 py-1.5 rounded-md font-bold text-xs transition-all shadow-sm w-full sm:w-auto text-center cursor-pointer">
                 Complete Profile
               </Link>
             </div>
