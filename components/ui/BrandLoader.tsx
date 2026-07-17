@@ -24,65 +24,89 @@ export default function BrandLoader({ className = '' }: { className?: string }) 
 
   return (
     <div className={`flex flex-col items-center justify-center py-12 px-4 text-center ${className}`}>
-      <div className="relative flex items-center justify-center w-36 h-36">
-        {/* Ripple Wave 1 (Vibrant Pink) */}
-        <motion.div
-          animate={{
-            scale: [1, 2.4, 2.8],
-            opacity: [0.6, 0.2, 0],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeOut',
-          }}
-          className="absolute w-12 h-12 rounded-full border-2 border-[#f50057] bg-[#f50057]/5"
-        />
+      {/* ─── Moving Zepto/Rapido style Animation Container ─── */}
+      <div className="relative w-80 h-20 flex items-center justify-center overflow-hidden bg-slate-50/50 rounded-xl border border-slate-100/50 shadow-sm p-4">
+        {/* Road Track Line */}
+        <div className="absolute w-full h-[2px] border-t border-dashed border-slate-200/80 top-1/2 -translate-y-1/2" />
 
-        {/* Ripple Wave 2 (Brand Yellow) */}
-        <motion.div
-          animate={{
-            scale: [1, 2.0, 2.4],
-            opacity: [0.8, 0.3, 0],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            delay: 0.6,
-            ease: 'easeOut',
-          }}
-          className="absolute w-12 h-12 rounded-full border-2 border-primary-container bg-primary-container/10"
-        />
+        {/* Speed lines moving in opposite direction (right to left) */}
+        <div className="absolute inset-0 flex flex-col justify-around pointer-events-none py-2 px-6">
+          <motion.div
+            animate={{ x: [120, -120], opacity: [0, 0.6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear', delay: 0 }}
+            className="w-8 h-[2px] bg-primary-container/40 rounded-full self-start ml-12"
+          />
+          <motion.div
+            animate={{ x: [120, -120], opacity: [0, 0.6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear', delay: 0.5 }}
+            className="w-12 h-[2px] bg-[#f50057]/30 rounded-full self-end mr-8"
+          />
+          <motion.div
+            animate={{ x: [120, -120], opacity: [0, 0.6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'linear', delay: 1 }}
+            className="w-6 h-[2px] bg-tertiary/40 rounded-full self-center"
+          />
+        </div>
 
-        {/* Bouncing Logo Container */}
+        {/* Trailing ripple effects behind the moving logo */}
         <motion.div
           animate={{
-            y: [-12, 12, -12],
-            rotate: [0, 5, -5, 0],
+            x: [-140, 140],
           }}
           transition={{
-            duration: 1.5,
+            duration: 3,
             repeat: Infinity,
-            ease: 'easeInOut',
+            ease: 'linear',
           }}
-          className="relative z-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-container to-[#f50057] shadow-xl border-2 border-white"
+          className="absolute left-0 right-0 flex justify-center items-center"
         >
-          <Sparkles className="h-8 w-8 text-black animate-pulse" />
-        </motion.div>
+          {/* Bouncy Logo Wrapper */}
+          <div className="relative flex flex-col items-center justify-center">
+            {/* Pulsing/Ripple ring around the card */}
+            <motion.div
+              animate={{
+                scale: [0.8, 1.6, 0.8],
+                opacity: [0.5, 0.1, 0.5],
+              }}
+              transition={{
+                duration: 1,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className="absolute w-16 h-16 rounded-full border border-[#f50057]/20 bg-[#f50057]/5 -translate-y-2"
+            />
 
-        {/* Scale Shadow underneath the bouncing element */}
-        <motion.div
-          animate={{
-            scale: [0.6, 1.2, 0.6],
-            opacity: [0.2, 0.6, 0.2],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          className="absolute bottom-4 w-12 h-2 rounded-full bg-slate-200 blur-[2px]"
-        />
+            {/* Bouncing Logo Card */}
+            <motion.div
+              animate={{
+                y: [-10, 10, -10],
+                rotate: [0, 8, -8, 0],
+              }}
+              transition={{
+                duration: 0.6,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className="relative z-10 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-container to-[#f50057] shadow-md border border-white"
+            >
+              <Sparkles className="h-6 w-6 text-black animate-pulse" />
+            </motion.div>
+
+            {/* Moving drop shadow */}
+            <motion.div
+              animate={{
+                scaleX: [0.5, 1.2, 0.5],
+                opacity: [0.2, 0.7, 0.2],
+              }}
+              transition={{
+                duration: 0.6,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              className="w-9 h-1.5 bg-slate-350/60 blur-[1.5px] rounded-full mt-2"
+            />
+          </div>
+        </motion.div>
       </div>
 
       {/* Cycle loading status texts */}
