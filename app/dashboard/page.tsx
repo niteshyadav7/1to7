@@ -36,11 +36,11 @@ const platformIcons: Record<string, React.ReactNode> = {
 }
 
 const statusColors: Record<string, string> = {
-  'Applied': 'bg-blue-500/15 text-blue-300 border-blue-500/20',
-  'Approved': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
-  'Rejected': 'bg-red-500/15 text-red-300 border-red-500/20',
-  'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
-  'Payment Initiated': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
+  'Applied': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Rejected': 'bg-red-50 text-red-700 border-red-200',
+  'Completed': 'bg-purple-50 text-purple-700 border-purple-200',
+  'Payment Initiated': 'bg-amber-50 text-amber-700 border-amber-200',
 }
 
 export default function DashboardPage() {
@@ -95,7 +95,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-10 w-10 text-purple-500 animate-spin" />
+        <Loader2 className="h-10 w-10 text-[#f50057] animate-spin" />
       </div>
     )
   }
@@ -111,8 +111,8 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard Overview</h1>
-        <p className="text-sm text-slate-400 mt-1">Track your campaign applications and performance</p>
+        <h1 className="text-2xl font-bold text-charcoal-surface">Dashboard Overview</h1>
+        <p className="text-sm text-secondary mt-1">Track your campaign applications and performance</p>
       </div>
 
       {/* Stats Grid */}
@@ -123,15 +123,15 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="relative rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 overflow-hidden"
+            className="relative rounded-md border border-border-subtle bg-white p-5 overflow-hidden shadow-sm"
           >
             <div className={`absolute top-0 right-0 w-20 h-20 rounded-full ${card.bg} blur-2xl -translate-y-1/2 translate-x-1/2`} />
             <div className="relative">
-              <div className={`inline-flex items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 shadow-lg mb-3`}>
+              <div className={`inline-flex items-center justify-center rounded-md bg-gradient-to-br ${card.gradient} p-2.5 shadow-md mb-3`}>
                 <card.icon className="h-5 w-5 text-white" />
               </div>
-              <p className="text-3xl font-bold text-white">{card.value}</p>
-              <p className="text-xs text-slate-400 mt-1 font-medium">{card.label}</p>
+              <p className="text-3xl font-bold text-charcoal-surface">{card.value}</p>
+              <p className="text-xs text-secondary mt-1 font-semibold">{card.label}</p>
             </div>
           </motion.div>
         ))}
@@ -140,21 +140,21 @@ export default function DashboardPage() {
       {/* Live Campaigns Grid */}
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <h2 className="text-xl font-bold text-white tracking-wide whitespace-nowrap">Live Campaigns</h2>
+          <h2 className="text-xl font-bold text-charcoal-surface tracking-wide whitespace-nowrap">Live Campaigns</h2>
           
           <div className="relative w-full md:max-w-xl mx-auto md:mx-4 flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
             <Input
               placeholder="Search campaigns by brand, code, or platform..."
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-slate-900/50 border-white/10 text-white placeholder:text-slate-500 rounded-xl h-10 w-full"
+              className="pl-9 bg-slate-50 border border-slate-200/80 text-charcoal-surface placeholder:text-secondary rounded-md h-10 w-full focus-visible:ring-primary-container"
             />
           </div>
 
           <Link
             href="/dashboard/campaigns"
-            className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors cursor-pointer shrink-0 whitespace-nowrap"
+            className="text-sm font-semibold text-[#f50057] hover:text-[#d8004c] transition-colors cursor-pointer shrink-0 whitespace-nowrap"
           >
             Manage Applications →
           </Link>
@@ -169,20 +169,20 @@ export default function DashboardPage() {
 
           if (campaigns.length === 0) {
             return (
-              <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg">
-                <Sparkles className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-400">No live campaigns right now</h3>
-                <p className="text-sm text-slate-500 mt-2">Check back soon — new brand campaigns drop every week!</p>
+              <div className="text-center py-20 rounded-md border border-border-subtle bg-white shadow-sm">
+                <Sparkles className="h-12 w-12 text-secondary mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-charcoal-surface">No live campaigns right now</h3>
+                <p className="text-sm text-secondary mt-2">Check back soon — new brand campaigns drop every week!</p>
               </div>
             )
           }
 
           if (filteredCampaigns.length === 0) {
              return (
-              <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg">
-                <Search className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-slate-400">No campaigns found</h3>
-                <p className="text-sm text-slate-500 mt-2">Try adjusting your search query.</p>
+              <div className="text-center py-20 rounded-md border border-border-subtle bg-white shadow-sm">
+                <Search className="h-12 w-12 text-secondary mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-charcoal-surface">No campaigns found</h3>
+                <p className="text-sm text-secondary mt-2">Try adjusting your search query.</p>
               </div>
             )
           }

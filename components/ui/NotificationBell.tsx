@@ -15,7 +15,7 @@ interface Notification {
 
 interface NotificationBellProps {
   apiEndpoint: string
-  accentColor?: 'indigo' | 'purple'
+  accentColor?: 'indigo' | 'purple' | 'yellow' | 'pink'
   storageKey?: string
 }
 
@@ -134,23 +134,58 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
   }
 
   const isPurple = accentColor === 'purple'
+  const isYellow = accentColor === 'yellow'
+  const isPink = accentColor === 'pink'
+
+  // Determine button active background/border classes
+  let buttonActiveClasses = ''
+  if (isOpen) {
+    if (isYellow) buttonActiveClasses = 'bg-primary-container/20 text-black ring-1 ring-primary-container/30'
+    else if (isPink) buttonActiveClasses = 'bg-[#f50057]/15 text-[#f50057] ring-1 ring-[#f50057]/30'
+    else if (isPurple) buttonActiveClasses = 'bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30'
+    else buttonActiveClasses = 'bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30'
+  } else {
+    buttonActiveClasses = 'text-secondary hover:text-charcoal-surface hover:bg-slate-100'
+  }
+
+  // Determine notify badge styling
+  let badgeClasses = ''
+  if (isYellow) badgeClasses = 'bg-primary-container text-black ring-white'
+  else if (isPink) badgeClasses = 'bg-[#f50057] text-white ring-white'
+  else if (isPurple) badgeClasses = 'bg-gradient-to-r from-purple-500 to-pink-500 text-white ring-white'
+  else badgeClasses = 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white ring-white'
+
+  // Determine dropdown icon box styling
+  let headerIconBg = ''
+  if (isYellow) headerIconBg = 'bg-primary-container/20 text-primary-container'
+  else if (isPink) headerIconBg = 'bg-[#f50057]/15 text-[#f50057]'
+  else if (isPurple) headerIconBg = 'bg-gradient-to-br from-purple-600 to-pink-500 text-white'
+  else headerIconBg = 'bg-gradient-to-br from-indigo-600 to-purple-500 text-white'
+
+  // Determine read all link styling
+  let readAllClasses = ''
+  if (isYellow) readAllClasses = 'text-[#7b5900] hover:bg-slate-100'
+  else if (isPink) readAllClasses = 'text-[#f50057] hover:bg-[#f50057]/10'
+  else if (isPurple) readAllClasses = 'text-purple-600 hover:bg-purple-500/10'
+  else readAllClasses = 'text-indigo-600 hover:bg-indigo-500/10'
+
+  // Determine unread vertical indicator line
+  let indicatorColor = ''
+  if (isYellow) indicatorColor = 'bg-primary-container'
+  else if (isPink) indicatorColor = 'bg-[#f50057]'
+  else if (isPurple) indicatorColor = 'bg-purple-500'
+  else indicatorColor = 'bg-indigo-500'
 
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell Button */}
       <button
         onClick={toggleOpen}
-        className={`relative flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-200 cursor-pointer ${
-          isOpen
-            ? isPurple ? 'bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30' : 'bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30'
-            : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
-        }`}
+        className={`relative flex items-center justify-center h-10 w-10 rounded-md transition-all duration-200 cursor-pointer ${buttonActiveClasses}`}
       >
         <Bell className={`h-[18px] w-[18px] transition-transform duration-200 ${isOpen ? 'scale-110' : ''}`} />
         {unreadCount > 0 && (
-          <span className={`absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full text-[10px] font-bold text-white px-1 shadow-lg ring-2 ring-slate-950 ${
-            isPurple ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' : 'bg-gradient-to-r from-indigo-500 to-purple-500 shadow-indigo-500/30'
-          }`}>
+          <span className={`absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full text-[10px] font-bold px-1 shadow-md ring-2 ${badgeClasses}`}>
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -159,21 +194,19 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-3 w-[400px] bg-slate-900 border border-white/[0.08] rounded-2xl shadow-[0_20px_60px_-10px_rgba(0,0,0,0.7)] z-[100] overflow-hidden flex flex-col"
+          className="absolute right-0 top-full mt-3 w-[400px] bg-white border border-border-subtle rounded-md shadow-xl z-[100] overflow-hidden flex flex-col"
           style={{ maxHeight: 'min(520px, calc(100vh - 100px))' }}
         >
           {/* Header */}
-          <div className="px-5 py-4 border-b border-white/[0.06] bg-gradient-to-r from-slate-900 to-slate-800/50">
+          <div className="px-5 py-4 border-b border-border-subtle bg-slate-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-xl shadow-lg ${
-                  isPurple ? 'bg-gradient-to-br from-purple-600 to-pink-500 shadow-purple-500/25' : 'bg-gradient-to-br from-indigo-600 to-purple-500 shadow-indigo-500/25'
-                }`}>
-                  <Bell className="h-4 w-4 text-white" />
+                <div className={`flex h-8 w-8 items-center justify-center rounded-md shadow-sm ${headerIconBg}`}>
+                  <Bell className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-[13px] font-bold text-white tracking-tight">Notifications</h3>
-                  <p className="text-[10px] text-slate-500 font-medium">
+                  <h3 className="text-[13px] font-bold text-charcoal-surface tracking-tight">Notifications</h3>
+                  <p className="text-[10px] text-secondary font-medium">
                     {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
                   </p>
                 </div>
@@ -182,9 +215,7 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
-                    className={`flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                      isPurple ? 'text-purple-400 hover:bg-purple-500/10' : 'text-indigo-400 hover:bg-indigo-500/10'
-                    }`}
+                    className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-md transition-all cursor-pointer ${readAllClasses}`}
                   >
                     <CheckCheck className="h-3 w-3" /> Read all
                   </button>
@@ -192,7 +223,7 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
                 {visibleNotifications.length > 0 && (
                   <button
                     onClick={clearAll}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-red-400 hover:bg-red-500/10 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
+                    className="flex items-center gap-1 text-[10px] font-bold text-secondary hover:text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-md transition-all cursor-pointer"
                   >
                     <Trash2 className="h-3 w-3" /> Clear
                   </button>
@@ -202,21 +233,21 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
           </div>
 
           {/* Notification List */}
-          <div className="flex-1 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'thin', scrollbarColor: '#334155 transparent' }}>
+          <div className="flex-1 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'thin' }}>
             {visibleNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-                <div className={`h-16 w-16 rounded-2xl flex items-center justify-center mb-4 border ${
+                <div className={`h-16 w-16 rounded-md flex items-center justify-center mb-4 border ${
                   isPurple ? 'bg-purple-500/5 border-purple-500/10' : 'bg-indigo-500/5 border-indigo-500/10'
                 }`}>
                   <Bell className={`h-7 w-7 ${isPurple ? 'text-purple-500/30' : 'text-indigo-500/30'}`} />
                 </div>
-                <p className="text-sm font-semibold text-slate-400">No notifications</p>
-                <p className="text-[11px] text-slate-600 mt-1 max-w-[200px] leading-relaxed">
+                <p className="text-sm font-bold text-charcoal-surface">No notifications</p>
+                <p className="text-[11px] text-secondary mt-1 max-w-[200px] leading-relaxed">
                   You&apos;re all caught up! New activity will appear here.
                 </p>
               </div>
             ) : (
-              <div className="py-1">
+              <div className="py-1 bg-white">
                 {visibleNotifications.map((notif, idx) => {
                   const isRead = readIds.has(notif.id)
                   const config = notifConfig[notif.type] || { icon: Bell, color: 'text-slate-400', bgColor: 'bg-slate-500/15' }
@@ -226,35 +257,33 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
                     <div
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`group relative flex items-start gap-3.5 px-5 py-3.5 cursor-pointer transition-all duration-150 ${
+                      className={`group relative flex items-start gap-3.5 px-5 py-3.5 cursor-pointer transition-all duration-155 ${
                         isRead
-                          ? 'hover:bg-white/[0.02]'
-                          : isPurple ? 'bg-purple-500/[0.03] hover:bg-purple-500/[0.06]' : 'bg-indigo-500/[0.03] hover:bg-indigo-500/[0.06]'
-                      } ${idx !== visibleNotifications.length - 1 ? 'border-b border-white/[0.04]' : ''}`}
+                          ? 'hover:bg-slate-50'
+                          : 'bg-slate-50/40 hover:bg-slate-50/80'
+                      } ${idx !== visibleNotifications.length - 1 ? 'border-b border-border-subtle' : ''}`}
                     >
                       {/* Unread indicator line */}
                       {!isRead && (
-                        <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${
-                          isPurple ? 'bg-purple-500' : 'bg-indigo-500'
-                        }`} />
+                        <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full ${indicatorColor}`} />
                       )}
 
                       {/* Icon */}
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${config.bgColor} mt-0.5 transition-transform group-hover:scale-105`}>
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${config.bgColor} mt-0.5 transition-transform group-hover:scale-105`}>
                         <IconComponent className={`h-4 w-4 ${config.color}`} />
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-[12px] font-semibold leading-tight ${isRead ? 'text-slate-400' : 'text-white'}`}>
+                        <p className={`text-[12px] font-bold leading-tight ${isRead ? 'text-secondary' : 'text-charcoal-surface'}`}>
                           {notif.title}
                         </p>
-                        <p className={`text-[11px] mt-0.5 leading-snug truncate ${isRead ? 'text-slate-600' : 'text-slate-400'}`}>
+                        <p className={`text-[11px] mt-0.5 leading-snug truncate ${isRead ? 'text-slate-400' : 'text-secondary'}`}>
                           {notif.message}
                         </p>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                          <Clock className="h-3 w-3 text-slate-600" />
-                          <span className="text-[10px] text-slate-600 font-medium">{timeAgo(notif.createdAt)}</span>
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          <span className="text-[10px] text-slate-400 font-semibold">{timeAgo(notif.createdAt)}</span>
                         </div>
                       </div>
 
@@ -262,12 +291,12 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
                       <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
                         <button
                           onClick={(e) => dismissOne(e, notif.id)}
-                          className="p-1 rounded-md hover:bg-red-500/15 text-slate-600 hover:text-red-400 transition-colors cursor-pointer"
+                          className="p-1 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
                           title="Dismiss"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
-                        <ExternalLink className="h-3 w-3 text-slate-600" />
+                        <ExternalLink className="h-3 w-3 text-slate-400" />
                       </div>
                     </div>
                   )
