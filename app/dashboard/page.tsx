@@ -101,10 +101,38 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { label: 'Total Applied', value: stats?.total || 0, icon: Send, gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-500/10' },
-    { label: 'Approved', value: stats?.approved || 0, icon: CheckCircle2, gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-500/10' },
-    { label: 'Pending', value: stats?.pending || 0, icon: Clock, gradient: 'from-amber-500 to-orange-600', bg: 'bg-amber-500/10' },
-    { label: 'Completed', value: stats?.completed || 0, icon: TrendingUp, gradient: 'from-purple-500 to-pink-600', bg: 'bg-purple-500/10' },
+    { 
+      label: 'Total Applied', 
+      value: stats?.total || 0, 
+      icon: Send, 
+      iconColor: 'text-blue-600', 
+      iconBg: 'bg-blue-50', 
+      borderColor: 'border-slate-100 hover:border-blue-200' 
+    },
+    { 
+      label: 'Approved', 
+      value: stats?.approved || 0, 
+      icon: CheckCircle2, 
+      iconColor: 'text-emerald-600', 
+      iconBg: 'bg-emerald-50', 
+      borderColor: 'border-slate-100 hover:border-emerald-200' 
+    },
+    { 
+      label: 'Pending', 
+      value: stats?.pending || 0, 
+      icon: Clock, 
+      iconColor: 'text-amber-600', 
+      iconBg: 'bg-amber-50', 
+      borderColor: 'border-slate-100 hover:border-amber-200' 
+    },
+    { 
+      label: 'Completed', 
+      value: stats?.completed || 0, 
+      icon: TrendingUp, 
+      iconColor: 'text-purple-600', 
+      iconBg: 'bg-purple-50', 
+      borderColor: 'border-slate-100 hover:border-purple-200' 
+    },
   ]
 
   return (
@@ -122,17 +150,16 @@ export default function DashboardPage() {
             key={card.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="relative rounded-md border border-border-subtle bg-white p-5 overflow-hidden shadow-sm"
+            transition={{ delay: i * 0.08 }}
+            className={`relative rounded-md border bg-white p-5 overflow-hidden shadow-sm transition-all duration-200 ${card.borderColor}`}
           >
-            <div className={`absolute top-0 right-0 w-20 h-20 rounded-full ${card.bg} blur-2xl -translate-y-1/2 translate-x-1/2`} />
             <div className="flex items-center justify-between relative min-h-[64px]">
               <div>
                 <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">{card.label}</p>
                 <p className="text-3xl font-extrabold text-charcoal-surface mt-1">{card.value}</p>
               </div>
-              <div className={`inline-flex items-center justify-center rounded-md bg-gradient-to-br ${card.gradient} p-3.5 shadow-md shrink-0`}>
-                <card.icon className="h-5 w-5 text-white" />
+              <div className={`inline-flex items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} p-3.5 shadow-sm shrink-0`}>
+                <card.icon className="h-5 w-5" />
               </div>
             </div>
           </motion.div>
@@ -158,7 +185,7 @@ export default function DashboardPage() {
             </div>
             <Link
               href="/dashboard/campaigns"
-              className="inline-flex items-center justify-center text-xs font-bold text-[#f50057] hover:text-[#d8004c] border border-border-subtle bg-white px-4 py-2.5 rounded-md shadow-sm hover:shadow transition-all whitespace-nowrap"
+              className="inline-flex items-center justify-center text-xs font-bold text-[#f50057] hover:text-[#d8004c] border border-slate-200 bg-white px-4 py-2.5 rounded-md shadow-sm hover:shadow hover:bg-slate-50 transition-all whitespace-nowrap"
             >
               Manage Applications →
             </Link>
