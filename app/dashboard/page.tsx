@@ -137,58 +137,58 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-charcoal-surface">Dashboard Overview</h1>
-        <p className="text-sm text-secondary mt-1">Track your campaign applications and performance</p>
-      </div>
+    <div className="space-y-3.5">
+      {/* Header + Stats Inline Strip */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div>
+          <h1 className="text-sm font-extrabold text-charcoal-surface tracking-tight">Dashboard Overview</h1>
+          <p className="text-[11px] text-secondary">Track your campaign applications & performance</p>
+        </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-            className={`relative rounded-md border bg-white p-5 overflow-hidden shadow-sm transition-all duration-200 ${card.borderColor}`}
-          >
-            <div className="flex items-center justify-between relative min-h-[64px]">
+        {/* Compact Stat Cards Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {statCards.map((card, i) => (
+            <motion.div
+              key={card.label}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className={`relative rounded-lg border bg-slate-50/60 px-3 py-1.5 overflow-hidden transition-all duration-200 ${card.borderColor} flex items-center justify-between gap-2.5 min-w-[120px]`}
+            >
               <div>
-                <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">{card.label}</p>
-                <p className="text-3xl font-extrabold text-charcoal-surface mt-1">{card.value}</p>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{card.label}</p>
+                <p className="text-sm font-extrabold text-charcoal-surface leading-tight">{card.value}</p>
               </div>
-              <div className={`inline-flex items-center justify-center rounded-xl ${card.iconBg} ${card.iconColor} p-3.5 shadow-sm shrink-0`}>
-                <card.icon className="h-5 w-5" />
+              <div className={`inline-flex items-center justify-center rounded-md ${card.iconBg} ${card.iconColor} p-1.5 shrink-0`}>
+                <card.icon className="h-3.5 w-3.5" />
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Live Campaigns Grid */}
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold text-charcoal-surface tracking-wide">Live Campaigns</h2>
-            <p className="text-xs text-secondary font-medium">Browse and apply to active brand collaborations</p>
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="space-y-0.5">
+            <h2 className="text-sm font-extrabold text-charcoal-surface tracking-tight">Live Campaigns</h2>
+            <p className="text-[11px] text-secondary font-medium">Browse & apply to active brand collaborations</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-secondary" />
               <Input
-                placeholder="Search campaigns by brand, code, platform..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-slate-50 border border-slate-200/80 text-charcoal-surface placeholder:text-secondary rounded-md h-10 w-full focus-visible:ring-primary-container"
+                className="pl-7 bg-white border border-slate-200/80 text-charcoal-surface text-xs placeholder:text-secondary rounded-lg h-8 w-full focus-visible:ring-primary-container"
               />
             </div>
             <Link
               href="/dashboard/campaigns"
-              className="inline-flex items-center justify-center text-xs font-bold text-[#f50057] hover:text-[#d8004c] border border-slate-200 bg-white px-4 py-2.5 rounded-md shadow-sm hover:shadow hover:bg-slate-50 transition-all whitespace-nowrap"
+              className="inline-flex items-center justify-center text-[11px] font-bold text-[#f50057] hover:text-[#d8004c] border border-slate-200 bg-white px-3 py-1.5 rounded-lg shadow-2xs hover:bg-slate-50 transition-all whitespace-nowrap"
             >
-              Manage Applications →
+              Applications →
             </Link>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function DashboardPage() {
           }
 
           return (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,310px))] gap-4 sm:gap-5">
               {filteredCampaigns.map((campaign, index) => (
                 <CampaignCard
                   key={campaign.id}

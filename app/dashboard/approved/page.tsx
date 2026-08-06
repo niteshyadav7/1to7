@@ -73,18 +73,20 @@ export default function ApprovedCampaignsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-          <h1 className="text-xl font-bold text-charcoal-surface">Approved Campaigns</h1>
+    <div className="space-y-3.5 pb-16">
+      {/* Compact Header Strip */}
+      <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div>
+          <h1 className="text-sm font-extrabold text-charcoal-surface tracking-tight flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            Approved Campaigns
+          </h1>
+          <p className="text-[11px] text-secondary mt-0.5">Manage your active and completed collaborations</p>
         </div>
-        <div className="px-3 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-bold text-slate-700">
+        <div className="px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shrink-0">
           Total: {applications.length}
         </div>
       </div>
-      <p className="text-sm text-secondary -mt-2">Manage your active and completed collaborations.</p>
 
       {applications.length === 0 ? (
         <div className="rounded-md border border-border-subtle bg-white p-12 text-center shadow-sm">
@@ -103,7 +105,7 @@ export default function ApprovedCampaignsPage() {
           {applications.map((app, i) => {
             const campCode = app.campaigns?.campaign_code || app.id.split('-')[0].toUpperCase()
             const brandName = app.campaigns?.brand_name || 'Brand'
-            const totalDeal = app?.form_data?.total_deal 
+            const totalDeal = app?.form_data?.total_deal
               ? Number(app.form_data.total_deal)
               : ((app?.partial_payment || 0) + (app?.final_payment || 0) + (app?.pending_amount || 0))
             const received = (app.partial_payment || 0) + (app.final_payment || 0)
@@ -111,10 +113,10 @@ export default function ApprovedCampaignsPage() {
             const pending = hasRequested ? (app.pending_amount || 0) : 0
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
             const statusDisplay = progress >= 100 ? 'FULLY PAID' :
-                                  app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' : 
-                                  app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' : 
-                                  app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
-            
+              app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' :
+                app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' :
+                  app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
+
             return (
               <motion.div
                 key={app.id}
@@ -158,26 +160,26 @@ export default function ApprovedCampaignsPage() {
 
                   {/* Financials Row */}
                   <div className="grid grid-cols-3 gap-2 mb-3 mt-auto">
-                     <div className="flex flex-col items-center">
-                       <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Total Deal</span>
-                       <span className="text-sm font-bold text-charcoal-surface">₹{totalDeal.toLocaleString()}</span>
-                     </div>
-                     <div className="flex flex-col items-center border-l border-r border-slate-100">
-                       <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Received</span>
-                       <span className="text-sm font-bold text-emerald-600">₹{received.toLocaleString()}</span>
-                     </div>
-                     <div className="flex flex-col items-center">
-                       <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Pending</span>
-                       <span className="text-sm font-bold text-amber-600">₹{pending.toLocaleString()}</span>
-                     </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Total Deal</span>
+                      <span className="text-sm font-bold text-charcoal-surface">₹{totalDeal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex flex-col items-center border-l border-r border-slate-100">
+                      <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Received</span>
+                      <span className="text-sm font-bold text-emerald-600">₹{received.toLocaleString()}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[9px] text-secondary font-bold uppercase tracking-widest mb-1 text-center">Pending</span>
+                      <span className="text-sm font-bold text-amber-600">₹{pending.toLocaleString()}</span>
+                    </div>
                   </div>
 
                   {/* Progress Bar */}
                   <div className="space-y-1 mb-6">
-                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#f50057] rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
-                     </div>
-                     <p className="text-[9px] font-bold text-secondary text-right uppercase tracking-wider">{Math.round(progress)}% Received</p>
+                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#f50057] rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="text-[9px] font-bold text-secondary text-right uppercase tracking-wider">{Math.round(progress)}% Received</p>
                   </div>
 
                   {/* Footer Row */}
@@ -203,11 +205,11 @@ export default function ApprovedCampaignsPage() {
       )}
 
       {/* Detail Modal */}
-      <ApprovedCampaignModal 
-        isOpen={!!selectedApp} 
-        onClose={() => setSelectedApp(null)} 
+      <ApprovedCampaignModal
+        isOpen={!!selectedApp}
+        onClose={() => setSelectedApp(null)}
         onRefresh={() => { fetchApproved(); setSelectedApp(null) }}
-        application={selectedApp} 
+        application={selectedApp}
       />
     </div>
   )

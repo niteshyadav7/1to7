@@ -92,29 +92,30 @@ export default function AppliedCampaignsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-charcoal-surface">Applied Campaigns</h1>
-        <p className="text-sm text-secondary mt-1">All campaigns you&apos;ve applied to</p>
-      </div>
+    <div className="space-y-3.5">
+      {/* Compact Header & Filter Strip */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div>
+          <h1 className="text-sm font-extrabold text-charcoal-surface tracking-tight">Applied Campaigns</h1>
+          <p className="text-[11px] text-secondary">All campaigns you&apos;ve applied to</p>
+        </div>
 
-      {/* Filter Pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Filter className="h-4 w-4 text-secondary mr-1" />
-        {statuses.map((status) => (
-          <button
-            key={status}
-            onClick={() => setActiveFilter(status)}
-            className={`rounded-md px-3.5 py-1.5 text-xs font-semibold border transition-all cursor-pointer ${
-              activeFilter === status
-                ? 'bg-primary-container text-black border-primary-container/30 shadow-sm'
-                : 'bg-slate-50 text-secondary border-slate-200 hover:bg-slate-100 hover:text-charcoal-surface'
-            }`}
-          >
-            {status}
-          </button>
-        ))}
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-secondary mr-1 shrink-0" />
+          {statuses.map((status) => (
+            <button
+              key={status}
+              onClick={() => setActiveFilter(status)}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-all cursor-pointer ${activeFilter === status
+                  ? 'bg-primary-container text-black border-primary-container/30 shadow-2xs'
+                  : 'bg-slate-50 text-secondary border-slate-200 hover:bg-slate-100 hover:text-charcoal-surface'
+                }`}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Applications List */}
@@ -153,13 +154,12 @@ export default function AppliedCampaignsPage() {
                       Fill Order Form
                     </span>
                   )}
-                  <span className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${
-                    app.status === 'Applied'
+                  <span className={`rounded-md px-3 py-1.5 text-[11px] font-bold ${app.status === 'Applied'
                       ? statusColors['Applied']
                       : app.campaigns?.order_form && app.status === 'Approved' && app.form_data?.order_details && !app.form_data?.order_details_approved
                         ? statusColors['Order Details Pending']
                         : statusColors[app.status] || 'bg-slate-100 text-secondary border border-slate-200'
-                  }`}>
+                    }`}>
                     {app.status === 'Applied'
                       ? 'Pending'
                       : app.campaigns?.order_form && app.status === 'Approved' && app.form_data?.order_details && !app.form_data?.order_details_approved
@@ -194,7 +194,7 @@ export default function AppliedCampaignsPage() {
                     <p className="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1.5">Followers</p>
                     <p className="text-sm font-semibold text-charcoal-surface">
                       {user?.followers ? (
-                        user.followers >= 1000 
+                        user.followers >= 1000
                           ? `${(user.followers / 1000).toFixed(user.followers % 1000 === 0 ? 0 : 1)}k Followers`
                           : `${user.followers}`
                       ) : 'N/A'}
@@ -225,11 +225,10 @@ export default function AppliedCampaignsPage() {
                     <button
                       onClick={() => setSelectedApplication(app)}
                       disabled={!!app.form_data?.order_details && app.status !== 'Rejected'}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-md transition-all text-xs font-semibold ${
-                        !!app.form_data?.order_details && app.status !== 'Rejected'
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-md transition-all text-xs font-semibold ${!!app.form_data?.order_details && app.status !== 'Rejected'
                           ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer'
-                      }`}
+                        }`}
                     >
                       {app.form_data?.order_details ? (
                         <>

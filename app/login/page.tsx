@@ -434,6 +434,17 @@ export default function LoginPage() {
       <div className="flex w-full items-center justify-center p-6 lg:w-1/2 relative bg-background">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(254,189,28,0.05),transparent_70%)] lg:hidden" />
 
+        {/* Top-Left "Back to login" Button */}
+        {view !== 'main' && (
+          <button
+            onClick={goBack}
+            className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-1.5 text-xs font-semibold text-charcoal-surface hover:text-primary bg-slate-100 hover:bg-slate-200/80 px-3.5 py-2 rounded-full border border-border-subtle/60 shadow-sm transition-all duration-200 cursor-pointer active:scale-95 z-20"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back to login</span>
+          </button>
+        )}
+
         <div className="w-full max-w-md space-y-6 relative z-10">
           <div className="flex items-center justify-center gap-3 mb-8">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-surface text-white shadow-md">
@@ -539,9 +550,6 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: VERIFY MOBILE (for Google flow) ══════════════ */}
             {view === 'verify-mobile' && (
               <motion.div key="verify-mobile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-                </button>
                 <div className="text-center space-y-2">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
                     <Phone className="h-6 w-6 text-primary" />
@@ -576,9 +584,6 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: VERIFY OTP (shared) ══════════════ */}
             {view === 'verify-otp' && (
               <motion.div key="verify-otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-                </button>
                 <div className="text-center space-y-2">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
                     <Shield className="h-6 w-6 text-primary" />
@@ -616,9 +621,6 @@ export default function LoginPage() {
             {/* ══════════════ VIEW: GOOGLE READY ══════════════ */}
             {view === 'google-ready' && (
               <motion.div key="google-ready" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-                <button onClick={goBack} className="flex items-center gap-1.5 text-xs text-secondary hover:text-charcoal-surface transition-colors mb-2">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to login
-                </button>
                 <div className="text-center space-y-2">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary-container/20 border border-primary-container/30 mb-3">
                     <CheckCircle2 className="h-6 w-6 text-primary" />

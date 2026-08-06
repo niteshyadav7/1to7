@@ -158,48 +158,59 @@ export default function ProfilePage() {
   const strengthLabel = strength >= 80 ? 'Excellent' : strength >= 50 ? 'Good — keep going!' : 'Needs attention'
 
   return (
-    <div className="space-y-5 w-full pb-8">
-      {/* Page Header */}
-      <div>
-        <p className="text-sm text-secondary mt-1">Manage your creator profile and payout details</p>
+    <div className="space-y-3.5 w-full pb-8">
+      {/* Compact Header Strip */}
+      <div className="flex items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div>
+          <h1 className="text-sm font-extrabold text-charcoal-surface tracking-tight flex items-center gap-1.5">
+            <User className="h-4 w-4 text-amber-500 shrink-0" />
+            Creator Profile & Payout
+          </h1>
+          <p className="text-[11px] text-secondary mt-0.5">Manage your creator profile and payout details</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1 rounded-lg">
+            Strength: <span className="text-emerald-600">{strength}%</span>
+          </span>
+        </div>
       </div>
 
-      {/* ─── Hero Profile Card ─── */}
+      {/* ─── Compact Hero Profile Card ─── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative rounded-md overflow-hidden border border-border-subtle shadow-sm"
+        className="relative rounded-xl overflow-hidden border border-border-subtle shadow-2xs bg-white"
       >
-        {/* Gradient Banner using Vibrant Influence primary and tertiary */}
-        <div className="h-28 bg-gradient-to-r from-primary-container to-tertiary" />
+        {/* Compact Gradient Banner */}
+        <div className="h-16 bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500" />
 
         {/* Avatar + Info */}
-        <div className="bg-white rounded-b-md px-6 pb-6 pt-0 -mt-px">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-10">
+        <div className="px-5 pb-4 pt-0 -mt-px">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3 -mt-7">
             <div className="relative">
-              <div className="flex h-20 w-20 items-center justify-center rounded-md bg-primary-container text-3xl font-bold text-black shadow-lg border-4 border-white">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-900 text-xl font-extrabold text-white shadow-md border-2 border-white">
                 {formData.full_name?.charAt(0)?.toUpperCase() || profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
               </div>
-              <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 border-2 border-white">
-                <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+              <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 border-2 border-white">
+                <CheckCircle2 className="h-3 w-3 text-white" />
               </div>
             </div>
-            <div className="flex-1 text-center sm:text-left pb-1">
-              <h2 className="text-xl font-bold text-charcoal-surface">{profile?.full_name || 'Creator'}</h2>
-              <div className="flex items-center gap-2 mt-1.5 justify-center sm:justify-start flex-wrap">
-                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-800 border border-slate-200">
+            <div className="flex-1 text-center sm:text-left pb-0.5">
+              <h2 className="text-base font-extrabold text-charcoal-surface">{profile?.full_name || 'Creator'}</h2>
+              <div className="flex items-center gap-2 mt-1 justify-center sm:justify-start flex-wrap">
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-800 border border-slate-200">
                   <BadgeCheck className="h-3 w-3 text-secondary" />
                   {profile?.influencer_id}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200">
                   <Shield className="h-3 w-3 text-emerald-600" />
                   Verified
                 </span>
               </div>
             </div>
-            <div className="text-center sm:text-right pb-1">
-              <p className="text-xs text-secondary">Member since</p>
-              <p className="text-sm font-semibold text-charcoal-surface">
+            <div className="text-center sm:text-right pb-0.5">
+              <p className="text-[10px] text-secondary font-bold uppercase tracking-wider">Member since</p>
+              <p className="text-xs font-semibold text-charcoal-surface">
                 {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : '—'}
               </p>
             </div>
