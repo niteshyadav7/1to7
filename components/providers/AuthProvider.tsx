@@ -60,13 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (igDebugCookie) {
           const igData = JSON.parse(decodeURIComponent(igDebugCookie.split('=').slice(1).join('=')))
           console.log('\n%c🔷 ========== INSTAGRAM LOGIN DATA ==========', 'color: #E1306C; font-size: 16px; font-weight: bold;')
-          console.log('%c📦 RAW data returned by Instagram API:', 'color: #405DE6; font-weight: bold;')
-          console.table(igData.raw_profile_from_instagram)
-          console.log('%c🔑 All available fields from Instagram:', 'color: #405DE6; font-weight: bold;', igData.fields_available)
-          console.log('%c✅ Parsed values used in our app:', 'color: #27AE60; font-weight: bold;')
-          console.table(igData.parsed)
-          console.log('%c⏰ Login timestamp:', 'color: #888;', igData.timestamp)
-          console.log('%c🔷 ==========================================', 'color: #E1306C; font-size: 16px; font-weight: bold;\n')
+          console.log('📦 INSTAGRAM RAW API RESPONSE OBJECT:', igData.raw_profile_from_instagram)
+          console.log('🔑 ALL AVAILABLE KEYS FROM INSTAGRAM:', igData.fields_available)
+          console.log('✅ PARSED INSTAGRAM OBJECT:', igData.parsed)
+          console.log('⏰ LOGIN TIMESTAMP:', igData.timestamp)
+          console.log('%c🔷 ==========================================\n', 'color: #E1306C; font-size: 16px; font-weight: bold;')
           
           // Clear the debug cookie after reading
           document.cookie = 'instagram_debug=; path=/; max-age=0'
@@ -88,25 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/dashboard/profile')
       console.log('[AuthProvider] /api/dashboard/profile status:', res.status)
       const data = await res.json()
-      console.log('[AuthProvider] Profile response:', JSON.stringify(data, null, 2))
       if (data.user) {
-        console.log('[AuthProvider] Setting user:', data.user.full_name, data.user.instagram_username)
-        
-        console.log('\n%c📸 INSTAGRAM EXTRACTED PROFILE DATA:', 'color: #E1306C; font-size: 14px; font-weight: bold;')
-        console.table({
-          'Instagram ID': data.user.instagram_id || 'N/A',
-          'Username': data.user.instagram_username || 'N/A',
-          'Full Name': data.user.full_name || 'N/A',
-          'Profile Pic URL': data.user.instagram_profile_pic || 'N/A',
-          'Biography': data.user.instagram_biography || 'N/A',
-          'Website': data.user.instagram_website || 'N/A',
-          'Followers Count': data.user.instagram_followers_count ?? data.user.followers ?? 0,
-          'Follows Count': data.user.instagram_follows_count ?? 0,
-          'Media Count': data.user.instagram_media_count ?? 0,
-          'Account Type': data.user.instagram_account_type || 'N/A',
-          'Instagram IG ID': data.user.instagram_ig_id || 'N/A',
-          'Is Verified': data.user.is_instagram_verified ?? false,
-        })
+        console.log('📸 FULL USER DATABASE OBJECT:', data.user)
 
         setUser(data.user)
         localStorage.setItem('user_cache', JSON.stringify(data.user))
