@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
     // 3. Fetch Instagram profile using the new Instagram API
     const profileRes = await fetch(
-      `https://graph.instagram.com/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,media_count&access_token=${accessToken}`
+      `https://graph.instagram.com/me?fields=user_id,username,name,biography,website,account_type,profile_picture_url,followers_count,media_count&access_token=${accessToken}`
     )
     const profileData = await profileRes.json()
 
@@ -104,11 +104,12 @@ export async function GET(request: Request) {
         instagram_access_token: accessToken,
         instagram_followers_count: instaFollowers || existingUser.instagram_followers_count || 0,
         instagram_profile_pic: instaPic || existingUser.instagram_profile_pic || '',
+        followers: instaFollowers || existingUser.followers || 0,
         is_instagram_verified: true,
         is_email_verified: true
       }
 
-      if (existingUser.full_name === 'Guest Creator' && metaName) {
+      if ((!existingUser.full_name || existingUser.full_name === 'Guest Creator') && metaName) {
         updates.full_name = metaName
       }
 
@@ -147,6 +148,7 @@ export async function GET(request: Request) {
         instagram_access_token: accessToken,
         instagram_followers_count: instaFollowers,
         instagram_profile_pic: instaPic,
+        followers: instaFollowers,
         is_instagram_verified: true,
         is_email_verified: true,
         is_mobile_verified: false
