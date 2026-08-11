@@ -110,13 +110,7 @@ export async function GET(request: Request) {
     console.log('  instaFollowers:', instaFollowers)
     console.log('  metaEmail:', metaEmail)
 
-    // 4. Check if user exists in Supabase by instagram_id, instagram_username, or email
-    const { data: userByInstaId } = await supabase
-      .from('users')
-      .select('*')
-      .eq('instagram_id', instaId)
-      .maybeSingle()
-
+    // 4. Check if user exists in Supabase by instagram_username or email
     const { data: userByUsername } = await supabase
       .from('users')
       .select('*')
@@ -129,24 +123,18 @@ export async function GET(request: Request) {
       .eq('email', metaEmail)
       .maybeSingle()
 
-    const existingUser = userByInstaId || userByUsername || userByEmail
+    const existingUser = userByUsername || userByEmail
     console.log('[STEP 4] User lookup results:')
-    console.log('  Found by instagram_id:', !!userByInstaId)
     console.log('  Found by username:', !!userByUsername)
     console.log('  Found by email:', !!userByEmail)
     console.log('  Existing user:', existingUser ? `ID=${existingUser.id}, name=${existingUser.full_name}` : 'NOT FOUND (will create new)')
     const cookieStore = await cookies()
 
     if (existingUser) {
-      // Update existing user with fresh Instagram data
+      // Update existing user with fresh Instagram data (only columns that exist in the table)
       const updates: any = {
-        instagram_id: instaId,
         instagram_username: instaUsername || existingUser.instagram_username,
-        instagram_access_token: accessToken,
-        instagram_followers_count: instaFollowers || existingUser.instagram_followers_count || 0,
-        instagram_profile_pic: instaPic || existingUser.instagram_profile_pic || '',
         followers: instaFollowers || existingUser.followers || 0,
-        is_instagram_verified: true,
         is_email_verified: true
       }
 
@@ -199,17 +187,12 @@ export async function GET(request: Request) {
       mobile: null,
       password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
       influencer_id: newInfluencerId,
-      instagram_id: instaId,
       instagram_username: instaUsername || metaName.toLowerCase().replace(/\s+/g, '_'),
-      instagram_access_token: accessToken,
-      instagram_followers_count: instaFollowers,
-      instagram_profile_pic: instaPic,
       followers: instaFollowers,
-      is_instagram_verified: true,
       is_email_verified: true,
       is_mobile_verified: false
     }
-    console.log('[STEP 5] Creating NEW user with:', JSON.stringify({...insertPayload, instagram_access_token: 'HIDDEN', password_hash: 'HIDDEN'}, null, 2))
+    console.log('[STEP 5] Creating NEW user with:', JSON.stringify({...insertPayload, password_hash: 'HIDDEN'}, null, 2))
 
     const { data: newUser, error: insertError } = await supabase
       .from('users')

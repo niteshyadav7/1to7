@@ -108,8 +108,6 @@ export default function ProfilePage() {
           full_name: data.user.full_name,
           instagram_username: data.user.instagram_username,
           followers: data.user.followers,
-          instagram_followers_count: data.user.instagram_followers_count,
-          instagram_profile_pic: data.user.instagram_profile_pic,
           email: data.user.email,
         })
         setProfile(data.user)
@@ -124,7 +122,7 @@ export default function ProfilePage() {
           category: savedCategory,
           state: data.user.state || '',
           city: data.user.city || '',
-          followers: data.user.followers || data.user.instagram_followers_count || 0,
+          followers: data.user.followers || 0,
           account_name: data.user.account_name || '',
           account_number: data.user.account_number || '',
           ifsc_code: data.user.ifsc_code || '',
