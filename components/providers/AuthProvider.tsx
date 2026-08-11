@@ -39,11 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // Basic initialization: checking if we have a token (since it's httpOnly, 
-    // we can't read it directly from JS, so we'd normally call a /me endpoint. 
-    // In this sprint we'll rely on explicit login/logout for state, or add a /me endpoint if needed).
-    
-    // Attempt local storage sync (optional based on your preference vs true secure session check)
     try {
       const storedUser = localStorage.getItem('user_cache')
       if (storedUser) {
@@ -51,9 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error('Error recovering user from local storage:', e)
-    } finally {
-      setIsLoading(false)
     }
+
+    // Fetch fresh profile from server using session cookie
+    refreshUserProfile().finally(() => {
+      setIsLoading(false)
+    })
   }, [])
 
   const login = (userData: User) => {

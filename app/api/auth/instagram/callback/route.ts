@@ -100,7 +100,7 @@ export async function GET(request: Request) {
       // Update existing user with fresh Instagram data
       const updates: any = {
         instagram_id: instaId,
-        instagram_username: instaUsername || existingUser.instagram_username || existingUser.full_name,
+        instagram_username: instaUsername || existingUser.instagram_username,
         instagram_access_token: accessToken,
         instagram_followers_count: instaFollowers || existingUser.instagram_followers_count || 0,
         instagram_profile_pic: instaPic || existingUser.instagram_profile_pic || '',
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
         is_email_verified: true
       }
 
-      if ((!existingUser.full_name || existingUser.full_name === 'Guest Creator') && metaName) {
+      if ((!existingUser.full_name || existingUser.full_name === 'Guest Creator' || existingUser.full_name.trim() === '') && metaName) {
         updates.full_name = metaName
       }
 
