@@ -20,8 +20,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID
-    const appSecret = process.env.META_APP_SECRET
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1321783783073243'
+    const appSecret = process.env.META_APP_SECRET || '366ff23ff99c9a13538d3b49e99b3838'
     const redirectUri = `${protocol}://${host}/api/auth/instagram/callback`
 
     // 1. Exchange code for short-lived access token via Instagram API
