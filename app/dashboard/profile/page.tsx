@@ -97,9 +97,21 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
+      console.log('[ProfilePage] fetchProfile() called')
       const res = await fetch('/api/dashboard/profile')
+      console.log('[ProfilePage] /api/dashboard/profile response status:', res.status)
       const data = await res.json()
+      console.log('[ProfilePage] /api/dashboard/profile response body:', JSON.stringify(data, null, 2))
       if (data.user) {
+        console.log('[ProfilePage] User data received:', {
+          id: data.user.id,
+          full_name: data.user.full_name,
+          instagram_username: data.user.instagram_username,
+          followers: data.user.followers,
+          instagram_followers_count: data.user.instagram_followers_count,
+          instagram_profile_pic: data.user.instagram_profile_pic,
+          email: data.user.email,
+        })
         setProfile(data.user)
         const savedCategory = data.user.category || ''
         const isCustom = savedCategory && !INFLUENCER_CATEGORIES.includes(savedCategory)
@@ -117,8 +129,11 @@ export default function ProfilePage() {
           account_number: data.user.account_number || '',
           ifsc_code: data.user.ifsc_code || '',
         }))
+      } else {
+        console.warn('[ProfilePage] No user data in response! data:', data)
       }
-    } catch {
+    } catch (err) {
+      console.error('[ProfilePage] fetchProfile error:', err)
       toast.error('Failed to load profile')
     } finally {
       setLoading(false)

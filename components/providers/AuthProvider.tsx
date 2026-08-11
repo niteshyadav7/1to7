@@ -61,14 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUserProfile = async () => {
     try {
+      console.log('[AuthProvider] refreshUserProfile() called')
       const res = await fetch('/api/dashboard/profile')
+      console.log('[AuthProvider] /api/dashboard/profile status:', res.status)
       const data = await res.json()
+      console.log('[AuthProvider] Profile response:', JSON.stringify(data, null, 2))
       if (data.user) {
+        console.log('[AuthProvider] Setting user:', data.user.full_name, data.user.instagram_username)
         setUser(data.user)
         localStorage.setItem('user_cache', JSON.stringify(data.user))
+      } else {
+        console.warn('[AuthProvider] No user in response - auth cookie might be missing')
       }
     } catch (e) {
-      console.error('Failed to refresh profile', e)
+      console.error('[AuthProvider] Failed to refresh profile', e)
     }
   }
 
