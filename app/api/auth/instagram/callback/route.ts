@@ -95,11 +95,17 @@ export async function GET(request: Request) {
     console.log(JSON.stringify(profileData, null, 2))
     console.log('[STEP 3] All keys returned:', Object.keys(profileData))
 
-    const instaId = profileData.user_id || userId
+    const instaId = profileData.user_id || profileData.id || userId
     const instaUsername = profileData.username || `insta_${instaId}`
     const metaName = profileData.name || instaUsername
     const instaPic = profileData.profile_picture_url || ''
     const instaFollowers = profileData.followers_count || 0
+    const instaFollows = profileData.follows_count || 0
+    const instaMediaCount = profileData.media_count || 0
+    const instaBio = profileData.biography || ''
+    const instaWebsite = profileData.website || ''
+    const instaAccountType = profileData.account_type || ''
+    const instaIgId = profileData.ig_id || ''
     const metaEmail = `${instaUsername}@instagram.1to7.com`
 
     console.log('[STEP 3] Parsed values:')
@@ -108,9 +114,17 @@ export async function GET(request: Request) {
     console.log('  metaName:', metaName)
     console.log('  instaPic:', instaPic)
     console.log('  instaFollowers:', instaFollowers)
+    console.log('  instaFollows:', instaFollows)
+    console.log('  instaMediaCount:', instaMediaCount)
     console.log('  metaEmail:', metaEmail)
 
-    // 4. Check if user exists in Supabase by instagram_username or email
+    // 4. Check if user exists in Supabase by instagram_id, instagram_username, or email
+    const { data: userByInstaId } = await supabase
+      .from('users')
+      .select('*')
+      .eq('instagram_id', instaId)
+      .maybeSingle()
+
     const { data: userByUsername } = await supabase
       .from('users')
       .select('*')
@@ -123,18 +137,30 @@ export async function GET(request: Request) {
       .eq('email', metaEmail)
       .maybeSingle()
 
-    const existingUser = userByUsername || userByEmail
+    const existingUser = userByInstaId || userByUsername || userByEmail
     console.log('[STEP 4] User lookup results:')
+    console.log('  Found by instagram_id:', !!userByInstaId)
     console.log('  Found by username:', !!userByUsername)
     console.log('  Found by email:', !!userByEmail)
     console.log('  Existing user:', existingUser ? `ID=${existingUser.id}, name=${existingUser.full_name}` : 'NOT FOUND (will create new)')
     const cookieStore = await cookies()
 
     if (existingUser) {
-      // Update existing user with fresh Instagram data (only columns that exist in the table)
+      // Update existing user with fresh Instagram data and buffer fields
       const updates: any = {
+        instagram_id: instaId,
         instagram_username: instaUsername || existingUser.instagram_username,
+        instagram_access_token: accessToken,
+        instagram_profile_pic: instaPic || existingUser.instagram_profile_pic || '',
+        instagram_biography: instaBio || existingUser.instagram_biography || '',
+        instagram_website: instaWebsite || existingUser.instagram_website || '',
+        instagram_followers_count: instaFollowers || existingUser.instagram_followers_count || 0,
+        instagram_follows_count: instaFollows || existingUser.instagram_follows_count || 0,
+        instagram_media_count: instaMediaCount || existingUser.instagram_media_count || 0,
+        instagram_account_type: instaAccountType || existingUser.instagram_account_type || '',
+        instagram_ig_id: instaIgId || existingUser.instagram_ig_id || '',
         followers: instaFollowers || existingUser.followers || 0,
+        is_instagram_verified: true,
         is_email_verified: true
       }
 
@@ -163,7 +189,7 @@ export async function GET(request: Request) {
       // Store Instagram raw data in a readable cookie for client-side debugging
       const igDebugData = JSON.stringify({
         raw_profile_from_instagram: profileData,
-        parsed: { instaId, instaUsername, metaName, instaPic, instaFollowers, metaEmail },
+        parsed: { instaId, instaUsername, metaName, instaPic, instaFollowers, instaFollows, instaMediaCount, metaEmail },
         fields_available: Object.keys(profileData),
         timestamp: new Date().toISOString()
       })
@@ -187,8 +213,19 @@ export async function GET(request: Request) {
       mobile: null,
       password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
       influencer_id: newInfluencerId,
+      instagram_id: instaId,
       instagram_username: instaUsername || metaName.toLowerCase().replace(/\s+/g, '_'),
+      instagram_access_token: accessToken,
+      instagram_profile_pic: instaPic,
+      instagram_biography: instaBio,
+      instagram_website: instaWebsite,
+      instagram_followers_count: instaFollowers,
+      instagram_follows_count: instaFollows,
+      instagram_media_count: instaMediaCount,
+      instagram_account_type: instaAccountType,
+      instagram_ig_id: instaIgId,
       followers: instaFollowers,
+      is_instagram_verified: true,
       is_email_verified: true,
       is_mobile_verified: false
     }

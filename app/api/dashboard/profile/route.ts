@@ -17,10 +17,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    // First try with actual table columns
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, influencer_id, full_name, mobile, email, instagram_username, gender, category, profile_strength, account_name, account_number, ifsc_code, state, city, followers, created_at, updated_at, is_email_verified, is_mobile_verified')
+      .select('*')
       .eq('id', payload.id)
       .single()
 
