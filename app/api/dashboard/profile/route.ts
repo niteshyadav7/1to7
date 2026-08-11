@@ -17,16 +17,43 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
+    // First try with all columns
     const { data: user, error } = await supabase
       .from('users')
       .select('id, influencer_id, full_name, mobile, email, instagram_username, instagram_profile_pic, instagram_followers_count, gender, category, profile_strength, account_name, account_number, ifsc_code, state, city, followers, created_at, is_email_verified, is_mobile_verified')
       .eq('id', payload.id)
       .single()
 
+    console.log('[DEBUG] Profile query for user id:', payload.id)
+    console.log('[DEBUG] Supabase error:', error ? JSON.stringify(error) : 'none')
     console.log('[DEBUG] Fetched user from Supabase:', JSON.stringify(user, null, 2))
 
     if (error || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      // Fallback: try select(*) to check if user exists but column names are wrong
+      const { data: fallbackUser, error: fallbackError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', payload.id)
+        .single()
+
+      console.log('[DEBUG] Fallback query result:', fallbackUser ? 'FOUND' : 'NOT FOUND', 'error:', fallbackError ? JSON.stringify(fallbackError) : 'none')
+      
+      if (fallbackUser) {
+        // User exists! The column-specific query failed - return with select(*)
+        console.log('[DEBUG] User found with select(*), column name issue detected. Keys:', Object.keys(fallbackUser))
+        return NextResponse.json({ user: fallbackUser })
+      }
+
+      return NextResponse.json({ 
+        error: 'User not found', 
+        debug: {
+          supabaseError: error?.message,
+          supabaseHint: error?.hint,
+          supabaseCode: error?.code,
+          payloadId: payload.id,
+          fallbackError: fallbackError?.message
+        }
+      }, { status: 404 })
     }
 
     return NextResponse.json({ user })
