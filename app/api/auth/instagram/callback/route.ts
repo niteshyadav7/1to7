@@ -71,8 +71,21 @@ export async function GET(request: Request) {
       console.warn('[STEP 2] Long-lived token exchange failed, using short-lived token', err)
     }
 
-    // 3. Fetch Instagram profile using the new Instagram API
-    const profileUrl = `https://graph.instagram.com/me?fields=user_id,username,name,biography,website,account_type,profile_picture_url,followers_count,media_count&access_token=${accessToken}`
+    // 3. Fetch Instagram profile using the new Instagram API — request ALL available fields
+    const allFields = [
+      'user_id',              // Instagram-scoped user ID
+      'username',             // Instagram handle (@username)
+      'name',                 // Display/full name
+      'biography',            // Bio text
+      'website',              // Website URL in profile
+      'account_type',         // BUSINESS, CREATOR, or PERSONAL
+      'profile_picture_url',  // Profile picture URL
+      'followers_count',      // Total followers
+      'follows_count',        // Total following (people they follow)
+      'media_count',          // Total posts/reels/stories
+      'ig_id',                // Legacy Instagram numeric ID
+    ].join(',')
+    const profileUrl = `https://graph.instagram.com/me?fields=${allFields}&access_token=${accessToken}`
     console.log('[STEP 3] Fetching profile from:', profileUrl.replace(accessToken, 'TOKEN_HIDDEN'))
     const profileRes = await fetch(profileUrl)
     const profileData = await profileRes.json()
