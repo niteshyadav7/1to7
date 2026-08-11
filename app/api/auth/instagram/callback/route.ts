@@ -74,20 +74,26 @@ export async function GET(request: Request) {
     const instaFollowers = profileData.followers_count || 0
     const metaEmail = `${instaUsername}@instagram.1to7.com`
 
-    // 4. Check if user exists in Supabase
+    // 4. Check if user exists in Supabase by instagram_id, instagram_username, or email
     const { data: userByInstaId } = await supabase
       .from('users')
       .select('*')
       .eq('instagram_id', instaId)
-      .single()
+      .maybeSingle()
+
+    const { data: userByUsername } = await supabase
+      .from('users')
+      .select('*')
+      .eq('instagram_username', instaUsername)
+      .maybeSingle()
 
     const { data: userByEmail } = await supabase
       .from('users')
       .select('*')
       .eq('email', metaEmail)
-      .single()
+      .maybeSingle()
 
-    const existingUser = userByInstaId || userByEmail
+    const existingUser = userByInstaId || userByUsername || userByEmail
     const cookieStore = await cookies()
 
     if (existingUser) {
@@ -133,7 +139,7 @@ export async function GET(request: Request) {
       .insert([{
         full_name: metaName,
         email: metaEmail,
-        mobile: '',
+        mobile: null,
         password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
         influencer_id: newInfluencerId,
         instagram_id: instaId,
@@ -150,7 +156,7 @@ export async function GET(request: Request) {
 
     if (insertError) {
       console.error('Instagram signup insert error:', insertError)
-      throw new Error('Failed to create account with Instagram')
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent(insertError.message || 'Failed to create account with Instagram')}`)
     }
 
     const token = await encrypt({
