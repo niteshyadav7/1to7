@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
-import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram } from 'lucide-react'
 import { auth, googleProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
 
@@ -535,6 +535,19 @@ export default function LoginPage() {
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
                     Sign-in with Google
+                  </div>
+                </Button>
+
+                {/* Continue with Instagram Button */}
+                <Button
+                  type="button"
+                  onClick={() => { window.location.href = '/api/auth/instagram/login' }}
+                  disabled={loading}
+                  className="w-full h-13 rounded-md bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md mt-3"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <Instagram className="h-5 w-5 text-white" />
+                    Continue with Instagram
                   </div>
                 </Button>
 

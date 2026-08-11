@@ -433,6 +433,29 @@ export default function SignupPage() {
                   </Button>
                 </form>
 
+                {/* OR Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200/80" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-3 text-slate-500 font-bold tracking-widest">Or</span>
+                  </div>
+                </div>
+
+                {/* Continue with Instagram Button */}
+                <Button
+                  type="button"
+                  onClick={() => { window.location.href = '/api/auth/instagram/login' }}
+                  disabled={loading}
+                  className="w-full h-13 rounded-md bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <Instagram className="h-5 w-5 text-white" />
+                    Sign up with Instagram
+                  </div>
+                </Button>
+
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Already have an account?{' '}
                   <Link href="/login" className="font-bold text-slate-800 hover:underline transition-colors">
