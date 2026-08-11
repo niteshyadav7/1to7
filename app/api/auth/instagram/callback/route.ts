@@ -159,6 +159,21 @@ export async function GET(request: Request) {
         maxAge: 60 * 60 * 24 * 30
       })
 
+      // Store Instagram raw data in a readable cookie for client-side debugging
+      const igDebugData = JSON.stringify({
+        raw_profile_from_instagram: profileData,
+        parsed: { instaId, instaUsername, metaName, instaPic, instaFollowers, metaEmail },
+        fields_available: Object.keys(profileData),
+        timestamp: new Date().toISOString()
+      })
+      cookieStore.set('instagram_debug', igDebugData, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 5 // 5 minutes only
+      })
+
       return NextResponse.redirect(`${appUrl}/dashboard?login=success&provider=instagram`)
     }
 
@@ -207,6 +222,21 @@ export async function GET(request: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30
+    })
+
+    // Store Instagram raw data in a readable cookie for client-side debugging
+    const igDebugData = JSON.stringify({
+      raw_profile_from_instagram: profileData,
+      parsed: { instaId, instaUsername, metaName, instaPic, instaFollowers, metaEmail },
+      fields_available: Object.keys(profileData),
+      timestamp: new Date().toISOString()
+    })
+    cookieStore.set('instagram_debug', igDebugData, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 5 // 5 minutes only
     })
 
     return NextResponse.redirect(`${appUrl}/dashboard?login=success&provider=instagram&new=true`)

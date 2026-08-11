@@ -51,6 +51,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Fetch fresh profile from server using session cookie
     refreshUserProfile().finally(() => {
       setIsLoading(false)
+
+      // Check for Instagram debug data cookie (set during Instagram login callback)
+      try {
+        const igDebugCookie = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('instagram_debug='))
+        if (igDebugCookie) {
+          const igData = JSON.parse(decodeURIComponent(igDebugCookie.split('=').slice(1).join('=')))
+          console.log('\n%c🔷 ========== INSTAGRAM LOGIN DATA ==========', 'color: #E1306C; font-size: 16px; font-weight: bold;')
+          console.log('%c📦 RAW data returned by Instagram API:', 'color: #405DE6; font-weight: bold;')
+          console.table(igData.raw_profile_from_instagram)
+          console.log('%c🔑 All available fields from Instagram:', 'color: #405DE6; font-weight: bold;', igData.fields_available)
+          console.log('%c✅ Parsed values used in our app:', 'color: #27AE60; font-weight: bold;')
+          console.table(igData.parsed)
+          console.log('%c⏰ Login timestamp:', 'color: #888;', igData.timestamp)
+          console.log('%c🔷 ==========================================', 'color: #E1306C; font-size: 16px; font-weight: bold;\n')
+          
+          // Clear the debug cookie after reading
+          document.cookie = 'instagram_debug=; path=/; max-age=0'
+        }
+      } catch (e) {
+        console.warn('Could not parse instagram_debug cookie', e)
+      }
     })
   }, [])
 
