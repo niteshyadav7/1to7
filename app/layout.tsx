@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "1to7 Media | Creator Portal",
   description: "Find premium brand collaborations and manage your influencer campaigns.",
+  icons: {
+    icon: [
+      { url: '/logo-icon.svg', type: 'image/svg+xml' }
+    ],
+    shortcut: '/logo-icon.svg',
+    apple: '/logo-icon.svg',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

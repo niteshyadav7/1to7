@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" fill="none">
+  <defs>
+    <!-- Background Gradient for Badge -->
+    <linearGradient id="badge-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB800" />
+      <stop offset="50%" stop-color="#FF5E36" />
+      <stop offset="100%" stop-color="#F50057" />
+    </linearGradient>
+
+    <!-- Number 1 Gradient -->
+    <linearGradient id="num1-text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFC107" />
+      <stop offset="100%" stop-color="#FF9800" />
+    </linearGradient>
+
+    <!-- Number 7 Gradient -->
+    <linearGradient id="num7-text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF2E63" />
+      <stop offset="100%" stop-color="#E91E63" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glow-bolt" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- ─── Left Circular Icon Badge (64x64) ─── -->
+  <g transform="translate(8, 8)">
+    <circle cx="32" cy="32" r="30" fill="url(#badge-grad)" />
+    <circle cx="32" cy="32" r="30" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="2" />
+    
+    <!-- Monogram 1 ⚡ 7 inside Badge -->
+    <g font-family="Inter, system-ui, sans-serif" font-weight="900">
+      <text x="12" y="45" font-size="30" fill="#0F172A">1</text>
+      <path d="M33 22 L27 36 H33 L31 47 L40 32 H34 L36 22 Z" fill="#FFFFFF" filter="url(#glow-bolt)" />
+      <text x="39" y="45" font-size="30" fill="#FFFFFF">7</text>
+    </g>
+
+    <!-- Top Right Sparkle Star -->
+    <g transform="translate(48, 2)">
+      <circle cx="6" cy="6" r="6" fill="#FFC107" stroke="#FFFFFF" stroke-width="1" />
+      <path d="M6 1 L7.5 4.5 L11 6 L7.5 7.5 L6 11 L4.5 7.5 L1 6 L4.5 4.5 Z" fill="#000000" />
+    </g>
+  </g>
+
+  <!-- ─── Right Brand Typography ─── -->
+  <g transform="translate(86, 0)">
+    <!-- 1 -->
+    <text x="0" y="48" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="44" fill="url(#num1-text-grad)" letter-spacing="-1">1</text>
+    
+    <!-- 'to' Pill Badge -->
+    <g transform="translate(26, 22)">
+      <rect x="0" y="0" width="26" height="20" rx="6" fill="#F50057" />
+      <text x="13" y="14" font-family="Inter, system-ui, sans-serif" font-weight="900" font-style="italic" font-size="12" fill="#FFFFFF" text-anchor="middle">to</text>
+    </g>
+
+    <!-- 7 -->
+    <text x="56" y="48" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="44" fill="url(#num7-text-grad)" letter-spacing="-1">7</text>
+
+    <!-- MEDIA Subtitle -->
+    <text x="2" y="66" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="12" fill="#94A3B8" letter-spacing="6">MEDIA</text>
+  </g>
+</svg>

@@ -17,6 +17,7 @@ interface NotificationBellProps {
   apiEndpoint: string
   accentColor?: 'indigo' | 'purple' | 'yellow' | 'pink'
   storageKey?: string
+  isDark?: boolean
 }
 
 function timeAgo(dateStr: string): string {
@@ -45,7 +46,7 @@ const notifConfig: Record<string, { icon: any; color: string; bgColor: string }>
   partial_rejected: { icon: X, color: 'text-red-400', bgColor: 'bg-red-500/15' },
 }
 
-export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', storageKey = 'notif_read' }: NotificationBellProps) {
+export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', storageKey = 'notif_read', isDark = false }: NotificationBellProps) {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isOpen, setIsOpen] = useState(false)
@@ -140,12 +141,14 @@ export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', 
   // Determine button active background/border classes
   let buttonActiveClasses = ''
   if (isOpen) {
-    if (isYellow) buttonActiveClasses = 'bg-primary-container/20 text-black ring-1 ring-primary-container/30'
+    if (isYellow) buttonActiveClasses = isDark ? 'bg-primary-container/20 text-white ring-1 ring-primary-container/30' : 'bg-primary-container/20 text-black ring-1 ring-primary-container/30'
     else if (isPink) buttonActiveClasses = 'bg-[#f50057]/15 text-[#f50057] ring-1 ring-[#f50057]/30'
     else if (isPurple) buttonActiveClasses = 'bg-purple-500/15 text-purple-400 ring-1 ring-purple-500/30'
     else buttonActiveClasses = 'bg-indigo-500/15 text-indigo-400 ring-1 ring-indigo-500/30'
   } else {
-    buttonActiveClasses = 'text-secondary hover:text-charcoal-surface hover:bg-slate-100'
+    buttonActiveClasses = isDark
+      ? 'text-slate-300 hover:text-white hover:bg-white/10'
+      : 'text-secondary hover:text-charcoal-surface hover:bg-slate-100'
   }
 
   // Determine notify badge styling

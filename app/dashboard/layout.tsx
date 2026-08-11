@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -14,9 +14,12 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronLeft,
+  PanelLeft,
   AlertTriangle,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
+import Logo from '@/components/ui/Logo'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +43,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const { user, logout, isProfileComplete } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Load saved sidebar collapse preference
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed')
+      if (saved !== null) setIsCollapsed(JSON.parse(saved))
+    } catch { /* ignore */ }
+  }, [])
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem('sidebar_collapsed', JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   return (
     <div className="min-h-screen bg-background text-charcoal-surface font-sans flex selection:bg-primary-container/30">
@@ -53,38 +73,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-border-subtle flex flex-col transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen bg-[#2d3132] border-r border-white/10 flex flex-col transition-all duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        } ${isCollapsed ? 'lg:w-20' : 'lg:w-64'} w-64`}
       >
-        {/* Logo */}
-        <div className="p-6 pb-2 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md">
-              <Sparkles className="h-4 w-4 text-black" />
-            </div>
-            <span className="text-lg font-bold text-charcoal-surface">1to7 Media</span>
-          </Link>
-          <div className="hidden lg:block">
-            <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
+        {/* Logo & Toggle */}
+        <div className={`relative p-4 pb-3 flex items-center ${isCollapsed ? 'lg:justify-center' : 'justify-start pl-[10%]'}`}>
+          <div className="flex items-center">
+            <Logo size="md" collapsed={isCollapsed} />
           </div>
+          <button
+            onClick={toggleCollapse}
+            className="hidden lg:flex items-center justify-center h-8 w-8 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer absolute right-3 top-1/2 -translate-y-1/2"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
+          </button>
         </div>
 
         {/* User Info */}
-        <div className="px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-black shadow-sm">
+        <div className={`px-4 py-3 border-t border-b border-white/5 ${isCollapsed ? 'lg:px-2' : ''}`}>
+          <div className={`flex items-center ${isCollapsed ? 'lg:justify-center' : 'gap-3'}`} title={isCollapsed ? (user?.full_name || 'Creator') : undefined}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-black shadow-sm shrink-0">
               {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-charcoal-surface truncate">{user?.full_name || 'Creator'}</p>
-              <p className="text-xs text-secondary truncate">{user?.influencer_id || 'ID Loading...'}</p>
-            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white truncate">{user?.full_name || 'Creator'}</p>
+                <p className="text-xs text-slate-400 truncate">{user?.influencer_id || 'ID Loading...'}</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Nav Links */}
-        <nav className="flex-1 px-4 py-2 space-y-1">
+        <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
           {sidebarLinks.map((link) => {
             const isActive = pathname === link.href
             return (
@@ -92,26 +115,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border ${
+                title={isCollapsed ? link.label : undefined}
+                className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border ${
                   isActive
                     ? 'bg-primary-container text-black border-primary-container/30 shadow-sm'
-                    : 'text-secondary hover:bg-slate-100 hover:text-charcoal-surface border-transparent'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white border-transparent'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 ${isActive ? 'text-black' : 'text-secondary group-hover:text-charcoal-surface'}`} />
-                {link.label}
-                {isActive && <ChevronRight className="ml-auto h-4 w-4 text-black" />}
+                <link.icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-black' : 'text-slate-400 group-hover:text-white'}`} />
+                {!isCollapsed && <span>{link.label}</span>}
+                {!isCollapsed && isActive && <ChevronRight className="ml-auto h-4 w-4 text-black shrink-0" />}
               </Link>
             )
           })}
         </nav>
 
         {/* Logout */}
-        <div className="p-4 mt-auto">
+        <div className="p-3 mt-auto border-t border-white/5">
           <AlertDialog>
-            <AlertDialogTrigger className="flex items-center gap-3 w-full rounded-md px-4 py-2.5 text-sm font-semibold text-secondary hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer">
-              <LogOut className="h-4.5 w-4.5" />
-              Sign Out
+            <AlertDialogTrigger
+              title={isCollapsed ? "Sign Out" : undefined}
+              className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} w-full rounded-lg py-2.5 text-sm font-semibold text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer`}
+            >
+              <LogOut className="h-4.5 w-4.5 shrink-0 text-slate-400 group-hover:text-red-400" />
+              {!isCollapsed && <span>Sign Out</span>}
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-white border border-border-subtle text-charcoal-surface shadow-2xl rounded-md overflow-hidden w-full max-w-[400px] p-0 flex flex-col gap-0">
               <AlertDialogHeader className="p-8 pb-6 flex flex-col items-center justify-center space-y-5 w-full text-center sm:text-center">
@@ -140,25 +167,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0 bg-background relative">
-        {/* Top Bar (mobile) */}
-        <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b border-border-subtle px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="rounded-md p-2 hover:bg-slate-100 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary-container shadow-sm">
-              <Sparkles className="h-3 w-3 text-black" />
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-border-subtle px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Mobile menu toggle & brand */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-md p-1.5 hover:bg-slate-100 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="lg:hidden">
+              <Logo size="sm" />
             </div>
-            <span className="text-sm font-bold text-charcoal-surface">1to7 Media</span>
+
+            {/* Desktop collapse toggle */}
+            <button
+              onClick={toggleCollapse}
+              className="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
           </div>
-          <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
+
+          {/* Right aligned actions / Notification Bell */}
+          <div className="flex items-center gap-3">
+            <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
+          </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-5 lg:p-6 min-w-0 overflow-x-hidden">
+        <main className="flex-1 p-4 sm:px-5 sm:pt-3.5 sm:pb-5 lg:px-6 lg:pt-3.5 lg:pb-6 min-w-0 overflow-x-hidden flex flex-col">
           {!isProfileComplete() && (
             <div className="mb-6 rounded-md bg-primary-container/5 border border-primary-container/25 py-2.5 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-3">

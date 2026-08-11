@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFB800" />
+      <stop offset="45%" stop-color="#FF5E36" />
+      <stop offset="100%" stop-color="#F50057" />
+    </linearGradient>
+
+    <!-- Sparkle Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Text Gradient 1 -->
+    <linearGradient id="num1-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+
+    <!-- Text Gradient 7 -->
+    <linearGradient id="num7-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F8FAFC" />
+    </linearGradient>
+
+    <!-- Master Circle Clip -->
+    <clipPath id="circle-clip">
+      <circle cx="50" cy="50" r="50" />
+    </clipPath>
+  </defs>
+
+  <!-- Group clipped to perfect circle -->
+  <g clip-path="url(#circle-clip)">
+    <!-- Main Full Background Circle -->
+    <circle cx="50" cy="50" r="50" fill="url(#bg-grad)" />
+    <circle cx="50" cy="50" r="48" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="2.5" />
+
+    <!-- Monogram Text Elements: 1 ⚡ 7 -->
+    <g font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="900">
+      <!-- Number 1 -->
+      <text x="21" y="65" font-size="44" fill="url(#num1-grad)" letter-spacing="-2">1</text>
+      
+      <!-- Bolt Symbol -->
+      <path d="M48 31 L39 52 H48 L45 68 L58 46 H49 L52 31 Z" fill="#FFFFFF" filter="url(#glow)" />
+
+      <!-- Number 7 -->
+      <text x="57" y="65" font-size="44" fill="url(#num7-grad)" letter-spacing="-2">7</text>
+    </g>
+
+    <!-- Inner Sparkle Star -->
+    <g transform="translate(68, 14)">
+      <circle cx="8" cy="8" r="8" fill="#FFC107" stroke="#FFFFFF" stroke-width="1.5" />
+      <path d="M8 2 L9.5 6 L13.5 8 L9.5 10 L8 14 L6.5 10 L2.5 8 L6.5 6 Z" fill="#000000" />
+    </g>
+  </g>
+</svg>
