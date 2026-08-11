@@ -91,6 +91,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthProvider] Profile response:', JSON.stringify(data, null, 2))
       if (data.user) {
         console.log('[AuthProvider] Setting user:', data.user.full_name, data.user.instagram_username)
+        
+        console.log('\n%c📸 INSTAGRAM EXTRACTED PROFILE DATA:', 'color: #E1306C; font-size: 14px; font-weight: bold;')
+        console.table({
+          'Instagram ID': data.user.instagram_id || 'N/A',
+          'Username': data.user.instagram_username || 'N/A',
+          'Full Name': data.user.full_name || 'N/A',
+          'Profile Pic URL': data.user.instagram_profile_pic || 'N/A',
+          'Biography': data.user.instagram_biography || 'N/A',
+          'Website': data.user.instagram_website || 'N/A',
+          'Followers Count': data.user.instagram_followers_count ?? data.user.followers ?? 0,
+          'Follows Count': data.user.instagram_follows_count ?? 0,
+          'Media Count': data.user.instagram_media_count ?? 0,
+          'Account Type': data.user.instagram_account_type || 'N/A',
+          'Instagram IG ID': data.user.instagram_ig_id || 'N/A',
+          'Is Verified': data.user.is_instagram_verified ?? false,
+        })
+
         setUser(data.user)
         localStorage.setItem('user_cache', JSON.stringify(data.user))
       } else {
