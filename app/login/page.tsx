@@ -674,6 +674,13 @@ export default function LoginPage() {
           </AnimatePresence>
 
           <div id="recaptcha-container"></div>
+
+          {/* Footer Privacy Link */}
+          <div className="mt-8 text-center">
+            <Link href="/privacy" className="text-xs text-secondary hover:text-charcoal-surface font-medium underline transition-colors">
+              Privacy Policy & Data Terms
+            </Link>
+          </div>
         </div>
       </div>
     </div>
