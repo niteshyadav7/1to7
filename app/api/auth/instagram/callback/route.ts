@@ -20,8 +20,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1064686976510393'
-    const appSecret = process.env.META_APP_SECRET || 'd496bc9e45b4a3a38304ddac64873253'
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1371798394383152'
+    const appSecret = process.env.META_APP_SECRET || 'f4dfcefc05f4174cba89a792d2251541'
     const redirectUri = `${protocol}://${host}/api/auth/instagram/callback`
 
     // Check if user is currently logged in via session cookie
@@ -35,68 +35,55 @@ export async function GET(request: Request) {
       }
     }
 
-    // 1. Exchange code for access token via Meta Graph API (or Instagram fallback)
-    let accessToken: string = ''
-    let userId: string = ''
-    let profileData: any = {}
+    // 1. Exchange code for short-lived access token via Instagram API
+    const formData = new URLSearchParams()
+    formData.append('client_id', appId || '')
+    formData.append('client_secret', appSecret || '')
+    formData.append('grant_type', 'authorization_code')
+    formData.append('redirect_uri', redirectUri)
+    formData.append('code', code)
 
-    // Try Meta Graph Facebook OAuth token exchange first
-    const fbTokenUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&client_secret=${appSecret}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
-    const fbTokenRes = await fetch(fbTokenUrl)
-    const fbTokenData = await fbTokenRes.json()
+    const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData
+    })
+    const tokenData = await tokenRes.json()
 
-    if (fbTokenRes.ok && fbTokenData.access_token) {
-      accessToken = fbTokenData.access_token
-      // Fetch user profile from Meta Graph API
-      const meRes = await fetch(`https://graph.facebook.com/v19.0/me?fields=id,name,email,picture.type(large)&access_token=${accessToken}`)
-      profileData = await meRes.json()
-    } else {
-      // Fallback: Exchange code via Instagram API
-      const formData = new URLSearchParams()
-      formData.append('client_id', appId || '')
-      formData.append('client_secret', appSecret || '')
-      formData.append('grant_type', 'authorization_code')
-      formData.append('redirect_uri', redirectUri)
-      formData.append('code', code)
+    console.log('\n========== INSTAGRAM CALLBACK DEBUG ==========')
+    console.log('[STEP 1] Token Exchange Response:', tokenRes.status, JSON.stringify(tokenData))
 
-      const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData
-      })
-      const tokenData = await tokenRes.json()
-
-      if (!tokenRes.ok || !tokenData.access_token) {
-        console.error('Meta Token Exchange Error:', fbTokenData, tokenData)
-        throw new Error(tokenData.error_message || fbTokenData.error?.message || 'Failed to exchange Meta auth code')
-      }
-
-      accessToken = tokenData.access_token
-      userId = String(tokenData.user_id || '')
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.error('Instagram Token Exchange Error:', tokenData)
+      throw new Error(tokenData.error_message || 'Failed to exchange Instagram auth code')
     }
 
-    if (!profileData.id) {
-      const validFields = [
-        'user_id',
-        'username',
-        'name',
-        'biography',
-        'website',
-        'account_type',
-        'profile_picture_url',
-        'followers_count',
-        'media_count',
-      ].join(',')
-      const profileUrl = `https://graph.instagram.com/me?fields=${validFields}&access_token=${accessToken}`
-      let profileRes = await fetch(profileUrl)
-      profileData = await profileRes.json()
+    let accessToken = tokenData.access_token
+    const userId = String(tokenData.user_id || '')
 
-      if (profileData.error) {
-        console.warn('Extended profile fetch returned error, falling back to basic fields:', profileData.error)
-        const fallbackUrl = `https://graph.instagram.com/me?fields=id,username,account_type,media_count&access_token=${accessToken}`
-        const fallbackRes = await fetch(fallbackUrl)
-        profileData = await fallbackRes.json()
+    // 2. Exchange for long-lived token
+    try {
+      const longTokenRes = await fetch(
+        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${accessToken}`
+      )
+      const longTokenData = await longTokenRes.json()
+      if (longTokenData.access_token) {
+        accessToken = longTokenData.access_token
       }
+    } catch (err) {
+      console.warn('[STEP 2] Long-lived token exchange failed, using short-lived token', err)
+    }
+
+    // 3. Fetch Instagram profile
+    let profileData: any = {}
+    const profileUrl = `https://graph.instagram.com/v21.0/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,media_count&access_token=${accessToken}`
+    const profileRes = await fetch(profileUrl)
+    profileData = await profileRes.json()
+
+    if (profileData.error) {
+      console.warn('Profile fetch error, trying basic fields:', profileData.error)
+      const fallbackRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=user_id,username&access_token=${accessToken}`)
+      profileData = await fallbackRes.json()
     }
 
     const instaId = profileData.user_id || profileData.id || userId
