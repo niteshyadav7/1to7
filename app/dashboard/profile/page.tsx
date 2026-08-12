@@ -79,9 +79,10 @@ export default function ProfilePage() {
   const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
-    full_name: (authUser?.full_name as string) || '',
-    instagram_username: (authUser?.instagram_username as string) || '',
-    gender: (authUser?.gender as string) || '',
+    full_name: '',
+    instagram_username: '',
+    instagram_profile_pic: '',
+    gender: '',
     category: '',
     state: '',
     city: '',
@@ -107,6 +108,7 @@ export default function ProfilePage() {
           id: data.user.id,
           full_name: data.user.full_name,
           instagram_username: data.user.instagram_username,
+          instagram_profile_pic: data.user.instagram_profile_pic,
           followers: data.user.followers,
           email: data.user.email,
         })
@@ -118,6 +120,7 @@ export default function ProfilePage() {
           ...prev,
           full_name: data.user.full_name || prev.full_name || '',
           instagram_username: data.user.instagram_username || prev.instagram_username || '',
+          instagram_profile_pic: data.user.instagram_profile_pic || prev.instagram_profile_pic || '',
           gender: data.user.gender || prev.gender || '',
           category: savedCategory,
           state: data.user.state || '',
@@ -177,8 +180,16 @@ export default function ProfilePage() {
         {/* Left: User Avatar & Badges */}
         <div className="flex items-center gap-3">
           <div className="relative shrink-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-base font-extrabold text-white shadow-sm border border-slate-200">
-              {formData.full_name?.charAt(0)?.toUpperCase() || profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-base font-extrabold text-white shadow-sm border border-slate-200 overflow-hidden">
+              {formData.instagram_profile_pic || profile?.instagram_profile_pic ? (
+                <img
+                  src={formData.instagram_profile_pic || profile?.instagram_profile_pic}
+                  alt={formData.full_name || profile?.full_name || 'Creator Avatar'}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                formData.full_name?.charAt(0)?.toUpperCase() || profile?.full_name?.charAt(0)?.toUpperCase() || 'U'
+              )}
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 border border-white">
               <CheckCircle2 className="h-2.5 w-2.5 text-white" />

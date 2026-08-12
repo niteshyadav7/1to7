@@ -94,8 +94,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* User Info */}
         <div className={`px-4 py-3 border-t border-b border-white/5 ${isCollapsed ? 'lg:px-2' : ''}`}>
           <div className={`flex items-center ${isCollapsed ? 'lg:justify-center' : 'gap-3'}`} title={isCollapsed ? (user?.full_name || 'Creator') : undefined}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-sm font-bold text-black shadow-sm shrink-0">
-              {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm shrink-0 overflow-hidden border border-white/20">
+              {user?.instagram_profile_pic ? (
+                <img src={user.instagram_profile_pic} alt={user.full_name || 'Creator'} className="h-full w-full object-cover" />
+              ) : (
+                user?.full_name?.charAt(0)?.toUpperCase() || 'U'
+              )}
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">

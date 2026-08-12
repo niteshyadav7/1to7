@@ -9,6 +9,7 @@ export interface User {
   mobile: string
   full_name?: string
   instagram_username?: string
+  instagram_profile_pic?: string
   email?: string
   gender?: string
   state?: string
