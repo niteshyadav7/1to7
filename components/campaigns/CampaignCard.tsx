@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles } from 'lucide-react'
+import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag } from 'lucide-react'
 
 interface Campaign {
   id: string
@@ -25,41 +25,39 @@ interface Campaign {
   form_link?: string
 }
 
-const platformConfig: Record<string, { icon: React.ReactNode; color: string }> = {
-  'Instagram': { icon: <Instagram className="h-3.5 w-3.5 text-pink-300" />, color: 'text-pink-400' },
-  'YouTube': { icon: <Youtube className="h-3.5 w-3.5 text-red-300" />, color: 'text-red-500' },
-  'Amazon': { icon: <ShoppingBag className="h-3.5 w-3.5 text-amber-300" />, color: 'text-amber-500' },
+const platformConfig: Record<string, { icon: React.ReactNode; bg: string; badge: string }> = {
+  'Instagram': { 
+    icon: <Instagram className="h-3.5 w-3.5 text-pink-400" />, 
+    bg: 'from-fuchsia-600 via-pink-600 to-rose-600',
+    badge: 'bg-gradient-to-r from-pink-500 to-rose-500 text-white'
+  },
+  'YouTube': { 
+    icon: <Youtube className="h-3.5 w-3.5 text-red-400" />, 
+    bg: 'from-red-600 via-rose-600 to-orange-600',
+    badge: 'bg-red-600 text-white'
+  },
+  'Amazon': { 
+    icon: <ShoppingBag className="h-3.5 w-3.5 text-amber-400" />, 
+    bg: 'from-amber-500 via-orange-600 to-amber-700',
+    badge: 'bg-amber-500 text-slate-950'
+  },
 }
-
-const gradientPalettes = [
-  'bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700',
-  'bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700',
-  'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600',
-  'bg-gradient-to-br from-pink-600 via-rose-600 to-purple-700',
-  'bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700',
-  'bg-gradient-to-br from-fuchsia-600 via-pink-600 to-rose-600',
-  'bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950',
-]
 
 const categoryGradients: Record<string, string> = {
-  'Tech & Gadgets': 'bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700',
-  'Lifestyle': 'bg-gradient-to-br from-rose-500 via-pink-600 to-orange-500',
-  'Travel': 'bg-gradient-to-br from-cyan-600 via-teal-600 to-emerald-600',
-  'Health & Fitness': 'bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700',
-  'Beauty & Fashion': 'bg-gradient-to-br from-purple-600 via-pink-600 to-rose-500',
-  'Entertainment': 'bg-gradient-to-br from-amber-500 via-orange-600 to-red-600',
-  'Food & Beverage': 'bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-600',
+  'Tech & Gadgets': 'from-indigo-600 via-purple-600 to-blue-700',
+  'Lifestyle': 'from-rose-500 via-pink-600 to-orange-500',
+  'Travel': 'from-cyan-600 via-teal-600 to-emerald-600',
+  'Health & Fitness': 'from-emerald-600 via-teal-600 to-cyan-700',
+  'Beauty & Fashion': 'from-purple-600 via-pink-600 to-rose-500',
+  'Entertainment': 'from-amber-500 via-orange-600 to-red-600',
+  'Food & Beverage': 'from-orange-500 via-amber-500 to-yellow-600',
 }
 
-function getGradient(category: string, brandName: string): string {
-  if (categoryGradients[category]) return categoryGradients[category]
-  let hash = 0
-  const str = (brandName || category || 'default').toLowerCase()
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const index = Math.abs(hash) % gradientPalettes.length
-  return gradientPalettes[index]
+const defaultGradient = 'from-slate-900 via-indigo-950 to-slate-900'
+
+function getBrandInitial(brandName: string): string {
+  if (!brandName) return 'B'
+  return brandName.trim().charAt(0).toUpperCase()
 }
 
 export default function CampaignCard({ 
@@ -71,99 +69,126 @@ export default function CampaignCard({
   index: number 
   onViewDetails: (campaign: Campaign) => void 
 }) {
-  const gradient = getGradient(campaign.category, campaign.brand_name)
-  const platform = platformConfig[campaign.platform] || { icon: <Sparkles className="h-3.5 w-3.5 text-white" />, color: 'text-slate-500' }
+  const gradient = categoryGradients[campaign.category] || defaultGradient
+  const platform = platformConfig[campaign.platform] || { 
+    icon: <Sparkles className="h-3.5 w-3.5 text-amber-300" />, 
+    bg: 'from-slate-800 to-slate-900',
+    badge: 'bg-slate-800 text-white'
+  }
+  const brandInitial = getBrandInitial(campaign.brand_name)
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.04 }}
-      whileHover={{ y: -3 }}
-      className="group cursor-pointer flex flex-col h-full w-full max-w-[310px] rounded-2xl border border-slate-200/80 bg-white overflow-hidden hover:border-amber-400/60 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] transition-all duration-300 mx-auto sm:mx-0"
+      transition={{ duration: 0.4, delay: index * 0.05 }}
+      whileHover={{ y: -6, transition: { duration: 0.25, ease: 'easeOut' } }}
+      className="group relative cursor-pointer flex flex-col h-full w-full max-w-[320px] rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(15,23,42,0.12)] hover:border-amber-400/80 transition-all duration-300 mx-auto sm:mx-0 overflow-hidden"
       onClick={() => onViewDetails(campaign)}
     >
-      {/* Top Dynamic Color Combination Header */}
-      <div className={`relative h-20 w-full overflow-hidden shrink-0 ${gradient} flex items-center justify-between p-3.5 transition-all duration-500 group-hover:scale-[1.02]`}>
-        {/* Subtle Decorative Ambient Overlays */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_60%)] pointer-events-none" />
-        <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 blur-xl pointer-events-none" />
-        <div className="absolute -left-6 -top-6 w-20 h-20 rounded-full bg-black/10 blur-lg pointer-events-none" />
+      {/* Top Banner Header with Mesh Gradient */}
+      <div className={`relative h-24 w-full bg-gradient-to-br ${gradient} p-4 flex items-start justify-between overflow-hidden shrink-0`}>
+        {/* Background Decorative Mesh & Glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_70%)] pointer-events-none" />
+        <div className="absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+        <div className="absolute -left-6 -top-6 w-20 h-20 rounded-full bg-black/20 blur-lg pointer-events-none" />
 
-        {/* Platform Chip */}
+        {/* Platform Pill */}
         <div className="relative z-10">
-          <span className="inline-flex items-center gap-1.5 bg-slate-950/40 backdrop-blur-md text-white rounded-full px-3 py-1 text-[11px] font-semibold border border-white/15 shadow-sm">
+          <span className="inline-flex items-center gap-1.5 bg-slate-950/50 backdrop-blur-md text-white rounded-full px-3 py-1 text-[11px] font-semibold border border-white/20 shadow-md">
             {platform.icon}
-            {campaign.platform}
+            <span>{campaign.platform}</span>
           </span>
         </div>
 
-        {/* Budget Type Badge */}
-        <div className="relative z-10">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm ${
+        {/* Budget Badge */}
+        <div className="relative z-10 flex items-center gap-1.5">
+          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-md ${
             campaign.budget_type === 'Paid' 
-              ? 'bg-amber-400 text-slate-950' 
-              : 'bg-white/95 text-slate-900 border border-slate-200/60'
+              ? 'bg-amber-400 text-slate-950 shadow-amber-400/30' 
+              : 'bg-emerald-500 text-white shadow-emerald-500/30'
           }`}>
-            {campaign.budget_type === 'Paid' ? 'Paid' : 'Barter'}
+            <Tag className="h-2.5 w-2.5" />
+            {campaign.budget_type === 'Paid' ? 'PAID COLLAB' : 'BARTER'}
           </span>
         </div>
       </div>
 
-      {/* Card Content */}
-      <div className="p-4 flex flex-col flex-grow justify-between gap-3 bg-white">
-        <div className="space-y-1.5">
-          {/* Brand & Live status */}
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
-              {campaign.brand_name}
-            </span>
-            {campaign.is_live && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                </span>
-                Live
-              </span>
-            )}
+      {/* Brand Icon Overlay Avatar */}
+      <div className="relative px-5 pt-0 pb-2 bg-white flex items-end justify-between -mt-6 z-20">
+        <div className="flex items-center gap-2.5">
+          <div className="h-12 w-12 rounded-2xl bg-slate-900 border-2 border-white shadow-lg flex items-center justify-center font-black text-lg text-amber-400 group-hover:scale-105 transition-transform duration-300 shrink-0">
+            {brandInitial}
           </div>
+          <div className="pt-6">
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-black text-slate-900 uppercase tracking-wide line-clamp-1">
+                {campaign.brand_name}
+              </span>
+              <ShieldCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+            </div>
+            <span className="text-[10px] font-medium text-slate-400 block -mt-0.5">
+              Verified Campaign
+            </span>
+          </div>
+        </div>
 
-          {/* Heading */}
-          <h3 className="text-base font-extrabold text-slate-900 line-clamp-1 group-hover:text-amber-600 transition-colors">
+        {/* Live Pulse Tag */}
+        {campaign.is_live && (
+          <div className="mb-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50/90 px-2.5 py-1 rounded-full border border-emerald-200/80 shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              LIVE
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content Body */}
+      <div className="p-5 pt-2 flex flex-col flex-grow justify-between gap-4 bg-white">
+        <div className="space-y-2">
+          {/* Category Heading */}
+          <h3 className="text-lg font-extrabold text-slate-900 line-clamp-1 group-hover:text-amber-600 transition-colors leading-tight">
             {campaign.category}
           </h3>
 
-          {/* Deliverables description */}
-          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed h-8">
-            {campaign.deliverables}
-          </p>
+          {/* Deliverables snippet with custom pill styling */}
+          <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-100/80">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+              Deliverables Required
+            </span>
+            <p className="text-xs font-medium text-slate-700 line-clamp-2 leading-relaxed">
+              {campaign.deliverables || 'Reels, Stories & Post Collaboration'}
+            </p>
+          </div>
         </div>
 
         <div className="space-y-3 pt-1">
-          {/* Metadata Row */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-            {campaign.location ? (
-              <span className="flex items-center gap-1 truncate max-w-[130px] font-medium">
-                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
-                {campaign.location}
+          {/* Attributes Info Row */}
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-1">
+            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">
+              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <span className="font-semibold truncate">{campaign.location || 'PAN India'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">
+              <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <span className="font-semibold truncate">
+                {campaign.gender_required === 'Any' ? 'All Genders' : campaign.gender_required}
               </span>
-            ) : (
-              <span className="font-mono text-slate-400 text-[10px]">{campaign.campaign_code}</span>
-            )}
-            <div className="flex items-center gap-1 font-medium">
-              <Users className="h-3 w-3 text-slate-400 shrink-0" />
-              <span>{campaign.gender_required === 'Any' ? 'All Genders' : campaign.gender_required}</span>
             </div>
           </div>
 
-          {/* View Details Button */}
-          <button className="w-full flex items-center justify-center gap-1.5 bg-slate-900 group-hover:bg-amber-400 text-white group-hover:text-slate-950 font-bold text-xs py-2.5 rounded-xl transition-all duration-200 cursor-pointer shadow-sm active:scale-[0.98]">
+          {/* Action CTA Button */}
+          <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-slate-900 group-hover:bg-gradient-to-r group-hover:from-amber-400 group-hover:to-amber-500 text-white group-hover:text-slate-950 font-extrabold text-xs py-3 rounded-2xl shadow-sm group-hover:shadow-lg group-hover:shadow-amber-400/25 transition-all duration-300 cursor-pointer active:scale-[0.98]">
             <span>View Details & Apply</span>
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
           </button>
         </div>
       </div>
     </motion.div>
   )
 }
+
