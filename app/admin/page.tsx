@@ -80,7 +80,7 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@1to7.com"
+                  placeholder="Enter admin email address"
                   className="pl-10 bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
                   disabled={loading}
                 />

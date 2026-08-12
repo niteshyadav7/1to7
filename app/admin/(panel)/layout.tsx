@@ -119,7 +119,7 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">{admin?.name || 'Admin'}</p>
-              <p className="text-xs text-slate-400 truncate">{admin?.email || 'admin@1to7.com'}</p>
+              <p className="text-xs text-slate-400 truncate">{admin?.email || 'admin@1to7media.in'}</p>
             </div>
           </div>
         </div>
