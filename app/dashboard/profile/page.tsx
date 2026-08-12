@@ -24,6 +24,7 @@ interface UserProfile {
   mobile: string
   email: string
   instagram_username: string
+  instagram_profile_pic?: string
   gender: string
   category: string
   profile_strength: number
