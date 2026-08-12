@@ -261,9 +261,18 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Instagram Username */}
+              {/* Instagram Username & Connect OAuth */}
               <div className="space-y-1">
-                <Label className="text-secondary text-[11px] font-semibold uppercase tracking-wider">Instagram Username</Label>
+                <Label className="text-secondary text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between">
+                  <span>Instagram Username</span>
+                  <a
+                    href="/api/auth/instagram/login"
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-pink-600 hover:text-pink-700 hover:underline transition-colors"
+                  >
+                    <Instagram className="h-3 w-3" />
+                    {formData.instagram_username ? 'Re-sync Instagram' : 'Connect Instagram'}
+                  </a>
+                </Label>
                 <div className="relative group">
                   <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-pink-500" />
                   <Input
