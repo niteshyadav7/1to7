@@ -50,39 +50,33 @@ export async function GET() {
       'comments_count'
     ].join(',')
 
-    let mediaUrl = `https://graph.instagram.com/me/media?fields=${fields}&limit=12&access_token=${user.instagram_access_token}`
-    let mediaRes = await fetch(mediaUrl)
-    let mediaData = await mediaRes.json()
+    let mediaItems: any[] = []
+    let validPostCount = 0
+    let totalLikes = 0
+    let totalComments = 0
 
-    console.log('[InstagramMedia API] Response status:', mediaRes.status)
-    if (!mediaRes.ok || mediaData.error) {
-      console.warn('[InstagramMedia API] First attempt error:', mediaData.error)
-      
-      // Fallback query with basic media fields
-      const fallbackFields = ['id', 'caption', 'media_type', 'media_url', 'permalink', 'thumbnail_url', 'timestamp'].join(',')
-      mediaUrl = `https://graph.instagram.com/me/media?fields=${fallbackFields}&limit=12&access_token=${user.instagram_access_token}`
-      mediaRes = await fetch(mediaUrl)
-      mediaData = await mediaRes.json()
-      
-      console.log('[InstagramMedia API] Fallback response status:', mediaRes.status)
-      if (!mediaRes.ok || mediaData.error) {
-        console.error('[InstagramMedia API] Fallback attempt error:', mediaData.error)
-        return NextResponse.json({
-          connected: false,
-          error: mediaData.error?.message || 'Failed to fetch Instagram media from Meta API',
-          media: [],
-          stats: null
-        })
+    try {
+      let mediaUrl = `https://graph.instagram.com/v21.0/me/media?fields=${fields}&limit=12&access_token=${user.instagram_access_token}`
+      let mediaRes = await fetch(mediaUrl)
+      let mediaData = await mediaRes.json()
+
+      if (mediaData.error) {
+        // Try without v21.0 version prefix
+        mediaUrl = `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,permalink,thumbnail_url,timestamp&limit=12&access_token=${user.instagram_access_token}`
+        mediaRes = await fetch(mediaUrl)
+        mediaData = await mediaRes.json()
       }
+
+      if (mediaData.data && Array.isArray(mediaData.data)) {
+        mediaItems = mediaData.data
+      }
+    } catch (mediaErr) {
+      console.warn('[InstagramMedia API] Media fetch warning:', mediaErr)
     }
 
-    const mediaItems = mediaData.data || []
     const followers = user.instagram_followers_count || user.followers || 0
 
     // Calculate Engagement Statistics
-    let totalLikes = 0
-    let totalComments = 0
-    let validPostCount = 0
 
     mediaItems.forEach((item: any) => {
       const likes = typeof item.like_count === 'number' ? item.like_count : 0
