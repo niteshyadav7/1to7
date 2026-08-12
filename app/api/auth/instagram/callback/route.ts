@@ -74,49 +74,34 @@ export async function GET(request: Request) {
       console.warn('[STEP 2] Long-lived token exchange failed, using short-lived token', err)
     }
 
-    // 3. Fetch Instagram profile — try multiple approaches
+    // 3. Fetch Instagram profile
     let profileData: any = {}
-    const profileFields = 'user_id,username,name,account_type,profile_picture_url,followers_count,media_count'
-    const basicFields = 'user_id,username'
-    
-    // Approach 1: /me endpoint with v21.0
+
+    // Query 1: Basic display fields (guaranteed to work on graph.instagram.com/me)
     try {
-      const profileRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=${profileFields}&access_token=${accessToken}`)
-      profileData = await profileRes.json()
-      console.log('[STEP 3a] /me response:', JSON.stringify(profileData))
-    } catch (e) { console.warn('[STEP 3a] failed:', e) }
-
-    // Approach 2: /me without version
-    if (!profileData.username) {
-      try {
-        const res = await fetch(`https://graph.instagram.com/me?fields=${profileFields}&access_token=${accessToken}`)
-        const data = await res.json()
-        console.log('[STEP 3b] /me (no version) response:', JSON.stringify(data))
-        if (data.username) profileData = data
-      } catch (e) { console.warn('[STEP 3b] failed:', e) }
+      const res = await fetch(`https://graph.instagram.com/me?fields=id,username,account_type,media_count&access_token=${accessToken}`)
+      const data = await res.json()
+      console.log('[STEP 3a] Basic fields response:', JSON.stringify(data))
+      if (data.username || data.id) {
+        profileData = { ...profileData, ...data }
+      }
+    } catch (e) {
+      console.warn('[STEP 3a] Basic query failed:', e)
     }
 
-    // Approach 3: Fetch by user_id directly
-    if (!profileData.username && userId) {
-      try {
-        const res = await fetch(`https://graph.instagram.com/v21.0/${userId}?fields=${profileFields}&access_token=${accessToken}`)
-        const data = await res.json()
-        console.log('[STEP 3c] /{userId} response:', JSON.stringify(data))
-        if (data.username) profileData = data
-      } catch (e) { console.warn('[STEP 3c] failed:', e) }
+    // Query 2: Extended fields (name, profile_picture_url, followers_count, biography, website)
+    try {
+      const res = await fetch(`https://graph.instagram.com/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
+      const data = await res.json()
+      console.log('[STEP 3b] Extended fields response:', JSON.stringify(data))
+      if (data.username || data.id) {
+        profileData = { ...profileData, ...data }
+      }
+    } catch (e) {
+      console.warn('[STEP 3b] Extended query failed:', e)
     }
 
-    // Approach 4: Basic fields only by user_id
-    if (!profileData.username && userId) {
-      try {
-        const res = await fetch(`https://graph.instagram.com/${userId}?fields=${basicFields}&access_token=${accessToken}`)
-        const data = await res.json()
-        console.log('[STEP 3d] /{userId} basic response:', JSON.stringify(data))
-        if (data.username) profileData = data
-      } catch (e) { console.warn('[STEP 3d] failed:', e) }
-    }
-
-    console.log('[STEP 3 FINAL] profileData:', JSON.stringify(profileData))
+    console.log('[STEP 3 FINAL] Resolved profileData:', JSON.stringify(profileData))
 
     const instaId = profileData.user_id || profileData.id || userId
     const instaUsername = profileData.username || `insta_${instaId}`
