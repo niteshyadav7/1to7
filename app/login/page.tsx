@@ -20,15 +20,16 @@ declare global {
 // Which tab the user picked
 type AuthTab = 'password' | 'otp'
 
+// Which flow triggered the mobile verification
+type PendingFlow = 'password' | 'google' | 'instagram' | 'otp-login'
+
 // The current view in the multi-step flow
 type View =
-  | 'main'           // Tabs + Google button
-  | 'verify-mobile'  // Enter mobile number (for Google flow)
+  | 'main'           // Tabs + Google + Instagram buttons
+  | 'verify-mobile'  // Enter mobile number (for Google & Instagram flow)
   | 'verify-otp'     // Enter the 6-digit OTP
   | 'google-ready'   // Mobile verified, show Google popup
-
-// Which flow triggered the mobile verification
-type PendingFlow = 'password' | 'google' | 'otp-login'
+  | 'instagram-ready'// Mobile verified, show Instagram redirect button
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<AuthTab>('password')
@@ -190,7 +191,17 @@ export default function LoginPage() {
     setView('verify-mobile')
   }
 
-  const handleGoogleMobileSubmit = async () => {
+  // ═══════════════════════════════════════════
+  //  FLOW 3: INSTAGRAM LOGIN
+  // ═══════════════════════════════════════════
+  const handleInstagramStart = () => {
+    setPendingFlow('instagram')
+    setMobile('')
+    setView('verify-mobile')
+  }
+
+  // ─── Shared Mobile Submit for Social Logins (Google & Instagram) ───
+  const handleSocialMobileSubmit = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
     if (cleanMobile.length !== 10) {
       toast.error('Please enter a valid 10-digit mobile number')
@@ -213,9 +224,13 @@ export default function LoginPage() {
       }
 
       if (data.isVerified) {
-        // Already verified — go straight to Google popup
+        // Already verified — go straight to Social popup
         setMaskedEmail(data.maskedEmail || '')
-        setView('google-ready')
+        if (pendingFlow === 'instagram') {
+          setView('instagram-ready')
+        } else {
+          setView('google-ready')
+        }
       } else {
         // Not verified — send OTP first
         await sendFirebaseOTP(cleanMobile)
@@ -263,8 +278,16 @@ export default function LoginPage() {
     }
   }
 
+  const handleInstagramRedirect = () => {
+    const cleanMobile = mobile.replace(/\D/g, '')
+    if (cleanMobile) {
+      document.cookie = `pending_mobile=${cleanMobile}; path=/; max-age=600`
+    }
+    window.location.href = '/api/auth/instagram/login'
+  }
+
   // ═══════════════════════════════════════════
-  //  FLOW 3: DIRECT OTP LOGIN
+  //  FLOW 4: DIRECT OTP LOGIN
   // ═══════════════════════════════════════════
   const handleOTPLoginStart = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
@@ -328,11 +351,10 @@ export default function LoginPage() {
       } else if (pendingFlow === 'google') {
         // Proceed to Google popup
         setView('google-ready')
+      } else if (pendingFlow === 'instagram') {
+        // Proceed to Instagram redirect
+        setView('instagram-ready')
       } else if (pendingFlow === 'otp-login') {
-        // Direct OTP login — use the mark-mobile-verified flow then login API
-        // We need to log the user in. Since OTP login doesn't have password,
-        // we call google-login with empty email to create session, or a dedicated endpoint.
-        // Simplest: call check-mobile to get userId, then set a session via a dedicated route.
         const res = await fetch('/api/auth/otp-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -377,14 +399,6 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(94,94,94,0.2),transparent_60%)]" />
 
         <div className="relative z-10 flex flex-col gap-6">
-          {/* Link commented out per user preferences */}
-          {/* <Link href="/" className="flex items-center gap-2 group w-fit bg-black/35 backdrop-blur-md px-4 py-2 rounded-md border border-white/10 shadow-lg">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary-container shadow-md transition-transform group-hover:scale-105">
-              <Sparkles className="h-4 w-4 text-black" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-white">1to7 Media</span>
-          </Link> */}
-
           <div className="mt-20">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -468,64 +482,71 @@ export default function LoginPage() {
                   <form onSubmit={handlePasswordSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <div className="relative group">
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
                         <Input
                           value={identifier}
                           onChange={(e) => setIdentifier(e.target.value)}
                           placeholder="Work Email Address, Mobile or HYID"
-                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
+                          className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
+                          required
                           autoFocus
                         />
                       </div>
                     </div>
+
                     <div className="space-y-2">
                       <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="Password"
-                          className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 pr-12 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
+                          className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 pr-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
+                          required
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
-                          tabIndex={-1}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                         >
                           {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                         </button>
                       </div>
-                      <div className="flex justify-end px-1 mt-1">
-                        <Link href="/forgot-password" className="text-sm font-semibold text-slate-600 hover:text-slate-900 hover:underline transition-colors">
-                          Forgot Password?
-                        </Link>
-                      </div>
                     </div>
+
+                    <div className="flex items-center justify-end">
+                      <Link href="/forgot-password" className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
+                        Forgot Password?
+                      </Link>
+                    </div>
+
                     <Button
                       type="submit"
-                      disabled={loading || !identifier || !password}
-                      className="w-full h-13 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-2 cursor-pointer"
+                      disabled={loading}
+                      className="w-full h-13 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-extrabold text-sm transition-all active:scale-[0.98] shadow-md cursor-pointer disabled:opacity-60 uppercase tracking-wider"
                     >
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>SIGN IN</>}
+                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'SIGN IN'}
                     </Button>
                   </form>
                 </motion.div>
 
-                {/* ─── OR Divider ─── */}
-                <div className="relative my-6">
+                {/* Divider */}
+                <div className="relative flex items-center justify-center my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-slate-200/80" />
+                    <div className="w-full border-t border-slate-200" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-3 text-slate-500 font-bold tracking-widest">Or</span>
+                  <div className="relative bg-white px-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                    OR
                   </div>
                 </div>
 
                 {/* Standalone Google Button */}
                 <Button
+                  type="button"
                   onClick={handleGoogleStart}
                   disabled={loading}
-                  className="w-full h-13 rounded-md bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm border border-slate-200/80 transition-all active:scale-[0.98] cursor-pointer shadow-sm"
+                  className="w-full h-13 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-sm border border-slate-200 transition-all active:scale-[0.98] cursor-pointer shadow-sm"
                 >
                   <div className="flex items-center justify-center gap-3">
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -534,33 +555,33 @@ export default function LoginPage() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Sign-in with Google
+                    SIGN-IN WITH GOOGLE
                   </div>
                 </Button>
 
                 {/* Continue with Instagram Button */}
                 <Button
                   type="button"
-                  onClick={() => { window.location.href = '/api/auth/instagram/login' }}
+                  onClick={handleInstagramStart}
                   disabled={loading}
-                  className="w-full h-13 rounded-md bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md mt-3"
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md mt-3 uppercase tracking-wider"
                 >
                   <div className="flex items-center justify-center gap-3">
                     <Instagram className="h-5 w-5 text-white" />
-                    Continue with Instagram
+                    CONTINUE WITH INSTAGRAM
                   </div>
                 </Button>
 
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Don&apos;t have an account?{' '}
-                  <Link href="/signup" className="font-bold text-slate-800 hover:underline transition-colors">
+                  <Link href="/signup" className="font-bold text-slate-900 hover:underline transition-colors">
                     Create an account
                   </Link>
                 </p>
               </motion.div>
             )}
 
-            {/* ══════════════ VIEW: VERIFY MOBILE (for Google flow) ══════════════ */}
+            {/* ══════════════ VIEW: VERIFY MOBILE (for Google & Instagram flow) ══════════════ */}
             {view === 'verify-mobile' && (
               <motion.div key="verify-mobile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                 <div className="text-center space-y-2">
@@ -568,7 +589,9 @@ export default function LoginPage() {
                     <Phone className="h-6 w-6 text-primary" />
                   </div>
                   <h2 className="text-2xl font-bold text-charcoal-surface">Verify Your Mobile</h2>
-                  <p className="text-sm text-secondary">Enter your registered mobile number to continue with Google Sign-In.</p>
+                  <p className="text-sm text-secondary">
+                    Enter your registered mobile number to continue with {pendingFlow === 'instagram' ? 'Instagram' : 'Google'} Sign-In.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">Mobile Number</label>
@@ -580,14 +603,14 @@ export default function LoginPage() {
                       placeholder="e.g. 9876543210"
                       className="bg-white border border-border-subtle text-foreground h-12 pl-12 rounded-md text-sm font-medium focus-visible:ring-primary-container placeholder:text-secondary"
                       autoFocus
-                      onKeyDown={(e) => e.key === 'Enter' && handleGoogleMobileSubmit()}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSocialMobileSubmit()}
                     />
                   </div>
                 </div>
                 <Button
-                  onClick={handleGoogleMobileSubmit}
+                  onClick={handleSocialMobileSubmit}
                   disabled={loading || mobile.length !== 10}
-                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}
                 </Button>
@@ -616,7 +639,7 @@ export default function LoginPage() {
                 <Button
                   onClick={handleVerifyOTP}
                   disabled={loading || otp.length !== 6}
-                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2"
+                  className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Continue</>}
                 </Button>
@@ -652,7 +675,7 @@ export default function LoginPage() {
                 <Button
                   onClick={handleGooglePopup}
                   disabled={loading}
-                  className="w-full h-12 rounded-md bg-white hover:bg-gray-muted text-charcoal-surface font-semibold text-sm border border-border-subtle transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                  className="w-full h-12 rounded-md bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-200 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -664,9 +687,40 @@ export default function LoginPage() {
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                       </svg>
-                      Continue with Google
+                      CONTINUE WITH GOOGLE
                     </div>
                   )}
+                </Button>
+              </motion.div>
+            )}
+
+            {/* ══════════════ VIEW: INSTAGRAM READY ══════════════ */}
+            {view === 'instagram-ready' && (
+              <motion.div key="instagram-ready" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+                <div className="text-center space-y-2">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-pink-500/10 border border-pink-500/20 mb-3">
+                    <CheckCircle2 className="h-6 w-6 text-pink-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Mobile Verified!</h2>
+                  <p className="text-sm text-slate-500 font-medium">
+                    <strong className="text-slate-900">+91 {mobile}</strong> is confirmed. Now sign in with your Instagram account.
+                  </p>
+                  {maskedEmail && (
+                    <div className="mt-3 p-3 rounded-md bg-pink-50/50 border border-pink-200/50 w-full text-center">
+                      <p className="text-xs text-slate-500 mb-0.5">Account linked to mobile:</p>
+                      <p className="text-sm font-semibold text-pink-600">{maskedEmail}</p>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  onClick={handleInstagramRedirect}
+                  disabled={loading}
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md uppercase tracking-wider"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <Instagram className="h-5 w-5 text-white" />
+                    CONTINUE WITH INSTAGRAM
+                  </div>
                 </Button>
               </motion.div>
             )}

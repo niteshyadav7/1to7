@@ -102,11 +102,18 @@ export async function GET(request: Request) {
     const instaAccountType = profileData.account_type || ''
     const metaEmail = `${instaUsername}@instagram.1to7.com`
 
+    // Read pending verified mobile from cookie if user verified mobile before Instagram OAuth
+    const pendingMobile = cookieStore.get('pending_mobile')?.value || null
+    if (pendingMobile) {
+      cookieStore.delete('pending_mobile')
+    }
+
     // 4. Resolve or Link identity across login methods
     const { user, isNewUser } = await resolveOrCreateUserIdentity({
       currentUserId,
       fullName: metaName,
       email: metaEmail,
+      mobile: pendingMobile,
       instagramId: instaId,
       instagramUsername: instaUsername,
       instagramAccessToken: accessToken,
@@ -117,7 +124,8 @@ export async function GET(request: Request) {
       instagramMediaCount: instaMediaCount,
       instagramAccountType: instaAccountType,
       isInstagramVerified: true,
-      isEmailVerified: true
+      isEmailVerified: true,
+      isMobileVerified: !!pendingMobile
     })
 
     // 5. Encrypt session token & set httpOnly cookie
