@@ -15,7 +15,9 @@ export async function GET(request: Request) {
     'instagram_business_manage_messages',
     'instagram_business_manage_comments',
     'instagram_business_content_publish',
-    'instagram_business_manage_insights'
+    'instagram_business_manage_insights',
+    'user_profile',
+    'user_media'
   ].join(',')
 
   const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code`

@@ -50,18 +50,30 @@ export async function GET() {
       'comments_count'
     ].join(',')
 
-    const mediaUrl = `https://graph.instagram.com/me/media?fields=${fields}&limit=12&access_token=${user.instagram_access_token}`
-    const mediaRes = await fetch(mediaUrl)
-    const mediaData = await mediaRes.json()
+    let mediaUrl = `https://graph.instagram.com/me/media?fields=${fields}&limit=12&access_token=${user.instagram_access_token}`
+    let mediaRes = await fetch(mediaUrl)
+    let mediaData = await mediaRes.json()
 
+    console.log('[InstagramMedia API] Response status:', mediaRes.status)
     if (!mediaRes.ok || mediaData.error) {
-      console.warn('[InstagramMedia] Graph API returned error:', mediaData.error)
-      return NextResponse.json({
-        connected: false,
-        error: mediaData.error?.message || 'Failed to fetch Instagram media',
-        media: [],
-        stats: null
-      })
+      console.warn('[InstagramMedia API] First attempt error:', mediaData.error)
+      
+      // Fallback query with basic media fields
+      const fallbackFields = ['id', 'caption', 'media_type', 'media_url', 'permalink', 'thumbnail_url', 'timestamp'].join(',')
+      mediaUrl = `https://graph.instagram.com/me/media?fields=${fallbackFields}&limit=12&access_token=${user.instagram_access_token}`
+      mediaRes = await fetch(mediaUrl)
+      mediaData = await mediaRes.json()
+      
+      console.log('[InstagramMedia API] Fallback response status:', mediaRes.status)
+      if (!mediaRes.ok || mediaData.error) {
+        console.error('[InstagramMedia API] Fallback attempt error:', mediaData.error)
+        return NextResponse.json({
+          connected: false,
+          error: mediaData.error?.message || 'Failed to fetch Instagram media from Meta API',
+          media: [],
+          stats: null
+        })
+      }
     }
 
     const mediaItems = mediaData.data || []
