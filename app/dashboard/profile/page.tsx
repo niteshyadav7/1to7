@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import BrandLoader from '@/components/ui/BrandLoader'
+import InstagramMediaGrid from '@/components/dashboard/InstagramMediaGrid'
 
 interface UserProfile {
   id: string
@@ -542,6 +543,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Instagram Media Grid & Engagement Analytics Widget ─── */}
+      <InstagramMediaGrid />
 
       {/* ─── Bottom Action Bar ─── */}
       <div className="bg-white rounded-xl border border-border-subtle p-3 shadow-2xs flex items-center justify-between shrink-0">
