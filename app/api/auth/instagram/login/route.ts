@@ -10,8 +10,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Meta App ID not configured' }, { status: 500 })
   }
 
-  const metaAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=public_profile,email&response_type=code`
+  // Pure Instagram Login screen (api.instagram.com)
+  const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=user_profile,user_media&response_type=code`
 
-  return NextResponse.redirect(metaAuthUrl)
+  return NextResponse.redirect(instagramAuthUrl)
 }
+
 
