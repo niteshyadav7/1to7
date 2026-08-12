@@ -75,7 +75,6 @@ export async function GET(request: Request) {
       console.warn('[STEP 2] Long-lived token exchange failed, using short-lived token', err)
     }
 
-    // 3. Fetch Instagram profile using the valid Instagram API fields
     const validFields = [
       'user_id',
       'username',
@@ -88,8 +87,15 @@ export async function GET(request: Request) {
       'media_count',
     ].join(',')
     const profileUrl = `https://graph.instagram.com/me?fields=${validFields}&access_token=${accessToken}`
-    const profileRes = await fetch(profileUrl)
-    const profileData = await profileRes.json()
+    let profileRes = await fetch(profileUrl)
+    let profileData = await profileRes.json()
+
+    if (profileData.error) {
+      console.warn('Extended profile fetch returned error, falling back to basic fields:', profileData.error)
+      const fallbackUrl = `https://graph.instagram.com/me?fields=id,username,account_type,media_count&access_token=${accessToken}`
+      const fallbackRes = await fetch(fallbackUrl)
+      profileData = await fallbackRes.json()
+    }
 
     const instaId = profileData.user_id || profileData.id || userId
     const instaUsername = profileData.username || `insta_${instaId}`

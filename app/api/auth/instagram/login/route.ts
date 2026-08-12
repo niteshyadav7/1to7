@@ -10,15 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Meta App ID not configured' }, { status: 500 })
   }
 
-  const scopes = [
-    'instagram_business_basic',
-    'instagram_business_manage_messages',
-    'instagram_business_manage_comments',
-    'instagram_business_content_publish',
-    'instagram_business_manage_insights',
-    'user_profile',
-    'user_media'
-  ].join(',')
+  const scopes = ['user_profile', 'user_media'].join(',')
 
   const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code`
 
