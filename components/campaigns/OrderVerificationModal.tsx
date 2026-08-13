@@ -15,16 +15,6 @@ interface FormField {
   options?: string[]
 }
 
-const DEFAULT_ORDER_FIELDS: FormField[] = [
-  { name: 'Order ID', type: 'text', required: true },
-  { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true },
-  { name: 'Product Amount (₹)', type: 'number', required: true },
-  { name: 'Reviewer Name', type: 'text', required: true },
-  { name: 'Reviewer Profile Link', type: 'text', required: true },
-  { name: 'Order Placement Screenshot', type: 'image', required: true },
-  { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true },
-]
-
 interface Application {
   id: string
   form_data?: {
@@ -53,16 +43,13 @@ export default function OrderVerificationModal({
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  // Determine active fields (custom fields if provided and non-empty, otherwise default order fields)
-  const rawFields = application?.campaigns?.order_form_fields
-  const fields = (rawFields && rawFields.length > 0) ? rawFields : DEFAULT_ORDER_FIELDS
+  // Derive order fields dynamically from campaign configuration
+  const fields = application?.campaigns?.order_form_fields || []
 
   // Initialize fields on open
   useEffect(() => {
     if (isOpen && application) {
-      const customFields = application.campaigns?.order_form_fields
-      const activeFields = (customFields && customFields.length > 0) ? customFields : DEFAULT_ORDER_FIELDS
-      
+      const activeFields = application.campaigns?.order_form_fields || []
       const existingData = application.form_data?.order_details || {}
       const initial: Record<string, any> = {}
       activeFields.forEach(f => {
@@ -76,6 +63,7 @@ export default function OrderVerificationModal({
 
   // Check if standard validation passes
   const isFormValid = () => {
+    if (fields.length === 0) return false
     return fields.filter(f => f.required).every(f => {
       const val = orderFormData[f.name]
       return val !== undefined && val !== null && String(val).trim() !== ''
@@ -182,90 +170,96 @@ export default function OrderVerificationModal({
             </div>
 
             <div className="bg-slate-950/50 border border-white/5 rounded-2xl p-4 sm:p-6 space-y-6 shadow-sm">
-              {fields.map((field, idx) => (
-                <div key={`of-${idx}`} className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 flex items-center gap-1">
-                    {field.name}
-                    {field.required && <span className="text-red-500">*</span>}
-                  </label>
-                  
-                  {field.type === 'dropdown' ? (
-                    <Select
-                      value={orderFormData[field.name] || ""}
-                      onValueChange={(val) => setOrderFormData(p => ({ ...p, [field.name]: val }))}
-                    >
-                      <SelectTrigger className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500">
-                        <SelectValue placeholder={`Select ${field.name}`} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
-                        {field.options?.map(opt => (
-                          <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-slate-800">{opt}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : field.type === 'textarea' ? (
-                    <textarea
-                      value={orderFormData[field.name] || ''}
-                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                      placeholder={`Enter ${field.name}...`}
-                      rows={3}
-                      className="w-full bg-slate-900 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
-                    />
-                  ) : field.type === 'image' ? (
-                    <div className="space-y-2">
-                      {orderFormData[field.name] ? (
-                        <div className="relative rounded-xl border border-white/10 overflow-hidden bg-slate-950 aspect-video max-h-[200px] flex items-center justify-center">
-                          <img src={orderFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
-                          <button
-                            type="button"
-                            onClick={() => setOrderFormData(p => ({ ...p, [field.name]: '' }))}
-                            className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className="relative flex flex-col items-center justify-center w-full h-36 rounded-xl border-2 border-dashed border-white/20 hover:border-indigo-500 bg-slate-900 hover:bg-indigo-500/5 transition-all cursor-pointer group">
-                          {uploadingFields[field.name] ? (
-                            <div className="flex flex-col items-center gap-2">
-                              <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
-                              <span className="text-xs text-slate-400">Uploading...</span>
-                            </div>
-                          ) : (
-                            <>
-                              <UploadCloud className="h-8 w-8 text-indigo-500 group-hover:text-indigo-400 mb-2 transition-colors" />
-                              <span className="text-sm font-bold text-white">Tap to select image</span>
-                              <span className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">PNG, JPG formats supported</span>
-                            </>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/png, image/jpeg, image/webp"
-                            className="hidden"
-                            disabled={uploadingFields[field.name]}
-                            onChange={(e) => handleImageUpload(e, field.name)}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  ) : field.type === 'date' ? (
-                    <Input
-                      type="date"
-                      value={orderFormData[field.name] || ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                      className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none [color-scheme:dark]"
-                    />
-                  ) : (
-                    <Input
-                      value={orderFormData[field.name] || ''}
-                      type={field.type === 'number' ? 'number' : 'text'}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                      placeholder={`Enter ${field.name}...`}
-                      className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none"
-                    />
-                  )}
+              {fields.length === 0 ? (
+                <div className="text-center py-8 px-4 text-slate-400 text-sm">
+                  No verification form fields have been configured for this campaign by the admin.
                 </div>
-              ))}
+              ) : (
+                fields.map((field, idx) => (
+                  <div key={`of-${idx}`} className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1 flex items-center gap-1">
+                      {field.name}
+                      {field.required && <span className="text-red-500">*</span>}
+                    </label>
+                    
+                    {field.type === 'dropdown' ? (
+                      <Select
+                        value={orderFormData[field.name] || ""}
+                        onValueChange={(val) => setOrderFormData(p => ({ ...p, [field.name]: val }))}
+                      >
+                        <SelectTrigger className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500">
+                          <SelectValue placeholder={`Select ${field.name}`} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                          {field.options?.map(opt => (
+                            <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-slate-800">{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        value={orderFormData[field.name] || ''}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                        placeholder={`Enter ${field.name}...`}
+                        rows={3}
+                        className="w-full bg-slate-900 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+                      />
+                    ) : field.type === 'image' ? (
+                      <div className="space-y-2">
+                        {orderFormData[field.name] ? (
+                          <div className="relative rounded-xl border border-white/10 overflow-hidden bg-slate-950 aspect-video max-h-[200px] flex items-center justify-center">
+                            <img src={orderFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                            <button
+                              type="button"
+                              onClick={() => setOrderFormData(p => ({ ...p, [field.name]: '' }))}
+                              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="relative flex flex-col items-center justify-center w-full h-36 rounded-xl border-2 border-dashed border-white/20 hover:border-indigo-500 bg-slate-900 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+                            {uploadingFields[field.name] ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                                <span className="text-xs text-slate-400">Uploading...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <UploadCloud className="h-8 w-8 text-indigo-500 group-hover:text-indigo-400 mb-2 transition-colors" />
+                                <span className="text-sm font-bold text-white">Tap to select image</span>
+                                <span className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-semibold">PNG, JPG formats supported</span>
+                              </>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/png, image/jpeg, image/webp"
+                              className="hidden"
+                              disabled={uploadingFields[field.name]}
+                              onChange={(e) => handleImageUpload(e, field.name)}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    ) : field.type === 'date' ? (
+                      <Input
+                        type="date"
+                        value={orderFormData[field.name] || ''}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                        className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none [color-scheme:dark]"
+                      />
+                    ) : (
+                      <Input
+                        value={orderFormData[field.name] || ''}
+                        type={field.type === 'number' ? 'number' : 'text'}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                        placeholder={`Enter ${field.name}...`}
+                        className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none"
+                      />
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

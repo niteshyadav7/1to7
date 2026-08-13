@@ -33,16 +33,6 @@ interface ApplicationData {
   }
 }
 
-const DEFAULT_ORDER_FIELDS: FormField[] = [
-  { name: 'Order ID', type: 'text', required: true },
-  { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true },
-  { name: 'Product Amount (₹)', type: 'number', required: true },
-  { name: 'Reviewer Name', type: 'text', required: true },
-  { name: 'Reviewer Profile Link', type: 'text', required: true },
-  { name: 'Order Placement Screenshot', type: 'image', required: true },
-  { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true },
-]
-
 export default function OrderFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
@@ -66,9 +56,8 @@ export default function OrderFormScreen() {
         const found = (data.applications || []).find((a: any) => a.id === id)
         if (found) {
           setApplication(found)
-          // Initialize form fields
-          const customFields = found.campaigns?.order_form_fields
-          const activeFields = (customFields && customFields.length > 0) ? customFields : DEFAULT_ORDER_FIELDS
+          // Initialize form fields dynamically from campaign configuration
+          const activeFields = found.campaigns?.order_form_fields || []
           
           const initial: Record<string, any> = {}
           activeFields.forEach((f: FormField) => {
@@ -85,8 +74,7 @@ export default function OrderFormScreen() {
     }
   }
 
-  const rawFields = application?.campaigns?.order_form_fields
-  const fields = (rawFields && rawFields.length > 0) ? rawFields : DEFAULT_ORDER_FIELDS
+  const fields = application?.campaigns?.order_form_fields || []
 
   const isFormValid = () => {
     if (!fields || fields.length === 0) return false
@@ -233,118 +221,124 @@ export default function OrderFormScreen() {
 
           {/* Form Fields */}
           <Animated.View entering={FadeInUp.delay(200).duration(500)} style={s.formCard}>
-            {fields.map((field, idx) => (
-              <View key={`field-${idx}`} style={s.fieldGroup}>
-                <Text style={s.fieldLabel}>
-                  {field.name}
-                  {field.required && <Text style={{ color: Colors.error }}> *</Text>}
-                </Text>
+            {fields.length === 0 ? (
+              <Text style={{ color: Colors.textMuted, textAlign: 'center', marginVertical: 20, fontSize: 14 }}>
+                No verification form fields have been configured for this campaign by the admin.
+              </Text>
+            ) : (
+              fields.map((field, idx) => (
+                <View key={`field-${idx}`} style={s.fieldGroup}>
+                  <Text style={s.fieldLabel}>
+                    {field.name}
+                    {field.required && <Text style={{ color: Colors.error }}> *</Text>}
+                  </Text>
 
-                {field.type === 'dropdown' ? (
-                  <View>
-                    <TouchableOpacity
-                      style={s.dropdownTrigger}
-                      onPress={() => setShowDropdown(showDropdown === field.name ? null : field.name)}
-                    >
-                      <Text style={[s.dropdownTriggerText, !orderFormData[field.name] && { color: 'rgba(255,255,255,0.3)' }]}>
-                        {orderFormData[field.name] || `Select ${field.name}`}
-                      </Text>
-                      <Ionicons name={showDropdown === field.name ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
-                    </TouchableOpacity>
-                    {showDropdown === field.name && (
-                      <View style={s.dropdownMenu}>
-                        {field.options?.map(opt => (
-                          <TouchableOpacity
-                            key={opt}
-                            style={[s.dropdownItem, orderFormData[field.name] === opt && s.dropdownItemActive]}
-                            onPress={() => {
-                              setOrderFormData(p => ({ ...p, [field.name]: opt }))
-                              setShowDropdown(null)
-                            }}
-                          >
-                            <Text style={[s.dropdownItemText, orderFormData[field.name] === opt && { color: Colors.purpleLight }]}>
-                              {opt}
-                            </Text>
-                            {orderFormData[field.name] === opt && (
-                              <Ionicons name="checkmark" size={16} color={Colors.purpleLight} />
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ) : field.type === 'textarea' ? (
-                  <TextInput
-                    style={[s.textInput, { height: 90, textAlignVertical: 'top' }]}
-                    value={orderFormData[field.name] || ''}
-                    onChangeText={text => setOrderFormData(p => ({ ...p, [field.name]: text }))}
-                    placeholder={`Enter ${field.name}...`}
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    multiline
-                    keyboardAppearance="dark"
-                  />
-                ) : field.type === 'image' ? (
-                  <View>
-                    {orderFormData[field.name] ? (
-                      <View style={s.imagePreview}>
-                        <Image
-                          source={{ uri: orderFormData[field.name] }}
-                          style={s.previewImg}
-                          resizeMode="contain"
-                        />
-                        <TouchableOpacity
-                          style={s.removeImgBtn}
-                          onPress={() => setOrderFormData(p => ({ ...p, [field.name]: '' }))}
-                        >
-                          <Ionicons name="close" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
+                  {field.type === 'dropdown' ? (
+                    <View>
                       <TouchableOpacity
-                        style={s.uploadArea}
-                        onPress={() => pickAndUploadImage(field.name)}
-                        disabled={uploadingFields[field.name]}
+                        style={s.dropdownTrigger}
+                        onPress={() => setShowDropdown(showDropdown === field.name ? null : field.name)}
                       >
-                        {uploadingFields[field.name] ? (
-                          <View style={{ alignItems: 'center', gap: 8 }}>
-                            <ActivityIndicator color={Colors.purpleLight} size="small" />
-                            <Text style={s.uploadingText}>Uploading...</Text>
-                          </View>
-                        ) : (
-                          <>
-                            <Ionicons name="cloud-upload-outline" size={32} color={Colors.purpleLight} />
-                            <Text style={s.uploadTitle}>Tap to select image</Text>
-                            <Text style={s.uploadHint}>PNG, JPG formats supported</Text>
-                          </>
-                        )}
+                        <Text style={[s.dropdownTriggerText, !orderFormData[field.name] && { color: 'rgba(255,255,255,0.3)' }]}>
+                          {orderFormData[field.name] || `Select ${field.name}`}
+                        </Text>
+                        <Ionicons name={showDropdown === field.name ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textMuted} />
                       </TouchableOpacity>
-                    )}
-                  </View>
-                ) : field.type === 'date' ? (
-                  <TextInput
-                    style={s.textInput}
-                    value={orderFormData[field.name] || ''}
-                    onChangeText={text => setOrderFormData(p => ({ ...p, [field.name]: text }))}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    keyboardAppearance="dark"
-                  />
-                ) : (
-                  <TextInput
-                    style={s.textInput}
-                    value={String(orderFormData[field.name] || '')}
-                    onChangeText={text => setOrderFormData(p => ({
-                      ...p,
-                      [field.name]: field.type === 'number' ? Number(text) || '' : text
-                    }))}
-                    placeholder={`Enter ${field.name}...`}
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    keyboardType={field.type === 'number' ? 'numeric' : 'default'}
-                    keyboardAppearance="dark"
-                  />
-                )}
-              </View>
-            ))}
+                      {showDropdown === field.name && (
+                        <View style={s.dropdownMenu}>
+                          {field.options?.map(opt => (
+                            <TouchableOpacity
+                              key={opt}
+                              style={[s.dropdownItem, orderFormData[field.name] === opt && s.dropdownItemActive]}
+                              onPress={() => {
+                                setOrderFormData(p => ({ ...p, [field.name]: opt }))
+                                setShowDropdown(null)
+                              }}
+                            >
+                              <Text style={[s.dropdownItemText, orderFormData[field.name] === opt && { color: Colors.purpleLight }]}>
+                                {opt}
+                              </Text>
+                              {orderFormData[field.name] === opt && (
+                                <Ionicons name="checkmark" size={16} color={Colors.purpleLight} />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : field.type === 'textarea' ? (
+                    <TextInput
+                      style={[s.textInput, { height: 90, textAlignVertical: 'top' }]}
+                      value={orderFormData[field.name] || ''}
+                      onChangeText={text => setOrderFormData(p => ({ ...p, [field.name]: text }))}
+                      placeholder={`Enter ${field.name}...`}
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      multiline
+                      keyboardAppearance="dark"
+                    />
+                  ) : field.type === 'image' ? (
+                    <View>
+                      {orderFormData[field.name] ? (
+                        <View style={s.imagePreview}>
+                          <Image
+                            source={{ uri: orderFormData[field.name] }}
+                            style={s.previewImg}
+                            resizeMode="contain"
+                          />
+                          <TouchableOpacity
+                            style={s.removeImgBtn}
+                            onPress={() => setOrderFormData(p => ({ ...p, [field.name]: '' }))}
+                          >
+                            <Ionicons name="close" size={16} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={s.uploadArea}
+                          onPress={() => pickAndUploadImage(field.name)}
+                          disabled={uploadingFields[field.name]}
+                        >
+                          {uploadingFields[field.name] ? (
+                            <View style={{ alignItems: 'center', gap: 8 }}>
+                              <ActivityIndicator color={Colors.purpleLight} size="small" />
+                              <Text style={s.uploadingText}>Uploading...</Text>
+                            </View>
+                          ) : (
+                            <>
+                              <Ionicons name="cloud-upload-outline" size={32} color={Colors.purpleLight} />
+                              <Text style={s.uploadTitle}>Tap to select image</Text>
+                              <Text style={s.uploadHint}>PNG, JPG formats supported</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ) : field.type === 'date' ? (
+                    <TextInput
+                      style={s.textInput}
+                      value={orderFormData[field.name] || ''}
+                      onChangeText={text => setOrderFormData(p => ({ ...p, [field.name]: text }))}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      keyboardAppearance="dark"
+                    />
+                  ) : (
+                    <TextInput
+                      style={s.textInput}
+                      value={String(orderFormData[field.name] || '')}
+                      onChangeText={text => setOrderFormData(p => ({
+                        ...p,
+                        [field.name]: field.type === 'number' ? Number(text) || '' : text
+                      }))}
+                      placeholder={`Enter ${field.name}...`}
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+                      keyboardAppearance="dark"
+                    />
+                  )}
+                </View>
+              ))
+            )}
           </Animated.View>
         </ScrollView>
 
