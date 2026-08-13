@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon } from 'lucide-react'
+import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -713,11 +713,13 @@ export default function ApplicationFormModal({
                                 <>
                                   {field.field_name.toLowerCase().includes('follower') ? (
                                     <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                  ) : field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? (
+                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
                                   ) : (
                                     <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                   )}
                                   <Input
-                                    type={field.field_type === 'number' ? 'number' : 'text'}
+                                    type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'}
                                     value={formData[field.field_name] || ''}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                       setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
@@ -825,9 +827,13 @@ export default function ApplicationFormModal({
                                       </div>
                                     ) : (
                                       <>
-                                        <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                        {field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? (
+                                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
+                                        ) : (
+                                          <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                        )}
                                         <Input
-                                          type={field.type === 'number' ? 'number' : 'text'}
+                                          type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
                                           value={formData[field.name] || ''}
                                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                             setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
