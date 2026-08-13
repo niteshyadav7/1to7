@@ -252,67 +252,6 @@ export default function CreatorFeedbackPage() {
           </form>
         )}
       </div>
-
-      {/* Submitted History List */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-extrabold text-charcoal-surface tracking-tight flex items-center gap-2">
-            <Clock className="h-4 w-4 text-secondary" /> My Submitted Feedback
-          </h2>
-          <span className="text-xs text-slate-400 font-medium">{history.length} submission{history.length !== 1 ? 's' : ''}</span>
-        </div>
-
-        {loadingHistory ? (
-          <div className="bg-white border border-slate-200/80 rounded-xl p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading your history...
-          </div>
-        ) : history.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-xl p-8 text-center space-y-2">
-            <MessageSquare className="h-8 w-8 text-slate-300 mx-auto" />
-            <p className="text-xs font-bold text-slate-500">No previous feedback submitted yet</p>
-            <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-              Your submitted feedback and ideas will be saved here for your records.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {history.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-2xs space-y-2"
-              >
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-50 text-amber-700 border border-amber-200">
-                      {item.category}
-                    </span>
-                    <div className="flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`h-3.5 w-3.5 ${
-                            star <= item.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-100'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {new Date(item.created_at).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-700 leading-relaxed font-medium">
-                  "{item.message}"
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
