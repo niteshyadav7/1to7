@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
-  Instagram, Youtube, ShoppingBag, Globe, Search, Trash2
+  Instagram, Youtube, ShoppingBag, Globe, Search, Trash2,
+  Copy, Check
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { Input } from '@/components/ui/input'
@@ -49,10 +50,20 @@ export default function AdminCampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCampaigns()
   }, [])
+
+  const copyCampaignLink = (c: Campaign) => {
+    if (typeof window === 'undefined') return
+    const shareUrl = `${window.location.origin}/campaigns/${c.id}`
+    navigator.clipboard.writeText(shareUrl)
+    setCopiedId(c.id)
+    toast.success(`Copied campaign link for ${c.brand_name}!`)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
 
   const fetchCampaigns = async () => {
     try {
@@ -210,9 +221,22 @@ export default function AdminCampaignsPage() {
                       <p className="text-xs text-slate-500">{campaign.campaign_code} • {campaign.platform}</p>
                     </div>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
-                    {campaign.status}
-                  </span>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Copy Link Badge */}
+                    <button
+                      onClick={() => copyCampaignLink(campaign)}
+                      title="Copy campaign link"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 hover:border-indigo-500/50 transition-all cursor-pointer shadow-sm active:scale-95"
+                    >
+                      {copiedId === campaign.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-indigo-400" />}
+                      <span>{copiedId === campaign.id ? 'Copied!' : 'Copy Link'}</span>
+                    </button>
+
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
+                      {campaign.status}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-slate-400">

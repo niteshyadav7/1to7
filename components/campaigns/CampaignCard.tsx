@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag } from 'lucide-react'
+import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag, Share2, Check, Copy } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Campaign {
   id: string
@@ -69,6 +71,7 @@ export default function CampaignCard({
   index: number 
   onViewDetails: (campaign: Campaign) => void 
 }) {
+  const [copied, setCopied] = useState(false)
   const gradient = categoryGradients[campaign.category] || defaultGradient
   const platform = platformConfig[campaign.platform] || { 
     icon: <Sparkles className="h-3.5 w-3.5 text-amber-300" />, 
@@ -76,6 +79,16 @@ export default function CampaignCard({
     badge: 'bg-slate-800 text-white'
   }
   const brandInitial = getBrandInitial(campaign.brand_name)
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (typeof window === 'undefined') return
+    const shareUrl = `${window.location.origin}/campaigns/${campaign.id}`
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    toast.success(`Copied campaign link for ${campaign.brand_name}!`)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <motion.div
@@ -101,8 +114,15 @@ export default function CampaignCard({
           </span>
         </div>
 
-        {/* Budget Badge */}
+        {/* Budget Badge & Share Copy Link Icon */}
         <div className="relative z-10 flex items-center gap-1.5">
+          <button
+            onClick={handleCopyLink}
+            title="Copy campaign link"
+            className="p-1.5 rounded-full bg-slate-950/50 hover:bg-slate-900 backdrop-blur-md text-white border border-white/20 shadow-md transition-all cursor-pointer hover:scale-110"
+          >
+            {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-white" />}
+          </button>
           <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-md ${
             campaign.budget_type === 'Paid' 
               ? 'bg-amber-400 text-slate-950 shadow-amber-400/30' 

@@ -98,8 +98,18 @@ export default function CampaignDetailModal({
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [isSuccess, setIsSuccess] = useState(false)
   
+  const [copiedLink, setCopiedLink] = useState(false)
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
+
+  const handleCopyLink = () => {
+    if (typeof window === 'undefined' || !campaign) return
+    const url = `${window.location.origin}/campaigns/${campaign.id}`
+    navigator.clipboard.writeText(url)
+    setCopiedLink(true)
+    toast.success('Campaign link copied to clipboard!')
+    setTimeout(() => setCopiedLink(false), 2000)
+  }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string, isInline: boolean) => {
     const file = e.target.files?.[0]
@@ -699,13 +709,23 @@ export default function CampaignDetailModal({
                 )}
               </AnimatePresence>
 
-              {/* Close Button */}
-              <button
-                onClick={onClose}
-                className="absolute top-6 right-6 z-10 rounded-full p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              {/* Top Right Action Buttons */}
+              <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+                <button
+                  onClick={handleCopyLink}
+                  title="Copy campaign link"
+                  className="rounded-full py-1.5 px-3 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                >
+                  {copiedLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4 text-primary" />}
+                  <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  className="rounded-full p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
               {/* Header */}
               <div className="p-4 sm:p-8 pb-4">
