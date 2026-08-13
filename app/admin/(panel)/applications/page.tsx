@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, CheckCircle2, XCircle, ClipboardList,
   Instagram, Users, MapPin, ChevronDown,
-  DollarSign, Phone, Search, Filter, Megaphone,
+  IndianRupee, Phone, Search, Filter, Megaphone,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
   AlignJustify, AlignCenter, AlignStartVertical,
   Calendar, X, MoreHorizontal, SlidersHorizontal,
@@ -518,7 +518,7 @@ function ActionsDropdown({
     { label: 'Approve', status: 'Approved', icon: UserCheck, color: 'text-emerald-400 hover:bg-emerald-500/10' },
     { label: 'Reject', status: 'Rejected', icon: UserX, color: 'text-red-400 hover:bg-red-500/10' },
     { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
-    { label: 'Initiate Payment', status: 'Payment Initiated', icon: DollarSign, color: 'text-amber-400 hover:bg-amber-500/10' },
+    { label: 'Initiate Payment', status: 'Payment Initiated', icon: IndianRupee, color: 'text-amber-400 hover:bg-amber-500/10' },
   ].filter(a => {
     if (a.status === app.status) return false
     // Hide Approve/Reject buttons once the application is no longer in the Applied state
@@ -1471,7 +1471,7 @@ export default function AllApplicationsPage() {
                                 {(app.partial_payment > 0 || app.final_payment > 0 || app.pending_amount > 0 || app.manager_phone) && (
                                   <div>
                                     <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                      <DollarSign className="h-3.5 w-3.5" />
+                                      <IndianRupee className="h-3.5 w-3.5" />
                                       Payment Details
                                     </p>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">

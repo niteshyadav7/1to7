@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, CheckCircle2, XCircle, ClipboardList,
   Instagram, Users, MapPin, ChevronDown,
-  DollarSign, Phone, Search, Filter, Megaphone,
+  IndianRupee, Phone, Search, Filter, Megaphone,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
   AlignJustify, AlignCenter, AlignStartVertical,
   Calendar, X, SlidersHorizontal,
@@ -1163,7 +1163,7 @@ export default function OrderDetailsPage() {
               disabled={bulkUpdating}
               className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 text-xs font-bold border-none cursor-pointer"
             >
-              <DollarSign className="mr-1 h-3.5 w-3.5" />
+              <IndianRupee className="mr-1 h-3.5 w-3.5" />
               Verify & Approved
             </Button>
             <Button
@@ -1680,7 +1680,7 @@ export default function OrderDetailsPage() {
                                             onClick={() => setInitiatePaymentApp(order)}
                                             className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
                                           >
-                                            <DollarSign className="mr-1.5 h-4 w-4" />
+                                            <IndianRupee className="mr-1.5 h-4 w-4" />
                                             Verify & Approved
                                           </Button>
                                           <Button
@@ -1700,7 +1700,7 @@ export default function OrderDetailsPage() {
                                   {(order.partial_payment > 0 || order.final_payment > 0 || order.pending_amount > 0 || order.manager_phone) && (
                                     <div>
                                       <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                        <DollarSign className="h-3.5 w-3.5" />
+                                        <IndianRupee className="h-3.5 w-3.5" />
                                         Payment Details
                                       </p>
                                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
@@ -1885,7 +1885,7 @@ export default function OrderDetailsPage() {
               })()}
               <div className="p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-amber-500" />
+                <IndianRupee className="h-5 w-5 text-amber-500" />
                 Total Deal
               </h3>
               <p className="text-xs text-slate-400 mb-4">
@@ -2004,7 +2004,7 @@ export default function OrderDetailsPage() {
             >
               <div className="p-6">
                 <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-amber-500" />
+                  <IndianRupee className="h-5 w-5 text-amber-500" />
                   Bulk Verify & Approve
                 </h3>
                 <p className="text-xs text-slate-400 mb-4">

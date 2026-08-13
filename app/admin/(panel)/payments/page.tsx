@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, CheckCircle2, CreditCard,
   Instagram, Users, MapPin, ChevronDown,
-  DollarSign, Phone, Search, Megaphone,
+  Phone, Search, Megaphone,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
   AlignJustify, AlignCenter, AlignStartVertical,
   Calendar, X, MoreHorizontal, SlidersHorizontal,
@@ -945,7 +945,7 @@ export default function PaymentsPage() {
             <span className="text-sm font-medium text-indigo-300">{selectedIds.size} selected</span>
             <div className="h-4 w-px bg-indigo-500/30" />
             <Button size="sm" onClick={() => handleBulkAction('Payment Initiated')} disabled={bulkUpdating} className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
-              <DollarSign className="mr-1 h-3.5 w-3.5" /> Initiate Payment
+              <IndianRupee className="mr-1 h-3.5 w-3.5" /> Initiate Payment
             </Button>
             <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-slate-400 hover:text-white cursor-pointer">Deselect All</button>
           </motion.div>
@@ -1378,7 +1378,7 @@ export default function PaymentsPage() {
                                               <div className="flex items-center gap-2 shrink-0">
                                                  <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
-                                                  <DollarSign className="mr-1 h-3.5 w-3.5" /> Initiate
+                                                  <IndianRupee className="mr-1 h-3.5 w-3.5" /> Initiate
                                                 </Button>
                                                  <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 text-xs font-medium cursor-pointer">
@@ -1471,7 +1471,7 @@ export default function PaymentsPage() {
                                       <>
                                         <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
                                           className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
-                                          <DollarSign className="mr-1.5 h-4 w-4" /> Initiate Payment
+                                          <IndianRupee className="mr-1.5 h-4 w-4" /> Initiate Payment
                                         </Button>
                                         <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
                                           className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
@@ -1545,7 +1545,7 @@ export default function PaymentsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-600 to-amber-500 shadow-lg shadow-amber-500/20">
-                      <DollarSign className="h-4.5 w-4.5 text-white" />
+                      <IndianRupee className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white">Initiate Payment</h3>
@@ -1624,7 +1624,7 @@ export default function PaymentsPage() {
                     setActivePartialReqId(null)
                   } catch { toast.error('Failed to initiate payment') }
                 }} className="flex-[2] rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/20 border-none cursor-pointer">
-                  <DollarSign className="mr-1.5 h-4 w-4" /> Confirm Payment
+                  <IndianRupee className="mr-1.5 h-4 w-4" /> Confirm Payment
                 </Button>
               </div>
             </motion.div>
@@ -1723,7 +1723,7 @@ function ActionsMenu({ payment, onInitiatePayment, onRejectPayment }: { payment:
                 <>
                   <button onClick={e => { e.stopPropagation(); onInitiatePayment(payment); setOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-amber-400 hover:bg-amber-500/10">
-                    <DollarSign className="h-3.5 w-3.5" /> Initiate Payment
+                    <IndianRupee className="h-3.5 w-3.5" /> Initiate Payment
                   </button>
                   <button onClick={e => { e.stopPropagation(); onRejectPayment(payment); setOpen(false) }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer text-red-400 hover:bg-red-500/10">

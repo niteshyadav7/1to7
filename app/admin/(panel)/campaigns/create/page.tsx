@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, ArrowRight, Check, Loader2, Save, Megaphone,
   FileSliders, ClipboardList, Wallet, CreditCard, Sparkles,
-  Percent, IndianRupee, DollarSign, Layers, CheckCircle2, AlertCircle,
+  Percent, IndianRupee, Layers, CheckCircle2, AlertCircle,
   RotateCcw, ShieldCheck
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
@@ -658,7 +658,7 @@ export default function AdminCreateCampaignPage() {
                       {/* Live Calculation Preview */}
                       {formData.budget_amount && formData.partial_payment_config.value && (
                         <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-950/80 border border-white/10 text-xs text-slate-300">
-                          <DollarSign className="h-4 w-4 text-amber-400 shrink-0" />
+                          <IndianRupee className="h-4 w-4 text-amber-400 shrink-0" />
                           <div>
                             {(() => {
                               const budget = parseFloat(formData.budget_amount) || 0

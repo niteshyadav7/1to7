@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileText, IndianRupee, Users, Megaphone, Calendar,
   SlidersHorizontal, Download, FileSpreadsheet, FileJson,
-  PieChart, DollarSign, Banknote, Mail, Phone
+  PieChart, Banknote, Mail, Phone
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -61,7 +61,7 @@ const typeColors: Record<string, string> = {
   appeal: 'bg-red-500/15 text-red-400 border-red-500/25',
 }
 const typeIcons: Record<string, React.ElementType> = {
-  partial: PieChart, payment: DollarSign, appeal: XCircle,
+  partial: PieChart, payment: IndianRupee, appeal: XCircle,
 }
 
 const statusFilters = ['All', 'pending', 'approved', 'processed', 'rejected']
@@ -254,7 +254,7 @@ function ProcessModal({ request, onClose, onProcess }: {
           </Button>
           <Button onClick={() => handleProcess('processed')} disabled={processing}
             className="flex-1 h-10 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-xs border-none shadow-lg shadow-emerald-500/20 cursor-pointer">
-            {processing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <DollarSign className="mr-1.5 h-3.5 w-3.5" />} Pay
+            {processing ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <IndianRupee className="mr-1.5 h-3.5 w-3.5" />} Pay
           </Button>
         </div>
       </motion.div>
@@ -420,7 +420,7 @@ export default function RequestsPage() {
           { label: 'Total Requests', value: requests.length, icon: FileText, gradient: 'from-slate-600 to-slate-500', shadow: 'shadow-slate-500/5' },
           { label: 'Pending', value: summary.totalPending, icon: Clock, gradient: 'from-amber-600 to-amber-500', shadow: 'shadow-amber-500/10' },
           { label: 'Approved', value: summary.totalApproved, icon: CheckCircle2, gradient: 'from-emerald-600 to-emerald-500', shadow: 'shadow-emerald-500/10' },
-          { label: 'Processed', value: summary.totalProcessed, icon: DollarSign, gradient: 'from-indigo-600 to-indigo-500', shadow: 'shadow-indigo-500/10' },
+          { label: 'Processed', value: summary.totalProcessed, icon: IndianRupee, gradient: 'from-indigo-600 to-indigo-500', shadow: 'shadow-indigo-500/10' },
           { label: 'Rejected', value: summary.totalRejected, icon: XCircle, gradient: 'from-red-600 to-red-500', shadow: 'shadow-red-500/10' },
         ].map((card, i) => (
           <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}

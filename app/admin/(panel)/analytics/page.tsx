@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   BarChart3, Users, Megaphone, FileText, IndianRupee,
-  TrendingUp, Clock, CheckCircle2, XCircle, DollarSign,
+  TrendingUp, Clock, CheckCircle2, XCircle,
   ArrowUpRight, ArrowDownRight, Activity, Loader2
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -382,7 +382,7 @@ export default function AnalyticsPage() {
                 const sc = statusColors[a.status] || { bg: 'bg-slate-500/15', text: 'text-slate-400', bar: '#64748b' }
                 const statusIcon = a.status === 'Approved' ? CheckCircle2
                   : a.status === 'Rejected' ? XCircle
-                  : a.status === 'Payment Initiated' ? DollarSign
+                  : a.status === 'Payment Initiated' ? IndianRupee
                   : a.status === 'Completed' ? CheckCircle2
                   : FileText
                 const StatusIcon = statusIcon

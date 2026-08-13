@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Loader2, CheckCircle2, XCircle, Send,
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
-  DollarSign, Phone, Save, Search
+  IndianRupee, Phone, Save, Search
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -404,7 +404,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                             disabled={updatingId === app.id}
                             className="h-9 px-4 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer"
                           >
-                            <DollarSign className="mr-1.5 h-3.5 w-3.5" />
+                            <IndianRupee className="mr-1.5 h-3.5 w-3.5" />
                             Initiate Payment
                           </Button>
                         </>
@@ -415,7 +415,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     {(app.status === 'Approved' || app.status === 'Completed' || app.status === 'Payment Initiated') && paymentEdits[app.id] && (
                       <div className="rounded-xl border border-white/5 bg-slate-950/40 p-4 space-y-4">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <DollarSign className="h-3.5 w-3.5" />
+                          <IndianRupee className="h-3.5 w-3.5" />
                           Payment Tracking
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

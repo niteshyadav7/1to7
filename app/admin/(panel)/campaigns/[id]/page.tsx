@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, DollarSign, Percent, IndianRupee, Wallet, CreditCard } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -501,7 +501,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 {/* Live Preview */}
                 {formData.budget_amount && formData.partial_payment_config.value && (
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-900/80 border border-white/5">
-                    <DollarSign className="h-4 w-4 text-amber-400 shrink-0" />
+                    <IndianRupee className="h-4 w-4 text-amber-400 shrink-0" />
                     <div className="text-xs text-slate-300">
                       {(() => {
                         const budget = parseFloat(formData.budget_amount) || 0
