@@ -108,9 +108,9 @@ export default function CreatorFeedbackPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-4xl mx-auto pb-10">
+    <div className="space-y-4 w-full pb-10">
       {/* Header Banner */}
-      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 shrink-0">
             <MessageSquareHeart className="h-5 w-5" />
