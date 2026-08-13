@@ -20,12 +20,19 @@ CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON public.feedback(created_at
 CREATE INDEX IF NOT EXISTS idx_feedback_category ON public.feedback(category);
 CREATE INDEX IF NOT EXISTS idx_feedback_rating ON public.feedback(rating);
 
+-- Table Permissions
+GRANT ALL ON TABLE public.feedback TO anon, authenticated, service_role;
+
 -- RLS Policies
 ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public feedback insert"
   ON public.feedback FOR INSERT
   WITH CHECK (true);
+
+CREATE POLICY "Allow public feedback select"
+  ON public.feedback FOR SELECT
+  USING (true);
 
 CREATE POLICY "Allow service role full access"
   ON public.feedback FOR ALL
