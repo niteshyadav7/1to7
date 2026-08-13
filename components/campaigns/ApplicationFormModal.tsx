@@ -719,13 +719,13 @@ export default function ApplicationFormModal({
                                     <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                   )}
                                   <Input
-                                    type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'}
+                                    type={field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? 'date' : field.field_type === 'number' ? 'number' : 'text'}
                                     value={formData[field.field_name] || ''}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                       setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
                                     }
                                     placeholder={`Enter ${field.field_name.toLowerCase()}...`}
-                                    className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                                    className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
                                   />
                                 </>
                               )}
@@ -833,13 +833,13 @@ export default function ApplicationFormModal({
                                           <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
                                         )}
                                         <Input
-                                          type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+                                          type={field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? 'date' : field.type === 'number' ? 'number' : 'text'}
                                           value={formData[field.name] || ''}
                                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                             setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
                                           }
                                           placeholder={`Enter ${field.name.toLowerCase()}...`}
-                                          className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                                          className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
                                         />
                                       </>
                                     )}

@@ -263,7 +263,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
                     )}
                     <Input
-                      type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+                      type={field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? 'date' : field.type === 'number' ? 'number' : 'text'}
                       value={formData[field.name] || ''}
                       onChange={e => setFormData(p => ({ ...p, [field.name]: e.target.value }))}
                       placeholder={`Enter ${field.name}`}
