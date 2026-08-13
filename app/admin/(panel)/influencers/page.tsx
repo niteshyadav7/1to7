@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
-  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle
+  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
-import { getInstagramDisplayHandle, extractInstagramUsername } from '@/lib/instagram-utils'
+import { getInstagramDisplayHandle, extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Influencer {
@@ -189,15 +189,34 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                       <Instagram className="h-4 w-4 text-pink-400" />
                       <h3 className="text-sm font-bold text-slate-200">Social Presence</h3>
                    </div>
-                   <div className="bg-gradient-to-r from-pink-500/10 to-orange-500/10 border border-pink-500/20 rounded-xl p-4 flex items-start gap-3 w-full">
-                     <div className="h-10 w-10 rounded-full bg-pink-500/20 flex items-center justify-center shrink-0">
-                       <Instagram className="h-5 w-5 text-pink-400" />
-                     </div>
-                     <div className="min-w-0 flex-1 w-full">
-                       <p className="text-[11px] font-bold text-white break-all whitespace-normal leading-tight">{getInstagramDisplayHandle(user.instagram_username) || 'N/A'}</p>
-                       <p className="text-[10px] text-pink-400 mt-1">{user.followers > 0 ? `${user.followers.toLocaleString()} Followers` : 'Follower count unknown'}</p>
-                     </div>
-                   </div>
+                   {user.instagram_username ? (
+                      <a
+                        href={getInstagramUrl(user.instagram_username)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border border-pink-500/30 hover:border-pink-500/60 hover:bg-pink-500/20 rounded-xl p-4 flex items-center gap-3 w-full transition-all cursor-pointer group"
+                      >
+                        <div className="h-10 w-10 rounded-full bg-pink-500/20 border border-pink-500/30 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Instagram className="h-5 w-5 text-pink-400" />
+                        </div>
+                        <div className="min-w-0 flex-1 w-full">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-extrabold text-white break-all whitespace-normal leading-tight group-hover:text-pink-300 transition-colors">
+                              {getInstagramDisplayHandle(user.instagram_username)}
+                            </p>
+                            <ExternalLink className="h-3.5 w-3.5 text-pink-400 shrink-0 opacity-80 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                          <p className="text-[10px] text-pink-400 mt-1 font-semibold">
+                            {user.followers > 0 ? `${user.followers.toLocaleString()} Followers` : 'Follower count unknown'} • Click to view profile
+                          </p>
+                        </div>
+                      </a>
+                    ) : (
+                      <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 flex items-center gap-3 w-full text-slate-400 text-xs">
+                        <Instagram className="h-5 w-5 text-slate-500" />
+                        <span>No Instagram handle linked</span>
+                      </div>
+                    )}
                  </div>
 
                  {/* Banking Details */}
@@ -521,13 +540,25 @@ export default function InfluencersDirectoryPage() {
                        </td>
                        
                        {/* Social */}
-                       <td className="px-4 py-3 max-w-[200px]">
-                         <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
-                           <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
-                            <span className="truncate" title={getInstagramDisplayHandle(user.instagram_username) || 'N/A'}>
-                              {getInstagramDisplayHandle(user.instagram_username) || 'N/A'}
-                            </span>
-                         </div>
+                        <td className="px-4 py-3 max-w-[200px]">
+                          <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
+                            <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
+                            {user.instagram_username ? (
+                              <a
+                                href={getInstagramUrl(user.instagram_username)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="truncate font-semibold text-slate-200 hover:text-pink-400 hover:underline transition-colors flex items-center gap-1"
+                                title={getInstagramDisplayHandle(user.instagram_username)}
+                              >
+                                <span>{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline" />
+                              </a>
+                            ) : (
+                              <span className="truncate text-slate-500">N/A</span>
+                            )}
+                          </div>
                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
                            <Users className="h-3 w-3 text-slate-500 shrink-0" />
                            <span className="truncate">{user.followers > 0 ? user.followers.toLocaleString() : '—'}</span>
