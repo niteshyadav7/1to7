@@ -11,6 +11,7 @@ import { Colors } from '@/constants/colors'
 import { api } from '@/services/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { extractInstagramUsername } from '@/constants/instagram'
 
 export default function ProfileScreen() {
   const { user, refreshUserProfile, logout, getMissingFields } = useAuth()
@@ -53,6 +54,7 @@ export default function ProfileScreen() {
     try {
       const payload = {
         ...formData,
+        instagram_username: extractInstagramUsername(formData.instagram_username),
         followers: formData.followers ? parseInt(formData.followers, 10) : 0
       }
       
@@ -183,7 +185,7 @@ export default function ProfileScreen() {
               <Text style={s.sectionHeader}>SOCIAL & DEMOGRAPHICS</Text>
             </View>
             <Field label="FULL NAME" icon="person-outline" value={formData.full_name} onChangeText={(t: string) => setFormData({ ...formData, full_name: t })} placeholder="Your full name" />
-            <Field label="INSTAGRAM USERNAME" icon="logo-instagram" prefix="@" value={formData.instagram_username} onChangeText={(t: string) => setFormData({ ...formData, instagram_username: t.replace('@', '') })} placeholder="username" />
+            <Field label="INSTAGRAM USERNAME" icon="logo-instagram" prefix="@" value={formData.instagram_username} onChangeText={(t: string) => setFormData({ ...formData, instagram_username: t })} placeholder="username" />
             
             <View style={s.fieldGroup}>
               <Text style={s.label}>GENDER</Text>

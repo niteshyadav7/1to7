@@ -7,6 +7,7 @@ import OrderVerificationModal from '@/components/campaigns/OrderVerificationModa
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useRealtime } from '@/hooks/useRealtime'
 import BrandLoader from '@/components/ui/BrandLoader'
+import { getInstagramUrl } from '@/lib/instagram-utils'
 
 interface Application {
   id: string
@@ -177,7 +178,7 @@ export default function AppliedCampaignsPage() {
                     <p className="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1.5">Instagram</p>
                     {user?.instagram_username ? (
                       <a
-                        href={`https://instagram.com/${user.instagram_username}`}
+                        href={getInstagramUrl(user.instagram_username)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1.5 text-sm font-bold text-[#f50057] hover:text-[#d8004c] transition-colors"

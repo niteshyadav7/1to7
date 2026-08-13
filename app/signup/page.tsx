@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
 import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Mail, Instagram } from 'lucide-react'
+import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
 
@@ -229,7 +230,7 @@ export default function SignupPage() {
         mobile: cleanMobile,
         password,
         gender,
-        instagramUsername: instagramUsername || undefined
+        instagramUsername: extractInstagramUsername(instagramUsername) || undefined
       }),
     })
     const data = await res.json()
@@ -416,8 +417,9 @@ export default function SignupPage() {
                       <div className="relative group">
                         <Input
                           value={instagramUsername}
-                          onChange={(e) => setInstagramUsername(e.target.value.replace('@', ''))}
-                          placeholder="Instagram Handle"
+                          onChange={(e) => setInstagramUsername(e.target.value)}
+                          onBlur={(e) => setInstagramUsername(extractInstagramUsername(e.target.value))}
+                          placeholder="Instagram Handle (e.g. username or profile link)"
                           className="bg-slate-50/40 border border-slate-200/80 text-slate-900 h-14 px-5 rounded-md text-base font-medium focus-visible:ring-primary-container placeholder:text-slate-400 focus:bg-white transition-all"
                         />
                       </div>

@@ -13,6 +13,7 @@ import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getInstagramDisplayHandle, extractInstagramUsername } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Influencer {
@@ -193,7 +194,7 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                        <Instagram className="h-5 w-5 text-pink-400" />
                      </div>
                      <div className="min-w-0 flex-1 w-full">
-                       <p className="text-[11px] font-bold text-white break-all whitespace-normal leading-tight">@{user.instagram_username || 'N/A'}</p>
+                       <p className="text-[11px] font-bold text-white break-all whitespace-normal leading-tight">{getInstagramDisplayHandle(user.instagram_username) || 'N/A'}</p>
                        <p className="text-[10px] text-pink-400 mt-1">{user.followers > 0 ? `${user.followers.toLocaleString()} Followers` : 'Follower count unknown'}</p>
                      </div>
                    </div>
@@ -312,7 +313,7 @@ export default function InfluencersDirectoryPage() {
         `"${u.full_name}"`,
         `"${u.email}"`,
         `"${u.mobile}"`,
-        `"${u.instagram_username || ''}"`,
+        `"${getInstagramDisplayHandle(u.instagram_username)}"`,
         u.followers,
         `"${u.city ? u.city + ', ' : ''}${u.state || ''}"`,
         `"${u.gender || ''}"`,
@@ -523,9 +524,9 @@ export default function InfluencersDirectoryPage() {
                        <td className="px-4 py-3 max-w-[200px]">
                          <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
                            <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
-                           <span className="truncate" title={user.instagram_username ? `@${user.instagram_username}` : 'N/A'}>
-                             {user.instagram_username ? `@${user.instagram_username}` : 'N/A'}
-                           </span>
+                            <span className="truncate" title={getInstagramDisplayHandle(user.instagram_username) || 'N/A'}>
+                              {getInstagramDisplayHandle(user.instagram_username) || 'N/A'}
+                            </span>
                          </div>
                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
                            <Users className="h-3 w-3 text-slate-500 shrink-0" />

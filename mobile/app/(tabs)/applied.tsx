@@ -169,7 +169,7 @@ export default function AppliedScreen() {
                     onPress={(e) => {
                       e.stopPropagation()
                       if (!hasSubmittedOrder || wasRejectedWithOrder) {
-                        router.push(`/order-form/${app.id}`)
+                        router.push(`/order-form/${app.id}` as any)
                       }
                     }}
                     disabled={hasSubmittedOrder && !wasRejectedWithOrder}

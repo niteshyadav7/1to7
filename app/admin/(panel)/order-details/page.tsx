@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
+import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -1461,9 +1462,9 @@ export default function OrderDetailsPage() {
                                         <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
                                         <div className="text-slate-300 flex items-center gap-1">
                                           {user?.instagram_username ? (
-                                            <a href={`https://instagram.com/${user.instagram_username.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
+                                            <a href={getInstagramUrl(user.instagram_username)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
                                               <Instagram className="h-3 w-3 text-pink-400" />
-                                              {user.instagram_username}
+                                              {getInstagramDisplayHandle(user.instagram_username)}
                                             </a>
                                           ) : '—'}
                                         </div>

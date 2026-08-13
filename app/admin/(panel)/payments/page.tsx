@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -1168,7 +1169,7 @@ export default function PaymentsPage() {
                                       {[
                                         { l: 'Full Name', v: user?.full_name }, { l: 'ID', v: user?.influencer_id },
                                         { l: 'Email', v: user?.email }, { l: 'Mobile', v: user?.mobile },
-                                        { l: 'Instagram', v: user?.instagram_username }, { l: 'Location', v: [user?.city, user?.state].filter(Boolean).join(', ') },
+                                        { l: 'Instagram', v: getInstagramDisplayHandle(user?.instagram_username) }, { l: 'Location', v: [user?.city, user?.state].filter(Boolean).join(', ') },
                                       ].map(f => (
                                         <div key={f.l}>
                                           <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">{f.l}</p>

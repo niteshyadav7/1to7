@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
+import { extractInstagramUsername } from '@/lib/instagram-utils'
 
 interface FormField {
   id: string
@@ -316,7 +317,7 @@ export default function ApplicationFormModal({
           payload.guestProfile = {
             full_name: guestName.trim(),
             email: guestEmail.trim(),
-            instagram_username: guestInstagram.trim(),
+            instagram_username: extractInstagramUsername(guestInstagram),
             followers: guestFollowers.trim(),
             gender: guestGender,
             state: guestState,

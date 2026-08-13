@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { extractInstagramUsername } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Campaign {
@@ -368,7 +369,7 @@ export default function ImportPage() {
           influencer_id: r.influencer_id || undefined,
           full_name: r.full_name || undefined,
           email: r.email || undefined,
-          instagram_username: r.instagram_username || undefined,
+          instagram_username: extractInstagramUsername(r.instagram_username) || undefined,
           followers: r.followers || undefined,
           gender: r.gender || undefined,
           state: r.state || undefined,

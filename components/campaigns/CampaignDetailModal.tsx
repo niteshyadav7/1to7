@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
@@ -388,7 +389,7 @@ export default function CampaignDetailModal({
                               <Instagram className="h-5 w-5 text-white" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-charcoal-surface truncate">@{user.instagram_username}</p>
+                              <p className="text-sm font-bold text-charcoal-surface truncate">{getInstagramDisplayHandle(user.instagram_username)}</p>
                               <p className="text-[11px] text-secondary">Primary Instagram Profile</p>
                             </div>
                           </div>

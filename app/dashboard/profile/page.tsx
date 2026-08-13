@@ -17,6 +17,7 @@ import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import BrandLoader from '@/components/ui/BrandLoader'
 import InstagramMediaGrid from '@/components/dashboard/InstagramMediaGrid'
+import { extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 
 interface UserProfile {
   id: string
@@ -166,10 +167,14 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      const payload = {
+        ...formData,
+        instagram_username: extractInstagramUsername(formData.instagram_username)
+      }
       const res = await fetch('/api/dashboard/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -466,12 +471,13 @@ export default function ProfilePage() {
                         <Input
                           value={formData.instagram_username}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, instagram_username: e.target.value })}
-                          placeholder="@username"
+                          onBlur={(e: React.FocusEvent<HTMLInputElement>) => setFormData({ ...formData, instagram_username: extractInstagramUsername(e.target.value) })}
+                          placeholder="@username or profile link"
                           className="pl-9 pr-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
                         />
                         {formData.instagram_username && (
                           <a
-                            href={`https://www.instagram.com/${formData.instagram_username.replace('@', '')}`}
+                            href={getInstagramUrl(formData.instagram_username)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-pink-500 transition-colors p-0.5 cursor-pointer"

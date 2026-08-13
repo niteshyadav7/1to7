@@ -5,10 +5,12 @@ import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import nodemailer from 'nodemailer'
 import { generateSequentialInfluencerId } from '@/lib/user-utils'
+import { extractInstagramUsername } from '@/lib/instagram-utils'
 
 export async function POST(request: Request) {
   try {
     const { fullName, mobile, email, password, instagramUsername, gender } = await request.json()
+    const cleanedInsta = extractInstagramUsername(instagramUsername)
 
     if (!fullName || !mobile || !email || !password || mobile.length !== 10) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
@@ -40,7 +42,7 @@ export async function POST(request: Request) {
           mobile, 
           email,
           password_hash: hashedPassword,
-          instagram_username: instagramUsername, 
+          instagram_username: cleanedInsta || null, 
           gender, 
           influencer_id: newInfluencerId,
           is_email_verified: true,

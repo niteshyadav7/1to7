@@ -12,6 +12,7 @@ import { Colors } from '@/constants/colors'
 import { api } from '@/services/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import { extractInstagramUsername } from '@/constants/instagram'
 
 const { width } = Dimensions.get('window')
 
@@ -62,7 +63,7 @@ export default function SignupScreen() {
         mobile,
         password,
         gender,
-        instagramUsername: instagramUsername || undefined,
+        instagramUsername: extractInstagramUsername(instagramUsername) || undefined,
       })
 
       if (!ok) {
@@ -150,7 +151,7 @@ export default function SignupScreen() {
 
           <View style={styles.inputContainer}>
             <Ionicons name="logo-instagram" size={20} color={Colors.pink} style={styles.inputIcon} />
-            <TextInput style={styles.input} value={instagramUsername} onChangeText={(t) => setInstagramUsername(t.replace('@', ''))} placeholder="Instagram Handle (Optional)" placeholderTextColor={Colors.textPlaceholder} autoCapitalize="none" keyboardAppearance="dark" />
+            <TextInput style={styles.input} value={instagramUsername} onChangeText={(t) => setInstagramUsername(t)} onBlur={() => setInstagramUsername(extractInstagramUsername(instagramUsername))} placeholder="Instagram Handle (Optional)" placeholderTextColor={Colors.textPlaceholder} autoCapitalize="none" keyboardAppearance="dark" />
           </View>
 
           <TouchableOpacity
