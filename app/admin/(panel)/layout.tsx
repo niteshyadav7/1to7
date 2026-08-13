@@ -17,7 +17,8 @@ import {
   CreditCard,
   BarChart3,
   PieChart,
-  FileUp
+  FileUp,
+  MessageSquareHeart
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -45,6 +46,7 @@ const sidebarLinks = [
   { href: '/admin/applications', label: 'Applications', icon: Users },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart },
   // { href: '/admin/requests', label: 'Requests', icon: PieChart },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/import', label: 'Import Sync', icon: FileUp },
