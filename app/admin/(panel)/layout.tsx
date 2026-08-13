@@ -20,6 +20,7 @@ import {
   FileUp
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
+import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,11 +51,12 @@ const sidebarLinks = [
   { href: '/admin/influencers', label: 'Influencers', icon: Users },
 ]
 
-export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
+function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [admin, setAdmin] = useState<AdminInfo | null>(null)
+  const { headerContent } = useAdminHeader()
 
   useEffect(() => {
     try {
@@ -182,25 +184,43 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top Bar (mobile) */}
-        <header className="lg:hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-lg border-b border-white/5 px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="rounded-lg p-2 hover:bg-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-indigo-600 to-purple-500">
-              <ShieldCheck className="h-3 w-3 text-white" />
+        <header className="lg:hidden sticky top-0 z-30 bg-slate-950/90 backdrop-blur-lg border-b border-white/5 px-4 py-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-lg p-2 hover:bg-white/5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-indigo-600 to-purple-500">
+                <ShieldCheck className="h-3 w-3 text-white" />
+              </div>
+              <span className="text-sm font-bold text-white">Admin</span>
             </div>
-            <span className="text-sm font-bold text-white">Admin</span>
+            <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
           </div>
-          <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
+          {headerContent && (
+            <div className="pt-2 border-t border-white/5">
+              {headerContent}
+            </div>
+          )}
         </header>
 
         {/* Desktop Top Bar */}
-        <header className="hidden lg:flex sticky top-0 z-30 bg-slate-950/80 backdrop-blur-lg border-b border-white/5 px-8 py-3 items-center justify-end">
-          <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
+        <header className="hidden lg:flex sticky top-0 z-30 bg-slate-950/85 backdrop-blur-xl border-b border-white/5 px-6 py-6 items-center justify-between gap-6 min-h-[80px]">
+          <div className="flex-1 min-w-0 py-1.5">
+            {headerContent || (
+              <div>
+                <h1 className="text-xl font-extrabold text-white tracking-tight">
+                  {sidebarLinks.find(link => isActive(link.href))?.label || 'Admin Panel'}
+                </h1>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 flex items-center gap-3">
+            <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
+          </div>
         </header>
 
         {/* Page Content */}
@@ -209,5 +229,13 @@ export default function AdminPanelLayout({ children }: { children: React.ReactNo
         </main>
       </div>
     </div>
+  )
+}
+
+export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AdminHeaderProvider>
+      <AdminPanelInner>{children}</AdminPanelInner>
+    </AdminHeaderProvider>
   )
 }

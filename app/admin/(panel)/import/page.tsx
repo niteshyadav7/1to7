@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Campaign {
@@ -478,25 +479,22 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-6">
-      {/* ─── Header ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-500 shadow-lg shadow-indigo-500/20">
-              <FileUp className="h-5 w-5 text-white" />
-            </div>
-            Bulk Import
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">Import influencers from your Google Sheets / Excel into the database</p>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Bulk Import Sync</h1>
+            <p className="text-xs text-slate-400">Import influencers from your Google Sheets / Excel into the database</p>
+          </div>
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download Template
+          </button>
         </div>
-        <button
-          onClick={downloadTemplate}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-300 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Download Template
-        </button>
-      </div>
+      </SetAdminHeader>
 
       {/* ─── Steps ──────────────────────────────────────────── */}
       <StepIndicator currentStep={importResults ? 4 : step} />

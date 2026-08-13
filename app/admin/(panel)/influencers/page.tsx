@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface Influencer {
@@ -32,6 +33,8 @@ interface Influencer {
   is_email_verified: boolean
   is_mobile_verified: boolean
   created_at: string
+  profile_photo?: string
+  instagram_profile_pic?: string
 }
 
 interface PaginationInfo {
@@ -73,8 +76,19 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
           
           <div className="absolute -bottom-12 left-6 flex items-end gap-4 overflow-visible">
             <div className="h-24 w-24 rounded-2xl bg-slate-900 border-4 border-slate-900 flex items-center justify-center shadow-xl overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20"></div>
-              <User className="h-10 w-10 text-indigo-400" />
+              {user.profile_photo || user.instagram_profile_pic ? (
+                <img
+                  src={user.profile_photo || user.instagram_profile_pic}
+                  alt={user.full_name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 opacity-20"></div>
+                  <User className="h-10 w-10 text-indigo-400" />
+                </>
+              )}
             </div>
             <div className="pb-1 text-shadow-sm">
                <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight flex items-center gap-2">
@@ -333,24 +347,18 @@ export default function InfluencersDirectoryPage() {
         {selectedProfile && <ProfileModal user={selectedProfile} onClose={() => setSelectedProfile(null)} />}
       </AnimatePresence>
 
-      {/* Header Area */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/20">
-              <Users className="h-4.5 w-4.5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Influencer Directory</h1>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Influencers Directory</h1>
+            <p className="text-xs text-slate-400">Manage and view comprehensive profiles of onboarded creators</p>
           </div>
-          <p className="text-sm text-slate-500 mt-1 ml-[3px]">Manage and view comprehensive profiles of onboarded creators.</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button onClick={exportCSV} variant="outline" className="h-10 rounded-xl bg-slate-800/60 border-white/5 text-slate-300 hover:text-white hover:bg-slate-800 transition-all shadow-sm">
-            <Download className="mr-2 h-4 w-4" /> Export CSV
+          <Button onClick={exportCSV} variant="outline" className="h-9 rounded-xl bg-slate-800/80 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs cursor-pointer">
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
           </Button>
         </div>
-      </div>
+      </SetAdminHeader>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -475,9 +483,18 @@ export default function InfluencersDirectoryPage() {
                        {/* Creator Profile */}
                        <td className="px-4 py-3 border-l-2 border-transparent group-hover:border-indigo-500 transition-colors">
                          <div className="flex items-center gap-3">
-                           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/10 text-sm font-bold text-indigo-400 shrink-0">
-                             {user.full_name?.charAt(0)?.toUpperCase()}
-                           </div>
+                            {user.profile_photo || user.instagram_profile_pic ? (
+                              <img
+                                src={user.profile_photo || user.instagram_profile_pic}
+                                alt={user.full_name}
+                                className="h-9 w-9 rounded-xl object-cover shrink-0 border border-white/10 shadow-md"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                              />
+                            ) : (
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/10 text-sm font-bold text-indigo-400 shrink-0">
+                                {user.full_name?.charAt(0)?.toUpperCase()}
+                              </div>
+                            )}
                            <div className="min-w-0">
                              <p className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
                                {user.full_name}

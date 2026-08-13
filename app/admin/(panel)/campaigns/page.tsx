@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
-  Instagram, Youtube, ShoppingBag, Globe, Search
+  Instagram, Youtube, ShoppingBag, Globe, Search, Trash2
 } from 'lucide-react'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
@@ -36,9 +37,10 @@ const statusColors: Record<string, string> = {
   'Active': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20',
   'Review': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
   'Closed': 'bg-red-500/15 text-red-300 border-red-500/20',
+  'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
 }
 
-const filters = ['All', 'Active', 'Draft', 'Review', 'Closed']
+const filters = ['All', 'Active', 'Draft', 'Review', 'Closed', 'Completed']
 
 export default function AdminCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
@@ -46,6 +48,7 @@ export default function AdminCampaignsPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchCampaigns()
@@ -60,6 +63,29 @@ export default function AdminCampaignsPage() {
       toast.error('Failed to load campaigns')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const deleteCampaign = async (campaign: Campaign) => {
+    if (!confirm(`Are you sure you want to PERMANENTLY DELETE "${campaign.brand_name}" (${campaign.campaign_code}) from the database? This action cannot be undone.`)) {
+      return
+    }
+
+    setDeletingId(campaign.id)
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaign.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || 'Failed to delete')
+
+      setCampaigns(prev => prev.filter(c => c.id !== campaign.id))
+      toast.success(`Campaign "${campaign.brand_name}" permanently deleted`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete campaign')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -99,19 +125,21 @@ export default function AdminCampaignsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Campaigns</h1>
-          <p className="text-sm text-slate-400 mt-1">Manage all brand campaigns</p>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Campaigns</h1>
+            <p className="text-xs text-slate-400">Manage all brand campaigns</p>
+          </div>
+          <Link href="/admin/campaigns/create">
+            <Button className="h-9 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-semibold text-xs shadow-lg shadow-indigo-500/20 cursor-pointer">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              New Campaign
+            </Button>
+          </Link>
         </div>
-        <Link href="/admin/campaigns/create">
-          <Button className="h-10 px-5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-semibold text-sm shadow-lg shadow-indigo-500/20 cursor-pointer">
-            <Plus className="mr-2 h-4 w-4" />
-            New Campaign
-          </Button>
-        </Link>
-      </div>
+      </SetAdminHeader>
 
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -222,6 +250,16 @@ export default function AdminCampaignsPage() {
                       Edit
                     </button>
                   </Link>
+
+                  {/* Delete */}
+                  <button
+                    onClick={() => deleteCampaign(campaign)}
+                    disabled={deletingId === campaign.id}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
 
                   {/* View Applications */}
                   <Link href={`/admin/applications/${campaign.id}`} className="ml-auto">

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 interface UserInfo {
   id: string
@@ -25,6 +26,8 @@ interface UserInfo {
   state: string
   city: string
   gender: string
+  profile_photo?: string
+  instagram_profile_pic?: string
 }
 
 interface Application {
@@ -156,21 +159,23 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   })
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/admin/campaigns">
-          <button className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all cursor-pointer">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Applications</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {campaign?.brand_name || 'Campaign'} ({campaign?.campaign_code}) — {applications.length} applicants
-          </p>
+    <div className="space-y-6 pb-24">
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/campaigns">
+            <button className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-white/10 transition-all cursor-pointer shadow-md group">
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+          </Link>
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Applications</h1>
+            <p className="text-xs text-slate-400">
+              {campaign?.brand_name || 'Campaign'} ({campaign?.campaign_code}) • {applications.length} applicants
+            </p>
+          </div>
         </div>
-      </div>
+      </SetAdminHeader>
 
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -243,9 +248,20 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   onClick={() => setExpandedId(isExpanded ? null : app.id)}
                 >
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shrink-0">
-                      {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
+                    {user?.profile_photo || user?.instagram_profile_pic ? (
+                      <img
+                        src={user.profile_photo || user.instagram_profile_pic}
+                        alt={user?.full_name || 'Influencer'}
+                        className="h-10 w-10 rounded-full object-cover shrink-0 border border-white/15 shadow-md"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shrink-0 shadow-lg shadow-indigo-500/10">
+                        {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-white truncate">{user?.full_name || 'Unknown'}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">

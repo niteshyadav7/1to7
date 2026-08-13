@@ -18,6 +18,7 @@ import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRealtime } from '@/hooks/useRealtime'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -31,6 +32,8 @@ interface UserInfo {
   state: string
   city: string
   gender: string
+  profile_photo?: string
+  instagram_profile_pic?: string
 }
 
 interface CampaignInfo {
@@ -932,20 +935,15 @@ export default function AllApplicationsPage() {
 
   return (
     <div className="space-y-5 pb-24 relative">
-      {/* ─── Header ─────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4">
+      {/* ─── Header Injection ───────────────────────────── */}
+      <SetAdminHeader>
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/20">
-              <Users className="h-4.5 w-4.5 text-indigo-400" />
-            </div>
-            All Applications
-          </h1>
-          <p className="text-sm text-slate-500 mt-1.5 ml-[3px]">
-            Manage applications across all active campaigns — <span className="text-slate-400 font-medium">{applications.length}</span> total
+          <h1 className="text-xl font-extrabold text-white tracking-tight">All Applications</h1>
+          <p className="text-xs text-slate-400">
+            Manage applications across all active campaigns • <span className="text-indigo-300 font-semibold">{applications.length}</span> total
           </p>
         </div>
-      </div>
+      </SetAdminHeader>
 
       {/* ─── Status Tabs ────────────────────────────────── */}
       <div className="flex overflow-x-auto hide-scrollbar gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5">
@@ -1228,9 +1226,20 @@ export default function AllApplicationsPage() {
                         {visibleCols.influencer && (
                           <td className={`px-4 ${densityPadding[density]}`}>
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-purple-500/80 text-xs font-bold text-white shrink-0 shadow-lg shadow-indigo-500/10">
-                                {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
+                              {user?.profile_photo || user?.instagram_profile_pic ? (
+                                <img
+                                  src={user.profile_photo || user.instagram_profile_pic}
+                                  alt={user?.full_name || 'Influencer'}
+                                  className="h-9 w-9 rounded-full object-cover shrink-0 border border-white/15 shadow-md"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none'
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-purple-500/80 text-xs font-bold text-white shrink-0 shadow-lg shadow-indigo-500/10">
+                                  {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                              )}
                               <div className="min-w-0">
                                 <p className="text-[13px] font-semibold text-white truncate max-w-[180px]">
                                   {user?.full_name || 'Unknown'}

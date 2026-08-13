@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -31,6 +32,8 @@ interface UserInfo {
   state: string
   city: string
   gender: string
+  profile_photo?: string
+  instagram_profile_pic?: string
 }
 
 interface CampaignInfo {
@@ -1025,25 +1028,22 @@ export default function OrderDetailsPage() {
 
   return (
     <div className="space-y-5 pb-24 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-500 shadow-lg shadow-indigo-500/20">
-              <ClipboardList className="h-4.5 w-4.5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Order Details</h1>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Order Details</h1>
+            <p className="text-xs text-slate-400">
+              {totalFiltered} order{totalFiltered !== 1 ? 's' : ''} submitted across all campaigns
+            </p>
           </div>
-          <p className="text-sm text-slate-500 mt-1 ml-[3px]">
-            {totalFiltered} order{totalFiltered !== 1 ? 's' : ''} submitted across all campaigns
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
+            <DensityToggle density={density} onChange={setDensity} />
+            <ExportDropdown onExport={handleExport} />
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
-          <DensityToggle density={density} onChange={setDensity} />
-          <ExportDropdown onExport={handleExport} />
-        </div>
-      </div>
+      </SetAdminHeader>
 
       {/* Status Tabs */}
       <div className="flex flex-wrap gap-2">
@@ -1321,9 +1321,18 @@ export default function OrderDetailsPage() {
                         {visibleCols.influencer && (
                           <td className={`px-3 ${densityPadding[density]}`}>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-[11px] font-bold text-white shrink-0">
-                                {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
+                              {user?.profile_photo || user?.instagram_profile_pic ? (
+                                <img
+                                  src={user.profile_photo || user.instagram_profile_pic}
+                                  alt={user?.full_name || 'Influencer'}
+                                  className="h-8 w-8 rounded-full object-cover shrink-0 border border-white/10 shadow-md"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                                />
+                              ) : (
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-[11px] font-bold text-white shrink-0">
+                                  {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                              )}
                               <div className="min-w-0 overflow-hidden">
                                 <p className="text-[13px] font-semibold text-white truncate">{user?.full_name || 'Unknown'}</p>
                                 <p className="text-[11px] text-slate-500 font-mono truncate">{user?.influencer_id || '—'}</p>

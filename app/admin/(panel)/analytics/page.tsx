@@ -7,6 +7,7 @@ import {
   TrendingUp, Clock, CheckCircle2, XCircle, DollarSign,
   ArrowUpRight, ArrowDownRight, Activity, Loader2
 } from 'lucide-react'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 
@@ -216,16 +217,13 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2.5 mb-1">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-500 shadow-lg shadow-violet-500/20">
-            <BarChart3 className="h-4.5 w-4.5 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Analytics</h1>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">Analytics</h1>
+          <p className="text-xs text-slate-400">Platform overview and performance metrics</p>
         </div>
-        <p className="text-sm text-slate-500 mt-1 ml-[3px]">Platform overview and performance metrics</p>
-      </div>
+      </SetAdminHeader>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

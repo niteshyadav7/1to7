@@ -8,6 +8,7 @@ import {
   XCircle, UserCheck
 } from 'lucide-react'
 import Link from 'next/link'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
 import { toast } from 'sonner'
@@ -118,11 +119,13 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-        <p className="text-sm text-slate-400 mt-1">Overview of campaigns, applications, and influencers</p>
-      </div>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">Admin Dashboard</h1>
+          <p className="text-xs text-slate-400">Overview of campaigns, applications, and influencers</p>
+        </div>
+      </SetAdminHeader>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -78,3 +78,33 @@ export async function PUT(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminFromRequest()
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id } = await params
+
+    // 1. Delete associated applications first to handle FK constraint
+    await supabase.from('applications').delete().eq('campaign_id', id)
+
+    // 2. Delete campaign record from DB
+    const { error } = await supabase
+      .from('campaigns')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, message: 'Campaign deleted permanently' })
+  } catch (error: any) {
+    console.error('API /admin/campaigns/[id] DELETE Error:', error)
+    return NextResponse.json({ error: error.message || 'Failed to delete campaign' }, { status: 500 })
+  }
+}

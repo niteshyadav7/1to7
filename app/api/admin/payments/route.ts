@@ -36,12 +36,15 @@ export async function GET() {
           gender,
           account_name,
           account_number,
-          ifsc_code
+          ifsc_code,
+          instagram_profile_pic
         ),
         campaigns (
           brand_name,
           campaign_code,
-          platform
+          platform,
+          budget_amount,
+          budget_type
         )
       `)
       .order('updated_at', { ascending: false })

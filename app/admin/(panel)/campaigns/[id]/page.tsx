@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 interface CampaignData {
   id: string
@@ -184,19 +185,21 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/admin/campaigns">
-          <button className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 transition-all cursor-pointer">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Edit Campaign</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{campaign.campaign_code} — {campaign.brand_name}</p>
+    <div className="w-full space-y-6 pb-8">
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/campaigns">
+            <button className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-white/10 transition-all cursor-pointer shadow-md group">
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+          </Link>
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Edit Campaign</h1>
+            <p className="text-xs text-slate-400">{campaign.campaign_code} — {campaign.brand_name}</p>
+          </div>
         </div>
-      </div>
+      </SetAdminHeader>
 
       <motion.form
         onSubmit={handleSubmit}
@@ -214,10 +217,11 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                  <SelectItem value="Draft" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Draft</SelectItem>
-                  <SelectItem value="Active" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Active</SelectItem>
-                  <SelectItem value="Review" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Review</SelectItem>
-                  <SelectItem value="Closed" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Closed</SelectItem>
+                  <SelectItem value="Draft" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Draft</SelectItem>
+                  <SelectItem value="Active" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Active</SelectItem>
+                  <SelectItem value="Review" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Review</SelectItem>
+                  <SelectItem value="Closed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Closed</SelectItem>
+                  <SelectItem value="Completed" className="text-slate-100 hover:text-white focus:text-white focus:bg-purple-500/30 cursor-pointer py-2.5 font-medium">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>

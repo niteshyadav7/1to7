@@ -46,12 +46,15 @@ export async function GET(request: Request) {
           followers,
           state,
           city,
-          gender
+          gender,
+          instagram_profile_pic
         ),
         campaigns (
           brand_name,
           campaign_code,
-          platform
+          platform,
+          budget_amount,
+          budget_type
         )
       `)
 

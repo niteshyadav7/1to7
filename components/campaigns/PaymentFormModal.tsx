@@ -49,6 +49,11 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds maximum limit of 5MB')
+      return
+    }
+
     setUploadingField(fieldName)
     try {
       const fd = new FormData()
@@ -145,51 +150,51 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+          className="relative w-full max-w-lg bg-white border border-slate-200/80 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-slate-900"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 bg-slate-950/50 border-b border-white/5 shrink-0">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-indigo-400" />
+          <div className="flex items-center justify-between p-6 bg-slate-50 border-b border-slate-200/80 shrink-0">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-amber-500" />
               Payment Form
             </h2>
             <button 
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full">
+          <div className="flex-1 overflow-y-auto p-6 space-y-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
             
             {/* Core Field: Live Date */}
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Live date <span className="text-red-500">*</span></Label>
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Live date <span className="text-red-500">*</span></Label>
               <Input
                 type="date"
                 value={formData.live_date || ''}
                 onChange={e => setFormData(p => ({ ...p, live_date: e.target.value }))}
-                className="bg-slate-950/50 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500"
+                className="bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500 focus:border-amber-500"
               />
             </div>
 
             {/* Core Field: Payment Reason */}
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Payment Reason <span className="text-red-500">*</span></Label>
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Payment Reason <span className="text-red-500">*</span></Label>
               <textarea
                 value={formData.payment_reason || ''}
                 onChange={e => setFormData(p => ({ ...p, payment_reason: e.target.value }))}
                 placeholder="Explain reason for payment request"
                 rows={3}
-                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none placeholder:text-slate-400"
               />
             </div>
 
             {/* Dynamic Custom Fields */}
             {paymentFields.map((field, idx) => (
               <div key={`pf-${idx}`} className="space-y-1.5">
-                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1">
+                <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
                   {field.name}
                   {field.required && <span className="text-red-500">*</span>}
                 </Label>
@@ -199,12 +204,12 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                       value={formData[field.name] || ""}
                       onValueChange={(val) => setFormData(p => ({ ...p, [field.name]: val }))}
                     >
-                      <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500">
+                      <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500">
                         <SelectValue placeholder={`Select ${field.name}`} />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-white/10 text-white max-h-[300px]">
+                      <SelectContent className="bg-white border-slate-200 text-slate-900 max-h-[300px]">
                         {field.options?.map((opt: string) => (
-                          <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-slate-800">{opt}</SelectItem>
+                          <SelectItem key={opt} value={opt} className="cursor-pointer focus:bg-slate-100 text-slate-800">{opt}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -214,36 +219,37 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                     onChange={e => setFormData(p => ({ ...p, [field.name]: e.target.value }))}
                     placeholder={`Enter ${field.name}...`}
                     rows={3}
-                    className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none placeholder:text-slate-400"
                   />
                 ) : field.type === 'image' ? (
                   <>
                     {formData[field.name] ? (
-                      <div className="relative rounded-xl border border-white/10 overflow-hidden bg-slate-950 aspect-[3/1] flex items-center justify-center">
+                      <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-100 aspect-[3/1] flex items-center justify-center">
                         <img src={formData[field.name]} alt="Document proof" className="max-w-full max-h-full object-contain" />
                         <button
                           type="button"
                           onClick={() => setFormData(p => ({ ...p, [field.name]: '' }))}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
+                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500 transition-colors cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (
-                      <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-white/20 hover:border-indigo-500 bg-slate-950/50 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+                      <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 hover:bg-amber-500/5 transition-all cursor-pointer group">
                         {uploadingField === field.name ? (
                           <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                            <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
                           </div>
                         ) : (
                           <>
-                            <UploadCloud className="h-6 w-6 text-indigo-500 group-hover:text-indigo-400 mb-1 transition-colors" />
-                            <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors">Click to upload</span>
+                            <UploadCloud className="h-6 w-6 text-amber-500 group-hover:text-amber-600 mb-1 transition-colors" />
+                            <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Click to upload</span>
+                            <span className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG, WEBP, PDF (Max 5MB)</span>
                           </>
                         )}
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,.pdf,application/pdf"
                           className="hidden"
                           disabled={uploadingField === field.name}
                           onChange={(e) => handleImageUpload(e, field.name)}
@@ -261,7 +267,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                       value={formData[field.name] || ''}
                       onChange={e => setFormData(p => ({ ...p, [field.name]: e.target.value }))}
                       placeholder={`Enter ${field.name}`}
-                      className={`bg-slate-950/50 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500 placeholder:text-slate-600 ${field.type === 'number' && field.name.toLowerCase().includes('amount') ? 'pl-8' : ''}`}
+                      className={`bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500 placeholder:text-slate-400 ${field.type === 'number' && field.name.toLowerCase().includes('amount') ? 'pl-8' : ''}`}
                     />
                   </div>
                 )}
@@ -269,34 +275,35 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
             ))}
 
             {/* Core Field: Supporting Document */}
-            <div className="space-y-1.5 pt-2">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Supporting Document</Label>
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Supporting Document</Label>
               {formData.supporting_document ? (
-                <div className="relative rounded-xl border border-white/10 overflow-hidden bg-slate-950 aspect-[3/1] flex items-center justify-center">
+                <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-100 aspect-[3/1] flex items-center justify-center">
                   <img src={formData.supporting_document} alt="Document proof" className="max-w-full max-h-full object-contain" />
                   <button
                     type="button"
                     onClick={() => setFormData(p => ({ ...p, supporting_document: '' }))}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500 transition-colors cursor-pointer"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
-                <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-white/20 hover:border-indigo-500 bg-slate-950/50 hover:bg-indigo-500/5 transition-all cursor-pointer group">
+                <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 hover:bg-amber-500/5 transition-all cursor-pointer group">
                   {uploadingField === 'supporting_document' ? (
                     <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                      <Loader2 className="h-6 w-6 text-amber-500 animate-spin" />
                     </div>
                   ) : (
                     <>
-                      <UploadCloud className="h-6 w-6 text-indigo-500 group-hover:text-indigo-400 mb-1 transition-colors" />
-                      <span className="text-xs font-bold text-slate-400 group-hover:text-white transition-colors">Click to upload</span>
+                      <UploadCloud className="h-6 w-6 text-amber-500 group-hover:text-amber-600 mb-1 transition-colors" />
+                      <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Click to upload</span>
+                      <span className="text-[10px] text-slate-400 font-medium mt-0.5">PNG, JPG, WEBP, PDF (Max 5MB)</span>
                     </>
                   )}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,application/pdf"
                     className="hidden"
                     disabled={!!uploadingField}
                     onChange={(e) => handleImageUpload(e, 'supporting_document')}
@@ -307,7 +314,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
 
             {/* Core Field: Payment Amount */}
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Payment Amount <span className="text-red-500">*</span></Label>
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Payment Amount <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
                 <Input
@@ -315,39 +322,39 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                   value={formData.payment_amount || ''}
                   onChange={e => setFormData(p => ({ ...p, payment_amount: e.target.value }))}
                   placeholder="Enter payment amount"
-                  className="pl-8 bg-slate-950/50 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500 placeholder:text-slate-600"
+                  className="pl-8 bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500 placeholder:text-slate-400"
                 />
               </div>
             </div>
 
             {/* Bank Details (Read Only) */}
-            <div className="space-y-1.5 pt-4 border-t border-white/5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider flex justify-between">
+            <div className="space-y-1.5 pt-3 border-t border-slate-200/80">
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex justify-between">
                 <span>Bank Details <span className="text-red-500">*</span></span>
-                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 rounded">Verified</span>
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Verified</span>
               </Label>
               <textarea
                 value={bankDetailsString}
                 readOnly
                 rows={3}
-                className="w-full bg-slate-900 border border-white/10 text-slate-300 text-sm rounded-xl px-4 py-3 resize-none cursor-not-allowed opacity-80"
+                className="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-3 resize-none cursor-not-allowed font-mono"
               />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="p-6 bg-slate-950/50 border-t border-white/5 flex gap-4 shrink-0">
+          <div className="p-6 bg-slate-50 border-t border-slate-200/80 flex gap-4 shrink-0">
             <Button
               variant="outline"
               onClick={onClose}
-              className="flex-1 h-12 rounded-2xl border-white/10 text-slate-400 hover:bg-white/5 hover:text-white text-sm font-bold bg-transparent cursor-pointer"
+              className="flex-1 h-11 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-200/60 hover:text-slate-900 text-sm font-semibold bg-white cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
               disabled={submitting || !!uploadingField}
-              className="flex-1 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer"
+              className="flex-1 h-11 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-extrabold flex items-center justify-center shadow-md shadow-amber-500/20 transition-all disabled:opacity-50 cursor-pointer border-none"
             >
               {submitting ? 'Submitting...' : <>Submit <Send className="ml-2 h-4 w-4" /></>}
             </Button>

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
+import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -45,12 +46,16 @@ interface UserInfo {
   account_name: string
   account_number: string
   ifsc_code: string
+  profile_photo?: string
+  instagram_profile_pic?: string
 }
 
 interface CampaignInfo {
   brand_name: string
   campaign_code: string
   platform: string
+  budget_amount?: number
+  budget_type?: string
 }
 
 interface PaymentEntry {
@@ -848,23 +853,20 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-5 pb-24 relative">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/20">
-              <CreditCard className="h-4.5 w-4.5 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Payments</h1>
+      {/* Header Injection */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">Payments</h1>
+            <p className="text-xs text-slate-400">{totalFiltered} payment record{totalFiltered !== 1 ? 's' : ''} across all campaigns</p>
           </div>
-          <p className="text-sm text-slate-500 mt-1 ml-[3px]">{totalFiltered} payment record{totalFiltered !== 1 ? 's' : ''} across all campaigns</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
+            <DensityToggle density={density} onChange={setDensity} />
+            <ExportDropdown onExport={handleExport} />
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
-          <DensityToggle density={density} onChange={setDensity} />
-          <ExportDropdown onExport={handleExport} />
-        </div>
-      </div>
+      </SetAdminHeader>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1026,9 +1028,18 @@ export default function PaymentsPage() {
                         {visibleCols.influencer && (
                           <td className={`px-3 ${densityPadding[density]}`}>
                             <div className="flex items-center gap-2">
-                              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-[10px] font-bold text-white shrink-0">
-                                {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                              </div>
+                              {user?.profile_photo || user?.instagram_profile_pic ? (
+                                <img
+                                  src={user.profile_photo || user.instagram_profile_pic}
+                                  alt={user?.full_name || 'Influencer'}
+                                  className="h-7 w-7 rounded-full object-cover shrink-0 border border-white/10 shadow-md"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                                />
+                              ) : (
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-[10px] font-bold text-white shrink-0">
+                                  {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                              )}
                               <div className="min-w-0 overflow-hidden">
                                 <p className="text-[13px] font-semibold text-white truncate">{user?.full_name || 'Unknown'}</p>
                                 <p className="text-[10px] text-slate-500 font-mono truncate">{user?.influencer_id || '—'}</p>
@@ -1041,21 +1052,39 @@ export default function PaymentsPage() {
                           <td className={`px-3 ${densityPadding[density]}`}>
                             <div className="min-w-0 overflow-hidden">
                               <p className="text-[13px] font-medium text-slate-200 truncate">{camp?.brand_name || '—'}</p>
-                              <p className="text-[10px] text-slate-500 font-mono truncate">{camp?.campaign_code || '—'}</p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-[10px] text-slate-500 font-mono truncate">{camp?.campaign_code || '—'}</p>
+                                {camp?.budget_amount ? (
+                                  <span className="text-[9px] font-bold text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                                    Budget: ₹{Number(camp.budget_amount).toLocaleString()}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </td>
                         )}
                         {/* Total Deal */}
                         {visibleCols.total && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            <span className={`text-xs font-bold text-white`}>
-                              {(() => {
-                                const tDeal = payment.form_data?.total_deal 
-                                  ? Number(payment.form_data.total_deal)
-                                  : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0));
-                                return tDeal > 0 ? `₹${tDeal.toLocaleString()}` : '—';
-                              })()}
-                            </span>
+                            {(() => {
+                              const tDeal = payment.form_data?.total_deal 
+                                ? Number(payment.form_data.total_deal)
+                                : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0));
+                              const budget = camp?.budget_amount ? Number(camp.budget_amount) : 0;
+                              const exceeds = budget > 0 && tDeal > budget;
+                              return (
+                                <div className="flex flex-col">
+                                  <span className={`text-xs font-bold ${exceeds ? 'text-amber-400' : 'text-white'}`}>
+                                    {tDeal > 0 ? `₹${tDeal.toLocaleString()}` : '—'}
+                                  </span>
+                                  {exceeds && (
+                                    <span className="text-[9px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded border border-amber-500/30 w-fit mt-0.5">
+                                      Exceeds Budget (₹{budget.toLocaleString()})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                         )}
                         {/* Pending */}
@@ -1162,8 +1191,16 @@ export default function PaymentsPage() {
                                   {/* Payment Summary — Editable */}
                                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-5">
                                     <p className="text-[11px] text-emerald-400 uppercase tracking-wider font-bold mb-4 flex items-center gap-2"><IndianRupee className="h-4 w-4" /> Payment Summary <span className="text-[9px] text-slate-500 font-normal ml-1">(click amounts to edit)</span></p>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                                       {[
+                                        { 
+                                          l: 'Campaign Budget', 
+                                          field: '', 
+                                          v: camp?.budget_amount ? Number(camp.budget_amount) : 0, 
+                                          c: 'text-indigo-300', 
+                                          border: 'border-indigo-500/20',
+                                          isBudget: true
+                                        },
                                         { 
                                           l: 'Total Deal', 
                                           field: 'form_data.total_deal', 
@@ -1191,6 +1228,10 @@ export default function PaymentsPage() {
                                             <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">{f.l}</p>
                                             {shouldHide ? (
                                               <p className={`text-lg font-bold text-slate-600`}>—</p>
+                                            ) : (f as any).isBudget ? (
+                                              <p className={`text-lg font-bold ${f.c}`}>
+                                                {f.v > 0 ? `₹${f.v.toLocaleString()}` : '—'}
+                                              </p>
                                             ) : f.field ? (
                                               f.field === 'pending_amount' ? (
                                                 <p className={`text-lg font-bold ${f.c}`}>₹{(f.v || 0).toLocaleString()}</p>
