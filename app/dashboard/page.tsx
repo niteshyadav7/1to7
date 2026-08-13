@@ -221,7 +221,7 @@ export default function DashboardPage() {
           }
 
           return (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,310px))] gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
               {filteredCampaigns.map((campaign, index) => (
                 <CampaignCard
                   key={campaign.id}
