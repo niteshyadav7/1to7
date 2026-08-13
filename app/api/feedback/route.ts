@@ -86,3 +86,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'An unexpected error occurred.' }, { status: 500 })
   }
 }
+
+export async function GET() {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth_token')?.value
+
+    if (!token) {
+      return NextResponse.json({ feedback: [] })
+    }
+
+    const payload = await decrypt(token)
+    if (!payload || !payload.id) {
+      return NextResponse.json({ feedback: [] })
+    }
+
+    const { data, error } = await supabase
+      .from('feedback')
+      .select('*')
+      .eq('user_id', payload.id as string)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('[GET /api/feedback] Supabase error:', error)
+      return NextResponse.json({ feedback: [] })
+    }
+
+    return NextResponse.json({ feedback: data || [] })
+  } catch (err) {
+    console.error('[GET /api/feedback] Error:', err)
+    return NextResponse.json({ feedback: [] })
+  }
+}

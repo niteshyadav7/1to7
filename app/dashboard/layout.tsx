@@ -39,6 +39,7 @@ const sidebarLinks = [
   { href: '/dashboard/campaigns', label: 'Applied', icon: Send },
   { href: '/dashboard/approved', label: 'Approved', icon: CheckCircle2 },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
+  { href: '/dashboard/feedback', label: 'Feedback', icon: MessageSquareHeart },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +47,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout, isProfileComplete } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
 
   // Load saved sidebar collapse preference
   useEffect(() => {
@@ -135,24 +135,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
-
-          {/* Feedback Trigger in Nav */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false)
-              setFeedbackModalOpen(true)
-            }}
-            title={isCollapsed ? "Feedback" : undefined}
-            className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 border-transparent`}
-          >
-            <MessageSquareHeart className="h-4.5 w-4.5 shrink-0 text-amber-400 group-hover:scale-110 transition-transform" />
-            {!isCollapsed && <span>Feedback</span>}
-            {!isCollapsed && (
-              <span className="ml-auto text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                New
-              </span>
-            )}
-          </button>
         </nav>
 
         {/* Logout */}
@@ -247,9 +229,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
-
-      {/* Feedback Modal */}
-      <FeedbackModal isOpen={feedbackModalOpen} onClose={() => setFeedbackModalOpen(false)} />
     </div>
   )
 }
