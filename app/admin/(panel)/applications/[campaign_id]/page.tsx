@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
+import { ExternalLink } from 'lucide-react'
 
 interface UserInfo {
   id: string
@@ -267,9 +269,17 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                       <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                         <span>{user?.influencer_id}</span>
                         {user?.instagram_username && (
-                          <a href={`https://instagram.com/${user.instagram_username.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
-                            <Instagram className="h-3 w-3 text-pink-400" />
-                            {user.instagram_username}
+                          <a
+                            href={getInstagramUrl(user.instagram_username)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 font-semibold text-slate-300 hover:text-pink-400 hover:underline transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                            title={getInstagramDisplayHandle(user.instagram_username)}
+                          >
+                            <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
+                            <span className="truncate max-w-[150px]">{getInstagramDisplayHandle(user.instagram_username)}</span>
+                            <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline" />
                           </a>
                         )}
                         {user?.followers > 0 && (
@@ -317,9 +327,16 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
                           <div className="text-slate-300 flex items-center gap-1">
                             {user?.instagram_username ? (
-                              <a href={`https://instagram.com/${user.instagram_username.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
-                                <Instagram className="h-3 w-3 text-pink-400" />
-                                {user.instagram_username}
+                              <a
+                                href={getInstagramUrl(user.instagram_username)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 font-semibold text-slate-200 hover:text-pink-400 hover:underline transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
+                                <span>{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                <ExternalLink className="h-3 w-3 text-pink-400 shrink-0" />
                               </a>
                             ) : '—'}
                           </div>

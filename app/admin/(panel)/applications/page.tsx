@@ -19,6 +19,8 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
+import { ExternalLink } from 'lucide-react'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -1258,14 +1260,16 @@ export default function AllApplicationsPage() {
                             {user?.instagram_username ? (
                               <div className="min-w-0">
                                 <a 
-                                  href={`https://instagram.com/${user.instagram_username.replace('@', '')}`}
+                                  href={getInstagramUrl(user.instagram_username)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
-                                  className="text-[12px] text-slate-300 hover:text-indigo-400 hover:underline flex items-center gap-1.5 truncate transition-colors"
+                                  className="text-[12px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1.5 max-w-[180px] transition-colors group/link"
+                                  title={getInstagramDisplayHandle(user.instagram_username)}
                                 >
                                   <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
-                                  <span className="truncate">{user.instagram_username}</span>
+                                  <span className="truncate">{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                  <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
                                 </a>
                                 <p className="text-[11px] text-slate-500 mt-0.5">
                                   {formatFollowers(user.followers)} followers
