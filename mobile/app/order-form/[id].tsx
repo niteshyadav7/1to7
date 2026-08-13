@@ -33,6 +33,16 @@ interface ApplicationData {
   }
 }
 
+const DEFAULT_ORDER_FIELDS: FormField[] = [
+  { name: 'Order ID', type: 'text', required: true },
+  { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true },
+  { name: 'Product Amount (₹)', type: 'number', required: true },
+  { name: 'Reviewer Name', type: 'text', required: true },
+  { name: 'Reviewer Profile Link', type: 'text', required: true },
+  { name: 'Order Placement Screenshot', type: 'image', required: true },
+  { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true },
+]
+
 export default function OrderFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
@@ -57,13 +67,14 @@ export default function OrderFormScreen() {
         if (found) {
           setApplication(found)
           // Initialize form fields
+          const customFields = found.campaigns?.order_form_fields
+          const activeFields = (customFields && customFields.length > 0) ? customFields : DEFAULT_ORDER_FIELDS
+          
           const initial: Record<string, any> = {}
-          if (found.campaigns?.order_form_fields) {
-            found.campaigns.order_form_fields.forEach((f: FormField) => {
-              // Pre-fill from existing submission if re-submitting
-              initial[f.name] = found.form_data?.order_details?.[f.name] || ''
-            })
-          }
+          activeFields.forEach((f: FormField) => {
+            // Pre-fill from existing submission if re-submitting
+            initial[f.name] = found.form_data?.order_details?.[f.name] || ''
+          })
           setOrderFormData(initial)
         }
       }
@@ -74,11 +85,17 @@ export default function OrderFormScreen() {
     }
   }
 
+  const rawFields = application?.campaigns?.order_form_fields
+  const fields = (rawFields && rawFields.length > 0) ? rawFields : DEFAULT_ORDER_FIELDS
+
   const isFormValid = () => {
-    if (!application?.campaigns?.order_form_fields) return false
-    return application.campaigns.order_form_fields
+    if (!fields || fields.length === 0) return false
+    return fields
       .filter(f => f.required)
-      .every(f => !!orderFormData[f.name])
+      .every(f => {
+        const val = orderFormData[f.name]
+        return val !== undefined && val !== null && String(val).trim() !== ''
+      })
   }
 
   const pickAndUploadImage = async (fieldName: string) => {
@@ -174,7 +191,6 @@ export default function OrderFormScreen() {
     )
   }
 
-  const fields = application.campaigns?.order_form_fields || []
   const isUploading = Object.values(uploadingFields).some(Boolean)
 
   return (

@@ -577,10 +577,10 @@ export default function CampaignDetailModal({
                               ) : (
                                 <Input
                                   value={customFormData[field.name] || ''}
-                                  type={field.type === 'number' ? 'number' : 'text'}
+                                  type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                                  placeholder={`Enter ${field.name}...`}
-                                  className="bg-white border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
+                                  placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
+                                  className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
                                 />
                               )}
                             </div>
@@ -664,9 +664,9 @@ export default function CampaignDetailModal({
                            ) : (
                              <Input 
                                value={customFormData[field.name] || ''}
-                               type={field.type === 'number' ? 'number' : 'text'}
+                               type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                               placeholder={`Enter ${field.name}...`}
+                               placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
                                className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
                              />
                            )}

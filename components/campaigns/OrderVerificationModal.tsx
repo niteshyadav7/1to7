@@ -15,8 +15,22 @@ interface FormField {
   options?: string[]
 }
 
+const DEFAULT_ORDER_FIELDS: FormField[] = [
+  { name: 'Order ID', type: 'text', required: true },
+  { name: 'Order Date (DD-MM-YYYY)', type: 'text', required: true },
+  { name: 'Product Amount (₹)', type: 'number', required: true },
+  { name: 'Reviewer Name', type: 'text', required: true },
+  { name: 'Reviewer Profile Link', type: 'text', required: true },
+  { name: 'Order Placement Screenshot', type: 'image', required: true },
+  { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true },
+]
+
 interface Application {
   id: string
+  form_data?: {
+    order_details?: Record<string, any>
+    rejection_reason?: string
+  }
   campaigns: {
     brand_name: string
     order_form?: boolean
@@ -39,12 +53,20 @@ export default function OrderVerificationModal({
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  // Determine active fields (custom fields if provided and non-empty, otherwise default order fields)
+  const rawFields = application?.campaigns?.order_form_fields
+  const fields = (rawFields && rawFields.length > 0) ? rawFields : DEFAULT_ORDER_FIELDS
+
   // Initialize fields on open
   useEffect(() => {
-    if (isOpen && application?.campaigns?.order_form_fields) {
+    if (isOpen && application) {
+      const customFields = application.campaigns?.order_form_fields
+      const activeFields = (customFields && customFields.length > 0) ? customFields : DEFAULT_ORDER_FIELDS
+      
+      const existingData = application.form_data?.order_details || {}
       const initial: Record<string, any> = {}
-      application.campaigns.order_form_fields.forEach(f => {
-        initial[f.name] = ''
+      activeFields.forEach(f => {
+        initial[f.name] = existingData[f.name] || ''
       })
       setOrderFormData(initial)
     }
@@ -52,11 +74,12 @@ export default function OrderVerificationModal({
 
   if (!isOpen || !application) return null
 
-  const fields = application.campaigns.order_form_fields || []
-
   // Check if standard validation passes
   const isFormValid = () => {
-    return fields.filter(f => f.required).every(f => !!orderFormData[f.name])
+    return fields.filter(f => f.required).every(f => {
+      const val = orderFormData[f.name]
+      return val !== undefined && val !== null && String(val).trim() !== ''
+    })
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
