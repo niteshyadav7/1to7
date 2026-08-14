@@ -192,8 +192,12 @@ export default function ApplicationFormModal({
   // Step 1: Check mobile number (Continue Button)
   const handleMobileCheck = async () => {
     const cleanMobile = guestMobile.replace(/\D/g, '')
+    if (!cleanMobile) {
+      toast.error('Please enter your 10-digit mobile number')
+      return
+    }
     if (cleanMobile.length !== 10) {
-      toast.error('Please enter a valid 10-digit mobile number')
+      toast.error('Mobile number must be exactly 10 digits')
       return
     }
 
@@ -262,8 +266,32 @@ export default function ApplicationFormModal({
       toast.error('Please enter your full name')
       return
     }
-    if (!guestEmail.trim() || !guestEmail.includes('@')) {
+    if (!guestEmail.trim()) {
+      toast.error('Please enter your email address')
+      return
+    }
+    if (!guestEmail.includes('@')) {
       toast.error('Please enter a valid email address')
+      return
+    }
+    if (!guestInstagram.trim()) {
+      toast.error('Please enter your Instagram username')
+      return
+    }
+    if (!guestFollowers.trim()) {
+      toast.error('Please enter your follower count')
+      return
+    }
+    if (!guestGender) {
+      toast.error('Please select your gender')
+      return
+    }
+    if (!guestState.trim()) {
+      toast.error('Please select your state')
+      return
+    }
+    if (!guestCity.trim()) {
+      toast.error('Please select your city')
       return
     }
     setGuestStep('application')
@@ -474,8 +502,8 @@ export default function ApplicationFormModal({
 
                     <Button
                       onClick={handleMobileCheck}
-                      disabled={checkingMobile || guestMobile.replace(/\D/g, '').length !== 10 || mobileStatus === 'idle'}
-                      className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm"
+                      disabled={checkingMobile}
+                      className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >
                       {checkingMobile ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
@@ -638,7 +666,7 @@ export default function ApplicationFormModal({
                       </Button>
                       <Button
                         onClick={handleNewProfile}
-                        disabled={!guestName.trim() || !guestEmail.includes('@') || !guestInstagram.trim() || !guestFollowers.trim() || !guestGender || !guestState.trim() || !guestCity.trim()}
+                        disabled={loading}
                         className="flex-[2] h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold shadow-sm cursor-pointer disabled:opacity-50"
                       >
                         Continue <ArrowRight className="ml-2 h-4 w-4" />

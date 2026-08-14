@@ -92,21 +92,36 @@ export default function SignupPage() {
   const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Basic validations
-    if (!fullName || !email || !mobile || !password || !gender) {
-      toast.error('Please fill in all required fields.')
+    if (!fullName.trim()) {
+      toast.error('Please enter your full name')
       return
     }
-    if (mobile.replace(/\D/g, '').length !== 10) {
-      toast.error('Please enter a valid 10-digit mobile number.')
+    if (!email.trim()) {
+      toast.error('Please enter your email address')
       return
     }
     if (!email.includes('@')) {
-      toast.error('Please enter a valid email address.')
+      toast.error('Please enter a valid email address')
+      return
+    }
+    if (!mobile.trim()) {
+      toast.error('Please enter your mobile number')
+      return
+    }
+    if (mobile.replace(/\D/g, '').length !== 10) {
+      toast.error('Mobile number must be exactly 10 digits')
+      return
+    }
+    if (!password.trim()) {
+      toast.error('Please enter a password')
       return
     }
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters long.')
+      toast.error('Password must be at least 6 characters long')
+      return
+    }
+    if (!gender) {
+      toast.error('Please select your gender')
       return
     }
 
@@ -190,8 +205,20 @@ export default function SignupPage() {
 
   // ─── Step 2: Verify Both OTPs & Create Account ───
   const handleVerifyAll = async () => {
-    if (mobileOtp.length !== 6 || emailOtp.length !== 6) {
-      toast.error('Please enter valid 6-digit OTPs for both Mobile and Email')
+    if (!mobileOtp.trim()) {
+      toast.error('Please enter the Mobile OTP')
+      return
+    }
+    if (mobileOtp.length !== 6) {
+      toast.error('Mobile OTP must be exactly 6 digits')
+      return
+    }
+    if (!emailOtp.trim()) {
+      toast.error('Please enter the Email OTP')
+      return
+    }
+    if (emailOtp.length !== 6) {
+      toast.error('Email OTP must be exactly 6 digits')
       return
     }
 
@@ -530,7 +557,7 @@ export default function SignupPage() {
 
                 <Button
                   onClick={handleVerifyAll}
-                  disabled={loading || mobileOtp.length !== 6 || emailOtp.length !== 6}
+                  disabled={loading}
                   className="w-full h-12 rounded-md bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-sm uppercase tracking-wider transition-all shadow-md active:scale-[0.98] mt-4 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Create Account</>}

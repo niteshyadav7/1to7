@@ -203,8 +203,12 @@ export default function LoginPage() {
   // ─── Shared Mobile Submit for Social Logins (Google & Instagram) ───
   const handleSocialMobileSubmit = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile) {
+      toast.error('Please enter your mobile number')
+      return
+    }
     if (cleanMobile.length !== 10) {
-      toast.error('Please enter a valid 10-digit mobile number')
+      toast.error('Mobile number must be exactly 10 digits')
       return
     }
 
@@ -291,8 +295,12 @@ export default function LoginPage() {
   // ═══════════════════════════════════════════
   const handleOTPLoginStart = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile) {
+      toast.error('Please enter your mobile number')
+      return
+    }
     if (cleanMobile.length !== 10) {
-      toast.error('Please enter a valid 10-digit mobile number')
+      toast.error('Mobile number must be exactly 10 digits')
       return
     }
 
@@ -329,8 +337,12 @@ export default function LoginPage() {
   //  SHARED: VERIFY OTP
   // ═══════════════════════════════════════════
   const handleVerifyOTP = async () => {
+    if (!otp.trim()) {
+      toast.error('Please enter the 6-digit OTP code')
+      return
+    }
     if (otp.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP')
+      toast.error('OTP must be exactly 6 digits')
       return
     }
 
@@ -609,7 +621,7 @@ export default function LoginPage() {
                 </div>
                 <Button
                   onClick={handleSocialMobileSubmit}
-                  disabled={loading || mobile.length !== 10}
+                  disabled={loading}
                   className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>}
@@ -638,7 +650,7 @@ export default function LoginPage() {
                 />
                 <Button
                   onClick={handleVerifyOTP}
-                  disabled={loading || otp.length !== 6}
+                  disabled={loading}
                   className="w-full h-12 rounded-md bg-primary-container text-black font-bold text-sm disabled:opacity-50 mt-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Continue</>}

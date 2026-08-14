@@ -11,35 +11,35 @@ export function Navbar() {
   const router = useRouter()
 
   return (
-    <nav className="border-b border-border-subtle px-6 py-4 flex justify-between items-center bg-white z-50 relative">
-      <Link href="/" className="font-bold text-2xl text-charcoal-surface tracking-tight flex items-center gap-2">
-        <span className="h-8 w-8 rounded-lg bg-primary-container text-black flex items-center justify-center font-extrabold text-sm">17</span>
-        1to7 Media
+    <nav className="border-b border-border-subtle px-3 sm:px-6 py-2.5 sm:py-4 flex justify-between items-center bg-white z-50 relative w-full max-w-full min-w-0 overflow-x-hidden">
+      <Link href="/" className="font-bold text-base sm:text-2xl text-charcoal-surface tracking-tight flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <span className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary-container text-black flex items-center justify-center font-extrabold text-xs sm:text-sm shrink-0">17</span>
+        <span className="truncate">1to7 <span className="hidden xs:inline sm:inline">Media</span></span>
       </Link>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
         {isLoading ? (
-          <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-md"></div>
+          <div className="h-8 w-20 sm:h-9 sm:w-24 bg-gray-200 animate-pulse rounded-md"></div>
         ) : user ? (
           <>
-            <div className="flex items-center space-x-3 text-sm font-medium mr-4">
-              <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold">
+            <div className="flex items-center gap-1.5 sm:gap-3 text-xs sm:text-sm font-medium">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs sm:text-sm shrink-0">
                 {user.full_name?.charAt(0) || user.mobile.charAt(0)}
               </div>
               <span className="hidden md:inline-block text-gray-700">
                 {user.full_name || user.mobile}
               </span>
             </div>
-            <Button variant="ghost" onClick={async () => await logout()}>
+            <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-xs sm:text-sm h-8 sm:h-9" onClick={async () => await logout()}>
               Log Out
             </Button>
-            <Button onClick={() => router.push('/dashboard')}>
+            <Button size="sm" className="px-2.5 sm:px-4 text-xs sm:text-sm h-8 sm:h-9 bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-bold" onClick={() => router.push('/dashboard')}>
               Dashboard
             </Button>
           </>
         ) : (
           <div className="flex items-center space-x-2">
-            <Button onClick={() => router.push('/login')}>
+            <Button size="sm" className="px-3 sm:px-4 text-xs sm:text-sm h-8 sm:h-9 bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-bold" onClick={() => router.push('/login')}>
               Get Started
             </Button>
           </div>

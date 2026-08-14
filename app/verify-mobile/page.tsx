@@ -66,8 +66,12 @@ export default function VerifyMobilePage() {
 
   const handleSendOTP = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile) {
+      toast.error('Please enter your 10-digit mobile number')
+      return
+    }
     if (cleanMobile.length !== 10) {
-      toast.error('Please enter a valid 10-digit mobile number')
+      toast.error('Mobile number must be exactly 10 digits')
       return
     }
 
@@ -100,7 +104,13 @@ export default function VerifyMobilePage() {
   }
 
   const handleVerifyOTP = async () => {
+    if (!otp.trim()) {
+      toast.error('Please enter the 6-digit OTP')
+      setError('Please enter the 6-digit OTP')
+      return
+    }
     if (otp.length !== 6) {
+      toast.error('OTP must be exactly 6 digits')
       setError('Please enter a valid 6-digit OTP')
       return
     }
@@ -213,8 +223,8 @@ export default function VerifyMobilePage() {
 
                 <Button
                   onClick={handleSendOTP}
-                  disabled={sending || mobile.replace(/\D/g, '').length !== 10}
-                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50"
+                  disabled={sending}
+                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 cursor-pointer"
                 >
                   {sending ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Sending OTP...</>
@@ -249,8 +259,8 @@ export default function VerifyMobilePage() {
 
                 <Button
                   onClick={handleVerifyOTP}
-                  disabled={verifying || otp.length !== 6}
-                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm"
+                  disabled={verifying}
+                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm cursor-pointer"
                 >
                   {verifying ? (
                     <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Verifying...</>

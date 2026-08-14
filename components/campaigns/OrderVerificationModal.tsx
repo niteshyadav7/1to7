@@ -241,20 +241,35 @@ export default function OrderVerificationModal({
                           </label>
                         )}
                       </div>
-                    ) : field.type === 'date' ? (
-                      <Input
-                        type="date"
+                    ) : field.type === 'textarea' ? (
+                      <textarea
                         value={orderFormData[field.name] || ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                        className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none [color-scheme:dark]"
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                        placeholder={`Enter ${field.name}...`}
+                        rows={3}
+                        className="w-full bg-slate-950 border border-white/10 text-white p-3 rounded-xl focus:outline-none focus:border-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none resize-none"
                       />
+                    ) : field.type === 'dropdown' ? (
+                      <Select
+                        value={orderFormData[field.name] || ''}
+                        onValueChange={(val) => setOrderFormData(p => ({ ...p, [field.name]: val }))}
+                      >
+                        <SelectTrigger className="bg-slate-950 border-white/10 text-white h-11 rounded-xl focus:ring-indigo-500">
+                          <SelectValue placeholder={`Select ${field.name}`} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-white/10 text-white">
+                          {field.options?.map(opt => (
+                            <SelectItem key={opt} value={opt} className="focus:bg-indigo-600 focus:text-white cursor-pointer">{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     ) : (
                       <Input
                         value={orderFormData[field.name] || ''}
                         type={field.type === 'number' ? 'number' : 'text'}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOrderFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
                         placeholder={`Enter ${field.name}...`}
-                        className="bg-slate-900 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none"
+                        className="bg-slate-950 border-white/10 text-white h-11 rounded-xl focus-visible:ring-indigo-500 placeholder:text-slate-600 font-medium text-sm shadow-none"
                       />
                     )}
                   </div>
@@ -274,8 +289,8 @@ export default function OrderVerificationModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={submitting || !isFormValid() || Object.values(uploadingFields).some(Boolean)}
-              className="flex-[2] h-12 rounded-2xl bg-slate-800 text-white font-bold flex items-center justify-center transition-all enabled:bg-indigo-600 enabled:hover:bg-indigo-500 disabled:opacity-50"
+              disabled={submitting || Object.values(uploadingFields).some(Boolean)}
+              className="flex-[2] h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center transition-all disabled:opacity-50 cursor-pointer"
             >
               {submitting ? 'Submitting...' : <>Submit Details <Send className="ml-2 h-4 w-4" /></>}
             </Button>

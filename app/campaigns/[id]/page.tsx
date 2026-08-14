@@ -117,23 +117,23 @@ export default function StandaloneCampaignPage({
   } : null
 
   return (
-    <div className="min-h-screen bg-[#f9f9f9] text-[#1a1c1c] font-sans selection:bg-[#febd1c]/30 flex flex-col justify-between">
+    <div className="min-h-screen bg-[#f9f9f9] text-[#1a1c1c] font-sans selection:bg-[#febd1c]/30 flex flex-col justify-between overflow-x-hidden w-full max-w-full">
       <div>
         <Navbar />
 
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-3 md:py-4 space-y-3.5">
+        <main className="max-w-6xl w-full mx-auto px-3 sm:px-6 py-3 md:py-4 space-y-3.5 min-w-0 flex-1">
           {/* Back Navigation Bar */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm transition-all hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-xl shadow-sm transition-all hover:bg-slate-50 shrink-0"
             >
-              <ArrowLeft className="h-3.5 w-3.5 text-slate-500" />
-              <span>Back to All Campaigns</span>
+              <ArrowLeft className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <span>Back<span className="hidden sm:inline"> to All Campaigns</span></span>
             </Link>
 
             {campaign && (
-              <span className="text-[11px] font-mono text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-xl shadow-sm">
+              <span className="text-[10px] sm:text-[11px] font-mono text-slate-500 bg-white border border-slate-200 px-2.5 sm:px-3 py-1 rounded-xl shadow-sm shrink-0">
                 CODE: <strong className="text-slate-900 font-bold">{campaign.campaign_code}</strong>
               </span>
             )}
@@ -168,44 +168,44 @@ export default function StandaloneCampaignPage({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
-              className="space-y-3.5"
+              className="space-y-3.5 min-w-0"
             >
               {/* Header Hero Card */}
-              <div className="rounded-2xl bg-white border border-slate-200/80 p-4 sm:p-5 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-5 shadow-sm min-w-0 w-full overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 min-w-0">
                   {/* Left Info Column */}
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-[#febd1c] text-slate-950 font-black text-2xl flex items-center justify-center shadow-sm shrink-0 border border-amber-300">
+                  <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className="h-11 w-11 sm:h-14 sm:w-14 rounded-xl bg-[#febd1c] text-slate-950 font-black text-xl sm:text-2xl flex items-center justify-center shadow-sm shrink-0 border border-amber-300 mt-0.5 sm:mt-0">
                       {campaign.brand_name.charAt(0).toUpperCase()}
                     </div>
                     
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight truncate">
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                        <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight break-words max-w-full min-w-0">
                           {campaign.brand_name}
                         </h1>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                        <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                           <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Verified
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap text-xs min-w-0">
                         {/* Platform Badge */}
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-[11px] font-bold ${platformInfo?.bg}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-[10px] sm:text-[11px] font-bold ${platformInfo?.bg}`}>
                           {platformInfo?.icon}
                           <span>{campaign.platform}</span>
                         </span>
 
                         {/* Category */}
                         {campaign.category && (
-                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold">
+                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-[10px] sm:text-[11px] font-semibold">
                             {campaign.category}
                           </span>
                         )}
 
                         {/* Budget Badge */}
                         {campaign.budget_type && (
-                          <span className={`px-2.5 py-0.5 rounded-lg border font-extrabold uppercase tracking-wider text-[10px] ${
+                          <span className={`px-2.5 py-0.5 rounded-lg border font-extrabold uppercase tracking-wider text-[9px] sm:text-[10px] ${
                             campaign.budget_type === 'Paid'
                               ? 'bg-amber-50 text-amber-800 border-amber-200'
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
@@ -218,11 +218,11 @@ export default function StandaloneCampaignPage({
                   </div>
 
                   {/* Right Actions Bar */}
-                  <div className="flex items-center gap-2.5 shrink-0 pt-1 sm:pt-0">
+                  <div className="flex items-center gap-2 pt-2 sm:pt-0 w-full sm:w-auto shrink-0">
                     <Button
                       onClick={handleCopyLink}
                       variant="outline"
-                      className="h-10 px-4 rounded-xl border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs gap-1.5 transition-all cursor-pointer"
+                      className="flex-1 sm:flex-none h-9 sm:h-10 px-3 sm:px-4 rounded-xl border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs gap-1.5 transition-all cursor-pointer justify-center"
                     >
                       {copied ? (
                         <>
@@ -239,7 +239,7 @@ export default function StandaloneCampaignPage({
 
                     <Button
                       onClick={handleApplyClick}
-                      className="h-10 px-6 rounded-xl bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer group/apply"
+                      className="flex-1 sm:flex-none h-9 sm:h-10 px-4 sm:px-6 rounded-xl bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer group/apply justify-center"
                     >
                       <span>Apply Now</span>
                       <ArrowRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover/apply:translate-x-1" />
@@ -249,11 +249,11 @@ export default function StandaloneCampaignPage({
               </div>
 
               {/* Main Grid: Details (Left) + Target Criteria (Right) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-start">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-start min-w-0 w-full">
                 {/* Main Information (2 cols) */}
-                <div className="lg:col-span-2 space-y-3.5">
+                <div className="lg:col-span-2 space-y-3.5 min-w-0">
                   {/* Deliverables Card */}
-                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-2.5 shadow-sm">
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
                     <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                       <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
                         <Gift className="h-3.5 w-3.5 text-amber-500" />
@@ -264,8 +264,8 @@ export default function StandaloneCampaignPage({
                       </span>
                     </div>
 
-                    <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
-                      <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-semibold whitespace-pre-line">
+                    <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-100 min-w-0">
+                      <p className="text-xs sm:text-sm text-slate-800 leading-relaxed font-semibold whitespace-pre-line break-words">
                         {campaign.deliverables || 'No specific deliverables provided.'}
                       </p>
                     </div>
@@ -273,15 +273,15 @@ export default function StandaloneCampaignPage({
 
                   {/* Additional Guidelines / Requirements (shown only if unique and distinct) */}
                   {campaign.requirements && campaign.requirements.trim() !== campaign.deliverables.trim() && (
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-2.5 shadow-sm">
+                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
                           <FileText className="h-3.5 w-3.5 text-indigo-500" />
                           Guidelines & Instructions
                         </h2>
                       </div>
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
-                        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                      <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-100 min-w-0">
+                        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line break-words">
                           {campaign.requirements}
                         </p>
                       </div>
@@ -290,15 +290,15 @@ export default function StandaloneCampaignPage({
 
                   {/* Additional Campaign Notes */}
                   {campaign.additional_info && (
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-2.5 shadow-sm">
+                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
                           <Sparkles className="h-3.5 w-3.5 text-purple-500" />
                           Campaign Notes
                         </h2>
                       </div>
-                      <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
-                        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+                      <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-100 min-w-0">
+                        <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line break-words">
                           {campaign.additional_info}
                         </p>
                       </div>
@@ -307,7 +307,7 @@ export default function StandaloneCampaignPage({
 
                   {/* Product / Brand Links */}
                   {campaign.product_links && campaign.product_links.length > 0 && (
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-2.5 shadow-sm">
+                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
                           <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
@@ -315,16 +315,16 @@ export default function StandaloneCampaignPage({
                         </h2>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 min-w-0">
                         {campaign.product_links.map((link, idx) => (
                           <a
                             key={idx}
                             href={link.startsWith('http') ? link : `https://${link}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="group/link flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-blue-600 hover:text-blue-800 hover:border-blue-300 hover:bg-blue-50/50 text-xs font-semibold transition-all"
+                            className="group/link flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-blue-600 hover:text-blue-800 hover:border-blue-300 hover:bg-blue-50/50 text-xs font-semibold transition-all min-w-0 max-w-full overflow-hidden"
                           >
-                            <span className="truncate pr-4 font-mono">{link}</span>
+                            <span className="truncate min-w-0 pr-2 font-mono text-[11px] sm:text-xs">{link}</span>
                             <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover/link:text-blue-600 transition-colors" />
                           </a>
                         ))}
@@ -334,38 +334,38 @@ export default function StandaloneCampaignPage({
                 </div>
 
                 {/* Target Criteria Sidebar (1 col) */}
-                <div className="space-y-3.5">
-                  <div className="rounded-2xl bg-white border border-slate-200/80 p-4 space-y-3.5 shadow-sm">
+                <div className="space-y-3.5 min-w-0">
+                  <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-3.5 shadow-sm min-w-0">
                     <h3 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest pb-2 border-b border-slate-100 flex items-center justify-between">
                       <span>Target Criteria</span>
                       <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
                     </h3>
 
                     {/* Criteria Cards Grid */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-w-0">
                       {/* Followers */}
                       {campaign.followers && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
                               <Users className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-xs text-slate-600 font-medium">Followers Req</span>
+                            <span className="text-xs text-slate-600 font-medium truncate">Followers Req</span>
                           </div>
-                          <span className="text-xs font-extrabold text-slate-900">{campaign.followers}</span>
+                          <span className="text-xs font-extrabold text-slate-900 shrink-0">{campaign.followers}</span>
                         </div>
                       )}
 
                       {/* Gender */}
                       {campaign.gender_required && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-pink-50 text-pink-600">
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-pink-50 text-pink-600 shrink-0">
                               <Sparkles className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-xs text-slate-600 font-medium">Gender</span>
+                            <span className="text-xs text-slate-600 font-medium truncate">Gender</span>
                           </div>
-                          <span className="text-xs font-bold text-slate-800">
+                          <span className="text-xs font-bold text-slate-800 shrink-0">
                             {campaign.gender_required === 'Any' ? 'Open to All' : campaign.gender_required}
                           </span>
                         </div>
@@ -373,14 +373,14 @@ export default function StandaloneCampaignPage({
 
                       {/* Location */}
                       {campaign.location && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600 shrink-0">
                               <MapPin className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-xs text-slate-600 font-medium">Target Location</span>
+                            <span className="text-xs text-slate-600 font-medium truncate">Target Location</span>
                           </div>
-                          <span className="text-xs font-bold text-slate-800 truncate max-w-[140px]" title={campaign.location}>
+                          <span className="text-xs font-bold text-slate-800 truncate max-w-[120px] sm:max-w-none text-right shrink-0" title={campaign.location}>
                             {campaign.location}
                           </span>
                         </div>
@@ -388,14 +388,14 @@ export default function StandaloneCampaignPage({
 
                       {/* Collab Date */}
                       {campaign.collab_date && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600 shrink-0">
                               <Calendar className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-xs text-slate-600 font-medium">Collab Date</span>
+                            <span className="text-xs text-slate-600 font-medium truncate">Collab Date</span>
                           </div>
-                          <span className="text-xs font-bold text-slate-800">{campaign.collab_date}</span>
+                          <span className="text-xs font-bold text-slate-800 shrink-0">{campaign.collab_date}</span>
                         </div>
                       )}
                     </div>
