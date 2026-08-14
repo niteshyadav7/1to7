@@ -6,13 +6,14 @@ import Link from 'next/link'
 import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
   Instagram, Youtube, ShoppingBag, Globe, Search, Trash2,
-  Copy, Check
+  Copy, Check, Upload
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
+import { BulkCampaignUploadModal } from '@/components/admin/BulkCampaignUploadModal'
 
 interface Campaign {
   id: string
@@ -51,6 +52,7 @@ export default function AdminCampaignsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showBulkModal, setShowBulkModal] = useState(false)
 
   useEffect(() => {
     fetchCampaigns()
@@ -143,12 +145,22 @@ export default function AdminCampaignsPage() {
             <h1 className="text-xl font-extrabold text-white tracking-tight">Campaigns</h1>
             <p className="text-xs text-slate-400">Manage all brand campaigns</p>
           </div>
-          <Link href="/admin/campaigns/create">
-            <Button className="h-9 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-semibold text-xs shadow-lg shadow-indigo-500/20 cursor-pointer">
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              New Campaign
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowBulkModal(true)}
+              variant="outline"
+              className="h-9 px-3.5 rounded-xl border-white/10 bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs transition-all cursor-pointer"
+            >
+              <Upload className="mr-1.5 h-3.5 w-3.5 text-indigo-400" />
+              Bulk Upload
             </Button>
-          </Link>
+            <Link href="/admin/campaigns/create">
+              <Button className="h-9 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-semibold text-xs shadow-lg shadow-indigo-500/20 cursor-pointer">
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                New Campaign
+              </Button>
+            </Link>
+          </div>
         </div>
       </SetAdminHeader>
 
@@ -298,6 +310,13 @@ export default function AdminCampaignsPage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Bulk Upload Modal */}
+      <BulkCampaignUploadModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onSuccess={fetchCampaigns}
+      />
     </div>
   )
 }
