@@ -7,7 +7,8 @@ import {
   Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, 
   CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon,
   CheckCircle,
-  TrendingUp
+  TrendingUp,
+  User
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -98,6 +99,8 @@ export default function CampaignDetailModal({
   const [commentText, setCommentText] = useState('')
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [isSuccess, setIsSuccess] = useState(false)
+  const [hasAttemptedInlineSubmit, setHasAttemptedInlineSubmit] = useState(false)
+  const [hasAttemptedCustomSubmit, setHasAttemptedCustomSubmit] = useState(false)
   
   const [copiedLink, setCopiedLink] = useState(false)
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
@@ -163,6 +166,8 @@ export default function CampaignDetailModal({
       setCommentText('')
       setSavingProfile(false)
       setIsSuccess(false)
+      setHasAttemptedInlineSubmit(false)
+      setHasAttemptedCustomSubmit(false)
       // Force refresh user data to ensure we have the latest completeness status
       refreshUserProfile()
     }
@@ -197,7 +202,49 @@ export default function CampaignDetailModal({
   // Bank details excluded from campaign apply — collected later
   const bankFields = ['account_name', 'account_number', 'ifsc_code']
   const campaignMissingFields = getMissingFields().filter(f => !bankFields.includes(f))
+  const missingFields = campaignMissingFields
   const needsInlineForm = true // Always show form for comments
+
+  // Check pending missing fields for Inline Profile Completion View
+  const getPendingInlineRequirements = () => {
+    const missing: string[] = []
+    
+    // Check missing profile fields
+    missingFields.forEach(field => {
+      const val = inlineData[field]
+      if (field === 'followers') {
+        if (val === undefined || val === null || val === '' || Number(val) <= 0) {
+          missing.push(FIELD_LABELS[field] || 'Followers Count')
+        }
+      } else {
+        if (!val || (typeof val === 'string' && val.trim() === '')) {
+          missing.push(FIELD_LABELS[field] || field)
+        }
+      }
+    })
+
+    // Check custom campaign fields
+    if (hasCustomFields && campaign?.form_fields) {
+      campaign.form_fields
+        .filter(f => f.required)
+        .forEach(f => {
+          const val = customFormData[f.name]
+          if (!val || (typeof val === 'string' && val.trim() === '')) {
+            missing.push(f.name)
+          }
+        })
+    }
+
+    return missing
+  }
+
+  // Check pending requirements for Custom Form Fields View
+  const getPendingCustomRequirements = () => {
+    if (!campaign?.form_fields) return []
+    return campaign.form_fields
+      .filter(f => f.required && (!customFormData[f.name] || (typeof customFormData[f.name] === 'string' && customFormData[f.name].trim() === '')))
+      .map(f => f.name)
+  }
 
   const handleApplyClick = () => {
     if (!isLoggedIn) {
@@ -243,6 +290,14 @@ export default function CampaignDetailModal({
   }
 
   const handleCustomFormSubmit = async () => {
+    setHasAttemptedCustomSubmit(true)
+
+    const pending = getPendingCustomRequirements()
+    if (pending.length > 0) {
+      toast.error(`Please complete required fields: ${pending.join(', ')}`)
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/apply', {
@@ -265,6 +320,14 @@ export default function CampaignDetailModal({
   }
 
   const handleSaveInline = async () => {
+    setHasAttemptedInlineSubmit(true)
+
+    const pending = getPendingInlineRequirements()
+    if (pending.length > 0) {
+      toast.error(`Please fill in required fields: ${pending.join(', ')}`)
+      return
+    }
+
     if (!user?.is_mobile_verified) {
       setShowOTPModal(true)
       return
@@ -317,8 +380,6 @@ export default function CampaignDetailModal({
     </div>
   )
 
-  const missingFields = campaignMissingFields
-
   return (
     <>
       <AnimatePresence>
@@ -363,7 +424,7 @@ export default function CampaignDetailModal({
                         </div>
                         <button 
                           onClick={() => setShowProfileInline(false)}
-                          className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors"
+                          className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
                         >
                           <X className="h-5 w-5" />
                         </button>
@@ -398,18 +459,70 @@ export default function CampaignDetailModal({
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
-                      {missingFields.filter(f => f !== 'city').map((field) => (
+                      {/* Missing Requirements Alert Box */}
+                      {getPendingInlineRequirements().length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-3.5 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-2.5">
+                              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="space-y-1 text-xs">
+                                <p className="font-bold text-amber-950">
+                                  Action Required: Please complete details to apply
+                                </p>
+                                <p className="text-amber-800 text-[11px] leading-relaxed">
+                                  Fill in the fields below or update your profile:
+                                </p>
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {getPendingInlineRequirements().map((req, i) => (
+                                    <span 
+                                      key={i} 
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"
+                                    >
+                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                      {req}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                onClose()
+                                router.push('/dashboard/profile')
+                              }}
+                              className="h-8 px-3 text-[11px] font-bold text-amber-900 border-amber-300 hover:bg-amber-100 bg-white shadow-2xs gap-1.5 cursor-pointer shrink-0 self-start sm:self-center"
+                            >
+                              <User className="h-3.5 w-3.5 text-amber-700" />
+                              <span>Go to Profile</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {Array.from(new Set(missingFields.map(f => (f === 'city' ? 'state' : f)))).map((field) => (
                         <div key={field}>
                            {field === 'gender' ? (
                              <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                                  {FIELD_LABELS[field] || field}
-                               </label>
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                                  <span>{FIELD_LABELS[field] || field}</span>
+                                  <span className="text-red-500 font-bold">* (Required)</span>
+                                </label>
                                <Select 
                                  value={inlineData[field] || ""} 
                                  onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
                                >
-                                  <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
+                                  <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                    hasAttemptedInlineSubmit && !inlineData[field] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                  }`}>
                                      <SelectValue placeholder="Select Gender" />
                                   </SelectTrigger>
                                   <SelectContent className="bg-white border border-border-subtle text-foreground">
@@ -423,14 +536,17 @@ export default function CampaignDetailModal({
                               <div className="grid grid-cols-2 gap-4">
                                 {/* State */}
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                                     State
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                                     <span>State</span>
+                                     <span className="text-red-500 font-bold">*</span>
                                   </label>
                                   <Select 
                                     value={inlineData.state || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
                                   >
-                                    <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
+                                    <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                      hasAttemptedInlineSubmit && !inlineData.state ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                    }`}>
                                        <SelectValue placeholder="Select State" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -442,15 +558,18 @@ export default function CampaignDetailModal({
                                 </div>
                                 {/* City */}
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                                     City
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                                     <span>City</span>
+                                     <span className="text-red-500 font-bold">*</span>
                                   </label>
                                   <Select 
                                     disabled={!inlineData.state && !user?.state}
                                     value={inlineData.city || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
                                   >
-                                    <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
+                                    <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                      hasAttemptedInlineSubmit && !inlineData.city ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                    }`}>
                                        <SelectValue placeholder="Select City" />
                                     </SelectTrigger>
                                     <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -463,8 +582,9 @@ export default function CampaignDetailModal({
                               </div>
                            ) : (
                              <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                                  {FIELD_LABELS[field] || field}
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                                  <span>{FIELD_LABELS[field] || field}</span>
+                                  <span className="text-red-500 font-bold">* (Required)</span>
                                </label>
                                <div className="relative">
                                   {field.includes('account') || field.includes('ifsc') ? (
@@ -481,145 +601,173 @@ export default function CampaignDetailModal({
                                     type={field === 'followers' ? 'number' : 'text'}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
                                     placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
-                                    className="bg-white border-border-subtle text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container"
+                                    className={`bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${
+                                      hasAttemptedInlineSubmit && (
+                                        field === 'followers' 
+                                          ? (!inlineData[field] || Number(inlineData[field]) <= 0)
+                                          : (!inlineData[field] || String(inlineData[field]).trim() === '')
+                                      ) ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                    }`}
                                   />
                                   </div>
                                 </div>
                                )}
                              </div>
+                            ))}
+
+
+                       {/* Comments - Always shown */}
+                           <div className="border-t border-border-subtle pt-5 mt-2">
+                             <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                               <MessageSquare className="h-3.5 w-3.5" />
+                               Comments / Notes
+                             </p>
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
+                               Your Comments (Optional)
+                             </label>
+                             <textarea
+                               value={commentText}
+                               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
+                               placeholder="Add any comments, notes, or questions for the brand..."
+                               rows={4}
+                               className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
+                             />
+                           </div>
+
+
+                       {/* Custom Campaign Questions */}
+                       {hasCustomFields && (
+                         <>
+                           <div className="border-t border-border-subtle pt-5 mt-2">
+                             <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                               <FileText className="h-3.5 w-3.5" />
+                               Campaign Questions
+                             </p>
+                           </div>
+                           {campaign.form_fields!.map((field, idx) => (
+                             <div key={`cf-${idx}`} className="space-y-2">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                                 <span>{field.name}</span>
+                                 {field.required && <span className="text-red-500 font-bold">* (Required)</span>}
+                               </label>
+                               {field.type === 'dropdown' ? (
+                                 <Select
+                                   value={customFormData[field.name] || ""}
+                                   onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
+                                 >
+                                   <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                     hasAttemptedInlineSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                   }`}>
+                                     <SelectValue placeholder={`Select ${field.name}`} />
+                                   </SelectTrigger>
+                                   <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+                                     {field.options?.map(opt => (
+                                       <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
+                                     ))}
+                                   </SelectContent>
+                                 </Select>
+                               ) : field.type === 'textarea' ? (
+                                 <textarea
+                                   value={customFormData[field.name] || ''}
+                                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                                   placeholder={`Enter ${field.name}...`}
+                                   rows={3}
+                                   className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
+                                     hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                   }`}
+                                 />
+                               ) : field.type === 'image' ? (
+                                 <div className="space-y-2">
+                                   {customFormData[field.name] ? (
+                                     <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
+                                       <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                                       <button
+                                         type="button"
+                                         onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
+                                         className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                       >
+                                         <X className="h-4 w-4" />
+                                       </button>
+                                     </div>
+                                   ) : (
+                                     <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
+                                       hasAttemptedInlineSubmit && field.required && !customFormData[field.name] ? 'border-red-400' : 'border-border-subtle'
+                                     }`}>
+                                       {uploadingFields[field.name] ? (
+                                         <div className="flex flex-col items-center gap-2">
+                                           <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                           <span className="text-xs text-secondary">Uploading...</span>
+                                         </div>
+                                       ) : (
+                                         <>
+                                           <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                                           <span className="text-sm font-medium text-secondary">Tap to select image</span>
+                                           <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
+                                         </>
+                                       )}
+                                       <input
+                                         type="file"
+                                         accept="image/png, image/jpeg, image/webp"
+                                         className="hidden"
+                                         disabled={uploadingFields[field.name]}
+                                         onChange={(e) => handleImageUpload(e, field.name, false)}
+                                       />
+                                     </label>
+                                   )}
+                                 </div>
+                               ) : (
+                                 <Input
+                                   value={customFormData[field.name] || ''}
+                                   type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+                                   placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
+                                   className={`bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
+                                     hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                   }`}
+                                 />
+                               )}
+                             </div>
                            ))}
+                         </>
+                       )}
+                     </div>
 
-
-                      {/* Comments - Always shown */}
-                          <div className="border-t border-border-subtle pt-5 mt-2">
-                            <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              Comments / Notes
-                            </p>
+                     <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
+                        {getPendingInlineRequirements().length > 0 && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                            <span>Please complete: <strong className="font-bold text-amber-950">{getPendingInlineRequirements().join(', ')}</strong></span>
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                              Your Comments (Optional)
-                            </label>
-                            <textarea
-                              value={commentText}
-                              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
-                              placeholder="Add any comments, notes, or questions for the brand..."
-                              rows={4}
-                              className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
-                            />
-                          </div>
-
-
-                      {/* Custom Campaign Questions */}
-                      {hasCustomFields && (
-                        <>
-                          <div className="border-t border-border-subtle pt-5 mt-2">
-                            <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                              <FileText className="h-3.5 w-3.5" />
-                              Campaign Questions
-                            </p>
-                          </div>
-                          {campaign.form_fields!.map((field, idx) => (
-                            <div key={`cf-${idx}`} className="space-y-2">
-                              <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center gap-2">
-                                {field.name}
-                                {field.required && <span className="text-red-400">*</span>}
-                              </label>
-                              {field.type === 'dropdown' ? (
-                                <Select
-                                  value={customFormData[field.name] || ""}
-                                  onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
-                                >
-                                  <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
-                                    <SelectValue placeholder={`Select ${field.name}`} />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
-                                    {field.options?.map(opt => (
-                                      <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : field.type === 'textarea' ? (
-                                <textarea
-                                  value={customFormData[field.name] || ''}
-                                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                                  placeholder={`Enter ${field.name}...`}
-                                  rows={3}
-                                  className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
-                                />
-                              ) : field.type === 'image' ? (
-                                <div className="space-y-2">
-                                  {customFormData[field.name] ? (
-                                    <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
-                                      <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
-                                      <button
-                                        type="button"
-                                        onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
-                                        className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors"
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-border-subtle hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group">
-                                      {uploadingFields[field.name] ? (
-                                        <div className="flex flex-col items-center gap-2">
-                                          <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                                          <span className="text-xs text-secondary">Uploading...</span>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
-                                          <span className="text-sm font-medium text-secondary">Tap to select image</span>
-                                          <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
-                                        </>
-                                      )}
-                                      <input
-                                        type="file"
-                                        accept="image/png, image/jpeg, image/webp"
-                                        className="hidden"
-                                        disabled={uploadingFields[field.name]}
-                                        onChange={(e) => handleImageUpload(e, field.name, false)}
-                                      />
-                                    </label>
-                                  )}
-                                </div>
-                              ) : (
-                                <Input
-                                  value={customFormData[field.name] || ''}
-                                  type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                                  placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
-                                  className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
-                                />
-                              )}
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="p-4 sm:p-8 pt-4 border-t border-border-subtle flex gap-4">
-                       <Button 
-                         variant="outline" 
-                         onClick={() => setShowProfileInline(false)}
-                         className="flex-1 h-12 rounded-md text-secondary border-border-subtle"
-                       >
-                         Back
-                       </Button>
-                       <Button 
-                         onClick={handleSaveInline}
-                         disabled={
-                           savingProfile || 
-                           (!isProfileComplete() && !isProfileFormValid()) || 
-                           (hasCustomFields && !isCustomFormValid())
-                         }
-                         className="flex-[2] h-12 rounded-md bg-primary-container text-black font-bold uppercase disabled:opacity-50"
-                       >
-                         {savingProfile ? 'Submitting...' : 'Save & Apply'}
-                       </Button>
-                    </div>
+                        )}
+                        <div className="flex gap-4">
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowProfileInline(false)}
+                            className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
+                          >
+                            Back
+                          </Button>
+                          <Button 
+                            onClick={handleSaveInline}
+                            disabled={savingProfile}
+                            className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${
+                              getPendingInlineRequirements().length > 0
+                                ? 'bg-primary-container/80 hover:bg-primary-container text-black'
+                                : 'bg-primary-container hover:bg-primary-container/90 text-black'
+                            }`}
+                          >
+                            {savingProfile ? (
+                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                            ) : getPendingInlineRequirements().length > 0 ? (
+                              'Complete & Apply'
+                            ) : (
+                              'Save & Apply'
+                            )}
+                          </Button>
+                        </div>
+                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -643,11 +791,32 @@ export default function CampaignDetailModal({
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
+                      {/* Missing custom requirements alert box */}
+                      {getPendingCustomRequirements().length > 0 && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-3.5 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1 text-xs">
+                              <p className="font-bold text-amber-950">
+                                Required Questions Incomplete
+                              </p>
+                              <p className="text-amber-800 text-[11px] leading-relaxed">
+                                Please answer: {getPendingCustomRequirements().join(', ')}
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
                       {campaign.form_fields.map((field, idx) => (
                         <div key={idx} className="space-y-2">
-                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center gap-2">
-                              {field.name}
-                              {field.required && <span className="text-red-400">*</span>}
+                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
+                              <span>{field.name}</span>
+                              {field.required && <span className="text-red-500 font-bold">* (Required)</span>}
                            </label>
                            
                            {field.type === 'dropdown' ? (
@@ -655,7 +824,9 @@ export default function CampaignDetailModal({
                                value={customFormData[field.name] || ""} 
                                onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
                              >
-                                <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus:ring-primary-container">
+                                <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                  hasAttemptedCustomSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                }`}>
                                    <SelectValue placeholder={`Select ${field.name}`} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -670,41 +841,98 @@ export default function CampaignDetailModal({
                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
                                placeholder={`Enter ${field.name}...`}
                                rows={3}
-                               className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
+                               className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
+                                 hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                               }`}
                              />
+                           ) : field.type === 'image' ? (
+                             <div className="space-y-2">
+                               {customFormData[field.name] ? (
+                                 <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
+                                   <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                                   <button
+                                     type="button"
+                                     onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
+                                     className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
+                                   >
+                                     <X className="h-4 w-4" />
+                                   </button>
+                                 </div>
+                               ) : (
+                                 <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
+                                   hasAttemptedCustomSubmit && field.required && !customFormData[field.name] ? 'border-red-400' : 'border-border-subtle'
+                                 }`}>
+                                   {uploadingFields[field.name] ? (
+                                     <div className="flex flex-col items-center gap-2">
+                                       <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                       <span className="text-xs text-secondary">Uploading...</span>
+                                     </div>
+                                   ) : (
+                                     <>
+                                       <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                                       <span className="text-sm font-medium text-secondary">Tap to select image</span>
+                                       <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
+                                     </>
+                                   )}
+                                   <input
+                                     type="file"
+                                     accept="image/png, image/jpeg, image/webp"
+                                     className="hidden"
+                                     disabled={uploadingFields[field.name]}
+                                     onChange={(e) => handleImageUpload(e, field.name, false)}
+                                   />
+                                 </label>
+                               )}
+                             </div>
                            ) : (
                              <Input 
                                value={customFormData[field.name] || ''}
                                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
                                placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
-                               className="bg-white border border-border-subtle text-foreground h-11 rounded-md focus-visible:ring-primary-container"
+                               className={`bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
+                                 hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                               }`}
                              />
                            )}
                         </div>
                       ))}
                     </div>
 
-                    <div className="p-4 sm:p-8 pt-4 border-t border-border-subtle flex gap-4">
-                       <Button 
-                         variant="outline" 
-                         onClick={() => setShowCustomForm(false)}
-                         className="flex-1 h-12 rounded-md text-secondary border-border-subtle"
-                       >
-                         <ArrowLeft className="mr-2 h-4 w-4" />
-                         Back
-                       </Button>
-                       <Button 
-                         onClick={handleCustomFormSubmit}
-                         disabled={submitting || !isCustomFormValid()}
-                         className="flex-[2] h-12 rounded-md bg-primary-container text-black font-bold uppercase disabled:opacity-50"
-                       >
-                         {submitting ? (
-                           <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                         ) : (
-                           <><CheckCircle2 className="mr-2 h-4 w-4" /> Submit Application</>
-                         )}
-                       </Button>
+                    <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
+                       {getPendingCustomRequirements().length > 0 && (
+                         <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                           <span>Please complete: <strong className="font-bold text-amber-950">{getPendingCustomRequirements().join(', ')}</strong></span>
+                         </div>
+                       )}
+                       <div className="flex gap-4">
+                         <Button 
+                           variant="outline" 
+                           onClick={() => setShowCustomForm(false)}
+                           className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
+                         >
+                           <ArrowLeft className="mr-2 h-4 w-4" />
+                           Back
+                         </Button>
+                         <Button 
+                           onClick={handleCustomFormSubmit}
+                           disabled={submitting}
+                           className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${
+                             getPendingCustomRequirements().length > 0
+                               ? 'bg-primary-container/80 hover:bg-primary-container text-black'
+                               : 'bg-primary-container hover:bg-primary-container/90 text-black'
+                           }`}
+                         >
+                           {submitting ? (
+                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                           ) : getPendingCustomRequirements().length > 0 ? (
+                             'Complete & Submit'
+                           ) : (
+                             <><CheckCircle2 className="mr-2 h-4 w-4" /> Submit Application</>
+                           )}
+                         </Button>
+                       </div>
                     </div>
                   </motion.div>
                 )}

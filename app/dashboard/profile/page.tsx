@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   User, Save, Loader2, Lock, Instagram, MapPin, Users, CreditCard,
   Sparkles, Shield, CheckCircle2, AtSign, Building, Hash, Globe,
-  BadgeCheck, ExternalLink, Tag, X, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Check
+  BadgeCheck, ExternalLink, Tag, X, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Check,
+  RefreshCw
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
@@ -109,10 +110,15 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved' | 'error'>('idle')
   const [showOTPModal, setShowOTPModal] = useState(false)
   const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [direction, setDirection] = useState(0)
+
+  const isInitialLoaded = useRef(false)
+  const lastSavedPayload = useRef<string>('')
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -141,12 +147,12 @@ export default function ProfilePage() {
         const savedCategory = data.user.category || ''
         const isCustom = savedCategory && !INFLUENCER_CATEGORIES.includes(savedCategory)
         setShowCustomCategory(isCustom)
-        setFormData(prev => ({
-          ...prev,
-          full_name: data.user.full_name || prev.full_name || '',
-          instagram_username: data.user.instagram_username || prev.instagram_username || '',
-          instagram_profile_pic: data.user.instagram_profile_pic || prev.instagram_profile_pic || '',
-          gender: data.user.gender || prev.gender || '',
+        
+        const initialForm = {
+          full_name: data.user.full_name || '',
+          instagram_username: data.user.instagram_username || '',
+          instagram_profile_pic: data.user.instagram_profile_pic || '',
+          gender: data.user.gender || '',
           category: savedCategory,
           state: data.user.state || '',
           city: data.user.city || '',
@@ -154,7 +160,16 @@ export default function ProfilePage() {
           account_name: data.user.account_name || '',
           account_number: data.user.account_number || '',
           ifsc_code: data.user.ifsc_code || '',
-        }))
+        }
+        setFormData(initialForm)
+        
+        const payload = {
+          ...initialForm,
+          instagram_username: extractInstagramUsername(initialForm.instagram_username)
+        }
+        lastSavedPayload.current = JSON.stringify(payload)
+        isInitialLoaded.current = true
+        setSaveStatus('saved')
       }
     } catch (err) {
       console.error('[ProfilePage] fetchProfile error:', err)
@@ -164,31 +179,102 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSave = async () => {
+  // Core save handler supporting both auto-save and manual triggers
+  const performSave = async (dataToSave = formData, isAutoSave = false) => {
+    const payload = {
+      ...dataToSave,
+      instagram_username: extractInstagramUsername(dataToSave.instagram_username)
+    }
+    const payloadStr = JSON.stringify(payload)
+
+    // Skip network request if data hasn't changed from last saved state
+    if (payloadStr === lastSavedPayload.current) {
+      setSaveStatus('saved')
+      return
+    }
+
     setSaving(true)
+    setSaveStatus('saving')
     try {
-      const payload = {
-        ...formData,
-        instagram_username: extractInstagramUsername(formData.instagram_username)
-      }
       const res = await fetch('/api/dashboard/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: payloadStr,
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile')
+      
+      lastSavedPayload.current = payloadStr
+      setSaveStatus('saved')
       await refreshUserProfile()
-      toast.success('Profile updated successfully!')
+      
+      if (!isAutoSave) {
+        toast.success('Profile updated successfully!')
+      }
     } catch (err: unknown) {
+      setSaveStatus('error')
       const message = err instanceof Error ? err.message : 'Failed to update profile'
-      toast.error(message)
+      if (!isAutoSave) {
+        toast.error(message)
+      }
     } finally {
       setSaving(false)
     }
   }
 
+  const handleManualSave = () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+    performSave(formData, false)
+  }
+
+  // Auto-Save Effect: 1500ms debounce when formData changes
+  useEffect(() => {
+    if (!isInitialLoaded.current) return
+
+    const currentPayload = {
+      ...formData,
+      instagram_username: extractInstagramUsername(formData.instagram_username)
+    }
+    const currentStr = JSON.stringify(currentPayload)
+
+    if (currentStr !== lastSavedPayload.current) {
+      setSaveStatus('unsaved')
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+      autoSaveTimerRef.current = setTimeout(() => {
+        performSave(formData, true)
+      }, 1500)
+    }
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+    }
+  }, [formData])
+
+  // Safeguard: warn if user closes tab while saving or with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'unsaved' || saveStatus === 'saving') {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [saveStatus])
+
   const goToStep = (stepNumber: number) => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+    if (isInitialLoaded.current) {
+      performSave(formData, true)
+    }
     setDirection(stepNumber > currentStep ? 1 : -1)
     setCurrentStep(stepNumber)
   }
@@ -298,36 +384,64 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Center: Profile Strength Bar */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 px-3.5 py-1.5 rounded-lg shrink-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span>Profile Strength:</span>
-            <span className="text-emerald-600 font-extrabold">{strength}%</span>
+        {/* Right Group: Auto-Save Status, Profile Strength & Save Button */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Live Auto-Save Status Indicator */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0">
+            {saveStatus === 'saving' ? (
+              <span className="flex items-center gap-1.5 text-pink-600">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
+                <span>Auto-saving...</span>
+              </span>
+            ) : saveStatus === 'unsaved' ? (
+              <span className="flex items-center gap-1.5 text-amber-700">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Unsaved changes...</span>
+              </span>
+            ) : saveStatus === 'error' ? (
+              <span className="flex items-center gap-1.5 text-rose-700">
+                <X className="h-3.5 w-3.5 text-rose-600" />
+                <span>Save failed</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-emerald-700">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                <span>All changes saved</span>
+              </span>
+            )}
           </div>
-          <div className="w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
-            <div
-              className={`h-full rounded-full bg-gradient-to-r ${strengthColor} transition-all duration-500`}
-              style={{ width: `${strength}%` }}
-            />
-          </div>
-        </div>
 
-        {/* Right: Quick Save Button */}
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="h-9 px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
-        >
-          {saving ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <>
-              <Save className="mr-1.5 h-3.5 w-3.5" />
-              Save Profile
-            </>
-          )}
-        </Button>
+          {/* Profile Strength Bar */}
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 px-3.5 py-1.5 rounded-lg shrink-0">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span>Profile Strength:</span>
+              <span className="text-emerald-600 font-extrabold">{strength}%</span>
+            </div>
+            <div className="w-24 sm:w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r ${strengthColor} transition-all duration-500`}
+                style={{ width: `${strength}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Quick Manual Save Button */}
+          <Button
+            onClick={handleManualSave}
+            disabled={saving}
+            className="h-9 px-4 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <>
+                <Save className="mr-1.5 h-3.5 w-3.5" />
+                Save Profile
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* ─── Modern Multi-Step Visual Stepper Header ─── */}
@@ -776,9 +890,20 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {saveStatus === 'saving' && (
+              <span className="text-[11px] text-[#f50057] font-bold flex items-center gap-1 mr-2 animate-pulse">
+                <Loader2 className="h-3 w-3 animate-spin" /> Auto-saving...
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 mr-2 hidden sm:flex">
+                <Check className="h-3 w-3" /> Auto-saved
+              </span>
+            )}
+
             <Button
               type="button"
-              onClick={handleSave}
+              onClick={handleManualSave}
               disabled={saving}
               variant="outline"
               className="h-9 px-4 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-100 rounded-lg transition-all cursor-pointer hidden sm:flex"
@@ -799,7 +924,7 @@ export default function ProfilePage() {
             ) : (
               <Button
                 type="button"
-                onClick={handleSave}
+                onClick={handleManualSave}
                 disabled={saving}
                 className="h-9 px-6 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
               >
