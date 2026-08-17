@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server'
 import { Client } from 'pg'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
 
 export async function GET() {
   if (!process.env.POSTGRES_URL) {
-    console.error('Missing POSTGRES_URL environment variable');
+    console.error('Missing POSTGRES_URL environment variable')
     return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
   }
-  const client = new Client({ 
+  const client = new Client({
     connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   })
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasModuleAccess(admin, 'dashboard')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to dashboard is restricted' }, { status: 403 })
     }
 
     await client.connect()
@@ -60,12 +60,12 @@ export async function GET() {
       ORDER BY a.created_at DESC
       LIMIT 5
     `)
-    const recentPendingApplications = recentPendingRes.rows.map(row => ({
+    const recentPendingApplications = recentPendingRes.rows.map((row) => ({
       id: row.id,
       status: row.status,
       created_at: row.created_at,
       users: { full_name: row.full_name, influencer_id: row.influencer_id, instagram_username: row.instagram_username },
-      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code }
+      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code },
     }))
 
     // 9. Recent Approved applications
@@ -81,12 +81,12 @@ export async function GET() {
       ORDER BY a.updated_at DESC
       LIMIT 5
     `)
-    const recentApprovedApplications = recentApprovedRes.rows.map(row => ({
+    const recentApprovedApplications = recentApprovedRes.rows.map((row) => ({
       id: row.id,
       status: row.status,
       created_at: row.created_at,
       users: { full_name: row.full_name, influencer_id: row.influencer_id, instagram_username: row.instagram_username },
-      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code }
+      campaigns: { brand_name: row.brand_name, platform: row.platform, campaign_code: row.campaign_code },
     }))
 
     return NextResponse.json({

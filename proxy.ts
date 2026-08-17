@@ -8,7 +8,7 @@ export async function proxy(request: NextRequest) {
   // 1. Dashboard User Protection
   if (pathname.startsWith('/dashboard')) {
     const token = request.cookies.get('auth_token')?.value
-    
+
     if (!token) {
       return NextResponse.redirect(new URL('/signup', request.url))
     }
@@ -16,17 +16,15 @@ export async function proxy(request: NextRequest) {
     try {
       const payload = await decrypt(token)
       if (!payload) throw new Error('Invalid token')
-      // Validated. (You can also pass headers here if needed by downstream API)
     } catch (error) {
       console.error('Middleware Auth Error:', error)
-      // Invalid token -> Clear it and redirect
       const response = NextResponse.redirect(new URL('/signup', request.url))
       response.cookies.delete('auth_token')
       return response
     }
   }
 
-  // 2. Admin Protection
+  // 2. Admin Protection (supports all dynamic admin and staff roles)
   if (pathname.startsWith('/admin') && pathname !== '/admin') {
     const adminToken = request.cookies.get('admin_token')?.value
     if (!adminToken) {
@@ -35,7 +33,12 @@ export async function proxy(request: NextRequest) {
 
     try {
       const payload = await decrypt(adminToken)
-      if (!payload || payload.role !== 'admin') throw new Error('Invalid admin token')
+      if (!payload?.id || !payload?.email || !payload?.role) {
+        throw new Error('Invalid admin token structure')
+      }
+      if (payload.is_active === false) {
+        throw new Error('Deactivated admin token')
+      }
     } catch (error) {
       console.error('Admin Middleware Auth Error:', error)
       const response = NextResponse.redirect(new URL('/admin', request.url))

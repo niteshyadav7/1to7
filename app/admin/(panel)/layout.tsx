@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -16,12 +16,19 @@ import {
   ClipboardList,
   CreditCard,
   BarChart3,
-  PieChart,
   FileUp,
-  MessageSquareHeart
+  MessageSquareHeart,
+  UserCheck,
+  Sliders,
+  ShieldAlert,
+  ArrowLeft,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
+import {
+  AdminPermissionsProvider,
+  useAdminPermissions,
+} from '@/components/admin/AdminPermissionsContext'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,41 +40,50 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 
-interface AdminInfo {
-  id: string
-  name: string
-  email: string
+interface NavLink {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  moduleKey: string
 }
 
-const sidebarLinks = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
-  { href: '/admin/applications', label: 'Applications', icon: Users },
-  { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
-  { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart },
-  // { href: '/admin/requests', label: 'Requests', icon: PieChart },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/admin/import', label: 'Import Sync', icon: FileUp },
-  { href: '/admin/influencers', label: 'Influencers', icon: Users },
+const allSidebarLinks: NavLink[] = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleKey: 'dashboard' },
+  { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
+  { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
+  { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard, moduleKey: 'payments' },
+  { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart, moduleKey: 'feedback' },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
+  { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
+  { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
+  { href: '/admin/staff', label: 'Staff Management', icon: UserCheck, moduleKey: 'staff' },
+  { href: '/admin/roles', label: 'Roles & Access', icon: Sliders, moduleKey: 'roles' },
 ]
+
+function getModuleKeyFromPath(pathname: string): string | null {
+  if (pathname === '/admin/dashboard') return 'dashboard'
+  if (pathname.startsWith('/admin/campaigns')) return 'campaigns'
+  if (pathname.startsWith('/admin/applications')) return 'applications'
+  if (pathname.startsWith('/admin/order-details')) return 'order_details'
+  if (pathname.startsWith('/admin/payments')) return 'payments'
+  if (pathname.startsWith('/admin/feedback')) return 'feedback'
+  if (pathname.startsWith('/admin/analytics')) return 'analytics'
+  if (pathname.startsWith('/admin/import')) return 'import'
+  if (pathname.startsWith('/admin/influencers')) return 'influencers'
+  if (pathname.startsWith('/admin/staff')) return 'staff'
+  if (pathname.startsWith('/admin/roles')) return 'roles'
+  return null
+}
 
 function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [admin, setAdmin] = useState<AdminInfo | null>(null)
   const { headerContent } = useAdminHeader()
-
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem('admin_cache')
-      if (cached) setAdmin(JSON.parse(cached))
-    } catch {
-      // ignore
-    }
-  }, [])
+  const { admin, loading, isSuperAdmin, canAccessModule } = useAdminPermissions()
 
   const handleLogout = async () => {
     try {
@@ -86,6 +102,18 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(href)
   }
 
+  // Filter sidebar links based on dynamic access
+  const visibleLinks = allSidebarLinks.filter((link) => {
+    if (isSuperAdmin) return true
+    return canAccessModule(link.moduleKey)
+  })
+
+  // Check if current route is authorized
+  const currentModuleKey = getModuleKeyFromPath(pathname)
+  const isAuthorized = !currentModuleKey || isSuperAdmin || canAccessModule(currentModuleKey)
+
+  const firstAvailableLink = visibleLinks[0]?.href || '/admin'
+
   return (
     <div className="dark min-h-screen bg-slate-950 text-white font-sans flex">
       {/* Mobile Overlay */}
@@ -98,7 +126,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 flex flex-col transition-transform duration-300 ${
+        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-slate-900/95 backdrop-blur-xl border-r border-white/5 flex flex-col overflow-hidden transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -115,22 +143,26 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        {/* Admin Info */}
+        {/* Admin Info & Role Badge */}
         <div className="p-4 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md">
               {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">{admin?.name || 'Admin'}</p>
-              <p className="text-xs text-slate-400 truncate">{admin?.email || 'admin@1to7media.in'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]">
+                  {admin?.roleDisplayName || (isSuperAdmin ? 'Super Admin' : admin?.role || 'Staff')}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Nav Links */}
-        <nav className="flex-1 p-3 space-y-1">
-          {sidebarLinks.map((link) => {
+        {/* Dynamic Nav Links */}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {visibleLinks.map((link) => {
             const active = isActive(link.href)
             return (
               <Link
@@ -143,9 +175,13 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                     : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5 hover:translate-x-0.5'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 transition-colors ${active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                {link.label}
-                {active && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400" />}
+                <link.icon
+                  className={`h-4.5 w-4.5 transition-colors ${
+                    active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
+                  }`}
+                />
+                <span className="truncate">{link.label}</span>
+                {active && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />}
               </Link>
             )
           })}
@@ -158,23 +194,28 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
               <LogOut className="h-4.5 w-4.5" />
               Sign Out
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-slate-900/95 backdrop-blur-xl border border-white/10 text-white shadow-2xl shadow-black/50 rounded-3xl overflow-hidden font-['Lato',sans-serif] w-full max-w-[400px] p-0 flex flex-col gap-0 border-t-white/20">
-              <AlertDialogHeader className="p-8 pb-6 flex flex-col items-center justify-center space-y-5 w-full text-center sm:text-center">
-                <AlertDialogTitle className="flex flex-col items-center justify-center gap-5 text-xl font-bold tracking-wide w-full text-center sm:text-center">
-                  <div className="flex h-[72px] w-[72px] items-center justify-center rounded-2xl bg-gradient-to-b from-red-500/20 to-red-950/40 shadow-inner shadow-red-500/20 ring-1 ring-white/5 mx-auto">
-                    <AlertTriangle className="h-8 w-8 text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]" />
-                  </div>
-                  Ready to Sign Out?
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-slate-400 text-center sm:text-center text-[15px] leading-relaxed max-w-[320px] mx-auto w-full">
-                  You are about to sign out of the <span className="text-slate-200 font-semibold">Admin Portal</span>. You will need to enter your credentials again to access these management tools.
-                </AlertDialogDescription>
+            <AlertDialogContent className="w-full max-w-[440px] p-6 sm:p-7 rounded-3xl bg-slate-900/98 backdrop-blur-2xl border border-white/10 text-white shadow-2xl shadow-black/90 font-sans">
+              <AlertDialogHeader className="space-y-4 text-center items-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-b from-red-500/20 to-red-950/40 shadow-inner shadow-red-500/20 ring-1 ring-red-500/30 mx-auto">
+                  <AlertTriangle className="h-7 w-7 text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]" />
+                </div>
+                <div className="space-y-1.5">
+                  <AlertDialogTitle className="text-xl font-bold tracking-tight text-white">
+                    Ready to Sign Out?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-slate-400 text-sm leading-relaxed max-w-[320px] mx-auto">
+                    You are about to sign out of the <span className="text-slate-200 font-semibold">Admin Portal</span>. You will need to enter your credentials again to access management tools.
+                  </AlertDialogDescription>
+                </div>
               </AlertDialogHeader>
-              <AlertDialogFooter className="bg-slate-950/50 p-6 flex flex-col sm:flex-row items-center justify-center sm:justify-center gap-3 sm:gap-4 border-t border-white/5 w-full">
-                <AlertDialogCancel className="mt-0 group relative overflow-hidden bg-slate-800/80 text-slate-300 border-white/10 hover:bg-slate-800 hover:text-white hover:border-white/20 cursor-pointer w-full sm:w-[150px] rounded-xl h-11 transition-all duration-300 font-medium flex items-center justify-center">
+              <AlertDialogFooter className="mt-4 flex flex-row items-center justify-between gap-3 pt-3 border-t border-white/5 w-full">
+                <AlertDialogCancel className="flex-1 bg-slate-800/90 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white rounded-xl h-11 transition-all font-medium flex items-center justify-center cursor-pointer">
                   Stay Logged In
                 </AlertDialogCancel>
-                <AlertDialogAction onClick={handleLogout} className="group relative overflow-hidden bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer w-full sm:w-[150px] rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all duration-300 border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center">
+                <AlertDialogAction
+                  onClick={handleLogout}
+                  className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center"
+                >
                   Yes, Sign Out
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -203,9 +244,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
             <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
           </div>
           {headerContent && (
-            <div className="pt-2 border-t border-white/5">
-              {headerContent}
-            </div>
+            <div className="pt-2 border-t border-white/5">{headerContent}</div>
           )}
         </header>
 
@@ -215,7 +254,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
             {headerContent || (
               <div>
                 <h1 className="text-xl font-extrabold text-white tracking-tight">
-                  {sidebarLinks.find(link => isActive(link.href))?.label || 'Admin Panel'}
+                  {allSidebarLinks.find((link) => isActive(link.href))?.label || 'Admin Panel'}
                 </h1>
               </div>
             )}
@@ -225,9 +264,28 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content with Dynamic Route Guard */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
-          {children}
+          {!loading && !isAuthorized ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mb-6 shadow-xl shadow-amber-500/5">
+                <ShieldAlert className="h-10 w-10" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Access Restricted</h2>
+              <p className="text-slate-400 text-sm max-w-md mb-6 leading-relaxed">
+                Your role ({admin?.roleDisplayName || admin?.role || 'Staff'}) does not have permission to view or manage this module. Please contact a Super Admin if you need access.
+              </p>
+              <Button
+                onClick={() => router.push(firstAvailableLink)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-5 h-11 cursor-pointer font-medium flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Return to Permitted Modules
+              </Button>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
     </div>
@@ -236,8 +294,10 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
 
 export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AdminHeaderProvider>
-      <AdminPanelInner>{children}</AdminPanelInner>
-    </AdminHeaderProvider>
+    <AdminPermissionsProvider>
+      <AdminHeaderProvider>
+        <AdminPanelInner>{children}</AdminPanelInner>
+      </AdminHeaderProvider>
+    </AdminPermissionsProvider>
   )
 }

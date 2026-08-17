@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
 
 export async function GET(
   request: Request,
@@ -8,8 +8,8 @@ export async function GET(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasModuleAccess(admin, 'campaigns')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to campaigns is restricted' }, { status: 403 })
     }
 
     const { id } = await params
@@ -37,8 +37,8 @@ export async function PUT(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasActionPermission(admin, 'campaigns', 'edit')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to edit campaigns is denied' }, { status: 403 })
     }
 
     const { id } = await params
@@ -85,8 +85,8 @@ export async function DELETE(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasActionPermission(admin, 'campaigns', 'delete')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to delete campaigns is denied' }, { status: 403 })
     }
 
     const { id } = await params

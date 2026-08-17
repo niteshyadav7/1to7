@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
 
 export async function GET(request: Request) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasModuleAccess(admin, 'influencers')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to influencers is restricted' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
       throw error
     }
 
-    // Get global stats (total count, verified email count, etc) - optional but nice
+    // Get global stats (total count, verified email count, etc)
     const { count: totalInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true })
     const { count: verifiedInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_email_verified', true)
 
@@ -59,8 +59,8 @@ export async function GET(request: Request) {
         total: count || 0,
         page,
         limit,
-        totalPages: count ? Math.ceil(count / limit) : 0
-      }
+        totalPages: count ? Math.ceil(count / limit) : 0,
+      },
     })
   } catch (error) {
     console.error('API /admin/influencers GET Error:', error)

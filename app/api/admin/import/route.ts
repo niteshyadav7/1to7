@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
 import { generateSequentialInfluencerId } from '@/lib/user-utils'
 
 // Default password hash for imported users (they can reset later)
@@ -31,8 +31,8 @@ interface ImportRow {
 export async function POST(request: Request) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasActionPermission(admin, 'import', 'create')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to import is denied' }, { status: 403 })
     }
 
     const body = await request.json()

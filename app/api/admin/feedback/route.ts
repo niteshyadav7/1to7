@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
 
 export async function GET(request: Request) {
   try {
+    const admin = await getAdminFromRequest()
+    if (!admin || !hasModuleAccess(admin, 'feedback')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to feedback is restricted' }, { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const rating = searchParams.get('rating')
@@ -53,8 +59,8 @@ export async function GET(request: Request) {
         total,
         avgRating,
         categoryCounts,
-        ratingCounts
-      }
+        ratingCounts,
+      },
     })
   } catch (err) {
     console.error('[GET /api/admin/feedback] Error:', err)

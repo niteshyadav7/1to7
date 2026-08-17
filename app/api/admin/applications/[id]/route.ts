@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
 import { sendApplicationApprovedEmail, sendApplicationRejectedEmail } from '@/lib/mailer'
 
 export async function PUT(
@@ -9,8 +9,8 @@ export async function PUT(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasActionPermission(admin, 'applications', 'edit')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to update applications is denied' }, { status: 403 })
     }
 
     const { id } = await params
@@ -58,3 +58,23 @@ export async function PUT(
   }
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getAdminFromRequest()
+    if (!admin || !hasActionPermission(admin, 'applications', 'delete')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to delete applications is denied' }, { status: 403 })
+    }
+
+    const { id } = await params
+    const { error } = await supabase.from('applications').delete().eq('id', id)
+    if (error) throw error
+
+    return NextResponse.json({ success: true, message: 'Application deleted' })
+  } catch (error) {
+    console.error('API /admin/applications/[id] DELETE Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

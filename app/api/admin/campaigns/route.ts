@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server'
 import { Client } from 'pg'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
 
 export async function GET() {
   if (!process.env.POSTGRES_URL) {
-    console.error('Missing POSTGRES_URL environment variable');
+    console.error('Missing POSTGRES_URL environment variable')
     return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
   }
-  const client = new Client({ 
+  const client = new Client({
     connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   })
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasModuleAccess(admin, 'campaigns')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to campaigns is restricted' }, { status: 403 })
     }
 
     await client.connect()
-    
+
     // Get all campaigns
     const campaignsRes = await client.query(`
       SELECT * FROM public.campaigns 
@@ -48,17 +48,17 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!process.env.POSTGRES_URL) {
-    console.error('Missing POSTGRES_URL environment variable');
+    console.error('Missing POSTGRES_URL environment variable')
     return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
   }
-  const client = new Client({ 
+  const client = new Client({
     connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
   })
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasActionPermission(admin, 'campaigns', 'create')) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to create campaigns is denied' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -93,9 +93,10 @@ export async function POST(request: Request) {
     }
 
     // Use provided code or auto-generate
-    const code = campaign_code && campaign_code.trim() !== '' 
-      ? campaign_code.trim().toUpperCase()
-      : `CAM-${Date.now().toString(36).toUpperCase()}`
+    const code =
+      campaign_code && campaign_code.trim() !== ''
+        ? campaign_code.trim().toUpperCase()
+        : `CAM-${Date.now().toString(36).toUpperCase()}`
 
     await client.connect()
     const query = `
@@ -111,12 +112,31 @@ export async function POST(request: Request) {
       ) RETURNING *
     `
     const values = [
-      code, brand_name, category || null, platform, budget_type || null,
-      budget_amount || 0, partial_payment_enabled || false, JSON.stringify(partial_payment_config || {}),
-      deliverables || null, product_links || [], requirements || null, gender_required || 'Any',
-      location || null, looking_for || null, followers || null, additional_info || null,
-      collab_date || null, form_link || null, JSON.stringify(form_fields || []), order_form || false,
-      JSON.stringify(order_form_fields || []), show_order_form !== false, JSON.stringify(payment_form_fields || []), 'Draft', false
+      code,
+      brand_name,
+      category || null,
+      platform,
+      budget_type || null,
+      budget_amount || 0,
+      partial_payment_enabled || false,
+      JSON.stringify(partial_payment_config || {}),
+      deliverables || null,
+      product_links || [],
+      requirements || null,
+      gender_required || 'Any',
+      location || null,
+      looking_for || null,
+      followers || null,
+      additional_info || null,
+      collab_date || null,
+      form_link || null,
+      JSON.stringify(form_fields || []),
+      order_form || false,
+      JSON.stringify(order_form_fields || []),
+      show_order_form !== false,
+      JSON.stringify(payment_form_fields || []),
+      'Draft',
+      false,
     ]
 
     const res = await client.query(query, values)
@@ -125,7 +145,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, campaign })
   } catch (error: any) {
     console.error('API /admin/campaigns POST Error:', error)
-    if (error.code === '23505') { // Postgres unique violation error code
+    if (error.code === '23505') {
       return NextResponse.json({ error: 'Campaign ID already exists. Please use a unique ID.' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

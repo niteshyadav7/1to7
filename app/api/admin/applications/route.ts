@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
 
 export async function GET(request: Request) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!admin || !hasModuleAccess(admin, 'applications')) {
+      return NextResponse.json({ error: 'Unauthorized: Access to applications is restricted' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
