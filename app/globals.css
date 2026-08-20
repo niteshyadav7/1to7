@@ -4,13 +4,24 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Chrome/Safari Autofill text visibility fix on dark inputs */
+/* Chrome/Safari Autofill styling fix */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  caret-color: #f8fafc !important;
 }
 
 @theme inline {
@@ -303,14 +314,6 @@ input:-webkit-autofill:active {
   }
 }
 
-/* Browser autofill styling fix for dark inputs */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  transition: background-color 5000s ease-in-out 0s;
-  -webkit-text-fill-color: inherit;
-}
 
 /* Hide scrollbar utility */
 .no-scrollbar::-webkit-scrollbar,

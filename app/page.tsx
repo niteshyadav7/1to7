@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Sparkles, ArrowRight, Rocket, TrendingUp, Shield, Loader2, Search, X } from 'lucide-react'
+import { Sparkles, ArrowRight, Rocket, TrendingUp, Shield, Loader2, Search, X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import { useRouter } from 'next/navigation'
 import CampaignCard from '@/components/campaigns/CampaignCard'
 import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
@@ -37,6 +38,7 @@ interface Campaign {
 
 export default function Home() {
   const { user } = useAuth()
+  const { isInstalled, installApp } = usePwa()
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
@@ -134,22 +136,34 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.24 }}
-              className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="mt-8 flex flex-row items-center justify-center gap-3 flex-wrap"
             >
               {!user ? (
                 <Link href="/login">
-                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer">
+                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer bg-primary-container hover:bg-amber-400 text-black">
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
               ) : (
                 <Link href="/dashboard">
-                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer">
+                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer bg-primary-container hover:bg-amber-400 text-black">
                     Go to Dashboard
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
+              )}
+
+              {!isInstalled && (
+                <button
+                  onClick={installApp}
+                  className="h-12 w-12 rounded-full border border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-sm hover:shadow-md active:scale-95 flex flex-col items-center justify-center transition-all cursor-pointer shrink-0"
+                  title="Install 1to7 App"
+                  aria-label="Install 1to7 App"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="text-[9px] font-extrabold tracking-tight leading-none mt-0.5">App</span>
+                </button>
               )}
             </motion.div>
           </div>
