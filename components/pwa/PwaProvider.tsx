@@ -105,27 +105,29 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const [showGenericGuide, setShowGenericGuide] = useState(false)
+
   const installApp = async () => {
     if (isIos) {
       setShowIosGuide(true)
       return
     }
 
-    if (!deferredPrompt) {
-      // Fallback for browsers that support install but didn't fire prompt yet
-      return
-    }
-
-    try {
-      await deferredPrompt.prompt()
-      const choice = await deferredPrompt.userChoice
-      if (choice.outcome === 'accepted') {
-        setIsInstalled(true)
-        setIsInstallable(false)
+    if (deferredPrompt) {
+      try {
+        await deferredPrompt.prompt()
+        const choice = await deferredPrompt.userChoice
+        if (choice.outcome === 'accepted') {
+          setIsInstalled(true)
+          setIsInstallable(false)
+        }
+        setDeferredPrompt(null)
+      } catch (err) {
+        console.error('Error during PWA installation:', err)
       }
-      setDeferredPrompt(null)
-    } catch (err) {
-      console.error('Error during PWA installation:', err)
+    } else {
+      // Show Android/Desktop browser guide modal
+      setShowGenericGuide(true)
     }
   }
 
@@ -206,6 +208,82 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Android / Browser Install Guide Modal */}
+      <AnimatePresence>
+        {showGenericGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4"
+            onClick={() => setShowGenericGuide(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-extrabold text-xs">
+                    1⚡7
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-charcoal-surface">Install 1to7 App</h3>
+                    <p className="text-xs text-secondary">Follow these simple steps</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGenericGuide(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 pt-2 text-xs text-slate-700">
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="h-6 w-6 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      Tap the <strong>⋮ (Three Dots Menu)</strong>
+                    </p>
+                    <p className="text-slate-500 text-[11px] mt-0.5">
+                      Located at the top right of your Chrome / browser window.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="h-6 w-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 font-bold">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      Select <strong>&quot;Install and create shortcut&quot;</strong> or <strong>&quot;Add to Home screen&quot;</strong>
+                    </p>
+                    <p className="text-slate-500 text-[11px] mt-0.5">
+                      The 1to7 app icon will be added to your home screen!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setShowGenericGuide(false)}
+                className="w-full h-10 rounded-xl bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer"
+              >
+                Got it!
+              </Button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
