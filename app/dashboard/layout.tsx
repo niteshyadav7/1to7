@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import {
   LayoutDashboard,
   Send,
@@ -18,6 +19,7 @@ import {
   PanelLeft,
   AlertTriangle,
   MessageSquareHeart,
+  Download,
 } from 'lucide-react'
 import FeedbackModal from '@/components/modals/FeedbackModal'
 import NotificationBell from '@/components/ui/NotificationBell'
@@ -45,6 +47,7 @@ const sidebarLinks = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { user, logout, isProfileComplete } = useAuth()
+  const { isInstallable, isInstalled, installApp } = usePwa()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
 
@@ -199,7 +202,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Right aligned actions / Notification Bell */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {isInstallable && !isInstalled && (
+              <button
+                onClick={installApp}
+                className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5 text-amber-700" />
+                <span className="hidden sm:inline">Install App</span>
+                <span className="sm:hidden">App</span>
+              </button>
+            )}
             <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
           </div>
         </header>

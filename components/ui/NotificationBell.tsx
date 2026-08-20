@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck, ExternalLink, Users, CreditCard, AlertCircle, FileText, Sparkles, X, Trash2, Clock } from 'lucide-react'
+import { Bell, Check, CheckCheck, ExternalLink, Users, CreditCard, AlertCircle, FileText, Sparkles, X, Trash2, Clock, Rocket } from 'lucide-react'
 
 interface Notification {
   id: string
@@ -36,10 +36,11 @@ function timeAgo(dateStr: string): string {
 
 const notifConfig: Record<string, { icon: any; color: string; bgColor: string }> = {
   new_application: { icon: Users, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
+  new_campaign: { icon: Rocket, color: 'text-amber-500', bgColor: 'bg-amber-500/15' },
   payment_requested: { icon: FileText, color: 'text-cyan-400', bgColor: 'bg-cyan-500/15' },
   partial_request: { icon: CreditCard, color: 'text-amber-400', bgColor: 'bg-amber-500/15' },
   appeal: { icon: AlertCircle, color: 'text-red-400', bgColor: 'bg-red-500/15' },
-  approved: { icon: Sparkles, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },
+  approved: { icon: Sparkles, color: 'text-emerald-500', bgColor: 'bg-emerald-500/15' },
   payment_initiated: { icon: CreditCard, color: 'text-blue-400', bgColor: 'bg-blue-500/15' },
   completed: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },
   partial_approved: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },

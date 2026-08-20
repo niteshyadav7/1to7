@@ -91,7 +91,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary-container/30">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-background py-16 md:py-24 border-b border-border-subtle">
+      <section className="relative overflow-hidden bg-background pt-10 pb-8 md:pt-14 md:pb-10 border-b border-border-subtle">
         {/* Soft elegant background highlight */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(254,189,28,0.12),transparent)]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_35%_45%_at_25%_10%,rgba(94,94,94,0.03),transparent)]" />
@@ -155,6 +155,7 @@ export default function Home() {
           </div>
 
           {/* Stats Row */}
+          {/* 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -173,13 +174,14 @@ export default function Home() {
               </div>
             ))}
           </motion.div>
+          */}
         </div>
       </section>
 
       {/* Campaigns Section */}
-      <section className="py-16 bg-background">
+      <section className="pt-8 pb-16 bg-background">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-12 text-center space-y-4">
+          <div className="mb-8 text-center space-y-3">
             <h2 className="text-3xl font-extrabold text-charcoal-surface tracking-tight">
               Live Campaigns
             </h2>

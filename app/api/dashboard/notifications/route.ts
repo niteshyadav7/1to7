@@ -14,19 +14,41 @@ export async function GET() {
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-    const { data: applications, error } = await supabase
-      .from('applications')
-      .select('id, status, partial_payment, pending_amount, form_data, created_at, updated_at, campaigns(brand_name, campaign_code)')
-      .eq('user_id', payload.id)
-      .gte('updated_at', thirtyDaysAgo)
-      .order('updated_at', { ascending: false })
-      .limit(50)
+    const [appsRes, campaignsRes] = await Promise.all([
+      supabase
+        .from('applications')
+        .select('id, status, partial_payment, pending_amount, form_data, created_at, updated_at, campaigns(brand_name, campaign_code)')
+        .eq('user_id', payload.id)
+        .gte('updated_at', thirtyDaysAgo)
+        .order('updated_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('campaigns')
+        .select('id, brand_name, campaign_code, category, platform, is_live, created_at')
+        .eq('is_live', true)
+        .gte('created_at', thirtyDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(20),
+    ])
 
-    if (error) throw error
+    if (appsRes.error) throw appsRes.error
 
     const notifications: any[] = []
 
-    for (const app of (applications || [])) {
+    // 1. New live campaigns notifications
+    for (const camp of (campaignsRes.data || [])) {
+      notifications.push({
+        id: `new_camp_${camp.id}`,
+        type: 'new_campaign',
+        title: '🚀 New Campaign Live!',
+        message: `${camp.brand_name} launched a new ${camp.category || ''} campaign on ${camp.platform || 'social media'}`,
+        link: '/dashboard',
+        createdAt: camp.created_at,
+      })
+    }
+
+    // 2. Application status notifications
+    for (const app of (appsRes.data || [])) {
       const campaignName = (app.campaigns as any)?.brand_name || 'Campaign'
 
       // Application approved

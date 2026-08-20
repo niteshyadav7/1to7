@@ -1,13 +1,15 @@
 'use client'
 
 import { useAuth } from '@/components/providers/AuthProvider'
+import { usePwa } from '@/components/pwa/PwaProvider'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-
+import { Download } from 'lucide-react'
 
 export function Navbar() {
   const { user, logout, isLoading } = useAuth()
+  const { isInstallable, isInstalled, installApp } = usePwa()
   const router = useRouter()
 
   return (
@@ -17,7 +19,21 @@ export function Navbar() {
         <span className="truncate">1to7 <span className="hidden xs:inline sm:inline">Media</span></span>
       </Link>
 
-      <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        {/* 1-Tap PWA Install Button */}
+        {isInstallable && !isInstalled && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={installApp}
+            className="h-8 sm:h-9 px-2 sm:px-3 text-xs font-bold border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+          >
+            <Download className="h-3.5 w-3.5 text-amber-700" />
+            <span className="hidden sm:inline">Install App</span>
+            <span className="sm:hidden">App</span>
+          </Button>
+        )}
+
         {isLoading ? (
           <div className="h-8 w-20 sm:h-9 sm:w-24 bg-gray-200 animate-pulse rounded-md"></div>
         ) : user ? (
