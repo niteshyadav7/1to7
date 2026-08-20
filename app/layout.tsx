@@ -3,6 +3,7 @@ import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { PwaProvider } from "@/components/pwa/PwaProvider";
+import { ConditionalNavbar } from "@/components/ConditionalNavbar";
 import { Toaster } from "sonner";
 
 const fontSans = Montserrat({
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <PwaProvider>
             <div className="min-h-screen flex flex-col bg-slate-50">
+              <ConditionalNavbar />
               <main className="flex-grow">
                 {children}
               </main>
