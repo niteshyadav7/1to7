@@ -26,11 +26,10 @@ export function Navbar() {
             variant="outline"
             size="sm"
             onClick={installApp}
-            className="h-8 sm:h-9 px-2 sm:px-3 text-xs font-extrabold border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 flex items-center gap-1 cursor-pointer transition-all shadow-xs shrink-0"
+            className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-extrabold border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 flex items-center gap-1.5 cursor-pointer transition-all shadow-xs shrink-0"
           >
             <Download className="h-3.5 w-3.5" />
-            <span className="hidden xs:inline sm:inline">Install App</span>
-            <span className="xs:hidden sm:hidden">Install</span>
+            <span>App</span>
           </Button>
         )}
 

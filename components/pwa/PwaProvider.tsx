@@ -220,7 +220,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
                     className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-bold text-xs shadow-sm hover:shadow active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Install
+                    App
                   </Button>
 
                   <button

@@ -206,11 +206,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!isInstalled && (
               <button
                 onClick={installApp}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-bold transition-all shadow-xs hover:shadow active:scale-95 cursor-pointer shrink-0"
-                title="Install 1to7 Mobile App"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-bold transition-all shadow-xs hover:shadow active:scale-95 cursor-pointer shrink-0"
+                title="1to7 App"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span className="font-extrabold text-[11px] sm:text-xs">Install App</span>
+                <span className="font-extrabold text-xs">App</span>
               </button>
             )}
             <NotificationBell apiEndpoint="/api/dashboard/notifications" accentColor="yellow" storageKey="influencer_notif_read" />
