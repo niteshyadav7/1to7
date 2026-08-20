@@ -72,6 +72,12 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
+      .catch(() => {
+        return caches.match(event.request);
+      })
+  );
+});
+
 // Push Notification Event
 self.addEventListener('push', (event) => {
   let data = {
