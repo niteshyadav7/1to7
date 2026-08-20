@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import { encrypt, verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { resolveOrCreateUserIdentity } from '@/lib/auth-linker'
+import { supabase } from '@/lib/supabase'
+
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***@***.com'
+  const [local, domain] = email.split('@')
+  if (local.length <= 2) return `${local[0]}***@${domain}`
+  return `${local.slice(0, 2)}${'*'.repeat(Math.min(local.length - 2, 5))}@${domain}`
+}
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +18,9 @@ export async function POST(request: Request) {
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
+
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanMobile = mobile ? String(mobile).replace(/\D/g, '') : null
 
     // Check if user is currently logged in via session cookie
     const cookieStore = await cookies()
@@ -22,14 +33,55 @@ export async function POST(request: Request) {
       }
     }
 
+    // ─── VALIDATE EMAIL & MOBILE MATCHING ───
+    if (cleanMobile) {
+      const { data: userByMobile, error: mobileError } = await supabase
+        .from('users')
+        .select('id, email, mobile')
+        .eq('mobile', cleanMobile)
+        .maybeSingle()
+
+      if (mobileError) {
+        console.error('Supabase query error (google-login mobile check):', mobileError)
+        return NextResponse.json({ error: 'Database query error' }, { status: 500 })
+      }
+
+      if (userByMobile) {
+        const registeredEmail = userByMobile.email ? userByMobile.email.trim().toLowerCase() : ''
+        const isPlaceholderEmail = !registeredEmail || registeredEmail.endsWith('@instagram.1to7.com')
+
+        // If the mobile user already has a real registered email, it MUST match the Google account email!
+        if (!isPlaceholderEmail && registeredEmail !== cleanEmail) {
+          return NextResponse.json({
+            error: `The selected Google account (${email}) does not match the registered email (${maskEmail(userByMobile.email)}) for mobile number +91 ${cleanMobile}. Please sign in with the correct Google account.`
+          }, { status: 400 })
+        }
+
+        // If the mobile user has a placeholder email, ensure the incoming Google email isn't already used by someone else
+        if (isPlaceholderEmail) {
+          const { data: userByEmail } = await supabase
+            .from('users')
+            .select('id, email, mobile')
+            .eq('email', cleanEmail)
+            .maybeSingle()
+
+          if (userByEmail && userByEmail.id !== userByMobile.id) {
+            return NextResponse.json({
+              error: `This Google account (${email}) is already registered to a different account.`
+            }, { status: 400 })
+          }
+        }
+      }
+    }
+
     // Resolve or Link identity across login methods
     const { user, isNewUser } = await resolveOrCreateUserIdentity({
       currentUserId,
       fullName: displayName,
-      email: email,
-      mobile: mobile || null,
+      email: cleanEmail,
+      mobile: cleanMobile,
       isEmailVerified: true,
-      isMobileVerified: !!mobile
+      isMobileVerified: !!cleanMobile
     })
 
     // Auto-login user via session token & httpOnly cookie
@@ -57,7 +109,7 @@ export async function POST(request: Request) {
     })
   } catch (error: any) {
     console.error('API /auth/google-login Error:', error)
-    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 400 })
   }
 }
 

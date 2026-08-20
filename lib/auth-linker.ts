@@ -30,6 +30,10 @@ export interface UserLinkInput {
 export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   let existingUser: any = null
 
+  const cleanEmail = input.email ? input.email.trim().toLowerCase() : null
+  const isRealEmail = cleanEmail && !cleanEmail.endsWith('@instagram.1to7.com')
+  const cleanMobile = input.mobile ? String(input.mobile).replace(/\D/g, '') : null
+
   // 1. Check if user is currently logged in
   if (input.currentUserId) {
     const { data: userById } = await supabase
@@ -67,27 +71,65 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   }
 
   // 4. Search by email if present and valid
-  if (!existingUser && input.email && !input.email.endsWith('@instagram.1to7.com')) {
-    const { data: userByEmail } = await supabase
+  let userByEmail: any = null
+  if (isRealEmail) {
+    const { data: emailMatch } = await supabase
       .from('users')
       .select('*')
-      .eq('email', input.email)
+      .eq('email', cleanEmail)
       .maybeSingle()
-    if (userByEmail) {
-      existingUser = userByEmail
+    if (emailMatch) {
+      userByEmail = emailMatch
+      if (!existingUser) {
+        existingUser = emailMatch
+      }
     }
   }
 
   // 5. Search by mobile if present
-  if (!existingUser && input.mobile) {
-    const { data: userByMobile } = await supabase
+  let userByMobile: any = null
+  if (cleanMobile) {
+    const { data: mobileMatch } = await supabase
       .from('users')
       .select('*')
-      .eq('mobile', input.mobile)
+      .eq('mobile', cleanMobile)
       .maybeSingle()
-    if (userByMobile) {
+    if (mobileMatch) {
+      userByMobile = mobileMatch
+    }
+  }
+
+  // ─── STRICT CONFLICT VALIDATION ───
+  // Case A: If user matched by mobile, but a different real email was provided
+  if (userByMobile && isRealEmail) {
+    const mobileUserEmail = userByMobile.email ? userByMobile.email.trim().toLowerCase() : ''
+    const isMobileUserPlaceholder = !mobileUserEmail || mobileUserEmail.endsWith('@instagram.1to7.com')
+
+    if (!isMobileUserPlaceholder && mobileUserEmail !== cleanEmail) {
+      throw new Error(
+        `Email mismatch: Mobile number +91 ${cleanMobile} is registered to another email address.`
+      )
+    }
+
+    if (userByEmail && userByEmail.id !== userByMobile.id) {
+      throw new Error(
+        `Identity conflict: Email ${cleanEmail} and mobile +91 ${cleanMobile} belong to two different accounts.`
+      )
+    }
+
+    // If existingUser wasn't set yet, assign the mobile user
+    if (!existingUser) {
       existingUser = userByMobile
     }
+  } else if (!existingUser && userByMobile) {
+    existingUser = userByMobile
+  }
+
+  // Case B: If existingUser was found by email/Instagram, but input.mobile belongs to someone else
+  if (existingUser && cleanMobile && userByMobile && userByMobile.id !== existingUser.id) {
+    throw new Error(
+      `Mobile number +91 ${cleanMobile} is already in use by another account.`
+    )
   }
 
   // UPDATE EXISTING USER
@@ -118,14 +160,14 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
       updates.full_name = input.fullName
     }
 
-    // Fill email if current email is placeholder
-    if (input.email && (!existingUser.email || existingUser.email.endsWith('@instagram.1to7.com'))) {
-      updates.email = input.email
+    // Fill email if current email is placeholder and cleanEmail is valid
+    if (cleanEmail && (!existingUser.email || existingUser.email.endsWith('@instagram.1to7.com'))) {
+      updates.email = cleanEmail
     }
 
-    // Fill mobile if user didn't have one
-    if (input.mobile && !existingUser.mobile) {
-      updates.mobile = input.mobile
+    // Fill mobile if user didn't have one and cleanMobile is not owned by someone else
+    if (cleanMobile && !existingUser.mobile && (!userByMobile || userByMobile.id === existingUser.id)) {
+      updates.mobile = cleanMobile
     }
 
     if (Object.keys(updates).length > 0) {
@@ -144,12 +186,12 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
 
   // CREATE NEW USER
   const newInfluencerId = await generateSequentialInfluencerId()
-  const defaultEmail = input.email || `${input.instagramUsername || 'user'}_${Date.now()}@instagram.1to7.com`
+  const defaultEmail = cleanEmail || `${input.instagramUsername || 'user'}_${Date.now()}@instagram.1to7.com`
 
   const insertPayload = {
     full_name: input.fullName || input.instagramUsername || 'Creator',
     email: defaultEmail,
-    mobile: input.mobile || null,
+    mobile: cleanMobile || null,
     password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
     influencer_id: newInfluencerId,
     instagram_id: input.instagramId || null,

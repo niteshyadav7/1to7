@@ -124,9 +124,13 @@ export default function LoginPage() {
       body: JSON.stringify({ identifier, password }),
     })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Login failed')
+    if (!res.ok) {
+      toast.error(data.error || 'Login failed')
+      return
+    }
     if (data.requiresMobileVerification) {
-      throw new Error('Mobile still not verified. Please try again.')
+      toast.error('Mobile still not verified. Please try again.')
+      return
     }
     login(data.user)
     toast.success('Welcome back!')
@@ -151,7 +155,11 @@ export default function LoginPage() {
         body: JSON.stringify({ identifier, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Login failed')
+      if (!res.ok) {
+        toast.error(data.error || 'Invalid credentials. Please try again.')
+        setLoading(false)
+        return
+      }
 
       if (data.requiresMobileVerification) {
         // Credentials are valid but mobile isn't verified
@@ -163,7 +171,6 @@ export default function LoginPage() {
           try {
             await sendFirebaseOTP(data.mobile)
           } catch (otpErr: any) {
-            console.error('OTP send error:', otpErr)
             toast.error(otpErr.message || 'Failed to send OTP')
           }
         }
@@ -254,6 +261,7 @@ export default function LoginPage() {
       const firebaseUser = result.user
       if (!firebaseUser.email) {
         toast.error('Could not get email from Google. Please try again.')
+        setLoading(false)
         return
       }
 
@@ -268,15 +276,25 @@ export default function LoginPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Login failed')
+      if (!res.ok) {
+        toast.error(data.error || 'Login failed', {
+          duration: 6000
+        })
+        setLoading(false)
+        return
+      }
 
       login(data.user)
       toast.success('Welcome!')
       window.location.href = '/dashboard'
     } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return
-      console.error('Google Login Error:', err)
-      toast.error(err.message || 'Login failed. Please try again.')
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setLoading(false)
+        return
+      }
+      toast.error(err.message || 'Login failed. Please try again.', {
+        duration: 6000
+      })
     } finally {
       setLoading(false)
     }
@@ -373,13 +391,16 @@ export default function LoginPage() {
           body: JSON.stringify({ mobile: cleanMobile }),
         })
         const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Login failed')
+        if (!res.ok) {
+          toast.error(data.error || 'Login failed')
+          setLoading(false)
+          return
+        }
         login(data.user)
         toast.success('Welcome back!')
         window.location.href = '/dashboard'
       }
     } catch (err: any) {
-      console.error(err)
       toast.error(err.message || 'Invalid OTP. Please try again.')
     } finally {
       setLoading(false)
