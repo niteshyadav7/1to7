@@ -3,8 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
 import { generateSequentialInfluencerId } from '@/lib/user-utils'
 
-// Default password hash for imported users (they can reset later)
-const DEFAULT_PASSWORD_HASH = '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm'
+// Default password hash for imported users ('12345') - they can change it later
+const DEFAULT_PASSWORD_HASH = '$2b$10$rgMNYfe45OpevM8273RF2uFRjsAxq4ScGzgGOBtaywvDNKpqFJ7Wm'
 
 interface ImportRow {
   influencer_id?: string
@@ -73,215 +73,304 @@ export async function POST(request: Request) {
       errors: [] as { row: number; mobile: string; error: string }[],
     }
 
-    // Process rows in chunks of 10 to avoid overwhelming the DB
-    const CHUNK_SIZE = 10
-    for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-      const chunk = rows.slice(i, i + CHUNK_SIZE)
+    // 1. Gather all mobiles and influencer_ids in this batch
+    const validRows: { row: ImportRow; rowIndex: number; mobile: string; influencerId?: string }[] = []
+    const mobiles: string[] = []
+    const influencerIds: string[] = []
 
-      await Promise.all(
-        chunk.map(async (row, chunkIndex) => {
-          const rowIndex = i + chunkIndex + 1 // 1-indexed for user-friendly display
-          const mobile = row.mobile?.toString().trim()
-          const influencerIdInput = row.influencer_id?.toString().trim()
+    rows.forEach((row, idx) => {
+      const rowIndex = idx + 1
+      const mobile = row.mobile ? String(row.mobile).replace(/[\s\-\+]/g, '').trim() : ''
+      const influencerId = row.influencer_id ? String(row.influencer_id).trim() : undefined
 
-          if (!mobile && !influencerIdInput) {
-            results.errors.push({ row: rowIndex, mobile: '(empty)', error: 'Mobile or User ID is required' })
-            results.skipped++
-            return
+      if (!mobile && !influencerId) {
+        results.errors.push({ row: rowIndex, mobile: '(empty)', error: 'Mobile or User ID is required' })
+        results.skipped++
+        return
+      }
+
+      validRows.push({ row, rowIndex, mobile, influencerId })
+      if (mobile) mobiles.push(mobile)
+      if (influencerId) influencerIds.push(influencerId)
+    })
+
+    if (validRows.length === 0) {
+      return NextResponse.json({ success: true, results })
+    }
+
+    // 2. Fetch all existing users in ONE query (or two if influencerIds exist)
+    const existingUsersMap = new Map<string, any>() // key by mobile AND by influencer_id
+
+    if (mobiles.length > 0) {
+      const { data: byMobiles } = await supabase
+        .from('users')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category')
+        .in('mobile', mobiles)
+      
+      byMobiles?.forEach(u => {
+        if (u.mobile) existingUsersMap.set(`m:${u.mobile}`, u)
+        if (u.influencer_id) existingUsersMap.set(`id:${u.influencer_id}`, u)
+      })
+    }
+
+    if (influencerIds.length > 0) {
+      const { data: byIds } = await supabase
+        .from('users')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category')
+        .in('influencer_id', influencerIds)
+      
+      byIds?.forEach(u => {
+        if (u.mobile) existingUsersMap.set(`m:${u.mobile}`, u)
+        if (u.influencer_id) existingUsersMap.set(`id:${u.influencer_id}`, u)
+      })
+    }
+
+    // 3. Separate into existing users vs new users with in-batch duplicate merging
+    const toUpdateUsers: { userId: string; updates: Record<string, any>; rowItem: typeof validRows[0] }[] = []
+    const toCreateUsers: { rowItem: typeof validRows[0]; userData: any }[] = []
+    const inBatchCreatedMobiles = new Map<string, any>()
+
+    // Helper for generating sequential IDs for new users without a specified ID
+    let currentSequence = 0
+    const needsNewSequentialId = validRows.some(
+      item => !item.influencerId && !existingUsersMap.get(`m:${item.mobile}`)
+    )
+
+    if (needsNewSequentialId) {
+      const { data: counter } = await supabase
+        .from('influencer_id_counter')
+        .select('last_number')
+        .eq('id', 1)
+        .single()
+      
+      currentSequence = counter?.last_number || 10000
+    }
+
+    for (const item of validRows) {
+      const { row, mobile, influencerId } = item
+      const existing = (mobile && existingUsersMap.get(`m:${mobile}`)) || (influencerId && existingUsersMap.get(`id:${influencerId}`))
+
+      if (existing) {
+        // User already exists in DB
+        const updates: Record<string, any> = {}
+        if (!existing.account_name && row.account_name) updates.account_name = row.account_name
+        if (!existing.account_number && row.account_number) updates.account_number = row.account_number
+        if (!existing.ifsc_code && row.ifsc_code) updates.ifsc_code = row.ifsc_code
+        if (!existing.category && row.category) updates.category = row.category
+        if (row.full_name?.trim()) updates.full_name = row.full_name.trim()
+        if (row.instagram_username?.trim()) updates.instagram_username = row.instagram_username.trim()
+        if (row.gender?.trim()) updates.gender = row.gender.trim()
+        if (row.state?.trim()) updates.state = row.state.trim()
+        if (row.city?.trim()) updates.city = row.city.trim()
+        if (row.followers) {
+          const parsed = parseInt(String(row.followers), 10)
+          if (!isNaN(parsed)) updates.followers = parsed
+        }
+
+        toUpdateUsers.push({ userId: existing.id, updates, rowItem: item })
+      } else if (mobile && inBatchCreatedMobiles.has(mobile)) {
+        // User is a duplicate within the same batch! Merge fields into the previous record
+        const previous = inBatchCreatedMobiles.get(mobile)
+        if (row.full_name?.trim()) previous.full_name = row.full_name.trim()
+        if (row.instagram_username?.trim()) previous.instagram_username = row.instagram_username.trim()
+        if (row.account_name?.trim()) previous.account_name = row.account_name.trim()
+        if (row.account_number?.trim()) previous.account_number = row.account_number.trim()
+        if (row.ifsc_code?.trim()) previous.ifsc_code = row.ifsc_code.trim()
+        if (row.category?.trim()) previous.category = row.category.trim()
+        if (row.state?.trim()) previous.state = row.state.trim()
+        if (row.city?.trim()) previous.city = row.city.trim()
+        if (row.followers) {
+          const parsed = parseInt(String(row.followers), 10)
+          if (!isNaN(parsed)) previous.followers = parsed
+        }
+      } else {
+        // Brand new user
+        let finalInfluencerId = influencerId
+        if (!finalInfluencerId) {
+          currentSequence++
+          finalInfluencerId = `HY${currentSequence}`
+        }
+
+        const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
+        const email = row.email?.trim() || `${finalMobile}@import.1to7.com`
+
+        const newUserData = {
+          full_name: row.full_name?.trim() || 'Imported Creator',
+          mobile: finalMobile,
+          email: email,
+          password_hash: DEFAULT_PASSWORD_HASH,
+          influencer_id: finalInfluencerId,
+          is_mobile_verified: false,
+          is_email_verified: false,
+          instagram_username: row.instagram_username?.trim() || null,
+          followers: row.followers ? parseInt(String(row.followers), 10) || 0 : 0,
+          gender: row.gender?.trim() || null,
+          state: row.state?.trim() || null,
+          city: row.city?.trim() || null,
+          account_name: row.account_name?.trim() || null,
+          account_number: row.account_number?.trim() || null,
+          ifsc_code: row.ifsc_code?.trim() || null,
+          category: row.category?.trim() || null,
+        }
+
+        if (mobile) inBatchCreatedMobiles.set(mobile, newUserData)
+        toCreateUsers.push({ rowItem: item, userData: newUserData })
+      }
+    }
+
+    // 4. Batch insert new users with graceful conflict recovery
+    const userMapForApps = new Map<string, string>() // rowIndex -> userId
+
+    if (toCreateUsers.length > 0) {
+      const insertPayload = toCreateUsers.map(u => u.userData)
+      const { data: insertedUsers, error: insertError } = await supabase
+        .from('users')
+        .insert(insertPayload)
+        .select('id, mobile, influencer_id')
+
+      if (insertError) {
+        // Fallback: insert one-by-one with automatic conflict resolution
+        for (const item of toCreateUsers) {
+          let { data: singleUser, error: singleError } = await supabase
+            .from('users')
+            .insert([item.userData])
+            .select('id')
+            .single()
+          
+          // If email conflict, retry with unique guaranteed email
+          if (singleError && singleError.message?.toLowerCase().includes('email')) {
+            const uniqueEmail = `${item.userData.mobile}_${Date.now()}@import.1to7.com`
+            const retryRes = await supabase
+              .from('users')
+              .insert([{ ...item.userData, email: uniqueEmail }])
+              .select('id')
+              .single()
+            singleUser = retryRes.data
+            singleError = retryRes.error
           }
 
-          try {
-            // 1. Find or create user by influencer_id or mobile
-            let userId: string
-
+          // If mobile conflict (already created in earlier batch), fetch existing and treat as success
+          if (singleError && singleError.message?.toLowerCase().includes('mobile')) {
             const { data: existingUser } = await supabase
               .from('users')
-              .select('id, account_number, account_name, ifsc_code, category')
-              .or(`influencer_id.eq.${influencerIdInput || 'none'},mobile.eq.${mobile || 'none'}`)
-              .limit(1)
+              .select('id')
+              .eq('mobile', item.userData.mobile)
               .maybeSingle()
-
             if (existingUser) {
-              userId = existingUser.id
+              singleUser = existingUser
+              singleError = null
               results.existing_users++
-
-              // Check if we need to update bank details or category for existing user
-              const updates: Record<string, any> = {}
-              if (!existingUser.account_name && row.account_name) updates.account_name = row.account_name
-              if (!existingUser.account_number && row.account_number) updates.account_number = row.account_number
-              if (!existingUser.ifsc_code && row.ifsc_code) updates.ifsc_code = row.ifsc_code
-              if (!existingUser.category && row.category) updates.category = row.category
-              
-              if (row.full_name?.trim()) updates.full_name = row.full_name.trim()
-              if (row.instagram_username?.trim()) updates.instagram_username = row.instagram_username.trim()
-              if (row.gender?.trim()) updates.gender = row.gender.trim()
-              if (row.state?.trim()) updates.state = row.state.trim()
-              if (row.city?.trim()) updates.city = row.city.trim()
-              if (row.followers) {
-                const parsed = parseInt(String(row.followers), 10)
-                if (!isNaN(parsed)) updates.followers = parsed
-              }
-
-              if (Object.keys(updates).length > 0) {
-                updates.updated_at = new Date().toISOString()
-                await supabase.from('users').update(updates).eq('id', userId)
-              }
-            } else {
-              // Create a new lightweight user profile
-              const influencerId = influencerIdInput || await generateSequentialInfluencerId()
-              const fullName = row.full_name?.trim() || 'Imported Creator'
-              const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 1000)}`
-              const email = row.email?.trim() || `${finalMobile}@import.1to7.com`
-
-              const { data: newUser, error: insertError } = await supabase
-                .from('users')
-                .insert([{
-                  full_name: fullName,
-                  mobile: finalMobile,
-                  email: email,
-                  password_hash: DEFAULT_PASSWORD_HASH,
-                  influencer_id: influencerId,
-                  is_mobile_verified: false,
-                  is_email_verified: false,
-                  instagram_username: row.instagram_username?.trim() || null,
-                  followers: row.followers ? parseInt(String(row.followers), 10) || 0 : 0,
-                  gender: row.gender?.trim() || null,
-                  state: row.state?.trim() || null,
-                  city: row.city?.trim() || null,
-                  account_name: row.account_name?.trim() || null,
-                  account_number: row.account_number?.trim() || null,
-                  ifsc_code: row.ifsc_code?.trim() || null,
-                  category: row.category?.trim() || null,
-                }])
-                .select('id')
-                .single()
-
-              if (insertError) {
-                // Handle duplicate email scenario
-                if (insertError.code === '23505' && insertError.message?.includes('email')) {
-                  // Try with a unique email
-                  const uniqueEmail = `${finalMobile}_${Date.now()}@import.1to7.com`
-                  const { data: retryUser, error: retryError } = await supabase
-                    .from('users')
-                    .insert([{
-                      full_name: fullName,
-                      mobile: finalMobile,
-                      email: uniqueEmail,
-                      password_hash: DEFAULT_PASSWORD_HASH,
-                      influencer_id: influencerId,
-                      is_mobile_verified: false,
-                      is_email_verified: false,
-                      instagram_username: row.instagram_username?.trim() || null,
-                      followers: row.followers ? parseInt(String(row.followers), 10) || 0 : 0,
-                      gender: row.gender?.trim() || null,
-                      state: row.state?.trim() || null,
-                      city: row.city?.trim() || null,
-                      account_name: row.account_name?.trim() || null,
-                      account_number: row.account_number?.trim() || null,
-                      ifsc_code: row.ifsc_code?.trim() || null,
-                      category: row.category?.trim() || null,
-                    }])
-                    .select('id')
-                    .single()
-
-                  if (retryError || !retryUser) {
-                    results.errors.push({ row: rowIndex, mobile: finalMobile, error: `Failed to create user: ${retryError?.message || 'Unknown error'}` })
-                    results.skipped++
-                    return
-                  }
-                  userId = retryUser.id
-                } else {
-                  results.errors.push({ row: rowIndex, mobile: finalMobile, error: `Failed to create user: ${insertError.message}` })
-                  results.skipped++
-                  return
-                }
-              } else {
-                userId = newUser!.id
-              }
-
-              results.created_users++
             }
+          }
 
-            if (campaign_id) {
-              // 2. Determine application status
-              const status = row.status?.trim()
-              const applicationStatus = validStatuses.includes(status || '') ? status! : 'Applied'
-
-              // 3. Check if application already exists for this user + campaign
-              const { data: existingApp } = await supabase
-                .from('applications')
-                .select('id, form_data')
-                .eq('user_id', userId)
-                .eq('campaign_id', campaign_id)
-                .single()
-
-              // Prepare form data including order_details if needed
-              const formData = row.form_data || {}
-              if (row.order_id) {
-                formData.order_details = formData.order_details || {}
-                formData.order_details.orderId = row.order_id
-                formData.order_details_approved = true // Auto-approve imported orders
-              }
-
-              if (existingApp) {
-                // Update existing application
-                const updatePayload: Record<string, any> = {
-                  status: applicationStatus,
-                  updated_at: new Date().toISOString(),
-                }
-                
-                if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
-                if (row.final_payment !== undefined) updatePayload.final_payment = row.final_payment
-                if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
-
-                if (Object.keys(formData).length > 0) {
-                  // Merge with existing form_data
-                  const existingFormData = typeof existingApp.form_data === 'object' && existingApp.form_data !== null ? existingApp.form_data : {}
-                  updatePayload.form_data = { ...existingFormData, ...formData }
-                  // Merge nested order_details specifically
-                  if (formData.order_details && existingFormData.order_details) {
-                    updatePayload.form_data.order_details = { ...existingFormData.order_details, ...formData.order_details }
-                  }
-                }
-
-                await supabase
-                  .from('applications')
-                  .update(updatePayload)
-                  .eq('id', existingApp.id)
-
-                results.applications_updated++
-              } else {
-                // Create new application
-                const appPayload: Record<string, any> = {
-                  user_id: userId,
-                  campaign_id: campaign_id,
-                  status: applicationStatus,
-                  form_data: formData,
-                }
-
-                if (row.partial_payment !== undefined) appPayload.partial_payment = row.partial_payment
-                if (row.final_payment !== undefined) appPayload.final_payment = row.final_payment
-                if (row.pending_amount !== undefined) appPayload.pending_amount = row.pending_amount
-
-                const { error: appError } = await supabase
-                  .from('applications')
-                  .insert(appPayload)
-
-                if (appError) {
-                  results.errors.push({ row: rowIndex, mobile: mobile || influencerIdInput || 'Unknown', error: `Failed to create application: ${appError.message}` })
-                  results.skipped++
-                  return
-                }
-
-                results.applications_created++
-              }
-            }
-          } catch (err: any) {
-            results.errors.push({ row: rowIndex, mobile: mobile || influencerIdInput || 'Unknown', error: err.message || 'Unknown error' })
+          if (singleError) {
+            results.errors.push({
+              row: item.rowItem.rowIndex,
+              mobile: item.rowItem.mobile || item.rowItem.influencerId || 'Unknown',
+              error: singleError.message
+            })
             results.skipped++
+          } else if (singleUser) {
+            results.created_users++
+            userMapForApps.set(String(item.rowItem.rowIndex), singleUser.id)
+          }
+        }
+      } else if (insertedUsers) {
+        results.created_users += insertedUsers.length
+        insertedUsers.forEach((u, i) => {
+          userMapForApps.set(String(toCreateUsers[i].rowItem.rowIndex), u.id)
+        })
+      }
+
+      // Update sequence counter if new sequential IDs were generated
+      if (needsNewSequentialId && currentSequence > 0) {
+        await supabase
+          .from('influencer_id_counter')
+          .upsert({ id: 1, last_number: currentSequence }, { onConflict: 'id' })
+      }
+    }
+
+    // 5. Update existing users
+    if (toUpdateUsers.length > 0) {
+      await Promise.all(
+        toUpdateUsers.map(async item => {
+          userMapForApps.set(String(item.rowItem.rowIndex), item.userId)
+          results.existing_users++
+
+          if (Object.keys(item.updates).length > 0) {
+            item.updates.updated_at = new Date().toISOString()
+            await supabase.from('users').update(item.updates).eq('id', item.userId)
           }
         })
       )
+    }
+
+    // 6. Handle Campaign Applications if campaign_id is present
+    if (campaign_id) {
+      const allUserIds = Array.from(userMapForApps.values())
+
+      if (allUserIds.length > 0) {
+        const { data: existingApps } = await supabase
+          .from('applications')
+          .select('id, user_id, form_data')
+          .eq('campaign_id', campaign_id)
+          .in('user_id', allUserIds)
+
+        const existingAppsMap = new Map<string, any>()
+        existingApps?.forEach(app => existingAppsMap.set(app.user_id, app))
+
+        for (const item of validRows) {
+          const userId = userMapForApps.get(String(item.rowIndex))
+          if (!userId) continue
+
+          const row = item.row
+          const status = row.status?.trim()
+          const applicationStatus = validStatuses.includes(status || '') ? status! : 'Applied'
+          const existingApp = existingAppsMap.get(userId)
+
+          const formData = row.form_data || {}
+          if (row.order_id) {
+            formData.order_details = formData.order_details || {}
+            formData.order_details.orderId = row.order_id
+            formData.order_details_approved = true
+          }
+
+          if (existingApp) {
+            const updatePayload: Record<string, any> = {
+              status: applicationStatus,
+              updated_at: new Date().toISOString(),
+            }
+            if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
+            if (row.final_payment !== undefined) updatePayload.final_payment = row.final_payment
+            if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
+
+            if (Object.keys(formData).length > 0) {
+              const existingFormData = typeof existingApp.form_data === 'object' && existingApp.form_data !== null ? existingApp.form_data : {}
+              updatePayload.form_data = { ...existingFormData, ...formData }
+            }
+
+            await supabase.from('applications').update(updatePayload).eq('id', existingApp.id)
+            results.applications_updated++
+          } else {
+            const appPayload: Record<string, any> = {
+              user_id: userId,
+              campaign_id: campaign_id,
+              status: applicationStatus,
+              form_data: formData,
+            }
+            if (row.partial_payment !== undefined) appPayload.partial_payment = row.partial_payment
+            if (row.final_payment !== undefined) appPayload.final_payment = row.final_payment
+            if (row.pending_amount !== undefined) appPayload.pending_amount = row.pending_amount
+
+            const { error: appError } = await supabase.from('applications').insert(appPayload)
+            if (appError) {
+              results.errors.push({ row: item.rowIndex, mobile: item.mobile || 'Unknown', error: `App creation failed: ${appError.message}` })
+            } else {
+              results.applications_created++
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json({

@@ -233,6 +233,18 @@ export default function ImportPage() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [campaignDropdownOpen])
 
+  // Prevent accidental tab closure during large bulk imports
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (importing) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [importing])
+
   // ─── Filtered campaigns ─────────────────────────────────
   const filteredCampaigns = useMemo(() => {
     if (!campaignSearch.trim()) return campaigns
@@ -478,6 +490,42 @@ export default function ImportPage() {
     URL.revokeObjectURL(url)
   }
 
+  // ─── Download failed / error rows as CSV ─────────────────
+  const downloadFailedRows = () => {
+    if (!importResults || importResults.errors.length === 0) return
+
+    const data = importResults.errors.map(err => {
+      const original = parsedRows.find(r => r._rowIndex === err.row)
+      return {
+        'Row Number': err.row,
+        'Mobile': err.mobile !== '(empty)' ? err.mobile : (original?.mobile || ''),
+        'User ID': original?.influencer_id || '',
+        'Full Name': original?.full_name || '',
+        'Email': original?.email || '',
+        'Instagram Handle': original?.instagram_username || '',
+        'Followers': original?.followers || '',
+        'Gender': original?.gender || '',
+        'State': original?.state || '',
+        'City': original?.city || '',
+        'Account Number': original?.account_number || '',
+        'IFSC': original?.ifsc_code || '',
+        'Account Name': original?.account_name || '',
+        'Category': original?.category || '',
+        'Error Reason': err.error,
+      }
+    })
+
+    const csv = Papa.unparse(data)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `failed_import_rows_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${data.length} failed rows as CSV`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Injection */}
@@ -540,16 +588,25 @@ export default function ImportPage() {
             {/* Errors List */}
             {importResults.errors.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-red-400 mb-3 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Errors ({importResults.errors.length})
-                </h3>
-                <div className="max-h-[200px] overflow-y-auto space-y-1 custom-scrollbar">
+                <div className="flex items-center justify-between gap-4 mb-3">
+                  <h3 className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    Failed Rows ({importResults.errors.length})
+                  </h3>
+                  <button
+                    onClick={downloadFailedRows}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-300 hover:text-white border border-red-500/30 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm shadow-red-500/10"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download Failed Rows CSV
+                  </button>
+                </div>
+                <div className="max-h-[220px] overflow-y-auto space-y-1 custom-scrollbar">
                   {importResults.errors.map((err, i) => (
                     <div key={i} className="flex items-center gap-3 px-3 py-2 bg-red-500/5 border border-red-500/10 rounded-lg text-xs">
                       <span className="text-red-400 font-mono font-bold">Row {err.row}</span>
                       <span className="text-slate-500">|</span>
-                      <span className="text-slate-400">{err.mobile}</span>
+                      <span className="text-slate-400 font-mono">{err.mobile}</span>
                       <span className="text-slate-500">|</span>
                       <span className="text-red-300 flex-1">{err.error}</span>
                     </div>
@@ -560,7 +617,7 @@ export default function ImportPage() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleReset}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
@@ -568,6 +625,15 @@ export default function ImportPage() {
               <RefreshCw className="h-4 w-4" />
               Import More
             </button>
+            {importResults.errors.length > 0 && (
+              <button
+                onClick={downloadFailedRows}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-red-500/10 text-red-300 border border-red-500/25 hover:bg-red-500/20 hover:text-white transition-all cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                Download Failed List ({importResults.errors.length})
+              </button>
+            )}
             <Link
               href="/admin/applications"
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-indigo-600 to-purple-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all"
@@ -783,7 +849,9 @@ export default function ImportPage() {
                   <p className="text-xs text-slate-500">
                     or <span className="text-indigo-400 underline">browse files</span>
                   </p>
-                  <p className="text-[10px] text-slate-600 mt-3">Supported: .csv files up to 1000 rows</p>
+                  <p className="text-[10px] text-emerald-400/90 mt-3 flex items-center justify-center gap-1 font-medium">
+                    <Sparkles className="h-3 w-3" /> Supports 30k+ rows (automatically chunked & synced smoothly)
+                  </p>
 
                   <input
                     ref={fileInputRef}
@@ -967,37 +1035,62 @@ export default function ImportPage() {
                 )}
               </div>
 
-              {/* Submit Button */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                  Cancel
-                </button>
-                <button
-                  onClick={handleImport}
-                  disabled={importing || validCount === 0}
-                  className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    importing || validCount === 0
-                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 cursor-pointer'
-                  }`}
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {importProgress ? `Importing batch ${importProgress.current} of ${importProgress.total}...` : `Importing ${validCount} rows...`}
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="h-4 w-4" />
-                      Import {validCount} Valid Rows
-                    </>
-                  )}
-                </button>
-              </div>
+                {/* Live Import Progress Banner for Large Uploads */}
+                {importing && importProgress && (
+                  <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-indigo-300 flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+                        Processing batch {importProgress.current} of {importProgress.total}...
+                      </span>
+                      <span className="font-mono text-white font-bold">
+                        {Math.min(validCount, importProgress.current * 500)} / {validCount} ({Math.round((importProgress.current / importProgress.total) * 100)}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 transition-all duration-300 rounded-full"
+                        style={{ width: `${Math.round((importProgress.current / importProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      ⚡ High-speed sync in progress. Please keep this tab open until complete.
+                    </p>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleReset}
+                    disabled={importing}
+                    className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleImport}
+                    disabled={importing || validCount === 0}
+                    className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
+                      importing || validCount === 0
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 cursor-pointer'
+                    }`}
+                  >
+                    {importing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Syncing {validCount} Creators ({Math.round((importProgress?.current || 1) / (importProgress?.total || 1) * 100)}%)...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-4 w-4" />
+                        Import {validCount} Valid Rows
+                      </>
+                    )}
+                  </button>
+                </div>
             </motion.div>
           )}
         </>

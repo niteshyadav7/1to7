@@ -1,6 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcryptjs');
+const Papa = require('papaparse');
 
 // 1. Manually parse .env.local to get Supabase credentials
 function loadEnv() {
@@ -22,7 +23,8 @@ function loadEnv() {
 
 const envVars = loadEnv();
 const supabaseUrl = envVars['NEXT_PUBLIC_SUPABASE_URL'];
-const supabaseKey = envVars['NEXT_PUBLIC_SUPABASE_ANON_KEY']; 
+// Use Service Role key if available (bypasses RLS), otherwise fallback to Anon Key
+const supabaseKey = envVars['SUPABASE_SERVICE_ROLE_KEY'] || envVars['NEXT_PUBLIC_SUPABASE_ANON_KEY'];
 
 if (!supabaseUrl || !supabaseKey) {
   console.error("Missing SUPABASE URL or KEY in .env.local");
@@ -31,112 +33,151 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 2. Setup Default Password
-const plainPassword = 'Welcome@1to7';
-// Pre-calculate hash so we don't do it 20,000 times
-const salt = bcrypt.genSaltSync(10);
-const defaultPasswordHash = bcrypt.hashSync(plainPassword, salt);
+// 2. Default Password Hash for '12345'
+const DEFAULT_PASSWORD_HASH = '$2b$10$rgMNYfe45OpevM8273RF2uFRjsAxq4ScGzgGOBtaywvDNKpqFJ7Wm';
 
-// Very basic CSV parser that handles basic quotes
-function parseCSV(text) {
-  const lines = text.split('\n');
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  const results = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    // Regex matches commas outside of quotes
-    const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-    const values = lines[i].split(regex).map(v => v.trim().replace(/^"|"$/g, ''));
-    
-    let obj = {};
-    headers.forEach((header, index) => {
-      obj[header] = values[index] || null;
-    });
-    results.push(obj);
+// Extract pure handle from instagram links
+function extractInstagramUsername(input) {
+  if (!input) return null;
+  let cleaned = input.trim();
+  cleaned = cleaned.split('?')[0].split('#')[0].trim();
+  let prev = '';
+  while (cleaned !== prev) {
+    prev = cleaned;
+    cleaned = cleaned
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/^(m\.)?instagram\.com\//i, '')
+      .replace(/^@/, '')
+      .trim();
   }
-  return results;
+  const segments = cleaned.split('/').filter(Boolean);
+  let username = segments[0] || '';
+  username = username.replace(/^@/, '').trim();
+  return username || null;
 }
 
-// Ensure the CSV header exact matches your column names
-function mapToDatabaseSchema(csvRow) {
-  // If the cell is empty or 'undefined', map it to null
-  const clean = (val) => val && val.trim() ? val.trim() : null;
-  const mobile = clean(csvRow['Phone']);
+// Map flexible CSV row keys
+function getField(row, keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+      return String(row[k]).trim();
+    }
+  }
+  return null;
+}
 
-  // Extract pure ID from instagram link if needed
-  let insta = clean(csvRow['Instagram ID']);
-  if (insta && insta.includes('instagram.com/')) {
-    // try to get just the username
-    const match = insta.match(/instagram\.com\/([^/?]+)/);
-    if (match && match[1]) insta = match[1];
+function mapToDatabaseSchema(row) {
+  const mobileRaw = getField(row, ['Phone', 'phone', 'Mobile', 'mobile', 'Mobile Number', 'Contact']);
+  if (!mobileRaw) return null;
+  
+  const mobile = mobileRaw.replace(/[\s\-\+]/g, '');
+  if (!mobile || mobile.length < 10) return null;
+
+  const fullName = getField(row, ['Name', 'name', 'Full Name', 'full_name', 'Influencer Name']) || 'Creator';
+  const userId = getField(row, ['User ID', 'user id', 'User Id', 'influencer_id', 'Influencer ID']);
+  const email = getField(row, ['Email', 'email', 'Email ID', 'email id']) || `${mobile}@1to7.com`;
+  const rawInsta = getField(row, ['Instagram ID', 'instagram id', 'Instagram', 'instagram', 'Insta ID', 'IG Handle']);
+  const instaUsername = extractInstagramUsername(rawInsta);
+
+  const genderRaw = getField(row, ['Gender', 'gender']);
+  let gender = null;
+  if (genderRaw) {
+    const g = genderRaw.toLowerCase();
+    if (g.startsWith('m')) gender = 'Male';
+    else if (g.startsWith('f')) gender = 'Female';
+    else gender = 'Other';
   }
 
-  // A valid user must at least have a mobile to avoid blank records
-  if (!mobile) return null;
+  const followersRaw = getField(row, ['Followers', 'followers', 'Follower Count']);
+  const followers = followersRaw ? parseInt(followersRaw.replace(/[^0-9]/g, ''), 10) || 0 : 0;
+
+  const accountNumber = getField(row, ['Account Number', 'account number', 'Account No', 'account_number']);
+  const ifscCode = getField(row, ['IFSC', 'ifsc', 'IFSC Code', 'ifsc_code']);
+  const accountName = getField(row, ['Account Name', 'account name', 'account_name']);
+  const state = getField(row, ['State', 'state']);
+  const city = getField(row, ['City', 'city']);
+  const category = getField(row, ['Category', 'category']);
 
   return {
-    full_name: clean(csvRow['Name']) || 'Unknown',
+    full_name: fullName,
     mobile: mobile,
-    email: clean(csvRow['Email']) || `${mobile}@1to7.com`, // Fallback since email is unique and required normally
-    influencer_id: clean(csvRow['User ID']) || null, 
-    instagram_username: insta,
-    gender: clean(csvRow['Gender']) === 'M' || clean(csvRow['Gender']) === 'Male' ? 'Male' : (clean(csvRow['Gender']) === 'F' || clean(csvRow['Gender']) === 'Female' ? 'Female' : 'Any'), // Default mapping
-    account_number: clean(csvRow['Account Number']),
-    account_name: clean(csvRow['Account Name']),
-    ifsc_code: clean(csvRow['IFSC']),
-    state: clean(csvRow['State']),
-    city: clean(csvRow['City']),
-    followers: clean(csvRow['Followers']) ? parseInt(clean(csvRow['Followers'])) : 0,
-    category: clean(csvRow['Category']),
-    password_hash: defaultPasswordHash,
-    is_email_verified: true,
+    email: email,
+    influencer_id: userId || null,
+    instagram_username: instaUsername,
+    gender: gender,
+    account_number: accountNumber,
+    account_name: accountName,
+    ifsc_code: ifscCode,
+    state: state,
+    city: city,
+    followers: followers,
+    category: category,
+    password_hash: DEFAULT_PASSWORD_HASH,
+    is_email_verified: false,
     is_mobile_verified: true
   };
 }
 
 async function migrateUsers() {
-  const filePath = 'users.csv';
-  
+  const targetFile = process.argv[2] || 'users.csv';
+  const filePath = path.resolve(process.cwd(), targetFile);
+
   if (!fs.existsSync(filePath)) {
-    console.error(`ERROR: Please put the Google Sheet CSV export in the same folder and name it '${filePath}'`);
+    console.error(`\n❌ ERROR: File '${targetFile}' not found!`);
+    console.log(`Usage: node migrate_users.js <path-to-csv-file>`);
+    console.log(`Or place your CSV in the project root named 'users.csv'\n`);
     process.exit(1);
   }
 
-  console.log("Reading CSV...");
+  console.log(`\n📂 Reading '${targetFile}'...`);
   const fileContent = fs.readFileSync(filePath, 'utf8');
-  const rawData = parseCSV(fileContent);
-  
-  console.log(`Found ${rawData.length} rows. Processing mapping...`);
 
-  const supabaseRecords = rawData
-    .map(mapToDatabaseSchema)
-    .filter(record => record !== null); // Remove blanks
+  const parsed = Papa.parse(fileContent, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: h => h.trim()
+  });
 
-  console.log(`Prepared ${supabaseRecords.length} valid records for database insertion.`);
+  const rawRows = parsed.data;
+  console.log(`📊 Found ${rawRows.length} total rows in CSV.`);
 
-  // Insert in chunks of 500
+  const validRecords = [];
+  const seenMobiles = new Set();
+
+  for (const row of rawRows) {
+    const record = mapToDatabaseSchema(row);
+    if (record && !seenMobiles.has(record.mobile)) {
+      seenMobiles.add(record.mobile);
+      validRecords.push(record);
+    }
+  }
+
+  console.log(`✅ Prepared ${validRecords.length} unique valid records (default password: '12345').`);
+
+  // Insert/upsert in chunks of 500
   const CHUNK_SIZE = 500;
   let successCount = 0;
   let maxNumericId = 0;
 
-  for (let i = 0; i < supabaseRecords.length; i += CHUNK_SIZE) {
-    const chunk = supabaseRecords.slice(i, i + CHUNK_SIZE);
+  console.log(`🚀 Starting bulk import into Supabase in batches of ${CHUNK_SIZE}...\n`);
+
+  for (let i = 0; i < validRecords.length; i += CHUNK_SIZE) {
+    const chunk = validRecords.slice(i, i + CHUNK_SIZE);
     
-    // Attempt insertion using upsert to avoid duplicate Key errors breaking the whole batch
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
-      .upsert(chunk, { onConflict: 'mobile' }); // If mobile exists, it updates.
+      .upsert(chunk, { onConflict: 'mobile' });
 
     if (error) {
-      console.error(`Error inserting chunk ${i} - ${i + CHUNK_SIZE}:`, error.message);
-      console.error("Make sure your RLS policies allow you to insert/upsert, or use the service_role key.");
+      console.error(`❌ Error in chunk [${i + 1} - ${i + chunk.length}]:`, error.message);
     } else {
       successCount += chunk.length;
-      console.log(`Successfully migrated ${successCount}/${supabaseRecords.length} users.`);
+      const progressPercent = ((successCount / validRecords.length) * 100).toFixed(1);
+      console.log(`✨ Progress: [${successCount} / ${validRecords.length}] (${progressPercent}%) users synced.`);
     }
 
-    // Extract numbers to update the sequence counter for future users
+    // Track highest HY ID to update counter
     chunk.forEach(user => {
       if (user.influencer_id && user.influencer_id.startsWith('HY')) {
         const num = parseInt(user.influencer_id.replace('HY', ''), 10);
@@ -147,22 +188,22 @@ async function migrateUsers() {
     });
   }
 
-  // Update counter so newly signed up users don't get overlapping IDs
+  // Update counter sequence
   if (maxNumericId > 0) {
-    console.log(`Updating influencer_id_counter to start new users after HY${maxNumericId}...`);
-    // Manually updating logic
+    console.log(`\n🔢 Updating influencer_id_counter to resume after HY${maxNumericId}...`);
     const { error: counterError } = await supabase
       .from('influencer_id_counter')
       .upsert({ id: 1, last_number: maxNumericId }, { onConflict: 'id' });
     
-    if(counterError){
-        console.error("Error updating counter:", counterError);
+    if (counterError) {
+      console.error("⚠️ Note: Counter update returned:", counterError.message);
     } else {
-        console.log(`Counter updated successfully!`);
+      console.log(`✅ Counter sequence updated to HY${maxNumericId}.`);
     }
   }
 
-  console.log("Migration complete!");
+  console.log(`\n🎉 All done! Successfully synced ${successCount} creators into the database.`);
+  console.log(`🔑 All users can now log in using password: '12345' (and change it later).`);
 }
 
 migrateUsers();
