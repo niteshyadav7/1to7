@@ -136,20 +136,20 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.24 }}
-              className="mt-8 flex flex-row items-center justify-center gap-3 flex-wrap"
+              className="mt-8 flex items-center justify-center gap-2.5 sm:gap-4 max-w-sm sm:max-w-none mx-auto px-2"
             >
               {!user ? (
-                <Link href="/login">
-                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer bg-primary-container hover:bg-amber-400 text-black">
+                <Link href="/login" className="flex-1 sm:flex-initial">
+                  <Button size="lg" className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-extrabold text-sm shadow-md active:scale-[0.98] group cursor-pointer bg-gradient-to-r from-amber-400 via-[#febd1c] to-amber-500 hover:opacity-95 text-slate-950 border border-amber-300/60">
                     Get Started
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
               ) : (
-                <Link href="/dashboard">
-                  <Button size="lg" className="h-12 px-8 rounded-md font-bold text-sm shadow-sm active:scale-[0.98] group cursor-pointer bg-primary-container hover:bg-amber-400 text-black">
+                <Link href="/dashboard" className="flex-1 sm:flex-initial">
+                  <Button size="lg" className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-extrabold text-sm shadow-md active:scale-[0.98] group cursor-pointer bg-gradient-to-r from-amber-400 via-[#febd1c] to-amber-500 hover:opacity-95 text-slate-950 border border-amber-300/60">
                     Go to Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
               )}
@@ -157,12 +157,16 @@ export default function Home() {
               {!isInstalled && (
                 <button
                   onClick={installApp}
-                  className="h-12 w-12 rounded-full border border-amber-300/80 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 shadow-sm hover:shadow-md active:scale-95 flex flex-col items-center justify-center transition-all cursor-pointer shrink-0"
+                  className="h-12 px-3.5 sm:px-4 rounded-xl border border-slate-200 bg-white hover:bg-amber-50/60 text-slate-900 shadow-sm hover:shadow active:scale-95 flex items-center gap-2 transition-all cursor-pointer shrink-0"
                   title="Install 1to7 App"
                   aria-label="Install 1to7 App"
                 >
-                  <Download className="h-4 w-4" />
-                  <span className="text-[9px] font-extrabold tracking-tight leading-none mt-0.5">App</span>
+                  <div className="h-7 w-7 rounded-lg bg-amber-100/80 flex items-center justify-center text-amber-700 shrink-0">
+                    <Download className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-xs font-extrabold text-slate-900 leading-tight">App</span>
+                  </div>
                 </button>
               )}
             </motion.div>
