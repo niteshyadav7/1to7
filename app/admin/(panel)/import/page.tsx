@@ -850,7 +850,7 @@ export default function ImportPage() {
                     or <span className="text-indigo-400 underline">browse files</span>
                   </p>
                   <p className="text-[10px] text-emerald-400/90 mt-3 flex items-center justify-center gap-1 font-medium">
-                    <Sparkles className="h-3 w-3" /> Supports 30k+ rows (automatically chunked & synced smoothly)
+                    <Sparkles className="h-3 w-3" /> Supports any size — 50k, 100k+ rows (automatically chunked & synced smoothly)
                   </p>
 
                   <input
