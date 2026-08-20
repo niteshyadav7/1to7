@@ -69,7 +69,21 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       setIsInstallable(true)
     }
 
-    // 4. Register Service Worker
+    // 4. Check for early captured prompt
+    if (typeof window !== 'undefined' && (window as any).__deferredPwaPrompt) {
+      setDeferredPrompt((window as any).__deferredPwaPrompt)
+      setIsInstallable(true)
+    }
+
+    const handlePromptReady = () => {
+      if ((window as any).__deferredPwaPrompt) {
+        setDeferredPrompt((window as any).__deferredPwaPrompt)
+        setIsInstallable(true)
+      }
+    }
+    window.addEventListener('pwa-prompt-ready', handlePromptReady)
+
+    // 5. Register Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
@@ -81,18 +95,23 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
         })
     }
 
-    // 5. Handle beforeinstallprompt event for Android / Chrome / Edge
+    // 6. Handle beforeinstallprompt event for Android / Chrome / Edge
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
+      const promptEvent = e as BeforeInstallPromptEvent
+      ;(window as any).__deferredPwaPrompt = promptEvent
+      setDeferredPrompt(promptEvent)
       setIsInstallable(true)
     }
 
-    // 6. Handle app installed event
+    // 7. Handle app installed event
     const handleAppInstalled = () => {
       setIsInstalled(true)
       setIsInstallable(false)
       setDeferredPrompt(null)
+      if (typeof window !== 'undefined') {
+        ;(window as any).__deferredPwaPrompt = null
+      }
       sessionStorage.removeItem('pwa_banner_dismissed')
     }
 
@@ -100,6 +119,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('appinstalled', handleAppInstalled)
 
     return () => {
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady)
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
@@ -113,15 +133,20 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (deferredPrompt) {
+    const promptEvent = deferredPrompt || (typeof window !== 'undefined' ? (window as any).__deferredPwaPrompt : null)
+
+    if (promptEvent) {
       try {
-        await deferredPrompt.prompt()
-        const choice = await deferredPrompt.userChoice
+        await promptEvent.prompt()
+        const choice = await promptEvent.userChoice
         if (choice.outcome === 'accepted') {
           setIsInstalled(true)
           setIsInstallable(false)
         }
         setDeferredPrompt(null)
+        if (typeof window !== 'undefined') {
+          ;(window as any).__deferredPwaPrompt = null
+        }
       } catch (err) {
         console.error('Error during PWA installation:', err)
       }
