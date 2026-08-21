@@ -114,6 +114,22 @@ const COLUMN_MAP: Record<string, string> = {
 
 const VALID_STATUSES = ['Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Requested']
 
+// ─── Status Normalization (Maps synonyms like 'yes', 'true', 'approved' to canonical DB status) ───
+function normalizeStatus(rawStatus?: string): string {
+  if (!rawStatus) return 'Applied'
+  const s = rawStatus.trim().toLowerCase()
+  if (['approved', 'approve', 'yes', 'y', 'true', '1', 'ok', 'pass', 'selected'].includes(s)) return 'Approved'
+  if (['rejected', 'reject', 'no', 'n', 'false', '0', 'fail', 'declined'].includes(s)) return 'Rejected'
+  if (['completed', 'complete', 'done', 'finished'].includes(s)) return 'Completed'
+  if (['applied', 'pending', 'new', 'waiting', 'in review'].includes(s)) return 'Applied'
+  if (['payment initiated', 'payment_initiated', 'paid partial', 'partial'].includes(s)) return 'Payment Initiated'
+  if (['payment requested', 'payment_requested', 'requested'].includes(s)) return 'Payment Requested'
+
+  // Match case-insensitively to VALID_STATUSES
+  const found = VALID_STATUSES.find(v => v.toLowerCase() === s)
+  return found || rawStatus.trim()
+}
+
 // ─── Helpers ───────────────────────────────────────────────
 function normalizeHeader(header: string): string {
   const cleaned = header.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ')
@@ -126,19 +142,22 @@ function validateRow(row: ParsedRow): ParsedRow {
   const influencerId = row.influencer_id?.toString().trim()
 
   if (!mobile && !influencerId) {
-    errors.push('Either Mobile Number or User ID is required')
+    errors.push('Mobile number or User ID is missing')
   } else if (mobile && !/^\d{10,15}$/.test(mobile.replace(/[\s\-\+]/g, ''))) {
-    errors.push('Invalid mobile number format')
+    errors.push(`Invalid mobile format "${mobile}" (must be 10-15 digits)`)
   }
 
-  if (row.status && !VALID_STATUSES.includes(row.status)) {
-    errors.push(`Invalid status: "${row.status}"`)
+  // Normalize status if present
+  let normalizedStatus = row.status ? normalizeStatus(row.status) : 'Applied'
+  if (row.status && !VALID_STATUSES.includes(normalizedStatus)) {
+    errors.push(`Invalid status "${row.status}". Allowed: Approved, Applied, Completed, Rejected (or yes/no)`)
   }
 
   return {
     ...row,
     mobile: mobile || '',
     influencer_id: influencerId || '',
+    status: normalizedStatus,
     _valid: errors.length === 0,
     _errors: errors,
   }
@@ -947,6 +966,26 @@ export default function ImportPage() {
                 </div>
               </div>
 
+              {/* Validation Errors Notice */}
+              {invalidCount > 0 && (
+                <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-2xl flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs">
+                    <p className="font-semibold text-red-300">
+                      {invalidCount} {invalidCount === 1 ? 'row has' : 'rows have'} errors and will be skipped:
+                    </p>
+                    <ul className="list-disc list-inside text-[11px] text-red-300/80 space-y-0.5">
+                      {Array.from(new Set(parsedRows.flatMap(r => r._errors))).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Check the &quot;Import Status&quot; column below for details on each row, or remove invalid rows using the trash icon.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Preview Table */}
               <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -962,7 +1001,7 @@ export default function ImportPage() {
                         <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500">Followers</th>
                         <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500">Gender</th>
                         <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500">Location</th>
-                        <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500">Import Status</th>
+                        <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 min-w-[150px]">Import Status</th>
                         <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-500 w-10"></th>
                       </tr>
                     </thead>
@@ -1000,13 +1039,20 @@ export default function ImportPage() {
                           </td>
                           <td className="px-4 py-3">
                             {row._valid ? (
-                              <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                 <CheckCircle2 className="h-3 w-3" /> Ready
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 text-[10px] text-red-400" title={row._errors.join(', ')}>
-                                <XCircle className="h-3 w-3" /> Error
-                              </span>
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/15 text-red-300 border border-red-500/30">
+                                  <XCircle className="h-3 w-3 text-red-400" /> Error
+                                </span>
+                                {row._errors.map((err, errIdx) => (
+                                  <p key={errIdx} className="text-[10px] text-red-400 leading-tight">
+                                    • {err}
+                                  </p>
+                                ))}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3">
