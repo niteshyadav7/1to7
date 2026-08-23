@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-
-function maskEmail(email: string): string {
-  if (!email || !email.includes('@')) return '***@***.com'
-  const [local, domain] = email.split('@')
-  if (local.length <= 2) return `${local[0]}***@${domain}`
-  return `${local.slice(0, 2)}${'*'.repeat(Math.min(local.length - 2, 5))}@${domain}`
-}
+import { maskEmail } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {

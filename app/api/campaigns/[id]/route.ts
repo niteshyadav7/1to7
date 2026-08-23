@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { cookies } from 'next/headers'
+import { verifyToken } from '@/lib/auth'
 
 export async function GET(
   request: Request,
@@ -35,7 +37,42 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ campaign })
+    // Check if current logged in user has applied
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth_token')?.value
+    let applied = false
+    let application_status: string | null = null
+    let application_id: string | null = null
+    let applied_at: string | null = null
+
+    if (token) {
+      const payload = await verifyToken(token)
+      if (payload && payload.id && campaign.id) {
+        const { data: app } = await supabase
+          .from('applications')
+          .select('id, status, created_at')
+          .eq('user_id', payload.id)
+          .eq('campaign_id', campaign.id)
+          .maybeSingle()
+
+        if (app) {
+          applied = true
+          application_status = app.status
+          application_id = app.id
+          applied_at = app.created_at
+        }
+      }
+    }
+
+    return NextResponse.json({
+      campaign: {
+        ...campaign,
+        applied,
+        application_status,
+        application_id,
+        applied_at
+      }
+    })
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Failed to fetch campaign' },

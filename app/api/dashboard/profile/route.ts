@@ -82,15 +82,124 @@ export async function PUT(request: Request) {
 
     // Only allow updating these fields
     const allowedFields = [
-      'full_name', 'instagram_username', 'gender', 'category',
-      'state', 'city', 'followers',
-      'account_name', 'account_number', 'ifsc_code'
+      'full_name', 'instagram_username', 'gender', 'category', 'languages',
+      'state', 'city', 'pincode', 'followers',
+      'dob', 'alt_mobile', 'tshirt_size', 'shoe_size', 'bio', 'youtube',
+      'custom_attributes',
+      'account_name', 'account_number', 'ifsc_code',
+      'shipping_addresses', 'address_remarks'
     ]
 
     const updateData: Record<string, any> = {}
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) {
-        updateData[field] = body[field]
+    for (const key of allowedFields) {
+      if (body[key] !== undefined) {
+        updateData[key] = body[key]
+      }
+    }
+
+    // Handle Instagram Username Uniqueness and Sync
+    if (body.instagram_username !== undefined) {
+      const { extractInstagramUsername, normalizeInstagramUsername, checkInstagramHandleAvailability } = await import('@/lib/instagram-utils')
+      const cleaned = extractInstagramUsername(body.instagram_username)
+      
+      if (cleaned) {
+        const availability = await checkInstagramHandleAvailability(cleaned, payload.id)
+        if (!availability.available) {
+          return NextResponse.json({
+            error: availability.message || `Instagram profile (@${cleaned}) is already linked to another account.`
+          }, { status: 409 })
+        }
+        updateData.instagram_username = cleaned
+
+        // Upsert into user_instagram_profiles as primary
+        const normalized = normalizeInstagramUsername(cleaned)
+        const followers = body.followers !== undefined ? (typeof body.followers === 'number' ? body.followers : parseInt(body.followers || '0', 10) || 0) : undefined
+
+        const { data: existingProfiles } = await supabase
+          .from('user_instagram_profiles')
+          .select('id, is_primary')
+          .eq('user_id', payload.id)
+
+        const primaryProfile = existingProfiles?.find(p => p.is_primary) || existingProfiles?.[0]
+
+        if (primaryProfile) {
+          await supabase
+            .from('user_instagram_profiles')
+            .update({
+              username: cleaned,
+              normalized_username: normalized,
+              ...(followers !== undefined ? { followers } : {}),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', primaryProfile.id)
+        } else {
+          await supabase
+            .from('user_instagram_profiles')
+            .insert([{
+              user_id: payload.id,
+              username: cleaned,
+              normalized_username: normalized,
+              followers: followers || 0,
+              is_primary: true
+            }])
+        }
+
+        // Fetch refreshed profiles for jsonb sync
+        const { data: allProfiles } = await supabase
+          .from('user_instagram_profiles')
+          .select('*')
+          .eq('user_id', payload.id)
+          .order('is_primary', { ascending: false })
+          .order('created_at', { ascending: true })
+
+        if (allProfiles) {
+          updateData.instagram_profiles = allProfiles.map(p => ({
+            id: p.id,
+            username: p.username,
+            normalized_username: p.normalized_username,
+            followers: p.followers,
+            category: p.category,
+            profile_pic: p.profile_pic,
+            is_primary: p.is_primary,
+            is_verified: p.is_verified,
+            created_at: p.created_at
+          }))
+        }
+      } else {
+        updateData.instagram_username = null
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    // Auto-compile address_remarks and sync primary state/city from shipping_addresses
+    if (body.shipping_addresses && Array.isArray(body.shipping_addresses)) {
+      updateData.shipping_addresses = body.shipping_addresses
+      
+      const compiledRemarks = body.shipping_addresses.map((addr: any) => {
+        const isPrimary = addr.is_default ? '[PRIMARY] ' : ''
+        const title = addr.title ? `[${addr.title}] ` : ''
+        const recipient = addr.recipient_name ? `${addr.recipient_name} (Ph: ${addr.mobile || 'N/A'})` : ''
+        const lines = [
+          addr.address_line1,
+          addr.address_line2,
+          addr.landmark ? `Near: ${addr.landmark}` : '',
+          addr.city,
+          addr.state,
+          addr.pincode ? `PIN: ${addr.pincode}` : ''
+        ].filter(Boolean).join(', ')
+        const note = addr.delivery_remarks ? ` | Note: ${addr.delivery_remarks}` : ''
+        return `${isPrimary}${title}${recipient} - ${lines}${note}`
+      }).join('\n---\n')
+
+      updateData.address_remarks = body.address_remarks || compiledRemarks
+
+      const defaultAddr = body.shipping_addresses.find((a: any) => a.is_default) || body.shipping_addresses[0]
+      if (defaultAddr) {
+        if (defaultAddr.state && !body.state) updateData.state = defaultAddr.state
+        if (defaultAddr.city && !body.city) updateData.city = defaultAddr.city
       }
     }
 

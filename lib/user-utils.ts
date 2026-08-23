@@ -50,3 +50,31 @@ export async function generateSequentialInfluencerId(): Promise<string> {
 
   return nextId
 }
+
+/**
+ * Masks an email with alternating 2-character visible / 2-character masked pattern.
+ * e.g. "yashandroid@gmail.com" -> "ya**an**id@gmail.com"
+ * e.g. "nitesh123@gmail.com" -> "ni**sh**3@gmail.com"
+ */
+export function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***@***.com'
+  const [local, domain] = email.split('@')
+  if (!local) return `***@${domain}`
+  
+  if (local.length === 1) return `*@${domain}`
+  if (local.length === 2) return `${local[0]}*@${domain}`
+
+  let result = ''
+  let isVisible = true
+  for (let i = 0; i < local.length; i += 2) {
+    const chunk = local.slice(i, i + 2)
+    if (isVisible) {
+      result += chunk
+    } else {
+      result += '*'.repeat(chunk.length)
+    }
+    isVisible = !isVisible
+  }
+
+  return `${result}@${domain}`
+}

@@ -4,21 +4,32 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Instagram, Youtube, ShoppingBag, Users, FileText, 
-  Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, 
+  Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, Plus, Store, ExternalLink,
   CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon,
   CheckCircle,
   TrendingUp,
-  User
+  User,
+  Lock,
+  Clock,
+  RotateCcw,
+  XCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
+import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation } from '@/lib/utils/location-utils'
+import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
+import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
+import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
 
 interface Campaign {
   id: string
@@ -35,8 +46,15 @@ interface Campaign {
   status: string
   created_at: string
   location?: string
+  location_type?: string
+  target_states?: string[]
+  target_cities?: string[]
+  store_locations?: StoreLocation[]
+  enforce_location?: boolean
   looking_for?: string
   followers?: string
+  min_followers?: number
+  enforce_followers?: boolean
   additional_info?: string
   collab_date?: string
   form_link?: string
@@ -44,6 +62,10 @@ interface Campaign {
   order_form?: boolean
   order_form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
   show_order_form?: boolean
+  applied?: boolean
+  application_status?: string
+  application_id?: string
+  applied_at?: string
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -101,10 +123,68 @@ export default function CampaignDetailModal({
   const [isSuccess, setIsSuccess] = useState(false)
   const [hasAttemptedInlineSubmit, setHasAttemptedInlineSubmit] = useState(false)
   const [hasAttemptedCustomSubmit, setHasAttemptedCustomSubmit] = useState(false)
-  
   const [copiedLink, setCopiedLink] = useState(false)
+  const [quickAddressModalOpen, setQuickAddressModalOpen] = useState(false)
   const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const router = useRouter()
+
+  // Multi-Instagram Profile Support
+  const userProfiles = (user?.instagram_profiles && user.instagram_profiles.length > 0)
+    ? user.instagram_profiles
+    : (user?.instagram_username ? [{
+        id: 'primary',
+        username: user.instagram_username,
+        normalized_username: user.instagram_username.toLowerCase(),
+        followers: user.followers || 0,
+        is_primary: true
+      }] : [])
+
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('')
+  const [selectedStoreOutlet, setSelectedStoreOutlet] = useState<StoreLocation | null>(null)
+  const [completionEligibility, setCompletionEligibility] = useState<CreatorCompletionEligibility>({
+    isEligible: true,
+    overdueCount: 0,
+    blockingCount: 0,
+    blockedApplications: [],
+    overdueApplications: [],
+    message: '',
+  })
+
+  useEffect(() => {
+    if (isLoggedIn && isOpen) {
+      fetch('/api/dashboard/applications')
+        .then(res => res.json())
+        .then(data => {
+          if (data.applications) {
+            const res = checkCreatorCompletionEligibility(data.applications)
+            setCompletionEligibility(res)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [isLoggedIn, isOpen])
+
+  useEffect(() => {
+    if (userProfiles.length > 0 && !selectedProfileId) {
+      const primary = userProfiles.find(p => p.is_primary) || userProfiles[0]
+      setSelectedProfileId(primary.id || primary.username)
+    }
+  }, [userProfiles, selectedProfileId])
+
+  const activeSelectedProfile = userProfiles.find(p => (p.id || p.username) === selectedProfileId) || userProfiles[0]
+  const effectiveFollowers = activeSelectedProfile?.followers ?? user?.followers ?? 0
+  const locationEligibility = campaign
+    ? checkCampaignLocationEligibility(campaign, user)
+    : { isEligible: true, isStrict: false, requiredLocationText: '', locationType: 'PAN_INDIA' as const, matchedAddress: undefined, matchingAddresses: [], userAddresses: [], targetStates: [], targetCities: [], storeLocations: [], matchingStores: [], reason: '' }
+
+  useEffect(() => {
+    if (campaign?.store_locations && campaign.store_locations.length > 0) {
+      const matched = locationEligibility?.matchingStores?.[0] || campaign.store_locations[0]
+      setSelectedStoreOutlet(matched)
+    } else {
+      setSelectedStoreOutlet(null)
+    }
+  }, [campaign, locationEligibility?.matchingStores])
 
   const handleCopyLink = () => {
     if (typeof window === 'undefined' || !campaign) return
@@ -183,11 +263,11 @@ export default function CampaignDetailModal({
       })
       setInlineData(initial)
 
-      // Also init custom fields
+      // Also init custom fields with auto-prefill from user profile
       if (hasCustomFields) {
         const cfInitial: Record<string, any> = {}
         campaign!.form_fields!.forEach(f => {
-          cfInitial[f.name] = ''
+          cfInitial[f.name] = getPrefillValueForField(f.name, user) || ''
         })
         setCustomFormData(cfInitial)
       }
@@ -306,6 +386,7 @@ export default function CampaignDetailModal({
         body: JSON.stringify({
           campaignId: campaign.id,
           formData: customFormData,
+          selectedStore: selectedStoreOutlet,
         }),
       })
       const data = await res.json()
@@ -357,6 +438,7 @@ export default function CampaignDetailModal({
             ...(hasCustomFields ? customFormData : {}),
             comments: commentText || '',
           },
+          selectedStore: selectedStoreOutlet,
         }),
       })
       const data = await res.json()
@@ -1009,6 +1091,64 @@ export default function CampaignDetailModal({
                   />
                 </div>
 
+                {/* Store Outlets / Physical Branches Card */}
+                {campaign.store_locations && campaign.store_locations.length > 0 && (
+                  <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/25 space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-purple-600 text-white">
+                          <Store className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-purple-950 uppercase tracking-wider">
+                            Store Visit Outlets ({campaign.store_locations.length} Branches)
+                          </h4>
+                          <p className="text-[11px] text-purple-800">
+                            Influencers need to visit any of these offline stores for collaboration & shoot.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-200 text-purple-900 uppercase">
+                        🏬 Physical Visit
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                      {campaign.store_locations.map((st, i) => (
+                        <div key={st.id || i} className="p-3 rounded-lg bg-white border border-border-subtle space-y-1 hover:border-purple-300 transition-colors shadow-xs">
+                          <div className="flex items-start justify-between gap-1.5">
+                            <span className="text-xs font-bold text-slate-900">{st.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 font-bold">{st.city}</span>
+                          </div>
+                          {st.area && (
+                            <p className="text-[10px] font-semibold text-purple-700">📍 {st.area}</p>
+                          )}
+                          <p className="text-[11px] text-slate-600 leading-snug">{st.address}</p>
+                          {st.landmark && (
+                            <p className="text-[10px] text-slate-500">Landmark: {st.landmark}</p>
+                          )}
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[10px]">
+                            {st.google_maps_url ? (
+                              <a
+                                href={st.google_maps_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-purple-600 hover:underline flex items-center gap-1 font-bold"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Google Maps
+                              </a>
+                            ) : <span className="text-slate-400">Offline Store</span>}
+                            {st.slots_needed ? (
+                              <span className="text-amber-700 font-bold">Quota: {st.slots_needed} Creators</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {campaign.show_order_form !== false && (
                     <DetailCard 
@@ -1054,72 +1194,391 @@ export default function CampaignDetailModal({
                 )}
 
                 {/* Links & Budget */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <DetailCard 
-                    label="Product / Website Link" 
-                    value={
-                      campaign.product_links && campaign.product_links.length > 0 ? (
-                        <div className="flex flex-col gap-1 mt-1">
-                          {campaign.product_links.map((link, i) => (
-                            <a 
-                              key={i} 
-                              href={link} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-purple-400 hover:underline flex items-center gap-1.5"
-                            >
-                              <Link2 className="h-3 w-3" />
-                              View Product
-                            </a>
-                          ))}
-                        </div>
-                      ) : 'N/A'
-                    } 
-                    icon={Link2} 
-                    color="text-purple-400" 
-                  />
-                  <DetailCard 
-                    label="Budget" 
-                    value={campaign.budget_type === 'Paid' ? '💰 Paid Collaboration' : '🤝 Barter Collaboration'} 
-                    icon={CreditCard} 
-                    color="text-emerald-400" 
-                  />
-                </div>
+                {(() => {
+                  const validProductLinks = (campaign.product_links || [])
+                    .map(l => (typeof l === 'string' ? l.trim() : ''))
+                    .filter(l => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a' && l !== 'null' && l !== 'undefined')
 
-                {/* Terms Checkbox */}
-                <div className="pt-4">
-                    <button 
-                      className="w-full flex items-start gap-3 p-4 rounded-md bg-gray-muted border border-border-subtle cursor-pointer group hover:bg-surface-container transition-colors text-left"
-                      onClick={() => setAgreementChecked(!agreementChecked)}
-                    >
-                      <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-primary-container border-primary-container' : 'bg-white border-border-subtle'}`}>
-                        {agreementChecked && <Check className="h-3.5 w-3.5 text-black font-extrabold" />}
+                  return (
+                    <div className={`grid grid-cols-1 ${validProductLinks.length > 0 ? 'md:grid-cols-2' : ''} gap-4`}>
+                      {validProductLinks.length > 0 && (
+                        <DetailCard 
+                          label="Product / Website Link" 
+                          value={
+                            <div className="flex flex-col gap-1 mt-1">
+                              {validProductLinks.map((link, i) => (
+                                <a 
+                                  key={i} 
+                                  href={link.startsWith('http') ? link : `https://${link}`} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-purple-400 hover:underline flex items-center gap-1.5 font-medium"
+                                >
+                                  <Link2 className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">View Product / Website</span>
+                                </a>
+                              ))}
+                            </div>
+                          } 
+                          icon={Link2} 
+                          color="text-purple-400" 
+                        />
+                      )}
+                      <DetailCard 
+                        label="Budget" 
+                        value={campaign.budget_type === 'Paid' ? '💰 Paid Collaboration' : '🤝 Barter Collaboration'} 
+                        icon={CreditCard} 
+                        color="text-emerald-400"
+                      />
+                    </div>
+                  )
+                })()}
+
+                {/* Already Applied / Under Process Status Banner */}
+                {campaign.applied && campaign.application_status !== 'Rejected' && (
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                      ? 'bg-amber-50 border-amber-200'
+                      : campaign.application_status === 'Approved'
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className={`h-9 w-9 rounded-lg text-white flex items-center justify-center shrink-0 mt-0.5 ${
+                      (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                        ? 'bg-amber-500'
+                        : campaign.application_status === 'Approved'
+                        ? 'bg-emerald-500'
+                        : 'bg-blue-500'
+                    }`}>
+                      {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review') ? (
+                        <Clock className="h-5 w-5" />
+                      ) : (
+                        <CheckCircle2 className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className={`text-xs font-black uppercase tracking-wider ${
+                          (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                            ? 'text-amber-950'
+                            : campaign.application_status === 'Approved'
+                            ? 'text-emerald-950'
+                            : 'text-blue-950'
+                        }`}>
+                          {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                            ? 'Application Under Process'
+                            : campaign.application_status === 'Approved'
+                            ? 'Application Approved 🎉'
+                            : 'You Already Applied to this Campaign'}
+                        </h4>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border uppercase ${
+                          (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                            ? 'bg-amber-100 text-amber-900 border-amber-300'
+                            : campaign.application_status === 'Approved'
+                            ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                            : 'bg-blue-100 text-blue-900 border-blue-300'
+                        }`}>
+                          Status: {campaign.application_status || 'Applied'}
+                        </span>
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-charcoal-surface">
-                          I have read all the requirements carefully. 
-                          <span className="text-error ml-1 font-bold">Backout not allowed.</span>
+                      <p className={`text-xs mt-1 leading-relaxed ${
+                        (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                          ? 'text-amber-800'
+                          : campaign.application_status === 'Approved'
+                          ? 'text-emerald-700'
+                          : 'text-blue-800'
+                      }`}>
+                        {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                          ? 'Your application is currently being reviewed by our brand and admin team.'
+                          : campaign.application_status === 'Approved'
+                          ? 'Congratulations! Your profile has been approved for this campaign. Check your dashboard for deliverables.'
+                          : 'Your application is currently submitted. You can check updates and campaign progress from your dashboard.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejected Application Notice & Re-apply invitation */}
+                {campaign.applied && campaign.application_status === 'Rejected' && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                      <RotateCcw className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                          Previous Application Rejected
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-rose-100 text-rose-800 border border-rose-200 uppercase">
+                          Status: Rejected
+                        </span>
+                      </div>
+                      <p className="text-xs text-rose-700 mt-1 leading-relaxed">
+                        Your previous submission was not selected. You can update your responses and re-apply to this campaign below.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Multi-Instagram Profile Selector (if user has multiple accounts) */}
+                {userProfiles.length > 1 && (!campaign.applied || campaign.application_status === 'Rejected') && (
+                  <div className="p-4 rounded-xl bg-pink-50/60 border border-pink-200 space-y-2.5">
+                    <Label className="text-xs font-black text-pink-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <Instagram className="h-3.5 w-3.5 text-pink-600" />
+                      Select Profile to Apply
+                    </Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {userProfiles.map((p) => {
+                        const isSelected = (p.id || p.username) === (activeSelectedProfile?.id || activeSelectedProfile?.username)
+                        return (
+                          <button
+                            type="button"
+                            key={p.id || p.username}
+                            onClick={() => setSelectedProfileId(p.id || p.username)}
+                            className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-white border-pink-500 shadow-sm ring-2 ring-pink-500/20'
+                                : 'bg-white/70 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-black text-slate-900 truncate">@{p.username}</span>
+                                {p.is_primary && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">Primary</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-0.5 font-bold">
+                                {(p.followers || 0).toLocaleString('en-IN')} Followers
+                              </p>
+                            </div>
+                            {isSelected && <CheckCircle2 className="h-4 w-4 text-pink-600 shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Location Ineligibility Banner */}
+                {(!campaign.applied || campaign.application_status === 'Rejected') && !locationEligibility.isEligible && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200/80 flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                          Location Requirement Not Met
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-rose-100 text-rose-900 border border-rose-300 uppercase">
+                          Location Restricted
+                        </span>
+                      </div>
+                      <p className="text-xs text-rose-900 leading-relaxed">
+                        {locationEligibility.reason}
+                      </p>
+                      {isLoggedIn && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => setQuickAddressModalOpen(true)}
+                          className="h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-sm gap-1.5 cursor-pointer mt-1"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Add an Address in {locationEligibility.requiredLocationText}</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Location Matched Eligible Banner */}
+                {(!campaign.applied || campaign.application_status === 'Rejected') && locationEligibility.isEligible && locationEligibility.locationType !== 'PAN_INDIA' && locationEligibility.matchedAddress && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>
+                        <strong>Location Matched:</strong> Eligible via your address in <strong>{locationEligibility.matchedAddress.city ? `${locationEligibility.matchedAddress.city}, ` : ''}{locationEligibility.matchedAddress.state}</strong>
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                      Eligible ✓
+                    </span>
+                  </div>
+                )}
+
+                {/* Followers Ineligibility Banner */}
+                {(!campaign.applied || campaign.application_status === 'Rejected') && !checkFollowerEligibility(effectiveFollowers, campaign).eligible && (
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                      <Lock className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-xs font-black text-amber-950 uppercase tracking-wider">
+                          Follower Requirement Not Met
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-amber-100 text-amber-900 border border-amber-300 uppercase">
+                          Strict Requirement
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                        {checkFollowerEligibility(effectiveFollowers, campaign).message}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Overdue Completion / Deliverable Blocking Banner */}
+                {(!campaign.applied || campaign.application_status === 'Rejected') && !completionEligibility.isEligible && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 flex items-start gap-3 shadow-xs">
+                    <div className="h-9 w-9 rounded-lg bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                          New Applications Locked — Pending Deliverable
+                        </h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-rose-200 text-rose-900 border border-rose-300 uppercase">
+                          Overdue Submission
+                        </span>
+                      </div>
+                      <p className="text-xs text-rose-900 leading-relaxed font-medium">
+                        {completionEligibility.message}
+                      </p>
+                      <Link
+                        href="/dashboard/approved"
+                        className="inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-sm cursor-pointer mt-1"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>Go to Approved Campaigns & Submit Deliverable</span>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {/* Terms Checkbox (Available if not applied OR if rejected and eligible to re-apply) */}
+                {(!campaign.applied || campaign.application_status === 'Rejected') && checkFollowerEligibility(effectiveFollowers, campaign).eligible && locationEligibility.isEligible && completionEligibility.isEligible && (
+                  <div className="pt-4 space-y-4">
+                    {/* Preferred Store Outlet Selector for Store Visit Campaigns */}
+                    {campaign.store_locations && campaign.store_locations.length > 0 && (
+                      <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 space-y-2.5">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Label className="text-xs font-black text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+                            <Store className="h-4 w-4 text-purple-600" />
+                            Select Store Branch You Will Visit *
+                          </Label>
+                          <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded-full">
+                            Step 1: Pick Nearest Outlet
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-purple-900 leading-snug">
+                          Please select the exact outlet where you will visit for creating content/shoot:
                         </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {campaign.store_locations.map((store, sIdx) => {
+                            const isSelected = selectedStoreOutlet?.id === store.id || (selectedStoreOutlet?.name === store.name && selectedStoreOutlet?.city === store.city)
+                            return (
+                              <button
+                                key={store.id || sIdx}
+                                type="button"
+                                onClick={() => setSelectedStoreOutlet(store)}
+                                className={`p-3 rounded-xl text-left border transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                                  isSelected
+                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md ring-2 ring-purple-400/40'
+                                    : 'bg-white text-slate-800 border-purple-200/80 hover:border-purple-400 hover:bg-purple-50/50'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>{store.name}</span>
+                                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${isSelected ? 'bg-purple-700 text-white' : 'bg-purple-100 text-purple-800'}`}>{store.city}</span>
+                                  </div>
+                                  <p className={`text-[11px] mt-0.5 line-clamp-1 ${isSelected ? 'text-purple-100' : 'text-slate-600'}`}>{store.address}</p>
+                                  {store.area && (
+                                    <p className={`text-[10px] mt-0.5 font-medium ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>📍 {store.area}</p>
+                                  )}
+                                </div>
+                                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-white bg-white text-purple-600' : 'border-slate-300 bg-white'}`}>
+                                  {isSelected && <div className="h-2 w-2 rounded-full bg-purple-600" />}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </button>
-                </div>
+                    )}
+                      <button 
+                        className="w-full flex items-start gap-3 p-4 rounded-md bg-gray-muted border border-border-subtle cursor-pointer group hover:bg-surface-container transition-colors text-left"
+                        onClick={() => setAgreementChecked(!agreementChecked)}
+                      >
+                        <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-primary-container border-primary-container' : 'bg-white border-border-subtle'}`}>
+                          {agreementChecked && <Check className="h-3.5 w-3.5 text-black font-extrabold" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-charcoal-surface">
+                            I have read all the requirements carefully. 
+                            <span className="text-error ml-1 font-bold">Backout not allowed.</span>
+                          </p>
+                        </div>
+                      </button>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
               <div className="p-8 pt-0">
-                <Button
-                  onClick={handleApplyClick}
-                  disabled={!agreementChecked}
-                  className="w-full h-14 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-lg transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {!isLoggedIn 
-                    ? 'Quick Apply' 
-                    : campaign.form_link 
-                      ? 'Apply via External Form' 
-                      : 'Apply Now'
-                  }
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Button>
+                {campaign.applied && campaign.application_status !== 'Rejected' ? (
+                  <Button
+                    onClick={() => {
+                      onClose()
+                      window.location.href = campaign.application_status === 'Approved' ? '/dashboard/approved' : '/dashboard/campaigns'
+                    }}
+                    className="w-full h-14 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-all active:scale-[0.98] group cursor-pointer"
+                  >
+                    <CheckCircle2 className="mr-2 h-5 w-5" />
+                    <span>View Application in Dashboard</span>
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                ) : !checkFollowerEligibility(effectiveFollowers, campaign).eligible ? (
+                  <Button
+                    disabled
+                    className="w-full h-14 rounded-md bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-sm cursor-not-allowed opacity-90"
+                  >
+                    <Lock className="mr-2 h-4 w-4 text-amber-800" />
+                    <span>Min {formatFollowerCount(checkFollowerEligibility(effectiveFollowers, campaign).requiredFollowers)} Followers Required to Apply</span>
+                  </Button>
+                ) : !locationEligibility.isEligible ? (
+                  <Button
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        onApply(campaign)
+                      } else {
+                        setQuickAddressModalOpen(true)
+                      }
+                    }}
+                    className="w-full h-14 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all active:scale-[0.98] group cursor-pointer shadow-sm"
+                  >
+                    <MapPin className="mr-2 h-4 w-4" />
+                    <span>Add an Address in {locationEligibility.requiredLocationText} to Apply</span>
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleApplyClick}
+                    disabled={!agreementChecked}
+                    className="w-full h-14 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-lg transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {campaign.applied && campaign.application_status === 'Rejected'
+                      ? 'Re-Apply to Campaign'
+                      : !isLoggedIn 
+                      ? 'Quick Apply' 
+                      : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
+                    }
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1211,6 +1670,20 @@ export default function CampaignDetailModal({
         }}
         mobile={user?.mobile || ''}
       />
+
+      {/* Quick Add Address Modal for Location Targeting */}
+      {campaign && (
+        <QuickAddAddressModal
+          isOpen={quickAddressModalOpen}
+          onClose={() => setQuickAddressModalOpen(false)}
+          targetStates={campaign.target_states || []}
+          targetCities={campaign.target_cities || []}
+          campaignTitle={campaign.brand_name}
+          onSuccess={() => {
+            setQuickAddressModalOpen(false)
+          }}
+        />
+      )}
     </>
   )
 }

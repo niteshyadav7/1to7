@@ -7,13 +7,16 @@ import {
   ArrowLeft, Copy, Check, Instagram, Youtube, ShoppingBag,
   Sparkles, Users, MapPin, Calendar, CheckCircle2, ShieldCheck,
   ExternalLink, FileText, Gift, AlertCircle, Loader2, ArrowRight,
-  Globe
+  Globe, Lock, Store
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
+import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
+import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 
 interface Campaign {
   id: string
@@ -31,12 +34,23 @@ interface Campaign {
   status: string
   created_at: string
   location?: string
+  location_type?: string
+  target_states?: string[]
+  target_cities?: string[]
+  store_locations?: StoreLocation[]
+  enforce_location?: boolean
   followers?: string
+  min_followers?: number
+  enforce_followers?: boolean
   looking_for?: string
   additional_info?: string
   collab_date?: string
   form_link?: string
   form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
+  applied?: boolean
+  application_status?: string
+  application_id?: string
+  applied_at?: string
 }
 
 const platformConfig: Record<string, { icon: React.ReactNode; bg: string; text: string }> = {
@@ -71,6 +85,28 @@ export default function StandaloneCampaignPage({
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
+  const [completionEligibility, setCompletionEligibility] = useState<CreatorCompletionEligibility>({
+    isEligible: true,
+    overdueCount: 0,
+    blockingCount: 0,
+    blockedApplications: [],
+    overdueApplications: [],
+    message: '',
+  })
+
+  useEffect(() => {
+    if (user) {
+      fetch('/api/dashboard/applications')
+        .then(res => res.json())
+        .then(data => {
+          if (data.applications) {
+            const res = checkCreatorCompletionEligibility(data.applications)
+            setCompletionEligibility(res)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user])
 
   useEffect(() => {
     fetchCampaign()
@@ -104,6 +140,10 @@ export default function StandaloneCampaignPage({
   }
 
   const handleApplyClick = () => {
+    if (user && !completionEligibility.isEligible) {
+      toast.error(completionEligibility.message)
+      return
+    }
     if (!user) {
       toast.info('Please verify your mobile number to log in & complete your application.')
     }
@@ -239,9 +279,13 @@ export default function StandaloneCampaignPage({
 
                     <Button
                       onClick={handleApplyClick}
-                      className="flex-1 sm:flex-none h-9 sm:h-10 px-4 sm:px-6 rounded-xl bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer group/apply justify-center"
+                      className={`flex-1 sm:flex-none h-9 sm:h-10 px-4 sm:px-6 rounded-xl font-black text-xs shadow-sm hover:shadow-md transition-all cursor-pointer group/apply justify-center ${
+                        campaign.applied && campaign.application_status === 'Rejected'
+                          ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                          : 'bg-[#febd1c] hover:bg-amber-400 text-slate-950'
+                      }`}
                     >
-                      <span>Apply Now</span>
+                      <span>{campaign.applied && campaign.application_status === 'Rejected' ? 'Re-Apply Now' : 'Apply Now'}</span>
                       <ArrowRight className="h-3.5 w-3.5 ml-1 transition-transform group-hover/apply:translate-x-1" />
                     </Button>
                   </div>
@@ -305,32 +349,86 @@ export default function StandaloneCampaignPage({
                     </div>
                   )}
 
-                  {/* Product / Brand Links */}
-                  {campaign.product_links && campaign.product_links.length > 0 && (
-                    <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
-                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
-                          <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
-                          Product / Brand Links
+                  {/* Store Visit Outlets Section */}
+                  {campaign.store_locations && campaign.store_locations.length > 0 && (
+                    <div className="rounded-2xl bg-white border border-purple-200 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
+                      <div className="flex items-center justify-between pb-2 border-b border-purple-100 flex-wrap gap-2">
+                        <h2 className="text-[11px] font-extrabold text-purple-950 uppercase tracking-widest flex items-center gap-1.5">
+                          <Store className="h-3.5 w-3.5 text-purple-600" />
+                          Store Visit Branches ({campaign.store_locations.length} Outlets)
                         </h2>
+                        <span className="text-[9px] font-bold text-purple-800 uppercase tracking-wider bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full">
+                          🏬 Physical Shoot
+                        </span>
                       </div>
 
-                      <div className="space-y-2 min-w-0">
-                        {campaign.product_links.map((link, idx) => (
-                          <a
-                            key={idx}
-                            href={link.startsWith('http') ? link : `https://${link}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group/link flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-blue-600 hover:text-blue-800 hover:border-blue-300 hover:bg-blue-50/50 text-xs font-semibold transition-all min-w-0 max-w-full overflow-hidden"
-                          >
-                            <span className="truncate min-w-0 pr-2 font-mono text-[11px] sm:text-xs">{link}</span>
-                            <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover/link:text-blue-600 transition-colors" />
-                          </a>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {campaign.store_locations.map((st, sIdx) => (
+                          <div key={st.id || sIdx} className="p-3 rounded-xl bg-purple-50/50 border border-purple-200/80 space-y-1">
+                            <div className="flex items-start justify-between gap-1.5">
+                              <span className="text-xs font-bold text-slate-900">{st.name}</span>
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-200 text-purple-900 font-bold">{st.city}</span>
+                            </div>
+                            {st.area && (
+                              <p className="text-[10px] font-semibold text-purple-700">📍 {st.area}</p>
+                            )}
+                            <p className="text-[11px] text-slate-600 leading-snug">{st.address}</p>
+                            {st.landmark && (
+                              <p className="text-[10px] text-slate-500">Landmark: {st.landmark}</p>
+                            )}
+                            {st.google_maps_url && (
+                              <div className="pt-1 border-t border-purple-200/40">
+                                <a
+                                  href={st.google_maps_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] text-purple-600 hover:underline flex items-center gap-1 font-bold"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Google Maps Direction
+                                </a>
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {/* Product / Brand Links */}
+                  {(() => {
+                    const validProductLinks = (campaign.product_links || [])
+                      .map(l => (typeof l === 'string' ? l.trim() : ''))
+                      .filter(l => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a' && l !== 'null' && l !== 'undefined')
+
+                    if (validProductLinks.length === 0) return null
+
+                    return (
+                      <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-2.5 shadow-sm min-w-0">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <h2 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+                            <ExternalLink className="h-3.5 w-3.5 text-blue-500" />
+                            Product / Brand Links
+                          </h2>
+                        </div>
+
+                        <div className="space-y-2 min-w-0">
+                          {validProductLinks.map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.startsWith('http') ? link : `https://${link}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group/link flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-blue-600 hover:text-blue-800 hover:border-blue-300 hover:bg-blue-50/50 text-xs font-semibold transition-all min-w-0 max-w-full overflow-hidden"
+                            >
+                              <span className="truncate min-w-0 pr-2 font-mono text-[11px] sm:text-xs">{link}</span>
+                              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400 group-hover/link:text-blue-600 transition-colors" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Target Criteria Sidebar (1 col) */}
@@ -402,12 +500,73 @@ export default function StandaloneCampaignPage({
 
                     {/* Apply Button */}
                     <div className="pt-1">
-                      <Button
-                        onClick={handleApplyClick}
-                        className="w-full h-10 rounded-xl bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-sm cursor-pointer transition-all active:scale-[0.98]"
-                      >
-                        Apply For Campaign
-                      </Button>
+                      {campaign.applied && campaign.application_status !== 'Rejected' ? (
+                        <div className="space-y-2">
+                          <div className={`p-3 rounded-xl flex items-center gap-2.5 text-xs font-semibold ${
+                            (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                              ? 'bg-amber-50 border border-amber-200 text-amber-900'
+                              : campaign.application_status === 'Approved'
+                              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                              : 'bg-blue-50 border border-blue-200 text-blue-900'
+                          }`}>
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            <span className="leading-tight">
+                              You have already applied (Status: <strong>{campaign.application_status || 'Applied'}</strong>)
+                            </span>
+                          </div>
+                          <Link
+                            href={campaign.application_status === 'Approved' ? '/dashboard/approved' : '/dashboard/campaigns'}
+                            className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>View My Application</span>
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      ) : !checkFollowerEligibility(user?.followers, campaign).eligible ? (
+                        <div className="space-y-2">
+                          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
+                            <Lock className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+                            <span className="leading-snug">
+                              {checkFollowerEligibility(user?.followers, campaign).message}
+                            </span>
+                          </div>
+                          <Button
+                            disabled
+                            className="w-full h-10 rounded-xl bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-xs uppercase tracking-wider shadow-sm cursor-not-allowed opacity-90"
+                          >
+                            <Lock className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
+                            Min {formatFollowerCount(checkFollowerEligibility(user?.followers, campaign).requiredFollowers)} Followers Required
+                          </Button>
+                        </div>
+                      ) : !checkCampaignLocationEligibility(campaign, user).isEligible ? (
+                        <div className="space-y-2">
+                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-900">
+                            <MapPin className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                            <span className="leading-snug">
+                              {checkCampaignLocationEligibility(campaign, user).reason}
+                            </span>
+                          </div>
+                          <Button
+                            onClick={handleApplyClick}
+                            className="w-full h-10 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider shadow-sm cursor-pointer transition-all active:scale-[0.98]"
+                          >
+                            <MapPin className="mr-1.5 h-3.5 w-3.5 text-white" />
+                            Add Location Address to Apply
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={handleApplyClick}
+                          className={`w-full h-10 rounded-xl font-black text-xs uppercase tracking-wider shadow-sm cursor-pointer transition-all active:scale-[0.98] ${
+                            campaign.applied && campaign.application_status === 'Rejected'
+                              ? 'bg-rose-500 hover:bg-rose-600 text-white'
+                              : 'bg-[#febd1c] hover:bg-amber-400 text-slate-950'
+                          }`}
+                        >
+                          {campaign.applied && campaign.application_status === 'Rejected' ? 'Re-Apply For Campaign' : 'Apply For Campaign'}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

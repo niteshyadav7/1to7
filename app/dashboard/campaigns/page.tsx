@@ -32,7 +32,9 @@ interface Application {
 }
 
 const statusColors: Record<string, string> = {
-  'Applied': 'bg-amber-50 text-amber-700 border border-amber-200',
+  'Applied': 'bg-blue-50 text-blue-700 border border-blue-200',
+  'Under Process': 'bg-amber-50 text-amber-700 border border-amber-200',
+  'Under Review': 'bg-amber-50 text-amber-700 border border-amber-200',
   'Approved': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   'Rejected': 'bg-red-50 text-red-700 border border-red-200',
   'Completed': 'bg-purple-50 text-purple-700 border border-purple-200',
@@ -40,7 +42,7 @@ const statusColors: Record<string, string> = {
   'Order Details Pending': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
 }
 
-const statuses = ['All', 'Applied', 'Rejected']
+const statuses = ['All', 'Applied', 'Under Process', 'Rejected']
 
 export default function AppliedCampaignsPage() {
   const [applications, setApplications] = useState<Application[]>([])

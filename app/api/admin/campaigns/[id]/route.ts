@@ -50,9 +50,12 @@ export async function PUT(
       'budget_amount', 'partial_payment_enabled', 'partial_payment_config',
       'deliverables', 'product_links', 'requirements',
       'gender_required', 'is_live', 'status',
-      'location', 'looking_for', 'followers', 'additional_info',
+      'location', 'location_type', 'target_states', 'target_cities', 'store_locations', 'enforce_location',
+      'looking_for', 'followers', 'min_followers', 'enforce_followers', 'additional_info',
       'collab_date', 'form_link', 'form_fields',
-      'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields'
+      'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
+      'completion_days', 'completion_deadline', 'enforce_completion_deadline',
+      'display_order'
     ]
 
     const updates: Record<string, any> = {}

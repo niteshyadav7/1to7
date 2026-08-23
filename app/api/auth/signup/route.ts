@@ -27,13 +27,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Mobile or Email already registered' }, { status: 409 })
     }
 
-    // 2. Hash Password
+    // 2. Check if Instagram handle is already linked to another account
+    let normalizedInsta = ''
+    if (cleanedInsta) {
+      const { checkInstagramHandleAvailability } = await import('@/lib/instagram-utils')
+      const availability = await checkInstagramHandleAvailability(cleanedInsta)
+      if (!availability.available) {
+        return NextResponse.json({
+          error: availability.message || `Instagram profile (@${cleanedInsta}) is already registered with another account.`
+        }, { status: 409 })
+      }
+      normalizedInsta = availability.normalized
+    }
+
+    // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 3. Generate Influencer ID
+    // 4. Generate Influencer ID
     const newInfluencerId = await generateSequentialInfluencerId()
 
-    // 4. Insert into users table
+    // 5. Insert into users table
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert([
@@ -55,6 +68,39 @@ export async function POST(request: Request) {
     if (insertError) {
       console.error('Error inserting user:', insertError)
       return NextResponse.json({ error: 'Failed to create user account' }, { status: 500 })
+    }
+
+    // 6. Link in user_instagram_profiles if provided
+    if (cleanedInsta && normalizedInsta && newUser?.id) {
+      const { data: newProfile } = await supabase
+        .from('user_instagram_profiles')
+        .insert([{
+          user_id: newUser.id,
+          username: cleanedInsta,
+          normalized_username: normalizedInsta,
+          followers: 0,
+          is_primary: true
+        }])
+        .select()
+        .single()
+
+      if (newProfile) {
+        await supabase
+          .from('users')
+          .update({
+            instagram_profiles: [
+              {
+                id: newProfile.id,
+                username: newProfile.username,
+                normalized_username: newProfile.normalized_username,
+                followers: 0,
+                is_primary: true,
+                created_at: newProfile.created_at
+              }
+            ]
+          })
+          .eq('id', newUser.id)
+      }
     }
 
     // 5. Auto-login: Create JWT token

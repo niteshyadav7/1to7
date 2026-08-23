@@ -133,3 +133,20 @@ export async function sendApplicationRejectedEmail(
     `,
   })
 }
+
+export async function sendLoginOtpEmail(email: string, otp: string) {
+  await sendNotificationEmail({
+    to: email,
+    subject: 'Your 1to7 Login Verification Code',
+    bodyHtml: `
+      <p style="font-size: 16px; color: #333; margin-top: 0;">Hello,</p>
+      <p style="font-size: 16px; color: #333;">Your single-use verification code to securely login to your <strong>1to7</strong> account is:</p>
+      
+      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border: 1px solid #312e81; padding: 20px 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
+        <span style="font-size: 34px; font-weight: 800; font-family: monospace; letter-spacing: 8px; color: #ffffff; text-shadow: 0 2px 10px rgba(99,102,241,0.5);">${otp}</span>
+      </div>
+      
+      <p style="font-size: 13px; color: #64748b; line-height: 1.5;">⏳ This code is valid for <strong>5 minutes</strong>. If you did not request this login code, you can safely ignore this email.</p>
+    `,
+  })
+}

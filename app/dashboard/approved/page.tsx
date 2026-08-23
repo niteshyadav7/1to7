@@ -189,12 +189,49 @@ export default function ApprovedCampaignsPage() {
                       {new Date(app.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </span>
                     <div className="flex items-center gap-2">
-                      <button className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-[#f50057] bg-[#f50057]/10 border border-[#f50057]/20 transition-all hover:bg-[#f50057]/20">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-[#f50057] bg-[#f50057]/10 border border-[#f50057]/20 transition-all hover:bg-[#f50057]/20 cursor-pointer"
+                      >
                         Payments
                       </button>
-                      <button className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100">
-                        Appeal
-                      </button>
+                      {(() => {
+                        const requests = app.form_data?.requests || []
+                        const hasPendingAppeal = requests.some((r: any) => r.type === 'appeal' && r.status === 'pending')
+                        const hasResolvedAppeal = requests.some((r: any) => r.type === 'appeal' && r.status === 'resolved')
+
+                        if (hasPendingAppeal) {
+                          return (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 transition-all hover:bg-amber-200 cursor-pointer animate-pulse"
+                              title="Appeal is currently under review by Finance"
+                            >
+                              🟡 Appeal In Review
+                            </button>
+                          )
+                        }
+
+                        if (hasResolvedAppeal) {
+                          return (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 transition-all hover:bg-emerald-200 cursor-pointer"
+                            >
+                              🟢 Appeal Settled
+                            </button>
+                          )
+                        }
+
+                        return (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setSelectedApp(app); }}
+                            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 transition-all hover:bg-red-100 cursor-pointer"
+                          >
+                            Appeal
+                          </button>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>

@@ -101,7 +101,9 @@ export async function PUT(request: Request) {
           ...r,
           status: newStatus,
           processed_at: new Date().toISOString(),
-          processed_amount: paymentAmount || r.amount,
+          resolved_at: (newStatus === 'resolved' || newStatus === 'rejected') ? new Date().toISOString() : r.resolved_at,
+          processed_amount: paymentAmount !== undefined ? paymentAmount : r.amount,
+          admin_note: body.admin_note !== undefined ? body.admin_note : r.admin_note,
         }
       }
       return r

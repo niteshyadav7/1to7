@@ -56,3 +56,90 @@ export function getInstagramDisplayHandle(input: string | null | undefined): str
   const username = extractInstagramUsername(input)
   return username ? `@${username}` : ''
 }
+
+/**
+ * Normalizes an Instagram username for strict uniqueness checks.
+ * Strips all @, URLs, trailing slashes, whitespace, and lowercases.
+ * e.g., "@Priya_Fitness " -> "priya_fitness"
+ */
+export function normalizeInstagramUsername(input: string | null | undefined): string {
+  return extractInstagramUsername(input).toLowerCase().trim()
+}
+
+/**
+ * Server-side helper to check if an Instagram handle is already linked to another account.
+ * Checks both `public.user_instagram_profiles` and `public.users.instagram_username`.
+ */
+export async function checkInstagramHandleAvailability(
+  handle: string | null | undefined,
+  currentUserId?: string | null
+): Promise<{
+  available: boolean
+  normalized: string
+  conflictUserId?: string
+  message?: string
+}> {
+  const normalized = normalizeInstagramUsername(handle)
+  if (!normalized) {
+    return { available: false, normalized: '', message: 'Instagram username is required' }
+  }
+
+  // Basic Instagram username format check (alphanumeric, periods, underscores, max 30 chars)
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(normalized)) {
+    return { available: false, normalized, message: 'Invalid Instagram username format' }
+  }
+
+  const { supabase } = await import('@/lib/supabase')
+
+  // 1. Check user_instagram_profiles table
+  let query1 = supabase
+    .from('user_instagram_profiles')
+    .select('id, user_id, username, normalized_username')
+    .eq('normalized_username', normalized)
+
+  if (currentUserId) {
+    query1 = query1.neq('user_id', currentUserId)
+  }
+
+  const { data: profileConflicts, error: err1 } = await query1
+
+  if (!err1 && profileConflicts && profileConflicts.length > 0) {
+    return {
+      available: false,
+      normalized,
+      conflictUserId: profileConflicts[0].user_id,
+      message: `Instagram profile (@${profileConflicts[0].username}) is already linked to another account.`
+    }
+  }
+
+  // 2. Check legacy public.users.instagram_username for safety
+  let query2 = supabase
+    .from('users')
+    .select('id, instagram_username')
+    .ilike('instagram_username', normalized)
+
+  if (currentUserId) {
+    query2 = query2.neq('id', currentUserId)
+  }
+
+  const { data: userConflicts, error: err2 } = await query2
+
+  if (!err2 && userConflicts && userConflicts.length > 0) {
+    const matchingUser = userConflicts.find(
+      u => normalizeInstagramUsername(u.instagram_username) === normalized
+    )
+    if (matchingUser) {
+      return {
+        available: false,
+        normalized,
+        conflictUserId: matchingUser.id,
+        message: `Instagram profile (@${normalized}) is already registered with another account.`
+      }
+    }
+  }
+
+  return {
+    available: true,
+    normalized
+  }
+}

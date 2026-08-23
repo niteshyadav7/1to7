@@ -10,11 +10,46 @@ export interface User {
   full_name?: string
   instagram_username?: string
   instagram_profile_pic?: string
+  instagram_profiles?: Array<{
+    id: string
+    username: string
+    normalized_username: string
+    followers: number
+    category?: string
+    profile_pic?: string
+    is_primary: boolean
+    is_verified?: boolean
+    created_at?: string
+  }>
   email?: string
   gender?: string
   state?: string
   city?: string
+  pincode?: string
   followers?: number
+  dob?: string
+  alt_mobile?: string
+  tshirt_size?: string
+  shoe_size?: string
+  bio?: string
+  youtube?: string
+  languages?: string
+  shipping_addresses?: Array<{
+    id: string
+    title: string
+    recipient_name: string
+    mobile: string
+    address_line1: string
+    address_line2?: string
+    landmark?: string
+    city: string
+    state: string
+    pincode: string
+    delivery_remarks?: string
+    is_default: boolean
+    created_at?: string
+  }>
+  custom_attributes?: Record<string, any>
   account_name?: string
   account_number?: string
   ifsc_code?: string

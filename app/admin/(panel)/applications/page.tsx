@@ -10,7 +10,8 @@ import {
   AlignJustify, AlignCenter, AlignStartVertical,
   Calendar, X, MoreHorizontal, SlidersHorizontal,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  FileSpreadsheet, FileJson, UserCheck, UserX
+  FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
+  RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ import Link from 'next/link'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
-import { ExternalLink } from 'lucide-react'
+import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -48,14 +49,35 @@ interface Application {
   id: string
   status: string
   form_data: Record<string, any>
+  selected_store?: { name?: string; city?: string; state?: string; area?: string; address?: string; google_maps_url?: string } | null
   partial_payment: number
   final_payment: number
   pending_amount: number
   manager_phone: string
+  completion_deadline?: string | null
+  is_delay_exempted?: boolean | null
+  delay_exemption_reason?: string | null
+  completion_submitted_at?: string | null
   created_at: string
   updated_at: string
   users: UserInfo
   campaigns: CampaignInfo
+  influencer_history?: InfluencerCampaignHistory
+}
+
+interface CampaignInfo {
+  id: string
+  brand_name: string
+  campaign_code: string
+  platform: string
+  budget_amount: number
+  budget_type: string
+  location?: string
+  location_type?: string
+  store_locations?: any[]
+  completion_days?: number | null
+  completion_deadline?: string | null
+  enforce_completion_deadline?: boolean | null
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -77,6 +99,8 @@ interface Filters {
 // ─── Constants ─────────────────────────────────────────────
 const statusColors: Record<string, string> = {
   'Applied': 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+  'Under Process': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  'Under Review': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   'Approved': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
@@ -86,6 +110,8 @@ const statusColors: Record<string, string> = {
 
 const statusDots: Record<string, string> = {
   'Applied': 'bg-blue-400',
+  'Under Process': 'bg-amber-400',
+  'Under Review': 'bg-amber-400',
   'Approved': 'bg-emerald-400',
   'Rejected': 'bg-red-400',
   'Completed': 'bg-purple-400',
@@ -93,7 +119,7 @@ const statusDots: Record<string, string> = {
   'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Applied', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated']
+const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated']
 
 const followerRanges = [
   { label: '< 1K', min: 0, max: 999 },
@@ -510,31 +536,32 @@ function ExportDropdown({ onExport }: { onExport: (format: 'csv' | 'json') => vo
 function ActionsDropdown({
   app,
   onStatusChange,
+  onRevertApproval,
+  onRevokeApproval,
+  onDeleteApp,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
+  onRevertApproval?: (app: Application) => void
+  onRevokeApproval?: (app: Application) => void
+  onDeleteApp: (id: string, name?: string) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
   const actions = [
+    { label: 'Under Process', status: 'Under Process', icon: Clock, color: 'text-amber-400 hover:bg-amber-500/10' },
     { label: 'Approve', status: 'Approved', icon: UserCheck, color: 'text-emerald-400 hover:bg-emerald-500/10' },
-    { label: 'Reject', status: 'Rejected', icon: UserX, color: 'text-red-400 hover:bg-red-500/10' },
+    { label: 'Allow Re-Apply (Reject)', status: 'Rejected', icon: RotateCcw, color: 'text-rose-400 hover:bg-rose-500/10' },
     { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
     { label: 'Initiate Payment', status: 'Payment Initiated', icon: IndianRupee, color: 'text-amber-400 hover:bg-amber-500/10' },
-  ].filter(a => {
-    if (a.status === app.status) return false
-    // Hide Approve/Reject buttons once the application is no longer in the Applied state
-    if (app.status !== 'Applied' && (a.status === 'Approved' || a.status === 'Rejected')) {
-      return false
-    }
-    return true
-  })
+  ].filter(a => a.status !== app.status)
 
   return (
     <div className="relative" ref={popoverRef}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
         className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+        title="Application Actions"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
@@ -546,9 +573,37 @@ function ActionsDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.12 }}
-            className="absolute top-full right-0 mt-1 z-50 min-w-[190px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
+            className="absolute top-full right-0 mt-1 z-50 min-w-[210px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
           >
-            <div className="p-1">
+            <div className="p-1 space-y-0.5">
+              {app.status === 'Approved' && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onRevertApproval?.(app)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Revert to Applied (Undo)
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onRevokeApproval?.(app)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Revoke Approval with Reason
+                  </button>
+                  <div className="border-t border-white/10 my-1" />
+                </>
+              )}
+
               {actions.map(a => (
                 <button
                   key={a.status}
@@ -563,6 +618,20 @@ function ActionsDropdown({
                   {a.label}
                 </button>
               ))}
+
+              <div className="border-t border-white/10 my-1" />
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onDeleteApp(app.id, app.users?.full_name)
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-red-400 hover:bg-red-500/15"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Reset Application (Delete)
+              </button>
             </div>
           </motion.div>
         )}
@@ -654,6 +723,42 @@ export default function AllApplicationsPage() {
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [exemptionModalApp, setExemptionModalApp] = useState<Application | null>(null)
+  const [selectedExemptionReason, setSelectedExemptionReason] = useState('Brand parcel/shipment delayed')
+  const [customExemptionReason, setCustomExemptionReason] = useState('')
+
+  const [revokeModalApp, setRevokeModalApp] = useState<Application | null>(null)
+  const [selectedRevokeReason, setSelectedRevokeReason] = useState('Accidental approval / Selection misclick')
+  const [customRevokeReason, setCustomRevokeReason] = useState('')
+  const [sendRevokeEmail, setSendRevokeEmail] = useState(false)
+
+  const updateApplicationTimeline = async (
+    appId: string,
+    payload: {
+      is_delay_exempted?: boolean
+      delay_exemption_reason?: string
+      completion_deadline?: string
+      extend_days?: number
+    }
+  ) => {
+    try {
+      const res = await fetch(`/api/admin/applications/${appId}/timeline`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update timeline')
+
+      setApplications(prev =>
+        prev.map(a => (a.id === appId ? { ...a, ...data.application } : a))
+      )
+      toast.success(data.message || 'Timeline updated successfully')
+      setExemptionModalApp(null)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update timeline')
+    }
+  }
 
   // ─── Derived data from applications ────────────────────
   const uniqueStates = useMemo(() =>
@@ -834,18 +939,97 @@ export default function AllApplicationsPage() {
     }
   }
 
-  const updateSingleStatus = async (id: string, newStatus: string) => {
+  const updateSingleStatus = async (
+    id: string,
+    newStatus: string,
+    extraPayload?: { rejection_reason?: string; send_email?: boolean; is_revert?: boolean }
+  ) => {
     try {
-      const res = await fetch(`/api/admin/applications/bulk`, {
-        method: 'POST',
+      const res = await fetch(`/api/admin/applications/${id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationIds: [id], status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...extraPayload }),
       })
       if (!res.ok) throw new Error('Failed')
       setApplications(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
-      toast.success(`Application marked as ${newStatus}`)
+
+      const target = applications.find(a => a.id === id)
+      const creatorName = target?.users?.full_name || 'Creator'
+
+      if (newStatus === 'Approved') {
+        toast.success(`Approved ${creatorName}!`, {
+          description: 'Galti se approve hua? Click Undo.',
+          duration: 8000,
+          action: {
+            label: 'Undo',
+            onClick: () => updateSingleStatus(id, 'Applied', { is_revert: true, send_email: false }),
+          },
+        })
+      } else if (newStatus === 'Applied' && extraPayload?.is_revert) {
+        toast.success(`Approval reverted. ${creatorName} moved back to Applied.`)
+      } else if (newStatus === 'Rejected' && extraPayload?.rejection_reason) {
+        toast.success(`Approval revoked for ${creatorName}.`)
+      } else {
+        toast.success(`Application marked as ${newStatus}`)
+      }
     } catch {
       toast.error('Failed to update status')
+    }
+  }
+
+  const handleRevertApproval = (app: Application) => {
+    const hasOrder = Boolean(app.form_data?.order_details || app.form_data?.order_details_approved)
+    const hasPayment = Boolean(app.form_data?.payment_request)
+    
+    let confirmMsg = `Are you sure you want to revert approval for ${app.users?.full_name || 'this creator'} and move back to Applied? This will remove the campaign from their Approved tab.`
+    if (hasOrder || hasPayment) {
+      confirmMsg = `⚠️ WARNING: ${app.users?.full_name || 'Creator'} has already submitted order/payment details. Reverting approval will cancel active progress and move application back to Pending. Proceed?`
+    }
+
+    if (confirm(confirmMsg)) {
+      updateSingleStatus(app.id, 'Applied', { is_revert: true, send_email: false })
+    }
+  }
+
+  const handleDeleteApplication = async (id: string, influencerName?: string) => {
+    if (!confirm(`Are you sure you want to reset/delete this application${influencerName ? ` for ${influencerName}` : ''}? This will allow the creator to apply completely fresh from scratch.`)) {
+      return
+    }
+    try {
+      const res = await fetch(`/api/admin/applications/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to delete')
+      setApplications(prev => prev.filter(a => a.id !== id))
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      toast.success('Application reset successfully. Creator can now apply again from scratch!')
+    } catch {
+      toast.error('Failed to reset application')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Are you sure you want to reset/delete ${selectedIds.size} applications? Selected creators will be able to apply again from scratch.`)) {
+      return
+    }
+    setBulkUpdating(true)
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        fetch(`/api/admin/applications/${id}`, { method: 'DELETE' })
+      )
+      await Promise.all(deletePromises)
+      setApplications(prev => prev.filter(a => !selectedIds.has(a.id)))
+      toast.success(`${selectedIds.size} applications reset successfully`)
+      setSelectedIds(new Set())
+    } catch {
+      toast.error('Failed to reset applications')
+    } finally {
+      setBulkUpdating(false)
     }
   }
 
@@ -1249,6 +1433,23 @@ export default function AllApplicationsPage() {
                                 <p className="text-[11px] text-slate-500 font-mono truncate">
                                   {user?.influencer_id}
                                 </p>
+                                <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                  {app.influencer_history?.active_campaigns_count ? (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                      ⚡ {app.influencer_history.active_campaigns_count} Active
+                                    </span>
+                                  ) : null}
+                                  {app.influencer_history?.completed_campaigns_count ? (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                      ✓ {app.influencer_history.completed_campaigns_count} Done
+                                    </span>
+                                  ) : null}
+                                  {app.influencer_history?.is_first_collab ? (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      ✨ 1st Collab
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -1326,11 +1527,17 @@ export default function AllApplicationsPage() {
                         )}
 
                         {/* Actions */}
-                        {/* {visibleCols.actions && (
+                        {visibleCols.actions && (
                           <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
-                            <ActionsDropdown app={app} onStatusChange={updateSingleStatus} />
+                            <ActionsDropdown
+                              app={app}
+                              onStatusChange={updateSingleStatus}
+                              onRevertApproval={handleRevertApproval}
+                              onRevokeApproval={(app) => setRevokeModalApp(app)}
+                              onDeleteApp={handleDeleteApplication}
+                            />
                           </td>
-                        )} */}
+                        )}
                       </tr>
 
                       {/* Expanded Details */}
@@ -1426,6 +1633,164 @@ export default function AllApplicationsPage() {
                                   </div>
                                 </div>
 
+                                {/* Selected Store Outlet for Store Visit Campaigns */}
+                                {app.selected_store && (
+                                  <div className="bg-purple-500/10 border border-purple-500/25 rounded-2xl p-4 space-y-2">
+                                    <p className="text-[11px] text-purple-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                      <Store className="h-3.5 w-3.5 text-purple-400" />
+                                      Selected Store Outlet / Branch (Store Visit)
+                                    </p>
+                                    <div className="flex items-start justify-between gap-3 flex-wrap bg-slate-900/80 p-3.5 rounded-xl border border-white/10">
+                                      <div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-sm font-bold text-white">{app.selected_store.name}</span>
+                                          {app.selected_store.city && (
+                                            <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 font-bold">
+                                              {app.selected_store.city}{app.selected_store.state ? `, ${app.selected_store.state}` : ''}
+                                            </span>
+                                          )}
+                                          {app.selected_store.area && (
+                                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">
+                                              📍 {app.selected_store.area}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {app.selected_store.address && (
+                                          <p className="text-xs text-slate-400 mt-1">{app.selected_store.address}</p>
+                                        )}
+                                      </div>
+                                      {app.selected_store.google_maps_url && (
+                                        <a
+                                          href={app.selected_store.google_maps_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="text-xs text-purple-400 hover:underline flex items-center gap-1 font-semibold"
+                                        >
+                                          <ExternalLink className="h-3 w-3" />
+                                          View on Maps
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                 {/* Deliverable Completion Timeline & Admin Delay Exemption Controls */}
+                                {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Completed') && (() => {
+                                  const baseDate = app.updated_at ? new Date(app.updated_at) : new Date(app.created_at)
+                                  const defaultDays = app.campaigns?.completion_days || 7
+                                  const effectiveDeadline = app.completion_deadline 
+                                    ? new Date(app.completion_deadline)
+                                    : (app.campaigns?.completion_deadline ? new Date(app.campaigns.completion_deadline) : new Date(baseDate.getTime() + defaultDays * 24 * 60 * 60 * 1000))
+                                  
+                                  const isCompleted = Boolean(app.completion_submitted_at || app.form_data?.payment_request || app.status === 'Completed' || app.status === 'Payment Requested')
+                                  const isOverdue = !isCompleted && new Date() > effectiveDeadline
+                                  const diffDays = isOverdue ? Math.ceil((new Date().getTime() - effectiveDeadline.getTime()) / (1000 * 60 * 60 * 24)) : Math.max(0, Math.ceil((effectiveDeadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+                                  
+                                  return (
+                                    <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 space-y-3 shadow-lg">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/5">
+                                        <div className="flex items-center gap-2">
+                                          <Calendar className="h-4 w-4 text-indigo-400" />
+                                          <h5 className="text-xs font-bold text-white uppercase tracking-wider">
+                                            Deliverable Completion Timeline ({app.campaigns?.brand_name})
+                                          </h5>
+                                        </div>
+                                        
+                                        {/* Live Timeline Status Badge */}
+                                        <div>
+                                          {isCompleted ? (
+                                            <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                                              <CheckCircle2 className="h-3 w-3" />
+                                              Deliverable Submitted On Time
+                                            </span>
+                                          ) : app.is_delay_exempted ? (
+                                            <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5" title={app.delay_exemption_reason || 'Brand delay'}>
+                                              <ShieldCheck className="h-3 w-3" />
+                                              Delay Exempted ({app.delay_exemption_reason || 'Brand delay'}) — Unblocked
+                                            </span>
+                                          ) : isOverdue ? (
+                                            <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-rose-500/25 text-rose-200 border border-rose-500/40 flex items-center gap-1.5 animate-pulse">
+                                              <AlertTriangle className="h-3 w-3 text-rose-400" />
+                                              Overdue by {diffDays} days — Next Campaigns Blocked
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25 flex items-center gap-1.5">
+                                              <Clock className="h-3 w-3" />
+                                              Due in {diffDays} days ({effectiveDeadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
+                                        <div>
+                                          <p className="text-[11px]">
+                                            Target Deadline: <strong className="text-white">{effectiveDeadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                                            {app.completion_deadline ? ' (Admin Custom Extension)' : ` (${defaultDays} days window)`}
+                                          </p>
+                                          {app.is_delay_exempted && app.delay_exemption_reason && (
+                                            <p className="text-[11px] text-amber-300 mt-0.5">
+                                              🛡️ Exemption Note: <em>"{app.delay_exemption_reason}"</em>
+                                            </p>
+                                          )}
+                                        </div>
+
+                                        {/* Admin Quick Action Buttons */}
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          {!app.is_delay_exempted ? (
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              onClick={() => setExemptionModalApp(app)}
+                                              className="h-7 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer"
+                                            >
+                                              <ShieldCheck className="h-3 w-3 mr-1" />
+                                              Exempt Brand Delay
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              onClick={() => updateApplicationTimeline(app.id, { is_delay_exempted: false })}
+                                              className="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[11px] font-bold cursor-pointer"
+                                            >
+                                              <RotateCcw className="h-3 w-3 mr-1" />
+                                              Remove Exemption
+                                            </Button>
+                                          )}
+
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={() => updateApplicationTimeline(app.id, { extend_days: 7 })}
+                                            className="h-7 px-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold cursor-pointer"
+                                            title="Extend deadline by +7 days"
+                                          >
+                                            +7 Days
+                                          </Button>
+
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={() => updateApplicationTimeline(app.id, { extend_days: 14 })}
+                                            className="h-7 px-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 text-[11px] font-bold cursor-pointer"
+                                            title="Extend deadline by +14 days"
+                                          >
+                                            +14 Days
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* Influencer Active & Past Campaigns Track Record */}
+                                <InfluencerCampaignHistoryCard
+                                  history={app.influencer_history}
+                                  influencerName={user?.full_name}
+                                />
+
                                 {/* Application Form Responses (Custom Fields) */}
                                 {app.form_data && (() => {
                                   const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
@@ -1509,6 +1874,118 @@ export default function AllApplicationsPage() {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Status Quick Actions Bar */}
+                                <div className="p-4 rounded-xl bg-slate-900/80 border border-white/10 flex flex-wrap items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[11px] uppercase font-bold text-slate-400">Current Status:</span>
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/25'}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
+                                      {app.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[11px] text-slate-400 mr-1 font-medium">Quick Update:</span>
+                                    {app.status === 'Approved' ? (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleRevertApproval(app) }}
+                                          className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 text-xs font-semibold cursor-pointer"
+                                          title="Undo accidental approval and move back to Applied/Pending"
+                                        >
+                                          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                          Revert to Applied
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setRevokeModalApp(app) }}
+                                          className="h-8 px-3 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 text-xs font-semibold cursor-pointer"
+                                          title="Revoke approval with a specific reason"
+                                        >
+                                          <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                                          Revoke Approval
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Completed') }}
+                                          className="h-8 px-3 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/25 hover:bg-purple-500/25 text-xs font-medium cursor-pointer"
+                                        >
+                                          <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                          Mark Completed
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Payment Initiated') }}
+                                          className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/25 hover:bg-amber-500/25 text-xs font-medium cursor-pointer"
+                                        >
+                                          <IndianRupee className="mr-1.5 h-3.5 w-3.5" />
+                                          Initiate Payment
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {app.status !== 'Under Process' && (
+                                          <Button
+                                            size="sm"
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Under Process') }}
+                                            className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/25 hover:bg-amber-500/25 text-xs font-medium cursor-pointer"
+                                          >
+                                            <Clock className="mr-1.5 h-3.5 w-3.5" />
+                                            Under Process
+                                          </Button>
+                                        )}
+
+                                        {app.status !== 'Approved' && (
+                                          <Button
+                                            size="sm"
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Approved') }}
+                                            className="h-8 px-3 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/25 text-xs font-medium cursor-pointer"
+                                          >
+                                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                            Approve
+                                          </Button>
+                                        )}
+
+                                        {app.status !== 'Rejected' ? (
+                                          <Button
+                                            size="sm"
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Rejected') }}
+                                            className="h-8 px-3 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 text-xs font-medium cursor-pointer"
+                                            title="Reject this application and enable creator to re-apply"
+                                          >
+                                            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                            Allow Re-Apply
+                                          </Button>
+                                        ) : (
+                                          <span className="text-[11px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1.5">
+                                            <RotateCcw className="h-3 w-3" />
+                                            Re-Apply Enabled on Creator Side
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+
+                                    <Button
+                                      size="sm"
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteApplication(app.id, user?.full_name) }}
+                                      className="h-8 px-3 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/25 text-xs font-medium cursor-pointer ml-auto"
+                                      title="Completely delete application so creator can apply fresh"
+                                    >
+                                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                      Reset (Delete)
+                                    </Button>
+                                  </div>
+                                </div>
 
                                 {/* Meta */}
                                 <div className="flex items-center justify-between pt-3 border-t border-white/5">
@@ -1629,30 +2106,254 @@ export default function AllApplicationsPage() {
             {(() => {
               const allApplied = Array.from(selectedIds).every(id => applications.find(a => a.id === id)?.status === 'Applied')
               return (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleBulkAction('Under Process')}
+                    disabled={bulkUpdating}
+                    className="h-9 px-3 rounded-xl border-amber-500/20 text-amber-300 hover:bg-amber-500/10 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1.5" />
+                    Under Process
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleBulkAction('Rejected')}
-                    disabled={bulkUpdating || !allApplied}
-                    className="h-9 px-4 rounded-xl border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300 bg-slate-950 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={bulkUpdating}
+                    className="h-9 px-3 rounded-xl border-rose-500/20 text-rose-300 hover:bg-rose-500/10 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
+                    title="Allow selected applicants to re-apply"
                   >
-                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                    Reject
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Allow Re-Apply
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => handleBulkAction('Approved')}
-                    disabled={bulkUpdating || !allApplied}
-                    className="h-9 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 border-none font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={bulkUpdating}
+                    className="h-9 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 border-none font-medium cursor-pointer disabled:opacity-50"
                   >
-                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                    {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
                     Approve
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={bulkUpdating}
+                    className="h-9 px-3 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/15 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
+                    title="Reset/Delete selected applications"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Reset
                   </Button>
                 </div>
               )
             })()}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin Delay Exemption Reason Modal */}
+      <AnimatePresence>
+        {exemptionModalApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Exempt Creator Delay</h3>
+                    <p className="text-[11px] text-slate-400">Waive overdue penalty for {exemptionModalApp.users?.full_name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setExemptionModalApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-300 leading-relaxed">
+                  Select the reason why deliverable is delayed on brand/campaign side. This creator will be <strong>immediately unblocked</strong> from applying to other campaigns.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 uppercase font-bold">Standard Reason</label>
+                  <select
+                    value={selectedExemptionReason}
+                    onChange={(e) => setSelectedExemptionReason(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs focus:ring-1 focus:ring-amber-400 outline-none"
+                  >
+                    <option value="Brand parcel/shipment delayed">📦 Brand parcel/shipment delayed</option>
+                    <option value="Brand requested content revision">✏️ Brand requested content revision</option>
+                    <option value="Shoot/visit rescheduled by brand">🏬 Shoot/visit rescheduled by brand</option>
+                    <option value="Brand asked to hold posting">⏸️ Brand asked to hold posting</option>
+                    <option value="Sample issue / replacement in transit">🔄 Sample issue / replacement in transit</option>
+                    <option value="Creator medical/personal emergency">🏥 Creator personal emergency</option>
+                    <option value="Custom">✍️ Custom Reason (Specify Below)</option>
+                  </select>
+                </div>
+
+                {selectedExemptionReason === 'Custom' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 uppercase font-bold">Custom Note / Reason</label>
+                    <Input
+                      value={customExemptionReason}
+                      onChange={(e) => setCustomExemptionReason(e.target.value)}
+                      placeholder="e.g. Brand delayed product launch to next week"
+                      className="bg-slate-950 border-white/10 text-white text-xs h-9"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExemptionModalApp(null)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const finalReason = selectedExemptionReason === 'Custom' ? (customExemptionReason || 'Admin custom exemption') : selectedExemptionReason
+                    updateApplicationTimeline(exemptionModalApp.id, {
+                      is_delay_exempted: true,
+                      delay_exemption_reason: finalReason,
+                    })
+                  }}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold"
+                >
+                  Confirm & Unblock Creator
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Revoke Approval Modal with Reasons */}
+      <AnimatePresence>
+        {revokeModalApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    <RotateCcw className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Revoke / Cancel Approval</h3>
+                    <p className="text-[11px] text-slate-400">Cancel approved collaboration for {revokeModalApp.users?.full_name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRevokeModalApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <p className="text-slate-300 leading-relaxed">
+                  Select why this approval is being revoked. The application will be moved to <strong>Rejected</strong> (allowing creator to re-apply if eligible) and removed from their Approved dashboard.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 uppercase font-bold">Reason for Revocation</label>
+                  <select
+                    value={selectedRevokeReason}
+                    onChange={(e) => setSelectedRevokeReason(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-slate-950 border border-white/10 text-white text-xs focus:ring-1 focus:ring-rose-400 outline-none"
+                  >
+                    <option value="Accidental approval / Selection misclick">⚠️ Accidental approval / Selection misclick</option>
+                    <option value="Brand campaign quota / slots filled">📦 Brand campaign quota / slots filled</option>
+                    <option value="Profile / Niche criteria mismatch">🎯 Profile / Niche criteria mismatch</option>
+                    <option value="Brand requested to hold/cancel selection">⏸️ Brand requested to hold/cancel selection</option>
+                    <option value="Creator unresponsive / unreachable">📵 Creator unresponsive / unreachable</option>
+                    <option value="Custom">✍️ Custom Reason (Specify Below)</option>
+                  </select>
+                </div>
+
+                {selectedRevokeReason === 'Custom' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 uppercase font-bold">Custom Revocation Note</label>
+                    <Input
+                      value={customRevokeReason}
+                      onChange={(e) => setCustomRevokeReason(e.target.value)}
+                      placeholder="e.g. Brand changed budget structure"
+                      className="bg-slate-950 border-white/10 text-white text-xs h-9"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950/60 border border-white/10 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendRevokeEmail}
+                      onChange={(e) => setSendRevokeEmail(e.target.checked)}
+                      className="h-4 w-4 rounded accent-rose-500 bg-slate-900 border-white/20"
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-white">Send Revocation / Status Update Email to Creator</p>
+                      <p className="text-[10px] text-slate-400">Leave unchecked if this was an immediate accidental misclick.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRevokeModalApp(null)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const finalReason = selectedRevokeReason === 'Custom' ? (customRevokeReason || 'Approval revoked by Admin') : selectedRevokeReason
+                    updateSingleStatus(revokeModalApp.id, 'Rejected', {
+                      rejection_reason: finalReason,
+                      send_email: sendRevokeEmail,
+                      is_revert: false,
+                    })
+                    setRevokeModalApp(null)
+                  }}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                >
+                  Confirm Revocation
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '50', 10)
     const search = searchParams.get('search') || ''
     const gender = searchParams.get('gender') || ''
+    const category = searchParams.get('category') || ''
     const sortBy = searchParams.get('sort') || 'created_at'
     const sortOrder = searchParams.get('order') || 'desc'
 
@@ -26,13 +27,17 @@ export async function GET(request: Request) {
       .select('*', { count: 'exact' }) // Get count for pagination
 
     if (search) {
-      // Create an explicit search term for ILIKE matches
+      // Create an explicit search term for ILIKE matches (including category/niche and languages)
       const searchTerm = `%${search}%`
-      query = query.or(`full_name.ilike.${searchTerm},email.ilike.${searchTerm},influencer_id.ilike.${searchTerm},instagram_username.ilike.${searchTerm},mobile.ilike.${searchTerm}`)
+      query = query.or(`full_name.ilike.${searchTerm},email.ilike.${searchTerm},influencer_id.ilike.${searchTerm},instagram_username.ilike.${searchTerm},mobile.ilike.${searchTerm},category.ilike.${searchTerm},languages.ilike.${searchTerm}`)
     }
 
     if (gender && gender !== 'All') {
       query = query.eq('gender', gender)
+    }
+
+    if (category && category !== 'All') {
+      query = query.ilike('category', `%${category}%`)
     }
 
     // Apply sorting and pagination

@@ -51,6 +51,15 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
   const [appealScreenshot, setAppealScreenshot] = React.useState('')
   const [uploadingAppealImg, setUploadingAppealImg] = React.useState(false)
 
+  const allAppeals = React.useMemo(() => {
+    const reqs = application?.form_data?.requests || []
+    return reqs
+      .filter((r: any) => r.type === 'appeal')
+      .sort((a: any, b: any) => new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime())
+  }, [application])
+
+  const activePendingAppeal = allAppeals.find((r: any) => r.status === 'pending')
+
   // Reset form when modal opens
   React.useEffect(() => {
     if (showPartialModal && application) {
@@ -118,6 +127,10 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
       toast.error('Please enter an appeal reason')
       return
     }
+    if (activePendingAppeal) {
+      toast.error('You already have an active appeal under review. Please wait for Finance to resolve it.')
+      return
+    }
     setSubmittingAppeal(true)
     try {
       const res = await fetch(`/api/dashboard/applications/${application.id}/request`, {
@@ -131,8 +144,8 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed')
-      toast.success('Appeal submitted successfully! Admin will review.')
+      if (!res.ok) throw new Error(data.error || 'Failed to submit appeal')
+      toast.success('Appeal submitted directly to Finance Team! They will review and resolve it.')
       setShowAppealModal(false)
       setAppealReason('')
       setAppealScreenshot('')
@@ -279,10 +292,30 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
                         <span className="text-[11px] sm:text-xs font-bold text-cyan-900 text-center">Partial Request</span>
                       </button>
                     )}
-                    {application?.status === 'Payment Initiated' && (
-                      <button onClick={() => { setShowAppealModal(true); setAppealReason(''); setAppealScreenshot('') }} className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-200 transition-colors group cursor-pointer">
+                    {/* Appeal Button / Status */}
+                    {activePendingAppeal ? (
+                      <button
+                        onClick={() => setShowAppealModal(true)}
+                        className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 transition-colors group cursor-pointer"
+                        title="Your appeal is currently under review by Finance team"
+                      >
+                        <div className="relative mb-3">
+                          <AlertCircle className="h-6 w-6 text-amber-600 group-hover:scale-110 transition-transform" />
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
+                        </div>
+                        <span className="text-[11px] sm:text-xs font-bold text-amber-900 text-center">Appeal In Review</span>
+                        <span className="text-[9px] text-amber-700 font-semibold mt-0.5">Finance Resolving</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setShowAppealModal(true); setAppealReason(''); setAppealScreenshot('') }}
+                        className="flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-200 transition-colors group cursor-pointer"
+                      >
                         <AlertCircle className="h-6 w-6 text-red-600 group-hover:scale-110 transition-transform mb-3" />
                         <span className="text-[11px] sm:text-xs font-bold text-red-900 text-center">Raise Appeal</span>
+                        {allAppeals.length > 0 && (
+                          <span className="text-[9px] text-red-700 font-semibold mt-0.5">{allAppeals.length} Past Appeal{allAppeals.length > 1 ? 's' : ''}</span>
+                        )}
                       </button>
                     )}
                   </div>
@@ -423,113 +456,211 @@ export default function ApprovedCampaignModal({ isOpen, onClose, onRefresh, appl
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
               onClick={() => !submittingAppeal && setShowAppealModal(false)}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="relative w-full max-w-md bg-white border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden text-slate-900"
+              className="relative w-full max-w-lg bg-white border border-slate-200/80 rounded-2xl shadow-2xl overflow-hidden text-slate-900 flex flex-col max-h-[85vh]"
             >
               {/* Header */}
-              <div className="p-5 border-b border-slate-200/80 bg-slate-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white shadow-md">
-                      <AlertCircle className="h-4.5 w-4.5 text-white" />
+              <div className="p-5 border-b border-slate-200/80 bg-slate-50 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-md ${activePendingAppeal ? 'bg-amber-600' : 'bg-red-600'}`}>
+                    <AlertCircle className="h-4.5 w-4.5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {activePendingAppeal ? 'Active Appeal In Review' : 'Raise Payment Appeal'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">Direct Finance Resolution Center</p>
+                  </div>
+                </div>
+                <button onClick={() => !submittingAppeal && setShowAppealModal(false)} className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 cursor-pointer">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-5 overflow-y-auto flex-1">
+                {/* Active Pending Appeal Notice */}
+                {activePendingAppeal ? (
+                  <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                        Under Finance Review
+                      </span>
+                      <span className="text-[11px] text-amber-800 font-semibold">
+                        {activePendingAppeal.submitted_at ? new Date(activePendingAppeal.submitted_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Recently Submitted'}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900">Raise an Appeal</h3>
-                      <p className="text-[11px] text-slate-500">Use this form if you have issues with payment rejection or verification.</p>
+                      <p className="text-[10px] text-amber-800 uppercase font-bold">Your Appeal Reason</p>
+                      <p className="text-xs text-amber-950 font-medium mt-0.5 leading-relaxed bg-white/70 p-2.5 rounded-lg border border-amber-200/60">
+                        {activePendingAppeal.reason}
+                      </p>
+                    </div>
+                    {activePendingAppeal.screenshot && (
+                      <div>
+                        <p className="text-[10px] text-amber-800 uppercase font-bold mb-1">Attached Proof</p>
+                        <a href={activePendingAppeal.screenshot} target="_blank" rel="noopener noreferrer" className="inline-block relative rounded-lg border border-amber-200 overflow-hidden group">
+                          <img src={activePendingAppeal.screenshot} alt="Proof" className="h-20 w-36 object-cover" />
+                        </a>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-amber-800 bg-amber-100/70 p-2 rounded-lg leading-snug">
+                      ℹ️ Our Finance team has received your ticket and is verifying your payout details. You can submit another appeal once this active ticket is closed.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Campaign Info */}
+                    <div>
+                      <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">Campaign Code</label>
+                      <input
+                        type="text"
+                        value={application.campaigns?.campaign_code || application.id.split('-')[0].toUpperCase()}
+                        readOnly
+                        className="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-2.5 cursor-not-allowed font-mono"
+                      />
+                    </div>
+
+                    {/* Appeal Reason */}
+                    <div>
+                      <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">
+                        Appeal Reason / Issue Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={appealReason}
+                        onChange={e => setAppealReason(e.target.value)}
+                        placeholder="Please describe why you are appealing (e.g. incorrect amount, payment delayed, UTR not received)..."
+                        rows={4}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    {/* Screenshot Upload */}
+                    <div>
+                      <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">Proof Screenshot (Optional)</label>
+                      {appealScreenshot ? (
+                        <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-100 aspect-[3/1] flex items-center justify-center">
+                          <img src={appealScreenshot} alt="Appeal proof" className="max-w-full max-h-full object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => setAppealScreenshot('')}
+                            className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500 transition-colors cursor-pointer"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-red-500 bg-slate-50 hover:bg-red-500/5 transition-all cursor-pointer group">
+                          {uploadingAppealImg ? (
+                            <Loader2 className="h-6 w-6 text-red-500 animate-spin" />
+                          ) : (
+                            <>
+                              <UploadCloud className="h-6 w-6 text-red-500 group-hover:text-red-600 mb-1 transition-colors" />
+                              <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Upload Screenshot / Statement</span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingAppealImg}
+                            onChange={handleAppealImageUpload}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* Appeal History Timeline */}
+                {allAppeals.length > 0 && (
+                  <div className="pt-3 border-t border-slate-200">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center justify-between">
+                      <span>Appeal History ({allAppeals.length})</span>
+                      <span className="text-[10px] text-slate-500 font-semibold">Chronological</span>
+                    </h4>
+                    <div className="space-y-3">
+                      {allAppeals.map((appeal: any, idx: number) => {
+                        const isPending = appeal.status === 'pending'
+                        const isResolved = appeal.status === 'resolved'
+                        return (
+                          <div key={appeal.id || idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                isPending
+                                  ? 'bg-amber-500/15 text-amber-800 border-amber-300'
+                                  : isResolved
+                                  ? 'bg-emerald-500/15 text-emerald-800 border-emerald-300'
+                                  : 'bg-red-500/15 text-red-800 border-red-300'
+                              }`}>
+                                {isPending ? '🟡 In Review' : isResolved ? '🟢 Resolved / Settled' : '🔴 Rejected'}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                📅 {appeal.submitted_at ? new Date(appeal.submitted_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                              </span>
+                            </div>
+
+                            <p className="text-slate-800 font-medium leading-snug break-words">
+                              {appeal.reason}
+                            </p>
+
+                            {appeal.admin_note && (
+                              <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-900">
+                                <span className="font-bold">💼 Finance Note: </span>
+                                {appeal.admin_note}
+                                {appeal.resolved_at && (
+                                  <span className="block text-[10px] text-indigo-600 mt-0.5">
+                                    Resolved on {new Date(appeal.resolved_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {appeal.screenshot && (
+                              <div className="pt-1">
+                                <a href={appeal.screenshot} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline font-semibold flex items-center gap-1">
+                                  🖼️ View Submitted Screenshot
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                  <button onClick={() => !submittingAppeal && setShowAppealModal(false)} className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 cursor-pointer">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>                {/* Body */}
-              <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
-                {/* Campaign ID */}
-                <div>
-                  <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">Campaign ID</label>
-                  <input
-                    type="text"
-                    value={application.campaigns?.campaign_code || application.id.split('-')[0].toUpperCase()}
-                    readOnly
-                    className="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl px-3 py-3 cursor-not-allowed font-mono"
-                  />
-                </div>
-
-                {/* Appeal Reason */}
-                <div>
-                  <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">Appeal Reason <span className="text-red-500">*</span></label>
-                  <textarea
-                    value={appealReason}
-                    onChange={e => setAppealReason(e.target.value)}
-                    placeholder="Please describe why you are appealing..."
-                    rows={4}
-                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none placeholder:text-slate-400"
-                  />
-                </div>
-
-                {/* Screenshot Upload */}
-                <div>
-                  <label className="text-[10px] text-slate-600 uppercase tracking-wider font-semibold mb-1.5 block">Screenshot (Optional)</label>
-                  {appealScreenshot ? (
-                    <div className="relative rounded-xl border border-slate-200 overflow-hidden bg-slate-100 aspect-[3/1] flex items-center justify-center">
-                      <img src={appealScreenshot} alt="Appeal proof" className="max-w-full max-h-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => setAppealScreenshot('')}
-                        className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-red-500 transition-colors cursor-pointer"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="relative flex flex-col items-center justify-center w-full h-24 rounded-xl border-2 border-dashed border-slate-300 hover:border-red-500 bg-slate-50 hover:bg-red-500/5 transition-all cursor-pointer group">
-                      {uploadingAppealImg ? (
-                        <Loader2 className="h-6 w-6 text-red-500 animate-spin" />
-                      ) : (
-                        <>
-                          <UploadCloud className="h-6 w-6 text-red-500 group-hover:text-red-600 mb-1 transition-colors" />
-                          <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors">Upload Proof</span>
-                        </>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        disabled={uploadingAppealImg}
-                        onChange={handleAppealImageUpload}
-                      />
-                    </label>
-                  )}
-                </div>
+                )}
               </div>
 
               {/* Actions */}
-              <div className="p-5 border-t border-slate-200/80 bg-slate-50 flex gap-3">
+              <div className="p-5 border-t border-slate-200/80 bg-slate-50 flex gap-3 shrink-0">
                 <Button
                   variant="outline"
                   onClick={() => !submittingAppeal && setShowAppealModal(false)}
                   disabled={submittingAppeal}
                   className="flex-1 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-200/60 bg-white cursor-pointer"
                 >
-                  Cancel
+                  Close
                 </Button>
-                <Button
-                  onClick={handleAppealSubmit}
-                  disabled={submittingAppeal || !appealReason.trim()}
-                  className="flex-[2] rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold shadow-md shadow-red-500/20 border-none cursor-pointer disabled:opacity-50"
-                >
-                  {submittingAppeal ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                  ) : (
-                    <><AlertCircle className="mr-1.5 h-4 w-4" /> Submit Appeal</>
-                  )}
-                </Button>
+                {!activePendingAppeal && (
+                  <Button
+                    onClick={handleAppealSubmit}
+                    disabled={submittingAppeal || !appealReason.trim()}
+                    className="flex-[2] rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold shadow-md shadow-red-500/20 border-none cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingAppeal ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting to Finance...</>
+                    ) : (
+                      <><AlertCircle className="mr-1.5 h-4 w-4" /> Submit Appeal to Finance</>
+                    )}
+                  </Button>
+                )}
               </div>
             </motion.div>
           </div>

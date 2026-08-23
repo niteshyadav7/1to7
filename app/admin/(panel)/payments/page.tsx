@@ -92,7 +92,7 @@ const statusDots: Record<string, string> = {
   'Applied': 'bg-blue-400', 'Approved': 'bg-emerald-400', 'Rejected': 'bg-red-400',
   'Completed': 'bg-purple-400', 'Payment Initiated': 'bg-amber-400', 'Payment Requested': 'bg-cyan-400',
 }
-const statusFilters = ['All', 'Payment Requested', 'Payment Initiated', 'Completed', 'Approved']
+const statusFilters = ['All', 'Active Appeals', 'Payment Requested', 'Payment Initiated', 'Completed', 'Approved']
 const dateRanges = [
   { label: 'All Time', value: 'all' }, { label: 'Today', value: 'today' },
   { label: 'Last 7 days', value: '7d' }, { label: 'Last 30 days', value: '30d' },
@@ -559,6 +559,13 @@ export default function PaymentsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [activePartialReqId, setActivePartialReqId] = useState<string | null>(null)
 
+  // Appeal Resolution popup state
+  const [resolveAppealApp, setResolveAppealApp] = useState<{ payment: PaymentEntry; appeal: any } | null>(null)
+  const [resolveAppealAction, setResolveAppealAction] = useState<'resolved' | 'rejected'>('resolved')
+  const [resolveAppealNote, setResolveAppealNote] = useState('')
+  const [resolvePaymentAmount, setResolvePaymentAmount] = useState('')
+  const [resolvingAppeal, setResolvingAppeal] = useState(false)
+
   const uniqueBrands = useMemo(() => [...new Set(payments.map(p => p.campaigns?.brand_name).filter(Boolean))].sort(), [payments])
   const uniquePlatforms = useMemo(() => [...new Set(payments.map(p => p.campaigns?.platform).filter(Boolean))].sort(), [payments])
   const activeFilterCount = useMemo(() => filters.brand.length + filters.platform.length + (filters.dateRange !== 'all' ? 1 : 0), [filters])
@@ -573,6 +580,17 @@ export default function PaymentsPage() {
     })
     totalPaid = totalPartial + totalFinal
     return { totalPaid, totalPending, totalPartial, totalFinal, totalRevenue: totalPaid + totalPending }
+  }, [payments])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      'All': payments.length,
+      'Active Appeals': payments.filter(p => (p.form_data?.requests || []).some((r: any) => r.type === 'appeal' && r.status === 'pending')).length,
+    }
+    payments.forEach(p => {
+      counts[p.status] = (counts[p.status] || 0) + 1
+    })
+    return counts
   }, [payments])
 
   const fetchPayments = useCallback(async () => {
@@ -591,7 +609,11 @@ export default function PaymentsPage() {
 
   const processedData = useMemo(() => {
     let result = [...payments]
-    if (activeStatus !== 'All') result = result.filter(p => p.status === activeStatus)
+    if (activeStatus === 'Active Appeals') {
+      result = result.filter(p => (p.form_data?.requests || []).some((r: any) => r.type === 'appeal' && r.status === 'pending'))
+    } else if (activeStatus !== 'All') {
+      result = result.filter(p => p.status === activeStatus)
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       result = result.filter(p => {
@@ -848,7 +870,6 @@ export default function PaymentsPage() {
   }, [processedData])
 
   const toggleColumn = useCallback((col: string) => { setVisibleCols(prev => ({ ...prev, [col]: !prev[col] })) }, [])
-  const statusCounts = useMemo(() => { const c: Record<string, number> = {}; payments.forEach(p => { c[p.status] = (c[p.status] || 0) + 1 }); return c }, [payments])
 
   if (loading) return <GlobalLoader text="Loading Payments..." />
 
@@ -891,15 +912,25 @@ export default function PaymentsPage() {
 
       {/* Status Tabs */}
       <div className="flex flex-wrap gap-2">
-        {statusFilters.map(f => (
-          <button key={f} onClick={() => setActiveStatus(f)}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium border cursor-pointer ${
-              activeStatus === f ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10' :
-              'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
-            }`}>
-            {f} <span className="ml-1.5 text-[10px] opacity-60">({f === 'All' ? payments.length : (statusCounts[f] || 0)})</span>
-          </button>
-        ))}
+        {statusFilters.map(f => {
+          const isAppeals = f === 'Active Appeals'
+          const count = f === 'All' ? payments.length : (statusCounts[f] || 0)
+          return (
+            <button key={f} onClick={() => setActiveStatus(f)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeStatus === f
+                  ? isAppeals
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30 shadow-lg shadow-rose-500/10'
+                    : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                  : isAppeals && count > 0
+                  ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/15 animate-pulse'
+                  : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
+              }`}>
+              {isAppeals && <AlertCircle className="h-3 w-3 text-rose-400" />}
+              {f} <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isAppeals && count > 0 ? 'bg-rose-500/20 text-rose-300 font-extrabold' : 'opacity-60'}`}>({count})</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Search + Filters */}
@@ -1377,86 +1408,148 @@ export default function PaymentsPage() {
                                             </div>
                                             {isPending && !isSettled && (payment.pending_amount === undefined || payment.pending_amount > 0) && (
                                               <div className="flex items-center gap-2 shrink-0">
-                                                 <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode(''); setActivePartialReqId(req.id || String(idx)) }}
+                                                <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
                                                   <IndianRupee className="mr-1 h-3.5 w-3.5" /> Initiate
                                                 </Button>
-                                                 <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason(''); setActivePartialReqId(req.id || String(idx)) }}
+                                                <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 text-xs font-medium cursor-pointer">
                                                   <X className="mr-1 h-3.5 w-3.5" /> Reject
                                                 </Button>
                                               </div>
                                             )}
-                                            {(isApproved || isSettled) && (
-                                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold shrink-0">
-                                                <CheckCircle2 className="h-3 w-3" /> Done
-                                              </div>
-                                            )}
-                                            {isRejected && (
-                                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold shrink-0">
-                                                <X className="h-3 w-3" /> Rejected
-                                              </div>
-                                            )}
                                           </div>
-                                          )
-                                        })}
+                                        )
+                                      })}
                                       </div>
                                     </div>
-                                  )}
+                                   )}
 
-                                  {/* Appeals Section */}
-                                  {hasAppeals && (
-                                    <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-5">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <p className="text-[11px] text-orange-400 uppercase tracking-wider font-bold flex items-center gap-2"><AlertCircle className="h-4 w-4" /> Influencer Appeals</p>
-                                        <span className="px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 text-[10px] font-bold border border-orange-500/20">{appealRequests.length} APPEAL{appealRequests.length > 1 ? 'S' : ''}</span>
-                                      </div>
-                                      <div className="space-y-3">
-                                        {appealRequests.map((req: any, idx: number) => (
-                                          <div key={req.id || idx} className="bg-slate-900/50 p-4 rounded-xl border border-white/5 space-y-3">
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                              <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Reason</p>
-                                                <p className="text-xs text-white break-words">{req.reason || '—'}</p>
-                                              </div>
-                                              <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Status</p>
-                                                {(() => {
-                                                  const isEffectivelySettled = req.status === 'pending' && (payment.pending_amount !== undefined && payment.pending_amount <= 0);
-                                                  const displayStatus = isEffectivelySettled ? 'settled' : req.status;
-                                                  return (
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                                      displayStatus === 'pending' ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' :
-                                                      (displayStatus === 'approved' || displayStatus === 'settled') ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' :
-                                                      'bg-red-500/15 text-red-400 border-red-500/20'
-                                                    }`}>{displayStatus}</span>
-                                                  )
-                                                })()}
-                                              </div>
-                                              <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Date</p>
-                                                <p className="text-xs text-slate-400">{req.submitted_at ? new Date(req.submitted_at).toLocaleDateString('en-IN') : '—'}</p>
-                                              </div>
-                                            </div>
-                                            {req.screenshot && (
-                                              <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">Screenshot</p>
-                                                <button onClick={() => setPreviewImage({ src: req.screenshot, alt: 'Appeal Screenshot' })}
-                                                  className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-orange-400 bg-black cursor-pointer w-full max-w-xs">
-                                                  <img src={req.screenshot} alt="Appeal Screenshot" className="h-24 w-full object-cover opacity-90 group-hover:opacity-100" />
-                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                                    <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View</span>
-                                                  </div>
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
+                                   {/* Appeals Section */}
+                                   {hasAppeals && (
+                                     <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-5 space-y-4">
+                                       <div className="flex items-center justify-between">
+                                         <p className="text-[11px] text-rose-400 uppercase tracking-wider font-bold flex items-center gap-2">
+                                           <AlertCircle className="h-4 w-4 text-rose-400" /> Influencer Appeals History
+                                         </p>
+                                         <div className="flex items-center gap-2">
+                                           {appealRequests.some((r: any) => r.status === 'pending') && (
+                                             <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-extrabold border border-rose-500/30 animate-pulse">
+                                               🔴 ACTION REQUIRED
+                                             </span>
+                                           )}
+                                           <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-bold border border-white/10">
+                                             {appealRequests.length} TOTAL APPEAL{appealRequests.length > 1 ? 'S' : ''}
+                                           </span>
+                                         </div>
+                                       </div>
 
-                                  {/* Action Buttons */}
+                                       <div className="space-y-3">
+                                         {appealRequests.map((req: any, idx: number) => {
+                                           const isPending = req.status === 'pending'
+                                           const isResolved = req.status === 'resolved' || req.status === 'approved'
+
+                                           return (
+                                             <div key={req.id || idx} className={`p-4 rounded-xl border space-y-3 transition-colors ${
+                                               isPending ? 'bg-slate-900/90 border-rose-500/30 shadow-lg shadow-rose-500/5' : 'bg-slate-900/40 border-white/5'
+                                             }`}>
+                                               <div className="flex items-start justify-between flex-wrap gap-2">
+                                                 <div className="flex items-center gap-2">
+                                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                                     isPending ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' :
+                                                     isResolved ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' :
+                                                     'bg-red-500/15 text-red-400 border-red-500/25'
+                                                   }`}>
+                                                     {isPending ? '🟡 Pending Review' : isResolved ? '🟢 Resolved / Settled' : '🔴 Rejected'}
+                                                   </span>
+                                                   <span className="text-[10px] text-slate-400 font-mono">
+                                                     #{req.id ? req.id.substring(0, 10) : `appeal-${idx + 1}`}
+                                                   </span>
+                                                 </div>
+
+                                                 <span className="text-[11px] text-slate-400 font-medium">
+                                                   📅 {req.submitted_at ? new Date(req.submitted_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                                                 </span>
+                                               </div>
+
+                                               <div>
+                                                 <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Creator Appeal Note</p>
+                                                 <p className="text-xs text-white leading-relaxed break-words bg-slate-950/60 p-3 rounded-lg border border-white/5">
+                                                   {req.reason || '—'}
+                                                 </p>
+                                               </div>
+
+                                               {req.admin_note && (
+                                                 <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 space-y-0.5">
+                                                   <p className="font-bold text-indigo-200 flex items-center gap-1.5">
+                                                     💼 Finance Resolution Note
+                                                   </p>
+                                                   <p className="text-slate-200">{req.admin_note}</p>
+                                                   {req.resolved_at && (
+                                                     <p className="text-[10px] text-indigo-400/80 pt-0.5">
+                                                       Closed on {new Date(req.resolved_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                     </p>
+                                                   )}
+                                                 </div>
+                                               )}
+
+                                               {req.screenshot && (
+                                                 <div>
+                                                   <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">Creator Proof Screenshot</p>
+                                                   <button onClick={() => setPreviewImage({ src: req.screenshot, alt: 'Appeal Screenshot' })}
+                                                     className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-orange-400 bg-black cursor-pointer w-full max-w-xs">
+                                                     <img src={req.screenshot} alt="Appeal Screenshot" className="h-24 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                       <span className="text-xs font-bold text-white bg-black/60 px-2.5 py-1 rounded-lg">View Full Image</span>
+                                                     </div>
+                                                   </button>
+                                                 </div>
+                                               )}
+
+                                               {/* Finance 1-Click Resolution Buttons for Pending Appeals */}
+                                               {isPending && (
+                                                 <div className="pt-2 border-t border-white/10 flex flex-wrap items-center gap-2">
+                                                   <span className="text-[11px] text-slate-400 font-semibold mr-1">Finance Action:</span>
+                                                   <Button
+                                                     size="sm"
+                                                     type="button"
+                                                     onClick={(e) => {
+                                                       e.stopPropagation()
+                                                       setResolveAppealApp({ payment, appeal: req })
+                                                       setResolveAppealAction('resolved')
+                                                       setResolveAppealNote('Payment discrepancy verified and settled by Finance.')
+                                                       setResolvePaymentAmount(String(payment.pending_amount || 0))
+                                                     }}
+                                                     className="h-8 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold cursor-pointer"
+                                                   >
+                                                     <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                                     Resolve & Settle Appeal
+                                                   </Button>
+                                                   <Button
+                                                     size="sm"
+                                                     type="button"
+                                                     onClick={(e) => {
+                                                       e.stopPropagation()
+                                                       setResolveAppealApp({ payment, appeal: req })
+                                                       setResolveAppealAction('rejected')
+                                                       setResolveAppealNote('')
+                                                       setResolvePaymentAmount('0')
+                                                     }}
+                                                     className="h-8 px-3 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold cursor-pointer"
+                                                   >
+                                                     <X className="mr-1.5 h-3.5 w-3.5" />
+                                                     Reject Appeal with Note
+                                                   </Button>
+                                                 </div>
+                                               )}
+                                             </div>
+                                           )
+                                         })}
+                                       </div>
+                                     </div>
+                                   )}
+
+                                   {/* Action Buttons */}
                                    <div className="flex flex-wrap items-center gap-3 pt-2">
                                      {payment.status === 'Payment Initiated' ? (
                                        <div className="flex items-center gap-2 text-amber-400 text-sm font-bold bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl">
@@ -1692,6 +1785,143 @@ export default function PaymentsPage() {
                   } catch { toast.error('Failed to reject payment') }
                 }} className="flex-[2] rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold shadow-lg shadow-red-500/20 border-none cursor-pointer">
                   <X className="mr-1.5 h-4 w-4" /> Confirm Rejection
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Appeal Resolution Modal */}
+      <AnimatePresence>
+        {resolveAppealApp && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className={`p-2 rounded-xl border ${
+                    resolveAppealAction === 'resolved' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                  }`}>
+                    <AlertCircle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {resolveAppealAction === 'resolved' ? 'Resolve & Settle Appeal' : 'Reject Creator Appeal'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Creator: <span className="text-white font-semibold">{resolveAppealApp.payment.users?.full_name}</span> ({resolveAppealApp.payment.campaigns?.brand_name})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setResolveAppealApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5 space-y-1">
+                  <p className="text-[10px] text-slate-400 uppercase font-bold">Creator Appeal Reason</p>
+                  <p className="text-white font-medium leading-relaxed break-words">{resolveAppealApp.appeal.reason}</p>
+                </div>
+
+                {resolveAppealAction === 'resolved' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 uppercase font-bold">Disburse Additional Payment (₹, Optional)</label>
+                    <Input
+                      type="number"
+                      value={resolvePaymentAmount}
+                      onChange={(e) => setResolvePaymentAmount(e.target.value)}
+                      placeholder="0"
+                      className="bg-slate-950 border-white/10 text-white text-xs h-9"
+                    />
+                    <p className="text-[10px] text-slate-500">Leaving 0 will resolve ticket without modifying total disbursed amount.</p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 uppercase font-bold">
+                    {resolveAppealAction === 'resolved' ? 'Resolution Note to Creator' : 'Rejection Reason Note *'}
+                  </label>
+                  <textarea
+                    value={resolveAppealNote}
+                    onChange={(e) => setResolveAppealNote(e.target.value)}
+                    rows={3}
+                    placeholder={
+                      resolveAppealAction === 'resolved'
+                        ? 'e.g. Payment verified and settled via IMPS UTR #12345...'
+                        : 'Explain why appeal is rejected (e.g. Bank statement shows payment credited on 15 Aug)...'
+                    }
+                    className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl p-2.5 focus:ring-1 focus:ring-indigo-400 outline-none resize-none placeholder:text-slate-600"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setResolveAppealApp(null)}
+                  disabled={resolvingAppeal}
+                  className="border-white/10 text-slate-400 hover:text-white bg-transparent"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={resolvingAppeal || (resolveAppealAction === 'rejected' && !resolveAppealNote.trim())}
+                  onClick={async () => {
+                    setResolvingAppeal(true)
+                    try {
+                      const pAmt = parseFloat(resolvePaymentAmount) || 0
+                      const res = await fetch('/api/admin/requests', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          applicationId: resolveAppealApp.payment.id,
+                          requestId: resolveAppealApp.appeal.id,
+                          newStatus: resolveAppealAction,
+                          admin_note: resolveAppealNote.trim(),
+                          paymentField: pAmt > 0 ? 'final_payment' : undefined,
+                          paymentAmount: pAmt > 0 ? pAmt : undefined,
+                        }),
+                      })
+                      if (!res.ok) throw new Error('Failed to resolve appeal')
+                      toast.success(
+                        resolveAppealAction === 'resolved'
+                          ? 'Appeal marked as Resolved & Settled!'
+                          : 'Appeal marked as Rejected with note.'
+                      )
+                      setResolveAppealApp(null)
+                      setResolveAppealNote('')
+                      setResolvePaymentAmount('')
+                      fetchPayments()
+                    } catch (err: any) {
+                      toast.error(err.message || 'Failed to update appeal')
+                    } finally {
+                      setResolvingAppeal(false)
+                    }
+                  }}
+                  className={`text-white font-bold ${
+                    resolveAppealAction === 'resolved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
+                >
+                  {resolvingAppeal ? (
+                    <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving...</>
+                  ) : resolveAppealAction === 'resolved' ? (
+                    <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Confirm & Settle</>
+                  ) : (
+                    <><X className="mr-1.5 h-3.5 w-3.5" /> Confirm Rejection</>
+                  )}
                 </Button>
               </div>
             </motion.div>

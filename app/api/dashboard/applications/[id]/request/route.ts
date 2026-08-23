@@ -39,7 +39,51 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Build the new request entry
+    const currentFormData = application.form_data || {}
+    const existingRequests = Array.isArray(currentFormData.requests) ? currentFormData.requests : []
+
+    // ── Appeal Handling: Guardrail & History Preservation ──
+    if (type === 'appeal') {
+      const activePendingAppeal = existingRequests.find(
+        (r: any) => r.type === 'appeal' && r.status === 'pending'
+      )
+
+      if (activePendingAppeal) {
+        return NextResponse.json(
+          { error: 'You already have an active appeal under review by our Finance team. Please wait until it is resolved before submitting a new appeal.' },
+          { status: 400 }
+        )
+      }
+
+      const newAppeal: any = {
+        id: `appeal_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        type: 'appeal',
+        amount: 0,
+        reason: (reason || '').trim(),
+        screenshot: screenshot || undefined,
+        status: 'pending', // pending | resolved | rejected
+        submitted_at: new Date().toISOString(),
+      }
+
+      const updatedFormData = {
+        ...currentFormData,
+        requests: [...existingRequests, newAppeal],
+      }
+
+      const { error: updateErr } = await supabase
+        .from('applications')
+        .update({
+          form_data: updatedFormData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+
+      if (updateErr) throw updateErr
+
+      return NextResponse.json({ success: true, request: newAppeal })
+    }
+
+    // ── Partial / Payment Request Handling ──
     const newRequest: any = {
       id: `req_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       type: type || 'partial',
@@ -49,10 +93,6 @@ export async function PUT(
       submitted_at: new Date().toISOString(),
     }
     if (screenshot) newRequest.screenshot = screenshot
-
-    // Append to existing requests array in form_data (with dedup)
-    const currentFormData = application.form_data || {}
-    const existingRequests = currentFormData.requests || []
 
     // Dedup: if a pending request with same type & amount exists, increment its count
     const existingMatch = existingRequests.find(

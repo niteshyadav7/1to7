@@ -27,7 +27,18 @@ export async function PUT(
         updates[field] = body[field]
       }
     }
-    updates.updated_at = new Date().toISOString()
+    // Fetch current form_data to safely merge rejection/revocation reason if provided
+    if (body.rejection_reason) {
+      const { data: curr } = await supabase.from('applications').select('form_data').eq('id', id).single()
+      const currentForm = (curr?.form_data && typeof curr.form_data === 'object') ? curr.form_data : {}
+      updates.form_data = {
+        ...currentForm,
+        ...(updates.form_data || {}),
+        rejection_reason: body.rejection_reason,
+        revocation_note: body.rejection_reason,
+        revoked_at: new Date().toISOString(),
+      }
+    }
 
     const { data: application, error } = await supabase
       .from('applications')
@@ -45,10 +56,12 @@ export async function PUT(
     const brandName = application?.campaigns?.brand_name || 'Campaign'
     const campaignCode = application?.campaigns?.campaign_code || ''
 
-    if (userEmail && newStatus === 'Approved') {
-      sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
-    } else if (userEmail && newStatus === 'Rejected') {
-      sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode)
+    if (userEmail && body.send_email !== false) {
+      if (newStatus === 'Approved') {
+        sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
+      } else if (newStatus === 'Rejected' && body.is_revert !== true) {
+        sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode)
+      }
     }
 
     return NextResponse.json({ success: true, application })

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
-import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram } from 'lucide-react'
+import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram, Mail } from 'lucide-react'
 import { auth, googleProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
 
@@ -18,7 +18,7 @@ declare global {
 }
 
 // Which tab the user picked
-type AuthTab = 'password' | 'otp'
+type AuthTab = 'password' | 'email-otp' | 'otp'
 
 // Which flow triggered the mobile verification
 type PendingFlow = 'password' | 'google' | 'instagram' | 'otp-login'
@@ -41,6 +41,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
+  // Email OTP state
+  const [loginEmail, setLoginEmail] = useState('')
+  const [emailOtp, setEmailOtp] = useState('')
+  const [emailOtpSent, setEmailOtpSent] = useState(false)
+  const [emailCountdown, setEmailCountdown] = useState(0)
+
   // OTP / Mobile state
   const [mobile, setMobile] = useState('')
   const [otp, setOtp] = useState('')
@@ -51,13 +57,21 @@ export default function LoginPage() {
   const confirmationRef = useRef<ConfirmationResult | null>(null)
   const { login } = useAuth()
 
-  // Countdown timer
+  // Countdown timer for mobile OTP
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
       return () => clearTimeout(timer)
     }
   }, [countdown])
+
+  // Countdown timer for email OTP
+  useEffect(() => {
+    if (emailCountdown > 0) {
+      const timer = setTimeout(() => setEmailCountdown(emailCountdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [emailCountdown])
 
   // Initialize invisible reCAPTCHA when we need OTP
   const needsRecaptcha = (view === 'verify-otp' || view === 'verify-mobile' || (view === 'main' && activeTab === 'otp'))
@@ -135,6 +149,74 @@ export default function LoginPage() {
     login(data.user)
     toast.success('Welcome back!')
     window.location.href = '/dashboard'
+  }
+
+  // ─── Helper: send Email OTP ───
+  const handleSendEmailOTP = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const clean = loginEmail.trim().toLowerCase()
+    if (!clean || !clean.includes('@')) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/send-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: clean }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to send OTP')
+        return
+      }
+
+      setEmailOtpSent(true)
+      setEmailCountdown(30)
+      toast.success(`Verification code sent to ${clean}!`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send verification email')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Helper: verify Email OTP & Login ───
+  const handleVerifyEmailOTP = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const clean = loginEmail.trim().toLowerCase()
+    const cleanCode = emailOtp.trim()
+    if (!cleanCode || cleanCode.length !== 6) {
+      toast.error('Please enter the 6-digit OTP code')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/verify-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: clean,
+          otp: cleanCode,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Invalid or expired OTP')
+        return
+      }
+
+      login(data.user)
+      toast.success('Welcome back!')
+      window.location.href = '/dashboard'
+    } catch (err: any) {
+      toast.error(err.message || 'Verification failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -507,62 +589,173 @@ export default function LoginPage() {
               <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
                 <div className="text-center space-y-2">
                   <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Hi, Welcome Back</h2>
-                  <p className="text-sm text-slate-500 font-medium">Enter your credentials to continue</p>
+                  <p className="text-sm text-slate-500 font-medium">Choose your preferred login method</p>
+                </div>
+
+                {/* Mode Tabs: Password vs Email OTP */}
+                <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('password'); setEmailOtpSent(false); setEmailOtp('') }}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      activeTab === 'password'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Lock className="h-3.5 w-3.5" /> Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('email-otp') }}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      activeTab === 'email-otp'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Mail className="h-3.5 w-3.5" /> Email OTP
+                  </button>
                 </div>
 
                 {/* Password Login Form */}
-                <motion.div key="pw" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="relative group">
-                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
-                        <Input
-                          value={identifier}
-                          onChange={(e) => setIdentifier(e.target.value)}
-                          placeholder="Work Email Address, Mobile or HYID"
-                          className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
-                          required
-                          autoFocus
-                        />
+                {activeTab === 'password' && (
+                  <motion.div key="pw" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="relative group">
+                          <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
+                          <Input
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value)}
+                            placeholder="Work Email Address, Mobile or HYID"
+                            className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
+                            required
+                            autoFocus
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
-                        <Input
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Password"
-                          className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 pr-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                      <div className="space-y-2">
+                        <div className="relative group">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
+                          <Input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Password"
+                            className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 pr-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end">
+                        <Link href="/forgot-password" className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
+                          Forgot Password?
+                        </Link>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full h-13 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-extrabold text-sm transition-all active:scale-[0.98] shadow-md cursor-pointer disabled:opacity-60 uppercase tracking-wider"
+                      >
+                        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'SIGN IN'}
+                      </Button>
+                    </form>
+                  </motion.div>
+                )}
+
+                {/* Email OTP Login Form */}
+                {activeTab === 'email-otp' && (
+                  <motion.div key="email-otp-form" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    {!emailOtpSent ? (
+                      <form onSubmit={handleSendEmailOTP} className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="relative group">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-slate-900 transition-colors" />
+                            <Input
+                              type="email"
+                              value={loginEmail}
+                              onChange={(e) => setLoginEmail(e.target.value)}
+                              placeholder="Enter your registered email address"
+                              className="bg-white border border-slate-200 text-slate-900 h-13 pl-12 rounded-xl text-sm font-medium focus-visible:ring-primary-container placeholder:text-slate-400 shadow-sm"
+                              required
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          type="submit"
+                          disabled={loading || !loginEmail.trim()}
+                          className="w-full h-13 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-extrabold text-sm transition-all active:scale-[0.98] shadow-md cursor-pointer disabled:opacity-60 uppercase tracking-wider"
                         >
-                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                        </button>
-                      </div>
-                    </div>
+                          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'SEND LOGIN CODE'}
+                        </Button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleVerifyEmailOTP} className="space-y-4">
+                        <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-center">
+                          <p className="text-xs text-indigo-900 font-medium">
+                            6-digit login code sent to <span className="font-bold">{loginEmail}</span>
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => { setEmailOtpSent(false); setEmailOtp('') }}
+                            className="text-[11px] font-bold text-indigo-600 hover:underline mt-0.5 cursor-pointer"
+                          >
+                            Change Email
+                          </button>
+                        </div>
 
-                    <div className="flex items-center justify-end">
-                      <Link href="/forgot-password" className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
-                        Forgot Password?
-                      </Link>
-                    </div>
+                        <div className="space-y-2">
+                          <Input
+                            value={emailOtp}
+                            onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            maxLength={6}
+                            className="bg-white border border-slate-200 text-slate-900 h-14 rounded-xl text-center text-3xl font-mono tracking-[0.4em] focus-visible:ring-primary-container placeholder:text-slate-300 placeholder:tracking-[0.4em] shadow-sm font-bold"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && emailOtp.length === 6 && handleVerifyEmailOTP()}
+                          />
+                        </div>
 
-                    <Button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full h-13 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-extrabold text-sm transition-all active:scale-[0.98] shadow-md cursor-pointer disabled:opacity-60 uppercase tracking-wider"
-                    >
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'SIGN IN'}
-                    </Button>
-                  </form>
-                </motion.div>
+                        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                          <span>Didn&apos;t receive code?</span>
+                          {emailCountdown > 0 ? (
+                            <span className="font-semibold text-slate-400">Resend in {emailCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSendEmailOTP}
+                              disabled={loading}
+                              className="font-bold text-pink-600 hover:text-pink-700 cursor-pointer"
+                            >
+                              Resend OTP
+                            </button>
+                          )}
+                        </div>
+
+                        <Button
+                          type="submit"
+                          disabled={loading || emailOtp.length !== 6}
+                          className="w-full h-13 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-extrabold text-sm transition-all active:scale-[0.98] shadow-md cursor-pointer disabled:opacity-60 uppercase tracking-wider"
+                        >
+                          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'VERIFY & SIGN IN'}
+                        </Button>
+                      </form>
+                    )}
+                  </motion.div>
+                )}
 
                 {/* Divider */}
                 <div className="relative flex items-center justify-center my-6">

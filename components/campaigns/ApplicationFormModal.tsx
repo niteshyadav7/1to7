@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar } from 'lucide-react'
+import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, CheckCircle2, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar, Lock, Instagram } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,6 +11,11 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
+import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
+import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
+import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
+import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
 
 interface FormField {
   id: string
@@ -27,6 +32,19 @@ interface Campaign {
   campaign_code: string
   brand_name: string
   form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
+  followers?: string
+  min_followers?: number
+  enforce_followers?: boolean
+  location?: string
+  location_type?: string
+  target_states?: string[]
+  target_cities?: string[]
+  store_locations?: StoreLocation[]
+  enforce_location?: boolean
+  applied?: boolean
+  application_status?: string
+  application_id?: string
+  applied_at?: string
 }
 
 // Guest flow steps: 'mobile' -> 'email-challenge' | 'new-profile' -> 'application' -> 'success'
@@ -49,7 +67,31 @@ export default function ApplicationFormModal({
   const [loading, setLoading] = useState(false)
   const [fieldsLoading, setFieldsLoading] = useState(false)
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
-  const { user } = useAuth()
+  const { user, refreshUserProfile } = useAuth()
+  const [quickAddressModalOpen, setQuickAddressModalOpen] = useState(false)
+
+  // Multi-Instagram Profile Support
+  const userProfiles = (user?.instagram_profiles && user.instagram_profiles.length > 0)
+    ? user.instagram_profiles
+    : (user?.instagram_username ? [{
+        id: 'primary',
+        username: user.instagram_username,
+        normalized_username: user.instagram_username.toLowerCase(),
+        followers: user.followers || 0,
+        is_primary: true
+      }] : [])
+
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('')
+
+  useEffect(() => {
+    if (userProfiles.length > 0 && !selectedProfileId) {
+      const primary = userProfiles.find(p => p.is_primary) || userProfiles[0]
+      setSelectedProfileId(primary.id || primary.username)
+    }
+  }, [userProfiles, selectedProfileId])
+
+  const activeSelectedProfile = userProfiles.find(p => (p.id || p.username) === selectedProfileId) || userProfiles[0]
+  const effectiveFollowers = activeSelectedProfile?.followers ?? user?.followers ?? 0
 
   // Guest flow state
   const [guestStep, setGuestStep] = useState<GuestStep>('mobile')
@@ -59,6 +101,31 @@ export default function ApplicationFormModal({
   const [guestName, setGuestName] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
   const [guestInstagram, setGuestInstagram] = useState('')
+  const [guestInstagramUsernames, setGuestInstagramUsernames] = useState<string[]>([])
+  const [submittingGuestProfile, setSubmittingGuestProfile] = useState(false)
+  const [completionEligibility, setCompletionEligibility] = useState<CreatorCompletionEligibility>({
+    isEligible: true,
+    overdueCount: 0,
+    blockingCount: 0,
+    blockedApplications: [],
+    overdueApplications: [],
+    message: '',
+  })
+
+  useEffect(() => {
+    if (user && isOpen) {
+      fetch('/api/dashboard/applications')
+        .then(res => res.json())
+        .then(data => {
+          if (data.applications) {
+            const res = checkCreatorCompletionEligibility(data.applications)
+            setCompletionEligibility(res)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user, isOpen])
+
   const [guestFollowers, setGuestFollowers] = useState('')
   const [guestGender, setGuestGender] = useState('')
   const [guestState, setGuestState] = useState('')
@@ -132,13 +199,13 @@ export default function ApplicationFormModal({
       if (data.formConfig) {
         setFields(data.formConfig)
         data.formConfig.forEach((f: FormField) => {
-          initialData[f.field_name] = ''
+          initialData[f.field_name] = getPrefillValueForField(f.field_name, user) || ''
         })
       }
       // Also initialize custom campaign form_fields
       if (campaign.form_fields && campaign.form_fields.length > 0) {
         campaign.form_fields.forEach((f) => {
-          initialData[f.name] = ''
+          initialData[f.name] = getPrefillValueForField(f.name, user) || ''
         })
       }
       setFormData(initialData)
@@ -444,20 +511,141 @@ export default function ApplicationFormModal({
               {/* Content Area */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-6">
 
-                {/* ===== GUEST STEP 1: Mobile Number ===== */}
-                {!isLoggedIn && guestStep === 'mobile' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-5"
-                  >
-                    <div className="text-center space-y-2 mb-6">
-                      <div className="mx-auto h-14 w-14 rounded-md bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
-                        <Phone className="h-7 w-7 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-bold text-charcoal-surface">Enter Your Mobile</h3>
-                      <p className="text-sm text-secondary">We&apos;ll use this to track your application</p>
+                {/* ===== ALREADY APPLIED VIEW ===== */}
+                {campaign?.applied ? (
+                  <div className="text-center space-y-4 py-6">
+                    <div className="mx-auto h-16 w-16 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-lg shadow-emerald-500/10">
+                      <CheckCircle2 className="h-8 w-8" />
                     </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-bold text-slate-900">Application Already Submitted!</h3>
+                      <p className="text-sm text-slate-600 max-w-sm mx-auto">
+                        You have already applied for this campaign. Current status: <strong className="text-emerald-700 font-extrabold uppercase">{campaign.application_status || 'Applied'}</strong>
+                      </p>
+                    </div>
+                    <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
+                      <Button
+                        onClick={() => {
+                          onClose()
+                          window.location.href = campaign.application_status === 'Approved' ? '/dashboard/approved' : '/dashboard/applied'
+                        }}
+                        className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer"
+                      >
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                        View Application Status
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full h-11 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                ) : !checkFollowerEligibility(user?.followers, campaign).eligible ? (
+                  <div className="text-center space-y-4 py-6">
+                    <div className="mx-auto h-16 w-16 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-lg shadow-amber-500/10">
+                      <Lock className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-bold text-slate-900">Follower Requirement Not Met</h3>
+                      <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
+                        {checkFollowerEligibility(user?.followers, campaign).message}
+                      </p>
+                    </div>
+                    <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
+                      <Button
+                        onClick={() => {
+                          onClose()
+                          window.location.href = '/dashboard/profile'
+                        }}
+                        className="w-full h-11 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer"
+                      >
+                        Update Followers in Profile
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full h-11 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                ) : (isLoggedIn && !checkCampaignLocationEligibility(campaign, user).isEligible) ? (
+                  <div className="text-center space-y-4 py-6">
+                    <div className="mx-auto h-16 w-16 rounded-full bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shadow-lg shadow-rose-500/10">
+                      <Lock className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-bold text-slate-900">Location Requirement Not Met</h3>
+                      <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
+                        {checkCampaignLocationEligibility(campaign, user).reason}
+                      </p>
+                    </div>
+                    <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
+                      <Button
+                        onClick={() => setQuickAddressModalOpen(true)}
+                        className="w-full h-11 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer"
+                      >
+                        Add Address in {checkCampaignLocationEligibility(campaign, user).requiredLocationText}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full h-11 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                ) : (isLoggedIn && !completionEligibility.isEligible) ? (
+                  <div className="text-center space-y-4 py-6">
+                    <div className="mx-auto h-16 w-16 rounded-full bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-600 shadow-lg shadow-rose-500/10">
+                      <Lock className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-xl font-bold text-slate-900">New Applications Locked</h3>
+                      <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
+                        {completionEligibility.message}
+                      </p>
+                    </div>
+                    <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">
+                      <Button
+                        onClick={() => {
+                          onClose()
+                          window.location.href = '/dashboard/approved'
+                        }}
+                        className="w-full h-11 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl cursor-pointer"
+                      >
+                        Go to Approved Campaigns
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={onClose}
+                        className="w-full h-11 border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* ===== GUEST STEP 1: Mobile Number ===== */}
+                    {!isLoggedIn && guestStep === 'mobile' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-5"
+                      >
+                        <div className="text-center space-y-2 mb-6">
+                          <div className="mx-auto h-14 w-14 rounded-md bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
+                            <Phone className="h-7 w-7 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-bold text-charcoal-surface">Enter Your Mobile</h3>
+                          <p className="text-sm text-secondary">We&apos;ll use this to track your application</p>
+                        </div>
 
                     <div className="space-y-2">
                       <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
@@ -689,6 +877,46 @@ export default function ApplicationFormModal({
                         </div>
                       ) : (
                         <>
+                          {/* Multi-Instagram Profile Selector */}
+                          {user && userProfiles.length > 1 && (
+                            <div className="p-3.5 rounded-xl bg-pink-50/60 border border-pink-200 space-y-2">
+                              <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                <Instagram className="h-3.5 w-3.5 text-pink-600" />
+                                Apply with Instagram Profile
+                              </Label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {userProfiles.map((p) => {
+                                  const isSelected = (p.id || p.username) === (activeSelectedProfile?.id || activeSelectedProfile?.username)
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={p.id || p.username}
+                                      onClick={() => setSelectedProfileId(p.id || p.username)}
+                                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-white border-pink-500 shadow-sm ring-2 ring-pink-500/20'
+                                          : 'bg-white/70 border-slate-200 hover:border-slate-300'
+                                      }`}
+                                    >
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-xs font-black text-slate-900 truncate">@{p.username}</span>
+                                          {p.is_primary && (
+                                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">Primary</span>
+                                          )}
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-0.5 font-bold">
+                                          {(p.followers || 0).toLocaleString('en-IN')} Followers
+                                        </p>
+                                      </div>
+                                      {isSelected && <CheckCircle2 className="h-4 w-4 text-pink-600 shrink-0" />}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                           {fields.length > 0 && fields.map((field) => (
                             <div key={field.id} className="space-y-2.5">
                             <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
@@ -996,10 +1224,25 @@ export default function ApplicationFormModal({
                     </div>
                   </motion.div>
                 )}
+                </>
+                )}
               </div>
             </div>
           </motion.div>
         </>
+      )}
+      {/* Quick Add Address Modal for Location Targeting */}
+      {campaign && (
+        <QuickAddAddressModal
+          isOpen={quickAddressModalOpen}
+          onClose={() => setQuickAddressModalOpen(false)}
+          targetStates={campaign.target_states || []}
+          targetCities={campaign.target_cities || []}
+          campaignTitle={campaign.brand_name}
+          onSuccess={() => {
+            setQuickAddressModalOpen(false)
+          }}
+        />
       )}
     </AnimatePresence>
   )

@@ -2,8 +2,11 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag, Share2, Check, Copy } from 'lucide-react'
+import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag, Share2, Check, Copy, XCircle, Lock, Clock, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/components/providers/AuthProvider'
+import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 
 interface Campaign {
   id: string
@@ -20,11 +23,21 @@ interface Campaign {
   status: string
   created_at: string
   location?: string
+  location_type?: string
+  target_states?: string[]
+  target_cities?: string[]
+  enforce_location?: boolean
   followers?: string
+  min_followers?: number
+  enforce_followers?: boolean
   looking_for?: string
   additional_info?: string
   collab_date?: string
   form_link?: string
+  applied?: boolean
+  application_status?: string
+  application_id?: string
+  applied_at?: string
 }
 
 const platformConfig: Record<string, { icon: React.ReactNode; bg: string; badge: string }> = {
@@ -71,6 +84,7 @@ export default function CampaignCard({
   index: number 
   onViewDetails: (campaign: Campaign) => void 
 }) {
+  const { user } = useAuth()
   const [copied, setCopied] = useState(false)
   const gradient = categoryGradients[campaign.category] || defaultGradient
   const platform = platformConfig[campaign.platform] || { 
@@ -79,6 +93,8 @@ export default function CampaignCard({
     badge: 'bg-slate-800 text-white'
   }
   const brandInitial = getBrandInitial(campaign.brand_name)
+  const eligibility = checkFollowerEligibility(user?.followers, campaign)
+  const locationEligibility = checkCampaignLocationEligibility(campaign, user)
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -107,7 +123,7 @@ export default function CampaignCard({
         <div className="absolute -left-6 -top-6 w-20 h-20 rounded-full bg-black/20 blur-lg pointer-events-none" />
 
         {/* Platform Pill */}
-        <div className="relative z-10">
+        <div className="relative z-10 flex items-center gap-1.5">
           <span className="inline-flex items-center gap-1.5 bg-slate-950/50 backdrop-blur-md text-white rounded-full px-3 py-1 text-[11px] font-semibold border border-white/20 shadow-md">
             {platform.icon}
             <span>{campaign.platform}</span>
@@ -196,16 +212,54 @@ export default function CampaignCard({
             <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">
               <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
               <span className="font-semibold truncate">
-                {campaign.gender_required === 'Any' ? 'All Genders' : campaign.gender_required}
+                {campaign.followers && campaign.followers !== 'Any'
+                  ? `${campaign.followers} Req`
+                  : campaign.gender_required === 'Any'
+                  ? 'All Genders'
+                  : campaign.gender_required}
               </span>
             </div>
           </div>
 
           {/* Action CTA Button */}
-          <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-slate-900 group-hover:bg-gradient-to-r group-hover:from-amber-400 group-hover:to-amber-500 text-white group-hover:text-slate-950 font-extrabold text-xs py-3 rounded-2xl shadow-sm group-hover:shadow-lg group-hover:shadow-amber-400/25 transition-all duration-300 cursor-pointer active:scale-[0.98]">
-            <span>View Details & Apply</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
-          </button>
+          {campaign.applied ? (
+            campaign.application_status === 'Approved' ? (
+              <button className="w-full relative flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs py-3 rounded-2xl shadow-sm hover:shadow-emerald-500/25 transition-all duration-300 cursor-pointer active:scale-[0.98]">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>Approved 🎉 View Campaign</span>
+              </button>
+            ) : (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review') ? (
+              <button className="w-full relative flex items-center justify-center gap-2 bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <span>Under Process ⏳ View Details</span>
+              </button>
+            ) : campaign.application_status === 'Rejected' ? (
+              <button className="w-full relative flex items-center justify-center gap-2 bg-rose-50 text-rose-800 border border-rose-300 hover:bg-rose-100 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
+                <RotateCcw className="h-3.5 w-3.5 text-rose-600" />
+                <span>Rejected — Click to Re-Apply</span>
+              </button>
+            ) : (
+              <button className="w-full relative flex items-center justify-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-300/80 hover:bg-emerald-100 hover:border-emerald-400 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>Already Applied ✓ View Details</span>
+              </button>
+            )
+          ) : !eligibility.eligible ? (
+            <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
+              <Lock className="h-3.5 w-3.5 text-amber-700" />
+              <span>Min {formatFollowerCount(eligibility.requiredFollowers)} Followers Required</span>
+            </button>
+          ) : !locationEligibility.isEligible ? (
+            <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
+              <MapPin className="h-3.5 w-3.5 text-rose-600" />
+              <span className="truncate">{locationEligibility.requiredLocationText} Address Required</span>
+            </button>
+          ) : (
+            <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-slate-900 group-hover:bg-gradient-to-r group-hover:from-amber-400 group-hover:to-amber-500 text-white group-hover:text-slate-950 font-extrabold text-xs py-3 rounded-2xl shadow-sm group-hover:shadow-lg group-hover:shadow-amber-400/25 transition-all duration-300 cursor-pointer active:scale-[0.98]">
+              <span>View Details & Apply</span>
+              <ArrowRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
+import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
+import { StoreLocation } from '@/lib/utils/location-utils'
 
 interface CampaignData {
   id: string
@@ -29,16 +32,27 @@ interface CampaignData {
   gender_required: string
   status: string
   is_live: boolean
-  location: string
-  looking_for: string
-  followers: string
-  additional_info: string
-  collab_date: string
-  form_link: string
-  form_fields: FormField[]
-  order_form: boolean
-  order_form_fields: FormField[]
-  payment_form_fields: FormField[]
+  location?: string
+  location_type?: string
+  target_states?: string[]
+  target_cities?: string[]
+  store_locations?: StoreLocation[]
+  enforce_location?: boolean
+  looking_for?: string
+  followers?: string
+  min_followers?: number
+  enforce_followers?: boolean
+  additional_info?: string
+  collab_date?: string
+  form_link?: string
+  form_fields?: FormField[]
+  order_form?: boolean
+  order_form_fields?: FormField[]
+  show_order_form?: boolean
+  payment_form_fields?: FormField[]
+  completion_days?: number
+  completion_deadline?: string
+  enforce_completion_deadline?: boolean
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,13 +76,23 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     status: 'Draft' as string,
     is_live: false,
     location: '',
+    location_type: 'PAN_INDIA' as 'PAN_INDIA' | 'STATES' | 'CITIES' | 'STORES',
+    target_states: [] as string[],
+    target_cities: [] as string[],
+    store_locations: [] as StoreLocation[],
+    enforce_location: false,
     looking_for: '',
     followers: '',
+    min_followers: '',
+    enforce_followers: false,
     additional_info: '',
     collab_date: '',
     form_link: '',
     order_form: false,
     show_order_form: true,
+    completion_days: '7',
+    completion_deadline: '',
+    enforce_completion_deadline: true,
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
@@ -105,13 +129,23 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         status: data.campaign.status || 'Draft',
         is_live: data.campaign.is_live || false,
         location: data.campaign.location || '',
+        location_type: data.campaign.location_type || 'PAN_INDIA',
+        target_states: data.campaign.target_states || [],
+        target_cities: data.campaign.target_cities || [],
+        store_locations: Array.isArray(data.campaign.store_locations) ? data.campaign.store_locations : [],
+        enforce_location: Boolean(data.campaign.enforce_location),
         looking_for: data.campaign.looking_for || '',
         followers: data.campaign.followers || '',
+        min_followers: data.campaign.min_followers !== undefined && data.campaign.min_followers !== null ? String(data.campaign.min_followers) : '',
+        enforce_followers: Boolean(data.campaign.enforce_followers),
         additional_info: data.campaign.additional_info || '',
         collab_date: data.campaign.collab_date || '',
         form_link: data.campaign.form_link || '',
         order_form: data.campaign.order_form || false,
         show_order_form: data.campaign.show_order_form !== false,
+        completion_days: data.campaign.completion_days !== undefined && data.campaign.completion_days !== null ? String(data.campaign.completion_days) : '7',
+        completion_deadline: data.campaign.completion_deadline ? data.campaign.completion_deadline.split('T')[0] : '',
+        enforce_completion_deadline: data.campaign.enforce_completion_deadline !== false,
       })
       setCustomFields(data.campaign.form_fields || [])
       setOrderFormFields(data.campaign.order_form_fields || [])
@@ -139,13 +173,16 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           ? { type: formData.partial_payment_config.type, value: parseFloat(formData.partial_payment_config.value as string) || 0 }
           : {},
         product_links: formData.product_links
-          ? formData.product_links.split('\n').map(l => l.trim()).filter(Boolean)
+          ? formData.product_links.split('\n').map(l => l.trim()).filter(l => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a')
           : [],
         form_fields: customFields.filter(f => f.name.trim()),
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,
         payment_form_fields: paymentFormFields.filter(f => f.name.trim()),
+        completion_days: formData.completion_days ? parseInt(formData.completion_days, 10) || 7 : 7,
+        completion_deadline: formData.completion_deadline || null,
+        enforce_completion_deadline: formData.enforce_completion_deadline !== false,
       }
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
@@ -276,9 +313,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                    <SelectItem value="Instagram" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Instagram</SelectItem>
-                    <SelectItem value="YouTube" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">YouTube</SelectItem>
-                    <SelectItem value="Amazon" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Amazon</SelectItem>
+                    <SelectItem value="Instagram" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Instagram</SelectItem>
+                    <SelectItem value="YouTube" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">YouTube</SelectItem>
+                    <SelectItem value="Amazon" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Amazon</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -289,9 +326,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                    <SelectItem value="Paid" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Paid</SelectItem>
-                    <SelectItem value="Barter" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Barter</SelectItem>
-                    <SelectItem value="Hybrid" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Hybrid</SelectItem>
+                    <SelectItem value="Paid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid</SelectItem>
+                    <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter</SelectItem>
+                    <SelectItem value="Hybrid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Hybrid</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -302,23 +339,36 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                    <SelectItem value="Any" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Any</SelectItem>
-                    <SelectItem value="Male" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Male</SelectItem>
-                    <SelectItem value="Female" className="focus:bg-indigo-500/30 focus:text-white cursor-pointer py-2.5">Female</SelectItem>
+                    <SelectItem value="Any" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Any</SelectItem>
+                    <SelectItem value="Male" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Male</SelectItem>
+                    <SelectItem value="Female" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Female</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
+            {/* Location & Geographic Targeting Card */}
+            <CampaignLocationPicker
+              locationType={formData.location_type}
+              targetStates={formData.target_states}
+              targetCities={formData.target_cities}
+              storeLocations={formData.store_locations}
+              enforceLocation={formData.enforce_location}
+              locationDisplay={formData.location}
+              onChange={(updates) => {
+                setFormData({
+                  ...formData,
+                  location_type: updates.location_type,
+                  target_states: updates.target_states,
+                  target_cities: updates.target_cities,
+                  store_locations: updates.store_locations,
+                  enforce_location: updates.enforce_location,
+                  location: updates.location,
+                })
+              }}
+            />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Location</Label>
-                <Input
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-                />
-              </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Collab Date / Timeline</Label>
                 <Input
@@ -328,9 +378,6 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                   className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl [color-scheme:dark]"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Looking For</Label>
                 <Input
@@ -339,13 +386,126 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                   className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Followers Required</Label>
-                <Input
-                  value={formData.followers}
-                  onChange={(e) => setFormData({ ...formData, followers: e.target.value })}
-                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-                />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Followers Label / Display</Label>
+              <Input
+                value={formData.followers}
+                onChange={(e) => {
+                  const val = e.target.value
+                  const parsed = parseMinFollowers(val)
+                  setFormData({
+                    ...formData,
+                    followers: val,
+                    min_followers: parsed > 0 ? String(parsed) : formData.min_followers,
+                  })
+                }}
+                placeholder="e.g. 10k+, Above 2k, Any"
+                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+              />
+            </div>
+
+            {/* Followers Minimum Threshold & Strict Control Card */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-400" />
+                    <h4 className="text-sm font-bold text-white">Minimum Follower Eligibility</h4>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Set the exact minimum follower count and choose whether to enforce strictly or allow bypass.
+                  </p>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 mr-1">Presets:</span>
+                  {[
+                    { label: 'Any', count: 0 },
+                    { label: '1K', count: 1000 },
+                    { label: '5K', count: 5000 },
+                    { label: '10K', count: 10000 },
+                    { label: '25K', count: 25000 },
+                    { label: '50K', count: 50000 },
+                    { label: '100K', count: 100000 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          min_followers: String(preset.count),
+                          followers: preset.count > 0 ? `${preset.label}+` : 'Any',
+                        })
+                      }}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                        Number(formData.min_followers) === preset.count
+                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                          : 'bg-slate-900/80 text-slate-400 border-white/10 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-white/5">
+                <div className="space-y-1.5">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Minimum Followers (Exact Number)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.min_followers}
+                    onChange={(e) => setFormData({ ...formData, min_followers: e.target.value })}
+                    placeholder="e.g. 10000"
+                    className="bg-slate-950 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                  />
+                  {Number(formData.min_followers) > 0 && (
+                    <span className="text-[11px] text-indigo-400 font-medium block">
+                      Targeting: {formatFollowerCount(Number(formData.min_followers))} ({Number(formData.min_followers).toLocaleString('en-IN')} followers)
+                    </span>
+                  )}
+                </div>
+
+                {/* Strict Mode Toggle Box */}
+                <div className="flex items-center">
+                  <div 
+                    onClick={() => setFormData({ ...formData, enforce_followers: !formData.enforce_followers })}
+                    className={`w-full p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
+                      formData.enforce_followers
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
+                        : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
+                    }`}
+                  >
+                    <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${
+                      formData.enforce_followers ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-500'
+                    }`}>
+                      {formData.enforce_followers ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">
+                          {formData.enforce_followers ? '🔒 Strict Mode (Enforced)' : '🔓 Flexible / Bypass Allowed'}
+                        </span>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
+                          formData.enforce_followers ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {formData.enforce_followers ? 'Active' : 'Disabled'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                        {formData.enforce_followers
+                          ? 'Creators below this minimum follower count will be strictly blocked from applying.'
+                          : 'Creators with any follower count can apply. Requirement is purely informative.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -464,11 +624,11 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                        <SelectItem value="percentage" className="focus:bg-amber-500/30 focus:text-white cursor-pointer py-2.5">
-                          <span className="flex items-center gap-2"><Percent className="h-3.5 w-3.5" /> Percentage</span>
+                        <SelectItem value="percentage" className="text-slate-100 hover:text-white focus:text-white focus:bg-amber-500/30 cursor-pointer py-2.5 font-medium">
+                          <span className="flex items-center gap-2"><Percent className="h-3.5 w-3.5 text-amber-400" /> Percentage</span>
                         </SelectItem>
-                        <SelectItem value="fixed" className="focus:bg-amber-500/30 focus:text-white cursor-pointer py-2.5">
-                          <span className="flex items-center gap-2"><IndianRupee className="h-3.5 w-3.5" /> Fixed Amount</span>
+                        <SelectItem value="fixed" className="text-slate-100 hover:text-white focus:text-white focus:bg-amber-500/30 cursor-pointer py-2.5 font-medium">
+                          <span className="flex items-center gap-2"><IndianRupee className="h-3.5 w-3.5 text-amber-400" /> Fixed Amount</span>
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -523,6 +683,57 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Completion Timeline & Overdue Enforcement */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-indigo-500/5 to-transparent">
+            <Clock className="h-4 w-4 text-indigo-400" />
+            <h3 className="text-sm font-semibold text-white">Completion Timeline & Overdue Rules</h3>
+          </div>
+          <div className="p-6 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Completion Window (Days after Approval)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="90"
+                  value={formData.completion_days}
+                  onChange={(e) => setFormData({ ...formData, completion_days: e.target.value })}
+                  placeholder="7"
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl"
+                />
+                <p className="text-xs text-slate-500">Default is 7 days. Creators must submit live links within this time.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Fixed End Deadline Date (Optional)</Label>
+                <Input
+                  type="date"
+                  value={formData.completion_deadline}
+                  onChange={(e) => setFormData({ ...formData, completion_deadline: e.target.value })}
+                  className="bg-slate-950/50 border-white/10 text-white h-11 text-sm rounded-xl"
+                />
+                <p className="text-xs text-slate-500">Overrides rolling window if set (hard cut-off date).</p>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <label className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-950/60 border border-white/10 cursor-pointer hover:border-white/20 transition-all">
+                <input
+                  type="checkbox"
+                  checked={formData.enforce_completion_deadline}
+                  onChange={(e) => setFormData({ ...formData, enforce_completion_deadline: e.target.checked })}
+                  className="h-4 w-4 rounded accent-amber-400 bg-slate-900 border-white/20"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-white">Block Overdue Creators from Applying to Other Campaigns</p>
+                  <p className="text-xs text-slate-400">If creator passes deadline without submitting proof, their applications to new campaigns will be locked (unless delay is exempted by Admin).</p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 

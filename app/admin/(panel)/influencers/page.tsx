@@ -1,11 +1,10 @@
-'use client'
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
-  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink
+  XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
+  Tag, Package, Home, Star, FileText, Languages
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -16,6 +15,21 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
+export interface ShippingAddress {
+  id: string
+  title: string
+  recipient_name: string
+  mobile: string
+  address_line1: string
+  address_line2?: string
+  landmark?: string
+  city: string
+  state: string
+  pincode: string
+  delivery_remarks?: string
+  is_default: boolean
+}
+
 interface Influencer {
   id: string
   full_name: string
@@ -24,13 +38,33 @@ interface Influencer {
   mobile: string
   instagram_username: string
   followers: number
+  instagram_profiles?: Array<{
+    id: string
+    username: string
+    normalized_username: string
+    followers: number
+    category?: string
+    profile_pic?: string
+    is_primary: boolean
+  }>
   state: string
   city: string
   gender: string
+  category?: string
+  languages?: string
   profile_strength: number
   account_name?: string
   account_number?: string
   ifsc_code?: string
+  shipping_addresses?: ShippingAddress[]
+  address_remarks?: string
+  dob?: string
+  alt_mobile?: string
+  tshirt_size?: string
+  shoe_size?: string
+  bio?: string
+  youtube?: string
+  custom_attributes?: Record<string, any>
   is_email_verified: boolean
   is_mobile_verified: boolean
   created_at: string
@@ -177,6 +211,40 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                          <p className="text-[10px] text-slate-500 mt-0.5">Gender</p>
                        </div>
                     </div>
+                    <div className="flex items-start gap-3 w-full">
+                       <Tag className="h-4 w-4 text-pink-400 mt-0.5 shrink-0" />
+                       <div className="min-w-0 flex-1 w-full">
+                         <div className="flex flex-wrap gap-1 mt-0.5">
+                           {user.category ? (
+                             user.category.split(',').map(c => c.trim()).filter(Boolean).map(cat => (
+                               <span key={cat} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-pink-500/15 text-pink-300 border border-pink-500/30">
+                                 {cat}
+                               </span>
+                             ))
+                           ) : (
+                             <span className="text-[11px] text-slate-500 italic">No niches specified</span>
+                           )}
+                         </div>
+                         <p className="text-[10px] text-slate-500 mt-1">Content Niches</p>
+                       </div>
+                    </div>
+                    <div className="flex items-start gap-3 w-full">
+                       <Languages className="h-4 w-4 text-indigo-400 mt-0.5 shrink-0" />
+                       <div className="min-w-0 flex-1 w-full">
+                         <div className="flex flex-wrap gap-1 mt-0.5">
+                           {user.languages ? (
+                             user.languages.split(',').map(l => l.trim()).filter(Boolean).map(lang => (
+                               <span key={lang} className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                 {lang}
+                               </span>
+                             ))
+                           ) : (
+                             <span className="text-[11px] text-slate-500 italic">No languages specified</span>
+                           )}
+                         </div>
+                         <p className="text-[10px] text-slate-500 mt-1">Languages Spoken</p>
+                       </div>
+                    </div>
                  </div>
               </div>
 
@@ -184,12 +252,58 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
               <div className="space-y-6 min-w-0 w-full">
                  
                  {/* Social Media */}
-                 <div className="space-y-4 w-full">
-                   <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                      <Instagram className="h-4 w-4 text-pink-400" />
-                      <h3 className="text-sm font-bold text-slate-200">Social Presence</h3>
-                   </div>
-                   {user.instagram_username ? (
+                  <div className="space-y-3 w-full">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-4 w-4 text-pink-400" />
+                        <h3 className="text-sm font-bold text-slate-200">Linked Instagram Profiles</h3>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                        {user.instagram_profiles && user.instagram_profiles.length > 0 ? user.instagram_profiles.length : (user.instagram_username ? 1 : 0)} Linked
+                      </span>
+                    </div>
+
+                    {user.instagram_profiles && user.instagram_profiles.length > 0 ? (
+                      <div className="space-y-2">
+                        {user.instagram_profiles.map((prof) => (
+                          <a
+                            key={prof.id || prof.username}
+                            href={getInstagramUrl(prof.username)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border border-pink-500/30 hover:border-pink-500/60 hover:bg-pink-500/20 rounded-xl p-3 flex items-center gap-3 w-full transition-all cursor-pointer group"
+                          >
+                            <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              prof.is_primary ? 'bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white' : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              <Instagram className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1 w-full">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs font-extrabold text-white break-all whitespace-normal leading-tight group-hover:text-pink-300 transition-colors">
+                                  {getInstagramDisplayHandle(prof.username)}
+                                </p>
+                                {prof.is_primary && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                    Primary
+                                  </span>
+                                )}
+                                <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 opacity-80 group-hover:opacity-100 transition-all" />
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-pink-400">
+                                <span className="font-bold">{prof.followers > 0 ? `${prof.followers.toLocaleString()} Followers` : '0 Followers'}</span>
+                                {prof.category && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-slate-400 truncate">{prof.category}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    ) : user.instagram_username ? (
                       <a
                         href={getInstagramUrl(user.instagram_username)}
                         target="_blank"
@@ -217,7 +331,7 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                         <span>No Instagram handle linked</span>
                       </div>
                     )}
-                 </div>
+                  </div>
 
                  {/* Banking Details */}
                  <div className="space-y-4">
@@ -249,6 +363,64 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                    )}
                  </div>
 
+                 {/* Shipping & Delivery Locations */}
+                 <div className="space-y-4">
+                   <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                      <Package className="h-4 w-4 text-amber-400" />
+                      <h3 className="text-sm font-bold text-slate-200">
+                        Shipping & Delivery Addresses {user.shipping_addresses?.length ? `(${user.shipping_addresses.length})` : ''}
+                      </h3>
+                   </div>
+
+                   {user.shipping_addresses && user.shipping_addresses.length > 0 ? (
+                     <div className="space-y-2.5">
+                       {user.shipping_addresses.map((addr, idx) => (
+                         <div key={addr.id || idx} className={`p-3 rounded-xl border text-xs space-y-1.5 ${addr.is_default ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-800/40 border-white/5'}`}>
+                           <div className="flex items-center justify-between">
+                             <span className="font-bold text-white flex items-center gap-1.5">
+                               {addr.title || 'Address'}
+                               {addr.is_default && (
+                                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold uppercase">
+                                   Primary
+                                 </span>
+                               )}
+                             </span>
+                             {addr.pincode && (
+                               <span className="font-mono text-[11px] bg-slate-900 px-2 py-0.5 rounded text-amber-400 border border-amber-500/20 font-bold">
+                                 PIN: {addr.pincode}
+                               </span>
+                             )}
+                           </div>
+
+                           <p className="text-slate-300 font-medium">
+                             {addr.recipient_name} {addr.mobile ? `• ${addr.mobile}` : ''}
+                           </p>
+
+                           <p className="text-slate-400 leading-relaxed">
+                             {addr.address_line1} {addr.address_line2 ? `, ${addr.address_line2}` : ''}
+                             {addr.landmark ? ` (Landmark: ${addr.landmark})` : ''}
+                             {` — ${addr.city}, ${addr.state}`}
+                           </p>
+
+                           {addr.delivery_remarks && (
+                             <p className="text-[11px] text-amber-300/90 italic bg-slate-900/50 p-1.5 rounded border border-amber-500/10">
+                               <strong>Remark:</strong> {addr.delivery_remarks}
+                             </p>
+                           )}
+                         </div>
+                       ))}
+                     </div>
+                   ) : user.address_remarks ? (
+                     <div className="p-3 bg-slate-800/40 border border-white/5 rounded-xl text-xs text-slate-300 whitespace-pre-line leading-relaxed">
+                       {user.address_remarks}
+                     </div>
+                   ) : (
+                     <div className="bg-slate-800/40 border border-white/5 border-dashed rounded-xl p-3.5 text-center text-xs text-slate-400">
+                       No delivery addresses registered
+                     </div>
+                   )}
+                 </div>
+
               </div>
            </div>
         </div>
@@ -269,6 +441,7 @@ export default function InfluencersDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounceValue(searchQuery, 400)
   const [genderFilter, setGenderFilter] = useState('All')
+  const [categoryFilter, setCategoryFilter] = useState('All')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'created_at', direction: 'desc' })
@@ -284,6 +457,7 @@ export default function InfluencersDirectoryPage() {
         limit: pageSize.toString(),
         search: debouncedSearch,
         gender: genderFilter !== 'All' ? genderFilter : '',
+        category: categoryFilter !== 'All' ? categoryFilter : '',
         sort: sortConfig.column,
         order: sortConfig.direction
       })
@@ -299,7 +473,7 @@ export default function InfluencersDirectoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, pageSize, debouncedSearch, genderFilter, sortConfig])
+  }, [currentPage, pageSize, debouncedSearch, genderFilter, categoryFilter, sortConfig])
 
   useEffect(() => {
     fetchInfluencers()
@@ -308,7 +482,7 @@ export default function InfluencersDirectoryPage() {
   // Reset to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearch, genderFilter, pageSize])
+  }, [debouncedSearch, genderFilter, categoryFilter, pageSize])
 
   const handleSort = (column: string) => {
     setSortConfig(prev => ({
@@ -320,13 +494,12 @@ export default function InfluencersDirectoryPage() {
   const exportCSV = () => {
     if (influencers.length === 0) return toast.error('No data to export')
     
-    // In a real app, you might want to fetch all pages for export, 
-    // but here we export current view for simplicity.
     const csvRows: string[] = []
-    const headers = ['ID', 'Name', 'Email', 'Mobile', 'Instagram', 'Followers', 'Location', 'Gender', 'Profile Strength', 'Verified', 'Joined']
+    const headers = ['ID', 'Name', 'Email', 'Mobile', 'Instagram', 'Followers', 'Niches / Categories', 'Languages', 'Location', 'Primary PIN', 'Delivery Addresses Remarks', 'Gender', 'Profile Strength', 'Verified', 'Joined']
     csvRows.push(headers.join(','))
 
     for (const u of influencers) {
+      const defaultAddr = u.shipping_addresses?.find(a => a.is_default) || u.shipping_addresses?.[0]
       const row = [
         `"${u.influencer_id}"`,
         `"${u.full_name}"`,
@@ -334,7 +507,11 @@ export default function InfluencersDirectoryPage() {
         `"${u.mobile}"`,
         `"${getInstagramDisplayHandle(u.instagram_username)}"`,
         u.followers,
+        `"${u.category || ''}"`,
+        `"${u.languages || ''}"`,
         `"${u.city ? u.city + ', ' : ''}${u.state || ''}"`,
+        `"${defaultAddr?.pincode || ''}"`,
+        `"${(u.address_remarks || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`,
         `"${u.gender || ''}"`,
         `"${u.profile_strength}%"`,
         `"${u.is_email_verified ? 'Yes' : 'No'}"`,
@@ -438,15 +615,38 @@ export default function InfluencersDirectoryPage() {
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
            {['All', 'Male', 'Female'].map(g => (
              <button key={g} onClick={() => setGenderFilter(g)}
-              className={`px-4 h-11 rounded-xl text-sm font-medium border transition-all ${
+              className={`px-3.5 h-11 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                 genderFilter === g ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
               }`}>
                {g}
              </button>
            ))}
+
+           {/* Category / Niche Filter */}
+           <div className="relative">
+             <select
+               value={categoryFilter}
+               onChange={(e) => setCategoryFilter(e.target.value)}
+               className="px-3.5 h-11 rounded-xl text-xs font-medium border border-white/5 bg-slate-900/50 text-slate-300 hover:bg-slate-900/80 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer pr-8 appearance-none"
+             >
+               <option value="All" className="bg-slate-900 text-white">All Niches</option>
+               <option value="Fashion" className="bg-slate-900 text-white">Fashion & Style</option>
+               <option value="Beauty" className="bg-slate-900 text-white">Beauty & Skincare</option>
+               <option value="Fitness" className="bg-slate-900 text-white">Fitness & Health</option>
+               <option value="Food" className="bg-slate-900 text-white">Food & Cooking</option>
+               <option value="Travel" className="bg-slate-900 text-white">Travel & Adventure</option>
+               <option value="Tech" className="bg-slate-900 text-white">Tech & Gadgets</option>
+               <option value="Gaming" className="bg-slate-900 text-white">Gaming</option>
+               <option value="Lifestyle" className="bg-slate-900 text-white">Lifestyle</option>
+               <option value="Entertainment" className="bg-slate-900 text-white">Entertainment</option>
+               <option value="Photography" className="bg-slate-900 text-white">Photography</option>
+               <option value="Education" className="bg-slate-900 text-white">Education</option>
+             </select>
+             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+           </div>
         </div>
       </div>
 
@@ -523,6 +723,20 @@ export default function InfluencersDirectoryPage() {
                                </span>
                              </p>
                              <p className="text-[11px] text-slate-500 font-mono mt-0.5">{user.influencer_id}</p>
+                             {user.category && (
+                               <div className="flex flex-wrap gap-1 mt-1">
+                                 {user.category.split(',').map(c => c.trim()).filter(Boolean).slice(0, 2).map(cat => (
+                                   <span key={cat} className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-pink-500/10 text-pink-300 border border-pink-500/20 truncate max-w-[100px]">
+                                     {cat}
+                                   </span>
+                                 ))}
+                                 {user.category.split(',').map(c => c.trim()).filter(Boolean).length > 2 && (
+                                   <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-slate-800 text-slate-400">
+                                     +{user.category.split(',').map(c => c.trim()).filter(Boolean).length - 2}
+                                   </span>
+                                 )}
+                               </div>
+                             )}
                            </div>
                          </div>
                        </td>
@@ -544,17 +758,24 @@ export default function InfluencersDirectoryPage() {
                           <div className="flex items-center gap-2 text-[12px] text-slate-300 mb-1">
                             <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
                             {user.instagram_username ? (
-                              <a
-                                href={getInstagramUrl(user.instagram_username)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="truncate font-semibold text-slate-200 hover:text-pink-400 hover:underline transition-colors flex items-center gap-1"
-                                title={getInstagramDisplayHandle(user.instagram_username)}
-                              >
-                                <span>{getInstagramDisplayHandle(user.instagram_username)}</span>
-                                <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline" />
-                              </a>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <a
+                                  href={getInstagramUrl(user.instagram_username)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="truncate font-semibold text-slate-200 hover:text-pink-400 hover:underline transition-colors flex items-center gap-1"
+                                  title={getInstagramDisplayHandle(user.instagram_username)}
+                                >
+                                  <span>{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                  <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline" />
+                                </a>
+                                {user.instagram_profiles && user.instagram_profiles.length > 1 && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 border border-pink-500/40 shrink-0">
+                                    +{user.instagram_profiles.length - 1}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="truncate text-slate-500">N/A</span>
                             )}

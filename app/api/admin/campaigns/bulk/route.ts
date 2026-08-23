@@ -56,9 +56,12 @@ export async function POST(request: Request) {
       const budget_amount = parseFloat(item.budget_amount) || 0
       const partial_payment_enabled = item.partial_payment_enabled === true || item.partial_payment_enabled === 'true'
       const deliverables = item.deliverables?.toString().trim() || null
-      const product_links = Array.isArray(item.product_links) 
+      const rawProductLinks = Array.isArray(item.product_links) 
         ? item.product_links 
-        : (item.product_links ? [item.product_links.toString()] : [])
+        : (item.product_links ? item.product_links.toString().split('\n') : [])
+      const product_links = rawProductLinks
+        .map((l: any) => (typeof l === 'string' ? l.trim() : ''))
+        .filter((l: string) => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a')
       const requirements = item.requirements?.toString().trim() || null
       const gender_required = item.gender_required?.toString().trim() || 'Any'
       const location = item.location?.toString().trim() || null
