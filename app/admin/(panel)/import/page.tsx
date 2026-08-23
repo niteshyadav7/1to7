@@ -9,6 +9,7 @@ import {
   Users, UserPlus, RefreshCw, Info, X, Search, Eye,
   FileUp, Sparkles, ShieldCheck, ArrowLeft
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -65,10 +66,17 @@ const COLUMN_MAP: Record<string, string> = {
   'phone number': 'mobile',
   'contact': 'mobile',
   'contact number': 'mobile',
+  'whatsapp': 'mobile',
+  'whatsapp number': 'mobile',
+  'mobile number / whatsapp': 'mobile',
+  'phone no': 'mobile',
   'name': 'full_name',
   'full name': 'full_name',
   'full_name': 'full_name',
   'influencer name': 'full_name',
+  'your name': 'full_name',
+  'creator name': 'full_name',
+  'what is your name?': 'full_name',
   'email': 'email',
   'email id': 'email',
   'email address': 'email',
@@ -80,9 +88,14 @@ const COLUMN_MAP: Record<string, string> = {
   'insta': 'instagram_username',
   'ig handle': 'instagram_username',
   'ig': 'instagram_username',
+  'instagram handle': 'instagram_username',
+  'instagram profile link': 'instagram_username',
+  'instagram link': 'instagram_username',
+  'paste your instagram link': 'instagram_username',
   'followers': 'followers',
   'follower count': 'followers',
   'follower': 'followers',
+  'approx followers': 'followers',
   'gender': 'gender',
   'state': 'state',
   'city': 'city',
@@ -97,6 +110,9 @@ const COLUMN_MAP: Record<string, string> = {
   'final payment': 'final_payment',
   'final_payment': 'final_payment',
   'amount': 'final_payment',
+  'agreed commercial': 'final_payment',
+  'commercial quote': 'final_payment',
+  'deal amount': 'final_payment',
   'pending amount': 'pending_amount',
   'pending_amount': 'pending_amount',
   'order id': 'order_id',
@@ -106,9 +122,12 @@ const COLUMN_MAP: Record<string, string> = {
   'account number': 'account_number',
   'account_number': 'account_number',
   'account no': 'account_number',
+  'bank a/c no': 'account_number',
+  'bank account number': 'account_number',
   'ifsc': 'ifsc_code',
   'ifsc code': 'ifsc_code',
   'ifsc_code': 'ifsc_code',
+  'bank ifsc': 'ifsc_code',
   'category': 'category',
 }
 
@@ -498,15 +517,71 @@ export default function ImportPage() {
   }, [parsedRows, previewSearch])
 
   // ─── Download template CSV ─────────────────────────────
-  const downloadTemplate = () => {
-    const template = 'Mobile,Full Name,Email,Instagram Username,Followers,Gender,State,City,Status\n9876543210,John Doe,john@example.com,@johndoe,15000,Male,Maharashtra,Mumbai,Approved\n'
-    const blob = new Blob([template], { type: 'text/csv' })
+  // ─── Download dynamic template CSV based on selected campaign ───
+  const downloadTemplate = async () => {
+    let headers = [
+      'Full Name',
+      'Mobile Number',
+      'Email',
+      'Instagram Username',
+      'Followers',
+      'Gender',
+      'State',
+      'City',
+      'Status',
+    ]
+
+    let sampleRow: Record<string, string> = {
+      'Full Name': 'Pooja Sharma',
+      'Mobile Number': '9876543210',
+      'Email': 'pooja.sharma@example.com',
+      'Instagram Username': '@poojasharma',
+      'Followers': '45000',
+      'Gender': 'Female',
+      'State': 'Maharashtra',
+      'City': 'Mumbai',
+      'Status': 'Approved',
+    }
+
+    if (selectedCampaign) {
+      try {
+        const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}`)
+        const data = await res.json()
+        const camp = data.campaign || {}
+
+        // Add custom fields
+        if (Array.isArray(camp.custom_fields) && camp.custom_fields.length > 0) {
+          camp.custom_fields.forEach((field: any) => {
+            const fName = field.name || field.label || 'Custom Field'
+            if (!headers.includes(fName)) {
+              headers.push(fName)
+              sampleRow[fName] = field.type === 'select' && field.options?.[0] ? field.options[0] : 'Sample Response'
+            }
+          })
+        }
+
+        // Add commercial & bank fields for paid campaigns
+        headers.push('Agreed Commercial', 'Bank Account Number', 'IFSC Code', 'Account Holder Name')
+        sampleRow['Agreed Commercial'] = '5000'
+        sampleRow['Bank Account Number'] = '987654321098'
+        sampleRow['IFSC Code'] = 'HDFC0001234'
+        sampleRow['Account Holder Name'] = 'Pooja Sharma'
+      } catch {
+        // Fallback to standard custom headers
+        headers.push('Agreed Commercial', 'Bank Account Number', 'IFSC Code')
+      }
+    }
+
+    const csvData = [sampleRow]
+    const csv = Papa.unparse({ fields: headers, data: csvData })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'import_template.csv'
+    a.download = `Template_${selectedCampaign ? selectedCampaign.campaign_code : 'Influencer_Import'}.csv`
     a.click()
     URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${selectedCampaign ? selectedCampaign.campaign_code : 'General'} CSV template!`)
   }
 
   // ─── Download failed / error rows as CSV ─────────────────
@@ -837,9 +912,31 @@ export default function ImportPage() {
                 )}
 
                 <h2 className="text-lg font-bold text-white mb-1">Upload CSV File</h2>
-                <p className="text-sm text-slate-400 mb-6">
-                  Upload the Google Sheet / Excel export as a .csv file. The system will auto-detect columns.
+                <p className="text-sm text-slate-400 mb-4">
+                  Upload your Google Sheet / Form export as a .csv file. Columns will be auto-mapped to profile & custom campaign fields.
                 </p>
+
+                {/* Template Download Card */}
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2.5">
+                    <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
+                    <div>
+                      <p className="text-xs font-bold text-white">
+                        {selectedCampaign ? `${selectedCampaign.brand_name} Template` : 'Standard Import Template'}
+                      </p>
+                      <p className="text-[10px] text-slate-400">Pre-formatted CSV with all required & custom fields</p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={downloadTemplate}
+                    className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm flex items-center gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download CSV
+                  </Button>
+                </div>
 
                 {/* Drop Zone */}
                 <div

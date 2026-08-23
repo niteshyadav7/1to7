@@ -3,11 +3,13 @@
 import { useState, useEffect, use } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import Papa from 'papaparse'
 import {
   ArrowLeft, Loader2, CheckCircle2, XCircle, Send,
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
   IndianRupee, Phone, Save, Search, Clock, RotateCcw, Trash2,
-  History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle
+  History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle,
+  Share2, Download, CheckSquare, Square, Tag, RefreshCw
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,6 +19,7 @@ import { toast } from 'sonner'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
 import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
+import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
 
 interface UserInfo {
   id: string
@@ -97,6 +100,83 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   const [selectedRevokeReason, setSelectedRevokeReason] = useState('Accidental approval / Selection misclick')
   const [customRevokeReason, setCustomRevokeReason] = useState('')
   const [sendRevokeEmail, setSendRevokeEmail] = useState(false)
+  const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
+
+  // ─── Sprint 5: Sent to Brand Batch Tracker States ─────────
+  const [brandSentFilter, setBrandSentFilter] = useState<'all' | 'sent' | 'not_sent'>('all')
+  const [selectedAppIds, setSelectedAppIds] = useState<string[]>([])
+  const [showSentModal, setShowSentModal] = useState(false)
+  const [batchLabel, setBatchLabel] = useState('')
+  const [batchNotes, setBatchNotes] = useState('')
+  const [markingSent, setMarkingSent] = useState(false)
+
+  const handleBatchSentToBrand = async (action: 'mark_sent' | 'unmark_sent' = 'mark_sent', targetIds?: string[]) => {
+    const ids = targetIds || selectedAppIds
+    if (ids.length === 0) {
+      toast.error('Please select at least one applicant profile')
+      return
+    }
+
+    setMarkingSent(true)
+    try {
+      const res = await fetch('/api/admin/applications/sent-to-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: ids,
+          batch_label: batchLabel.trim() || undefined,
+          notes: batchNotes.trim() || undefined,
+          action,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update status')
+
+      toast.success(data.message)
+      setShowSentModal(false)
+      setSelectedAppIds([])
+      setBatchLabel('')
+      setBatchNotes('')
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update Sent to Brand status')
+    } finally {
+      setMarkingSent(false)
+    }
+  }
+
+  const handleExportBrandCSV = (appsToExport: Application[]) => {
+    if (appsToExport.length === 0) {
+      toast.error('No applicant profiles to export')
+      return
+    }
+
+    const exportData = appsToExport.map((a, idx) => ({
+      'Sr No': idx + 1,
+      'Creator Name': a.users?.full_name || '',
+      'User ID': a.users?.influencer_id || '',
+      'Instagram Handle': a.users?.instagram_username ? getInstagramDisplayHandle(a.users.instagram_username) : '',
+      'Instagram URL': a.users?.instagram_username ? getInstagramUrl(a.users.instagram_username) : '',
+      'Followers': a.users?.followers || 0,
+      'City': a.users?.city || '',
+      'State': a.users?.state || '',
+      'Gender': a.users?.gender || '',
+      'Application Status': a.status || '',
+      'Commercial Quote (INR)': a.form_data?.agreed_commercial || a.form_data?.commercial_amount || a.form_data?.total_deal || '',
+      'Sent to Brand Status': a.form_data?.sent_to_brand?.is_sent ? `Sent (${a.form_data.sent_to_brand.batch_label || 'Batch'})` : 'Not Sent',
+      'Sent Date': a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
+    }))
+
+    const csv = Papa.unparse(exportData)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Brand_Profiles_${campaign?.campaign_code || 'Export'}_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${appsToExport.length} creator profiles to CSV!`)
+  }
 
   const updateApplicationTimeline = async (
     appId: string,
@@ -260,12 +340,20 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
     return <GlobalLoader text="Loading Applications..." />
   }
 
+  const sentCount = applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length
+  const unsharedCount = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length
+
   const filtered = applications.filter(a => {
     const matchesFilter = activeFilter === 'All' || a.status === activeFilter
+    const matchesBrandSent =
+      brandSentFilter === 'all' ? true :
+      brandSentFilter === 'sent' ? Boolean(a.form_data?.sent_to_brand?.is_sent) :
+      !a.form_data?.sent_to_brand?.is_sent
+
     const user = a.users
     const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email}`.toLowerCase()
     const matchesSearch = searchString.includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesSearch
+    return matchesFilter && matchesBrandSent && matchesSearch
   })
 
   return (
@@ -324,13 +412,95 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         </div>
       </div>
 
+      {/* ─── Sprint 5: Sent to Brand Batch Tracker Bar & Bulk Action Hub ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/70 border border-white/10 backdrop-blur-xl shadow-lg">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+            <Share2 className="h-3.5 w-3.5 text-purple-400" />
+            Brand Shared Tracker:
+          </span>
+          <button
+            onClick={() => setBrandSentFilter('all')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              brandSentFilter === 'all'
+                ? 'bg-slate-800 text-white border border-white/15'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            All ({applications.length})
+          </button>
+          <button
+            onClick={() => setBrandSentFilter('sent')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              brandSentFilter === 'sent'
+                ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm'
+                : 'text-purple-400/80 hover:text-purple-300'
+            }`}
+          >
+            📤 Sent to Brand ({sentCount})
+          </button>
+          <button
+            onClick={() => setBrandSentFilter('not_sent')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              brandSentFilter === 'not_sent'
+                ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40 shadow-sm'
+                : 'text-amber-400/80 hover:text-amber-300'
+            }`}
+          >
+            🆕 Unshared Profiles ({unsharedCount})
+          </button>
+        </div>
+
+        {/* Selection & Export Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => {
+              if (selectedAppIds.length === filtered.length && filtered.length > 0) {
+                setSelectedAppIds([])
+              } else {
+                setSelectedAppIds(filtered.map(a => a.id))
+              }
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 cursor-pointer border border-white/5 transition-all"
+          >
+            {selectedAppIds.length === filtered.length && filtered.length > 0 ? (
+              <CheckSquare className="h-3.5 w-3.5 text-indigo-400" />
+            ) : (
+              <Square className="h-3.5 w-3.5 text-slate-400" />
+            )}
+            {selectedAppIds.length === filtered.length && filtered.length > 0 ? 'Deselect All' : `Select All (${filtered.length})`}
+          </button>
+
+          {selectedAppIds.length > 0 && (
+            <button
+              onClick={() => {
+                setBatchLabel(`Batch #${Math.floor(Date.now() / 100000) % 100} - ${selectedAppIds.length} Profiles`)
+                setShowSentModal(true)
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 cursor-pointer transition-all animate-pulse"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Mark {selectedAppIds.length} as Sent to Brand
+            </button>
+          )}
+
+          <button
+            onClick={() => handleExportBrandCSV(selectedAppIds.length > 0 ? applications.filter(a => selectedAppIds.includes(a.id)) : filtered)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 cursor-pointer transition-all"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export Brand Sheet ({selectedAppIds.length > 0 ? selectedAppIds.length : filtered.length})
+          </button>
+        </div>
+      </div>
+
       {/* Applications */}
       {filtered.length === 0 ? (
         <div className="text-center py-20">
           <Send className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-400">No applications found</h3>
           <p className="text-sm text-slate-500 mt-2">
-            {activeFilter !== 'All' || searchQuery ? 'Try a different filter or search query' : 'Applications will appear here when influencers apply'}
+            {activeFilter !== 'All' || brandSentFilter !== 'all' || searchQuery ? 'Try a different filter or search query' : 'Applications will appear here when influencers apply'}
           </p>
         </div>
       ) : (
@@ -357,7 +527,25 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-white/[0.02] transition-colors"
                   onClick={() => setExpandedId(isExpanded ? null : app.id)}
                 >
-                  <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Selection Checkbox */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedAppIds(prev =>
+                          prev.includes(app.id) ? prev.filter(id => id !== app.id) : [...prev, app.id]
+                        )
+                      }}
+                      className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                    >
+                      {selectedAppIds.includes(app.id) ? (
+                        <CheckSquare className="h-4 w-4 text-indigo-400" />
+                      ) : (
+                        <Square className="h-4 w-4 text-slate-600 hover:text-slate-400" />
+                      )}
+                    </button>
+
                     {user?.profile_photo || user?.instagram_profile_pic ? (
                       <img
                         src={user.profile_photo || user.instagram_profile_pic}
@@ -428,7 +616,19 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+                    {/* Sent to Brand Badge */}
+                    {app.form_data?.sent_to_brand?.is_sent ? (
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                        <Share2 className="h-3 w-3 text-purple-400" />
+                        Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})
+                      </span>
+                    ) : (
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                        🆕 Unshared
+                      </span>
+                    )}
+
                     <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                       {app.status}
                     </span>
@@ -678,9 +878,111 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                       </div>
                     )}
 
+                    {/* Negotiation Status Card */}
+                    {app.form_data?.negotiation?.status === 'pending_peer_approval' && (
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                            Negotiated Deal: ₹{Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Awaiting Colleague Approval)
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            By <strong className="text-white">{app.form_data.negotiation.proposed_by_name}</strong>
+                          </span>
+                        </div>
+                        {app.form_data.negotiation.notes && (
+                          <p className="text-xs text-slate-300 italic">
+                            "{app.form_data.negotiation.notes}"
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            type="button"
+                            onClick={() => setNegotiationModalApp(app)}
+                            className="h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs cursor-pointer shadow-sm"
+                          >
+                            <IndianRupee className="mr-1 h-3.5 w-3.5" />
+                            Review / Approve Deal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sprint 5: Sent to Brand Quick Tracker Box */}
+                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/10 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`p-2 rounded-lg ${app.form_data?.sent_to_brand?.is_sent ? 'bg-purple-500/20 text-purple-300' : 'bg-slate-800 text-slate-400'}`}>
+                          <Share2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-white flex items-center gap-2">
+                            {app.form_data?.sent_to_brand?.is_sent
+                              ? `📤 Sent to Brand: ${app.form_data.sent_to_brand.batch_label || 'Batch'}`
+                              : '🆕 Profile Not Shared with Brand Yet'}
+                            {app.form_data?.sent_to_brand?.is_sent && (
+                              <span className="text-[10px] font-normal text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded-full border border-purple-500/30">
+                                Logged by {app.form_data.sent_to_brand.sent_by || 'Admin'}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {app.form_data?.sent_to_brand?.is_sent
+                              ? `Dispatched to brand on ${new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                              : 'Keep track of new applications received after sending previous batches to the brand.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {app.form_data?.sent_to_brand?.is_sent ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleBatchSentToBrand('unmark_sent', [app.id])
+                            }}
+                            disabled={markingSent}
+                            className="h-8 text-xs border-white/10 text-slate-400 hover:text-white cursor-pointer"
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Reset Sent Status
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleBatchSentToBrand('mark_sent', [app.id])
+                            }}
+                            disabled={markingSent}
+                            className="h-8 text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold cursor-pointer shadow-md shadow-purple-600/20"
+                          >
+                            <Share2 className="h-3 w-3 mr-1" />
+                            Mark as Sent to Brand
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[11px] text-slate-400 mr-1 font-medium">Update Status:</span>
+
+                      {/* Negotiate Commercial Button */}
+                      <Button
+                        size="sm"
+                        type="button"
+                        onClick={() => setNegotiationModalApp(app)}
+                        className="h-9 px-3.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-semibold cursor-pointer"
+                      >
+                        <IndianRupee className="mr-1.5 h-3.5 w-3.5 text-amber-400" />
+                        {app.form_data?.negotiation?.proposed_amount
+                          ? `Deal: ₹${Number(app.form_data.negotiation.proposed_amount).toLocaleString()}`
+                          : 'Negotiate Deal'}
+                      </Button>
 
                       {app.status !== 'Under Process' && (
                         <Button
@@ -1069,6 +1371,104 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
           </div>
         )}
       </AnimatePresence>
+
+      {/* Sprint 5: Sent to Brand Batch Assignment Modal */}
+      <AnimatePresence>
+        {showSentModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    <Share2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Mark as Sent to Brand</h3>
+                    <p className="text-[11px] text-slate-400">
+                      Batch tagging <strong className="text-white">{selectedAppIds.length} creator profiles</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSentModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs">
+                <p className="text-slate-300 leading-relaxed">
+                  Assign a batch name or date label so your team knows these creators have already been submitted to the client brand. Newly arrived profiles in the future will automatically stand out as <strong>Unshared</strong>.
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Batch Label / Shortlist Name</Label>
+                  <Input
+                    value={batchLabel}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBatchLabel(e.target.value)}
+                    placeholder="e.g. Batch #1 - Morning Shortlist (50 creators)"
+                    className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Notes / Client Feedback Reference (Optional)</Label>
+                  <Input
+                    value={batchNotes}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBatchNotes(e.target.value)}
+                    placeholder="e.g. Emailed to Brand POC Rajesh on 23rd Aug"
+                    className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSentModal(false)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleBatchSentToBrand('mark_sent')}
+                  disabled={markingSent}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold cursor-pointer shadow-md shadow-purple-500/20"
+                >
+                  {markingSent ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Tagging Batch...
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      Confirm & Tag Batch
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <CommercialNegotiationModal
+        isOpen={Boolean(negotiationModalApp)}
+        onClose={() => setNegotiationModalApp(null)}
+        application={negotiationModalApp}
+        onSuccess={fetchApplications}
+      />
     </div>
   )
 }

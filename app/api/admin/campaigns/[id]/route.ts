@@ -55,7 +55,7 @@ export async function PUT(
       'collab_date', 'form_link', 'form_fields',
       'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
-      'display_order'
+      'display_order', 'brief_document_url'
     ]
 
     const updates: Record<string, any> = {}

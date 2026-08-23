@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { getApplicationCommercialAmount } from '@/lib/utils/commercial-utils'
 
 interface PaymentFormModalProps {
   isOpen: boolean
@@ -99,13 +100,13 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
       }
     }
 
+    const totalDeal = getApplicationCommercialAmount(application)
+    const currentReceived = (application?.partial_payment || 0) + (application?.final_payment || 0)
+    const remainingBalance = totalDeal > 0 ? Math.max(0, totalDeal - currentReceived) : (application?.pending_amount || 0)
     const requestedAmount = parseFloat(formData.payment_amount) || 0
-    const totalDeal = application?.form_data?.total_deal 
-      ? Number(application.form_data.total_deal)
-      : ((application?.partial_payment || 0) + (application?.final_payment || 0) + (application?.pending_amount || 0))
     
-    if (totalDeal > 0 && requestedAmount > totalDeal) {
-      toast.error(`Please enter an amount less than or equal to the Total Deal amount (₹${totalDeal.toLocaleString()})`)
+    if (remainingBalance > 0 && requestedAmount > remainingBalance) {
+      toast.error(`Please enter an amount less than or equal to your remaining payable balance (₹${remainingBalance.toLocaleString()})`)
       return
     }
 

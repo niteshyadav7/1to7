@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { getApplicationCommercialAmount } from '@/lib/utils/commercial-utils'
 
 export async function PUT(
   request: Request,
@@ -26,7 +27,7 @@ export async function PUT(
     // Verify ownership
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('user_id, form_data, pending_amount, partial_payment, final_payment')
+      .select('user_id, form_data, pending_amount, partial_payment, final_payment, commercial_amount, campaigns(commercial_amount)')
       .eq('id', id)
       .single()
 
@@ -40,30 +41,33 @@ export async function PUT(
 
     // Merge payment request into form_data
     const currentFormData = application.form_data || {}
-    // Calculate and preserve the actual Total Deal BEFORE mutating pending_amount
-    const oldPending = application.pending_amount || 0;
+    // Calculate and preserve the immutable true Total Deal
+    const resolvedTotalDeal = getApplicationCommercialAmount(application)
     const existingTotalDeal = currentFormData.total_deal 
       ? parseFloat(currentFormData.total_deal) 
-      : (oldPending + (application.partial_payment || 0) + (application.final_payment || 0));
+      : resolvedTotalDeal
 
     const updatedFormData = {
       ...currentFormData,
-      total_deal: existingTotalDeal, // Securely lock in the Total Deal so it doesn't mutate
+      total_deal: existingTotalDeal > 0 ? existingTotalDeal : resolvedTotalDeal,
       payment_request: {
         ...body,
         submitted_at: new Date().toISOString(),
       }
     }
 
-    // Now safely mutate pending_amount to the requested amount (capped by Total Deal)
-    let newPending = oldPending;
-    const requestedAmount = parseFloat(body.payment_amount) || 0;
-    
+    const currentReceived = (application.partial_payment || 0) + (application.final_payment || 0)
+    const actualDeal = existingTotalDeal > 0 ? existingTotalDeal : resolvedTotalDeal
+    const maxRemaining = Math.max(0, actualDeal - currentReceived)
+
+    // Safely cap pending_amount to the remaining balance
+    const requestedAmount = parseFloat(body.payment_amount) || 0
+    let newPending = maxRemaining > 0 ? maxRemaining : application.pending_amount || 0
     if (requestedAmount > 0) {
-      if (existingTotalDeal > 0) {
-        newPending = Math.min(requestedAmount, existingTotalDeal);
+      if (maxRemaining > 0) {
+        newPending = Math.min(requestedAmount, maxRemaining)
       } else {
-        newPending = requestedAmount;
+        newPending = requestedAmount
       }
     }
 

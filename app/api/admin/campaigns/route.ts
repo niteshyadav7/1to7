@@ -93,6 +93,7 @@ export async function POST(request: Request) {
       order_form_fields,
       show_order_form,
       payment_form_fields,
+      brief_document_url,
       completion_days,
       completion_deadline,
       enforce_completion_deadline,
@@ -127,9 +128,9 @@ export async function POST(request: Request) {
         looking_for, followers, min_followers, enforce_followers, additional_info, 
         collab_date, form_link, form_fields, order_form, 
         order_form_fields, show_order_form, payment_form_fields, status, is_live, 
-        completion_days, completion_deadline, enforce_completion_deadline, display_order
+        completion_days, completion_deadline, enforce_completion_deadline, display_order, brief_document_url
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37
       ) RETURNING *
     `
     const values = [
@@ -169,6 +170,7 @@ export async function POST(request: Request) {
       completion_deadline || null,
       enforce_completion_deadline !== false,
       targetOrder,
+      brief_document_url || null,
     ]
 
     const res = await client.query(query, values)

@@ -22,6 +22,7 @@ import {
   Sliders,
   ShieldAlert,
   ArrowLeft,
+  IndianRupee,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -54,7 +55,8 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard, moduleKey: 'payments' },
+  { href: '/admin/finance', label: 'Finance Payouts', icon: IndianRupee, moduleKey: 'payments' },
+  { href: '/admin/payments', label: 'Payment Desk', icon: CreditCard, moduleKey: 'payments' },
   { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart, moduleKey: 'feedback' },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
   { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
@@ -68,6 +70,7 @@ function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname.startsWith('/admin/campaigns')) return 'campaigns'
   if (pathname.startsWith('/admin/applications')) return 'applications'
   if (pathname.startsWith('/admin/order-details')) return 'order_details'
+  if (pathname.startsWith('/admin/finance')) return 'payments'
   if (pathname.startsWith('/admin/payments')) return 'payments'
   if (pathname.startsWith('/admin/feedback')) return 'feedback'
   if (pathname.startsWith('/admin/analytics')) return 'analytics'

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Loader2, CreditCard, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
 import { useRealtime } from '@/hooks/useRealtime'
 import BrandLoader from '@/components/ui/BrandLoader'
+import { getApplicationCommercialAmount, isPaidCollaboration } from '@/lib/utils/commercial-utils'
 
 interface Application {
   id: string
@@ -105,15 +106,14 @@ export default function ApprovedCampaignsPage() {
           {applications.map((app, i) => {
             const campCode = app.campaigns?.campaign_code || app.id.split('-')[0].toUpperCase()
             const brandName = app.campaigns?.brand_name || 'Brand'
-            const totalDeal = app?.form_data?.total_deal
-              ? Number(app.form_data.total_deal)
-              : ((app?.partial_payment || 0) + (app?.final_payment || 0) + (app?.pending_amount || 0))
+            const totalDeal = getApplicationCommercialAmount(app)
+            const isPaid = isPaidCollaboration(app)
             const received = (app.partial_payment || 0) + (app.final_payment || 0)
             const hasRequested = !!app?.form_data?.payment_request
-            const pending = hasRequested ? (app.pending_amount || 0) : 0
+            const pending = hasRequested ? (app.pending_amount || 0) : Math.max(0, totalDeal - received)
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
             const statusDisplay = progress >= 100 ? 'FULLY PAID' :
-              app.status === 'Approved' ? 'APPROVED - AWAITING ACTION' :
+              app.status === 'Approved' ? 'APPROVED - ACTIVE' :
                 app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' :
                   app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
 

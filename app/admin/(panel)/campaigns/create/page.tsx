@@ -7,7 +7,7 @@ import {
   ArrowLeft, Check, Loader2, Save, Megaphone,
   FileSliders, ClipboardList, Wallet, CreditCard, Sparkles,
   Percent, IndianRupee, Layers, CheckCircle2, AlertCircle,
-  RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock
+  RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock, FileText
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -59,6 +59,7 @@ export default function AdminCreateCampaignPage() {
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
+    brief_document_url: '',
   })
 
   const [customFields, setCustomFields] = useState<FormField[]>([])
@@ -146,6 +147,7 @@ export default function AdminCreateCampaignPage() {
       completion_days: '7',
       completion_deadline: '',
       enforce_completion_deadline: true,
+      brief_document_url: '',
     })
     setLastSavedTime(null)
     toast.success('Draft cleared. Starting fresh!')
@@ -343,9 +345,10 @@ export default function AdminCreateCampaignPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                  <SelectItem value="Paid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid</SelectItem>
-                  <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter</SelectItem>
-                  <SelectItem value="Hybrid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Hybrid</SelectItem>
+                  <SelectItem value="Paid Fixed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Fixed (Standard Deal)</SelectItem>
+                  <SelectItem value="Paid Variable" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Variable (Negotiable Deal)</SelectItem>
+                  <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter (Product/Service)</SelectItem>
+                  <SelectItem value="Hybrid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Hybrid (Barter + Commercial)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -595,6 +598,29 @@ export default function AdminCreateCampaignPage() {
               placeholder="https://brand.com/product-1&#10;https://brand.com/product-2"
               rows={3}
               className="w-full bg-slate-950/70 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none placeholder:text-slate-500 font-mono text-xs"
+            />
+          </div>
+
+          {/* Campaign Brief Document Upload (Gated) */}
+          <div className="space-y-2 p-4 rounded-xl bg-slate-950/60 border border-white/10">
+            <div className="flex items-center justify-between">
+              <Label className="text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-purple-400" />
+                Campaign Brief Document (Gated — Approved Creators Only)
+              </Label>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                🔒 Gated Asset
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Provide PDF/Word link or document URL with script guidelines and do's/don'ts. This is hidden from public view and automatically unlocks for approved profiles.
+            </p>
+            <Input
+              type="url"
+              value={formData.brief_document_url}
+              onChange={(e) => setFormData({ ...formData, brief_document_url: e.target.value })}
+              placeholder="https://storage.googleapis.com/.../Brand_Brief_Guide.pdf"
+              className="bg-slate-900 border-white/10 text-white h-11 text-xs font-mono rounded-xl focus:ring-purple-500"
             />
           </div>
         </div>

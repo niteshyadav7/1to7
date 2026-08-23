@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock, FileText } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -93,6 +93,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
+    brief_document_url: '',
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
@@ -143,9 +144,10 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         form_link: data.campaign.form_link || '',
         order_form: data.campaign.order_form || false,
         show_order_form: data.campaign.show_order_form !== false,
-        completion_days: data.campaign.completion_days !== undefined && data.campaign.completion_days !== null ? String(data.campaign.completion_days) : '7',
+        completion_days: data.campaign.completion_days ? String(data.campaign.completion_days) : '7',
         completion_deadline: data.campaign.completion_deadline ? data.campaign.completion_deadline.split('T')[0] : '',
         enforce_completion_deadline: data.campaign.enforce_completion_deadline !== false,
+        brief_document_url: data.campaign.brief_document_url || '',
       })
       setCustomFields(data.campaign.form_fields || [])
       setOrderFormFields(data.campaign.order_form_fields || [])
@@ -326,9 +328,10 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                    <SelectItem value="Paid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid</SelectItem>
-                    <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter</SelectItem>
-                    <SelectItem value="Hybrid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Hybrid</SelectItem>
+                    <SelectItem value="Paid Fixed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Fixed (Standard Deal)</SelectItem>
+                    <SelectItem value="Paid Variable" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Variable (Negotiable Deal)</SelectItem>
+                    <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter (Product/Service)</SelectItem>
+                    <SelectItem value="Hybrid" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Hybrid (Barter + Commercial)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -548,6 +551,29 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 onChange={(e) => setFormData({ ...formData, product_links: e.target.value })}
                 rows={3}
                 className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
+              />
+            </div>
+
+            {/* Campaign Brief Document Upload (Gated) */}
+            <div className="space-y-2 p-4 rounded-xl bg-slate-950/60 border border-white/10">
+              <div className="flex items-center justify-between">
+                <Label className="text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-purple-400" />
+                  Campaign Brief Document (Gated — Approved Creators Only)
+                </Label>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  🔒 Gated Asset
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Provide PDF/Word link or document URL with script guidelines and do's/don'ts. This is hidden from public view and automatically unlocks for approved profiles.
+              </p>
+              <Input
+                type="url"
+                value={formData.brief_document_url}
+                onChange={(e) => setFormData({ ...formData, brief_document_url: e.target.value })}
+                placeholder="https://storage.googleapis.com/.../Brand_Brief_Guide.pdf"
+                className="bg-slate-900 border-white/10 text-white h-11 text-xs font-mono rounded-xl focus:ring-purple-500"
               />
             </div>
           </div>

@@ -22,6 +22,7 @@ export interface AdminPayload {
   id: string
   email: string
   name?: string
+  full_name?: string
   role?: string
   is_active?: boolean
   permissions?: PermissionsMap

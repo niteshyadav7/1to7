@@ -194,3 +194,88 @@ export function checkCreatorCompletionEligibility(
     message,
   }
 }
+
+export interface LiveDateMaturationStatus {
+  canSubmit: boolean
+  daysElapsed: number
+  minDaysRequired: number
+  daysRemaining: number
+  unlockDate: Date | null
+  message: string
+}
+
+/**
+ * Checks if the content live date satisfies the mandatory maturation gap (e.g. 7 days).
+ */
+export function checkLiveDateMaturation(
+  liveDateStr?: string | null,
+  minDaysRequired: number = 7
+): LiveDateMaturationStatus {
+  if (!liveDateStr) {
+    return {
+      canSubmit: false,
+      daysElapsed: 0,
+      minDaysRequired,
+      daysRemaining: minDaysRequired,
+      unlockDate: null,
+      message: 'Please select the date when your content went live.',
+    }
+  }
+
+  const liveDate = new Date(liveDateStr)
+  if (isNaN(liveDate.getTime())) {
+    return {
+      canSubmit: false,
+      daysElapsed: 0,
+      minDaysRequired,
+      daysRemaining: minDaysRequired,
+      unlockDate: null,
+      message: 'Invalid live date format.',
+    }
+  }
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const live = new Date(liveDate.getFullYear(), liveDate.getMonth(), liveDate.getDate()).getTime()
+
+  if (live > today) {
+    return {
+      canSubmit: false,
+      daysElapsed: 0,
+      minDaysRequired,
+      daysRemaining: minDaysRequired,
+      unlockDate: new Date(live + minDaysRequired * 24 * 60 * 60 * 1000),
+      message: 'Live date cannot be in the future.',
+    }
+  }
+
+  const diffMs = today - live
+  const daysElapsed = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const daysRemaining = Math.max(0, minDaysRequired - daysElapsed)
+  const unlockDate = new Date(live + minDaysRequired * 24 * 60 * 60 * 1000)
+
+  if (daysElapsed < minDaysRequired) {
+    const formattedUnlock = unlockDate.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+    return {
+      canSubmit: false,
+      daysElapsed,
+      minDaysRequired,
+      daysRemaining,
+      unlockDate,
+      message: `Mandatory ${minDaysRequired}-day analytics maturation period required. Submission unlocks in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''} on ${formattedUnlock}.`,
+    }
+  }
+
+  return {
+    canSubmit: true,
+    daysElapsed,
+    minDaysRequired,
+    daysRemaining: 0,
+    unlockDate,
+    message: `Maturation complete (${daysElapsed} days since live date). You can now submit your deliverables.`,
+  }
+}
