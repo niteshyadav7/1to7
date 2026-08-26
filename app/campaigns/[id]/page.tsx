@@ -9,7 +9,6 @@ import {
   ExternalLink, FileText, Gift, AlertCircle, Loader2, ArrowRight,
   Globe, Lock, Store
 } from 'lucide-react'
-import { Navbar } from '@/components/Navbar'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -159,8 +158,6 @@ export default function StandaloneCampaignPage({
   return (
     <div className="min-h-screen bg-[#f9f9f9] text-[#1a1c1c] font-sans selection:bg-[#febd1c]/30 flex flex-col justify-between overflow-x-hidden w-full max-w-full">
       <div>
-        <Navbar />
-
         <main className="max-w-6xl w-full mx-auto px-3 sm:px-6 py-3 md:py-4 space-y-3.5 min-w-0 flex-1">
           {/* Back Navigation Bar */}
           <div className="flex items-center justify-between flex-wrap gap-2 min-w-0">
