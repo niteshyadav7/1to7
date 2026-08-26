@@ -1149,11 +1149,11 @@ export default function CampaignDetailModal({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {campaign.show_order_form !== false && (
+                <div className={`grid grid-cols-1 ${campaign.order_form && campaign.show_order_form !== false ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3.5`}>
+                  {campaign.order_form && campaign.show_order_form !== false && (
                     <DetailCard 
                       label="Order Form" 
-                      value={campaign.order_form ? '📋 Yes — Order Details Required' : '💬 No — Comments Only'} 
+                      value="📋 Order Details Required" 
                       icon={ClipboardList} 
                       color="text-emerald-400" 
                     />
@@ -1164,9 +1164,6 @@ export default function CampaignDetailModal({
                     icon={Sparkles} 
                     color="text-amber-400" 
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <DetailCard 
                     label="Collab Date" 
                     value={campaign.collab_date || "Flexible"} 
