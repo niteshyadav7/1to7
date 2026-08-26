@@ -84,3 +84,8 @@ SET instagram_profiles = COALESCE(
   ),
   '[]'::jsonb
 );
+
+-- 7. Grant Permissions to API roles
+GRANT ALL ON TABLE public.user_instagram_profiles TO postgres, anon, authenticated, service_role;
+ALTER TABLE public.user_instagram_profiles DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
