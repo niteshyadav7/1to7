@@ -676,8 +676,8 @@ export default function ProfilePage() {
     }
     const payloadStr = JSON.stringify(payload)
 
-    // Skip network request if data hasn't changed from last saved state
-    if (payloadStr === lastSavedPayload.current) {
+    // For auto-save only: Skip network request if data hasn't changed from last saved state
+    if (isAutoSave && payloadStr === lastSavedPayload.current) {
       setSaveStatus('saved')
       return
     }
@@ -711,11 +711,11 @@ export default function ProfilePage() {
     }
   }
 
-  const handleManualSave = () => {
+  const handleManualSave = async () => {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
     }
-    performSave(formData, false)
+    await performSave(formData, false)
   }
 
   // Auto-Save Effect: 1500ms debounce when formData changes
@@ -920,6 +920,7 @@ export default function ProfilePage() {
 
           {/* Quick Manual Save Button */}
           <Button
+            type="button"
             onClick={handleManualSave}
             disabled={saving}
             className="h-9 px-4 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
