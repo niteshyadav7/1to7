@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
-import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 
@@ -439,17 +439,17 @@ export default function StandaloneCampaignPage({
                     {/* Criteria Cards Grid */}
                     <div className="space-y-2 min-w-0">
                       {/* Followers */}
-                      {campaign.followers && (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
-                              <Users className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="text-xs text-slate-600 font-medium truncate">Followers Req</span>
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 min-w-0 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 shrink-0">
+                            <Users className="h-3.5 w-3.5" />
                           </div>
-                          <span className="text-xs font-extrabold text-slate-900 shrink-0">{campaign.followers}</span>
+                          <span className="text-xs text-slate-600 font-medium truncate">Followers Req</span>
                         </div>
-                      )}
+                        <span className="text-xs font-extrabold text-slate-900 shrink-0">
+                          {getFollowerRequirementLabel(campaign)}
+                        </span>
+                      </div>
 
                       {/* Gender */}
                       {campaign.gender_required && (

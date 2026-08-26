@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
-import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
@@ -1160,7 +1160,7 @@ export default function CampaignDetailModal({
                   )}
                   <DetailCard 
                     label="Followers Req." 
-                    value={campaign.followers || "No restriction"} 
+                    value={getFollowerRequirementLabel(campaign)} 
                     icon={Sparkles} 
                     color="text-amber-400" 
                   />

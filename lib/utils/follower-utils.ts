@@ -111,3 +111,47 @@ export function checkFollowerEligibility(
     message,
   }
 }
+
+/**
+ * Returns a clean, human-friendly display label for a campaign's follower requirement.
+ * Examples:
+ * - enforce_followers = true, min_followers = 2000 -> "Min 2K Followers (Strict)"
+ * - enforce_followers = false, min_followers = 2000 -> "Min 2K Followers"
+ * - enforce_followers = true, followers = "10k" -> "Min 10K Followers (Strict)"
+ * - enforce_followers = false, followers = "10k" -> "10k"
+ * - followers = "" & min_followers = 0 -> "No restriction"
+ */
+export function getFollowerRequirementLabel(
+  campaign: {
+    followers?: string | null
+    min_followers?: number | null
+    enforce_followers?: boolean | null
+  } | null | undefined
+): string {
+  if (!campaign) return 'No restriction'
+
+  const rawFollowersStr = campaign.followers ? campaign.followers.trim() : ''
+  const isGenericNoRestrictionStr = !rawFollowersStr || ['any', 'none', 'no restriction', 'no restrictions', 'open to all'].includes(rawFollowersStr.toLowerCase())
+
+  const parsedFromStr = parseMinFollowers(rawFollowersStr)
+  const required = (campaign.min_followers !== undefined && campaign.min_followers !== null && Number(campaign.min_followers) > 0)
+    ? Number(campaign.min_followers)
+    : parsedFromStr
+
+  if (required > 0) {
+    const formatted = formatFollowerCount(required)
+    if (campaign.enforce_followers) {
+      return `Min ${formatted} Followers (Strict)`
+    }
+    if (!isGenericNoRestrictionStr && rawFollowersStr) {
+      return rawFollowersStr
+    }
+    return `Min ${formatted} Followers`
+  }
+
+  if (!isGenericNoRestrictionStr && rawFollowersStr) {
+    return rawFollowersStr
+  }
+
+  return 'No restriction'
+}

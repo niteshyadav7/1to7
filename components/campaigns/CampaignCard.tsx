@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag, Share2, Check, Copy, XCircle, Lock, Clock, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 
 interface Campaign {
@@ -212,11 +212,11 @@ export default function CampaignCard({
             <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">
               <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
               <span className="font-semibold truncate">
-                {campaign.followers && campaign.followers !== 'Any'
-                  ? `${campaign.followers} Req`
-                  : campaign.gender_required === 'Any'
-                  ? 'All Genders'
-                  : campaign.gender_required}
+                {getFollowerRequirementLabel(campaign) !== 'No restriction'
+                  ? getFollowerRequirementLabel(campaign)
+                  : campaign.gender_required && campaign.gender_required !== 'Any'
+                  ? campaign.gender_required
+                  : 'Open to All'}
               </span>
             </div>
           </div>
