@@ -29,9 +29,14 @@ export function extractInstagramUsername(input: string | null | undefined): stri
       .trim()
   }
 
-  // 3. Extract the first path segment (the username)
+  // 3. Extract the username from segments (handles standard profiles and stories/username links)
   const segments = cleaned.split('/').filter(Boolean)
+  if (segments.length === 0) return ''
+
   let username = segments[0] || ''
+  if (username.toLowerCase() === 'stories' && segments.length > 1) {
+    username = segments[1] || ''
+  }
 
   // Clean any residual '@' or spaces
   username = username.replace(/^@/, '').trim()

@@ -219,9 +219,63 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   )
 }
 
+// ─── CSV Cleaner & Formatter Helpers ─────────────────────────
+function parseFollowersValue(val: any): string | number {
+  if (!val) return ''
+  let str = String(val).trim().toUpperCase()
+  if (!str) return ''
+  if (str.endsWith('K')) {
+    const num = parseFloat(str.replace('K', ''))
+    return isNaN(num) ? '' : Math.round(num * 1000)
+  }
+  if (str.endsWith('M')) {
+    const num = parseFloat(str.replace('M', ''))
+    return isNaN(num) ? '' : Math.round(num * 1000000)
+  }
+  const num = parseInt(str.replace(/,/g, ''), 10)
+  return isNaN(num) ? '' : num
+}
+
+function cleanPhoneNumber(val: any): string {
+  if (!val) return ''
+  let str = String(val).trim().replace(/[\s\-\+\(\)]/g, '')
+  if (str.startsWith('91') && str.length === 12) str = str.substring(2)
+  if (str.startsWith('0') && str.length === 11) str = str.substring(1)
+  return str
+}
+
+function cleanGenderValue(val: any): string {
+  if (!val) return ''
+  const s = String(val).trim().toLowerCase()
+  if (s === 'female' || s === 'f') return 'Female'
+  if (s === 'male' || s === 'm') return 'Male'
+  if (s === 'other' || s === 'o') return 'Other'
+  return String(val).trim()
+}
+
+interface CleanedUploadRow {
+  _index: number
+  influencer_id: string
+  full_name: string
+  mobile: string
+  email: string
+  instagram_username: string
+  followers: string | number
+  gender: string
+  state: string
+  city: string
+  category: string
+  account_name: string
+  account_number: string
+  ifsc_code: string
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function ImportPage() {
-  // State
+  // Top Level Navigation
+  const [activeMainTab, setActiveMainTab] = useState<'import' | 'formatter'>('import')
+
+  // Import State
   const [step, setStep] = useState(1)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
@@ -242,6 +296,21 @@ export default function ImportPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // ─── CSV Formatter State ────────────────────────────────
+  const [formatterFileName, setFormatterFileName] = useState('')
+  const [formatterDragging, setFormatterDragging] = useState(false)
+  const [formatterParsing, setFormatterParsing] = useState(false)
+  const [formatterRows, setFormatterRows] = useState<CleanedUploadRow[]>([])
+  const [formatterSearch, setFormatterSearch] = useState('')
+  const [formatterStats, setFormatterStats] = useState({
+    total: 0,
+    validPhones: 0,
+    validHandles: 0,
+    withFollowers: 0,
+    withBank: 0,
+  })
+  const formatterFileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Fetch campaigns ────────────────────────────────────
   useEffect(() => {
@@ -382,6 +451,235 @@ export default function ImportPage() {
     setDragging(false)
   }, [])
 
+  // ─── CSV Formatter Logic ────────────────────────────────
+  const handleFormatterFile = (file: File) => {
+    if (!file) return
+
+    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'text/plain']
+    const validExts = ['.csv', '.txt']
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
+
+    if (!validTypes.includes(file.type) && !validExts.includes(ext)) {
+      toast.error('Please upload a CSV file (.csv)')
+      return
+    }
+
+    setFormatterParsing(true)
+    setFormatterFileName(file.name)
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        if (!result.data || result.data.length === 0) {
+          toast.error('The CSV file is empty')
+          setFormatterParsing(false)
+          return
+        }
+
+        const rawRows = result.data as Record<string, string>[]
+        const seenUserIds = new Set<string>()
+        let maxIdNum = 25000
+
+        // Find initial max user ID from rows
+        rawRows.forEach(r => {
+          const rawId = (r['User ID'] || r['User Id'] || r['user_id'] || r['influencer_id'] || r['ID'] || '').trim()
+          const num = parseInt(rawId.replace(/\D/g, ''), 10)
+          if (!isNaN(num) && num > maxIdNum) maxIdNum = num
+        })
+
+        let validPhones = 0
+        let validHandles = 0
+        let withFollowers = 0
+        let withBank = 0
+
+        const cleanedList: CleanedUploadRow[] = rawRows.map((row, idx) => {
+          let uid = (row['User ID'] || row['User Id'] || row['user_id'] || row['influencer_id'] || row['ID'] || '').trim()
+          const name = (row['Name'] || row['Full Name'] || row['full_name'] || row['Creator Name'] || row['Influencer Name'] || '').trim()
+          const rawPhone = row['Phone'] || row['Phone Number'] || row['Mobile'] || row['Mobile Number'] || row['Contact'] || row['Whatsapp'] || ''
+          const phone = cleanPhoneNumber(rawPhone)
+          const email = (row['Email'] || row['Email ID'] || row['Email Address'] || '').trim()
+          
+          const rawInsta = row['Instagram ID'] || row['Instagram Username'] || row['Instagram Handle'] || row['Instagram Link'] || row['Instagram'] || row['Insta ID'] || row['IG'] || ''
+          const insta = extractInstagramUsername(rawInsta)
+
+          const rawFollowers = row['Followers'] || row['Follower Count'] || row['Approx Followers'] || ''
+          const followers = parseFollowersValue(rawFollowers)
+
+          const rawGender = row['Gender'] || row['Sex'] || ''
+          const gender = cleanGenderValue(rawGender)
+
+          const state = (row['State'] || row['Region'] || '').trim()
+          const city = (row['City'] || row['Location'] || '').trim()
+          const category = (row['Category'] || row['Niche'] || '').trim()
+
+          const accName = (row['Account Name'] || row['Account Holder Name'] || row['A/C Name'] || '').trim()
+          const accNum = (row['Account Number'] || row['Account No'] || row['Bank Account Number'] || row['Bank A/C No'] || '').trim()
+          const ifsc = (row['IFSC'] || row['IFSC Code'] || row['Bank IFSC'] || '').trim()
+
+          if (phone && phone.length >= 10) validPhones++
+          if (insta) validHandles++
+          if (followers) withFollowers++
+          if (accNum || ifsc) withBank++
+
+          if (uid && seenUserIds.has(uid)) {
+            maxIdNum++
+            uid = `HY${maxIdNum}`
+          } else if (uid) {
+            seenUserIds.add(uid)
+          }
+
+          return {
+            _index: idx + 1,
+            influencer_id: uid,
+            full_name: name,
+            mobile: phone,
+            email: email,
+            instagram_username: insta,
+            followers: followers,
+            gender: gender,
+            state: state,
+            city: city,
+            category: category,
+            account_name: accName,
+            account_number: accNum,
+            ifsc_code: ifsc,
+          }
+        })
+
+        setFormatterRows(cleanedList)
+        setFormatterStats({
+          total: cleanedList.length,
+          validPhones,
+          validHandles,
+          withFollowers,
+          withBank,
+        })
+        setFormatterParsing(false)
+        toast.success(`Successfully formatted ${cleanedList.length.toLocaleString()} rows into upload-ready format!`)
+      },
+      error: (err) => {
+        toast.error(`CSV Parsing error: ${err.message}`)
+        setFormatterParsing(false)
+      }
+    })
+  }
+
+  const downloadFormattedCSV = () => {
+    if (formatterRows.length === 0) return toast.error('No formatted data to download')
+
+    const headers = [
+      'User ID',
+      'Name',
+      'Phone',
+      'Email',
+      'Instagram ID',
+      'Followers',
+      'Gender',
+      'State',
+      'City',
+      'Category',
+      'Account Name',
+      'Account Number',
+      'IFSC'
+    ]
+
+    function escapeCell(val: any) {
+      if (val === null || val === undefined) return '""'
+      let str = String(val).trim()
+      str = str.replace(/\r\n|\r|\n/g, ' ')
+      str = str.replace(/"/g, '""')
+      return `"${str}"`
+    }
+
+    const csvRows = [headers.map(h => escapeCell(h)).join(',')]
+
+    for (const r of formatterRows) {
+      const line = [
+        escapeCell(r.influencer_id),
+        escapeCell(r.full_name),
+        escapeCell(r.mobile),
+        escapeCell(r.email),
+        escapeCell(r.instagram_username),
+        escapeCell(r.followers),
+        escapeCell(r.gender),
+        escapeCell(r.state),
+        escapeCell(r.city),
+        escapeCell(r.category),
+        escapeCell(r.account_name),
+        escapeCell(r.account_number),
+        escapeCell(r.ifsc_code),
+      ].join(',')
+      csvRows.push(line)
+    }
+
+    const finalCsv = '\uFEFF' + csvRows.join('\r\n')
+    const blob = new Blob([finalCsv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const cleanBaseName = formatterFileName.replace(/\.[^/.]+$/, '') || 'formatted_upload'
+    a.download = `${cleanBaseName}_upload_format.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    toast.success(`Downloaded upload-ready CSV with ${formatterRows.length.toLocaleString()} rows!`)
+  }
+
+  const sendToBulkImport = () => {
+    if (formatterRows.length === 0) return toast.error('No data to import')
+
+    const rows: ParsedRow[] = formatterRows.map((r, idx) => {
+      const parsed: ParsedRow = {
+        _rowIndex: idx + 1,
+        mobile: r.mobile || '',
+        influencer_id: r.influencer_id || '',
+        full_name: r.full_name || '',
+        email: r.email || '',
+        instagram_username: r.instagram_username || '',
+        followers: String(r.followers || ''),
+        gender: r.gender || '',
+        state: r.state || '',
+        city: r.city || '',
+        category: r.category || '',
+        account_name: r.account_name || '',
+        account_number: r.account_number || '',
+        ifsc_code: r.ifsc_code || '',
+        status: 'Applied',
+        _valid: true,
+        _errors: []
+      }
+      return validateRow(parsed)
+    })
+
+    setParsedRows(rows)
+    setFileName(`${formatterFileName} (Cleaned)`)
+    setActiveMainTab('import')
+    setStep(3)
+    toast.success(`Loaded ${rows.length.toLocaleString()} cleaned rows into Bulk Import!`)
+  }
+
+  const resetFormatter = () => {
+    setFormatterFileName('')
+    setFormatterRows([])
+    setFormatterSearch('')
+    setFormatterStats({ total: 0, validPhones: 0, validHandles: 0, withFollowers: 0, withBank: 0 })
+  }
+
+  const filteredFormatterRows = useMemo(() => {
+    if (!formatterSearch.trim()) return formatterRows
+    const q = formatterSearch.toLowerCase()
+    return formatterRows.filter(r =>
+      r.full_name.toLowerCase().includes(q) ||
+      r.mobile.toLowerCase().includes(q) ||
+      r.influencer_id.toLowerCase().includes(q) ||
+      r.instagram_username.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q)
+    )
+  }, [formatterRows, formatterSearch])
+
   // ─── Import Submit ──────────────────────────────────────
   const handleImport = async () => {
     if ((importMode === 'campaign' && !selectedCampaign) || parsedRows.length === 0) return
@@ -462,7 +760,6 @@ export default function ImportPage() {
         // Adjust error rows to match original CSV index
         if (data.results.errors && data.results.errors.length > 0) {
           const adjustedErrors = data.results.errors.map((e: any) => {
-            // e.row is 1-indexed relative to the batch
             const originalRow = batch[e.row - 1]?._rowIndex || 'Unknown'
             return {
               ...e,
@@ -477,7 +774,6 @@ export default function ImportPage() {
       toast.success(`Import complete! ${accumulatedResults.applications_created} new, ${accumulatedResults.applications_updated} updated`)
     } catch (err: any) {
       toast.error(err.message || 'Import failed midway')
-      // Show what we got so far if it failed midway
       if (accumulatedResults.total > 0) {
         setImportResults(accumulatedResults)
       }
@@ -516,7 +812,6 @@ export default function ImportPage() {
     )
   }, [parsedRows, previewSearch])
 
-  // ─── Download template CSV ─────────────────────────────
   // ─── Download dynamic template CSV based on selected campaign ───
   const downloadTemplate = async () => {
     let headers = [
@@ -567,7 +862,6 @@ export default function ImportPage() {
         sampleRow['IFSC Code'] = 'HDFC0001234'
         sampleRow['Account Holder Name'] = 'Pooja Sharma'
       } catch {
-        // Fallback to standard custom headers
         headers.push('Agreed Commercial', 'Bank Account Number', 'IFSC Code')
       }
     }
@@ -627,7 +921,7 @@ export default function ImportPage() {
         <div className="flex items-center justify-between gap-4 w-full">
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Bulk Import Sync</h1>
-            <p className="text-xs text-slate-400">Import influencers from your Google Sheets / Excel into the database</p>
+            <p className="text-xs text-slate-400">Import &amp; format influencer spreadsheets into platform-ready data</p>
           </div>
           <button
             onClick={downloadTemplate}
@@ -639,11 +933,276 @@ export default function ImportPage() {
         </div>
       </SetAdminHeader>
 
-      {/* ─── Steps ──────────────────────────────────────────── */}
-      <StepIndicator currentStep={importResults ? 4 : step} />
+      {/* ─── Top Tabs Switcher ─── */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-4">
+        <button
+          onClick={() => setActiveMainTab('import')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeMainTab === 'import'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+          }`}
+        >
+          <FileUp className="h-4 w-4" />
+          Direct Bulk Import
+        </button>
+        <button
+          onClick={() => setActiveMainTab('formatter')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeMainTab === 'formatter'
+              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg shadow-pink-500/20'
+              : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+          }`}
+        >
+          <Sparkles className="h-4 w-4 text-pink-300" />
+          CSV Cleaner &amp; Formatter
+        </button>
+      </div>
 
-      {/* ─── Results Screen ─────────────────────────────────── */}
-      {importResults ? (
+      {activeMainTab === 'formatter' ? (
+        /* ─── CSV Cleaner & Formatter Tab ─── */
+        <div className="space-y-6">
+          {formatterRows.length === 0 ? (
+            /* Upload Screen */
+            <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-8 max-w-2xl mx-auto space-y-6">
+              <div className="text-center space-y-2">
+                <div className="inline-flex p-3 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400 mb-2">
+                  <Sparkles className="h-8 w-8" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Smart CSV Cleaner &amp; Formatter</h2>
+                <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Upload any raw Google Forms or Portal Responses CSV. It will automatically extract clean Instagram handles, parse numbers/K/M followers, clean mobiles, and output an upload-ready CSV.
+                </p>
+              </div>
+
+              {/* Dropzone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setFormatterDragging(true) }}
+                onDragLeave={() => setFormatterDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setFormatterDragging(false)
+                  const file = e.dataTransfer.files?.[0]
+                  if (file) handleFormatterFile(file)
+                }}
+                onClick={() => formatterFileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${
+                  formatterDragging
+                    ? 'border-pink-500 bg-pink-500/10 scale-[0.99]'
+                    : 'border-white/10 bg-slate-950/40 hover:border-pink-500/40 hover:bg-slate-900/80'
+                }`}
+              >
+                <input
+                  ref={formatterFileInputRef}
+                  type="file"
+                  accept=".csv,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFormatterFile(file)
+                  }}
+                />
+
+                {formatterParsing ? (
+                  <div className="space-y-3">
+                    <Loader2 className="h-10 w-10 text-pink-400 animate-spin mx-auto" />
+                    <p className="text-sm font-semibold text-white">Cleaning &amp; Formatting Data...</p>
+                    <p className="text-xs text-slate-500">Extracting handles, parsing followers, and normalizing phones</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="h-12 w-12 rounded-xl bg-slate-800 text-pink-400 flex items-center justify-center mx-auto border border-white/10">
+                      <Upload className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Drag and drop your raw CSV here</p>
+                      <p className="text-xs text-slate-500 mt-1">Supports Google Forms responses, passwords, portal exports (.csv)</p>
+                    </div>
+                    <Button variant="outline" size="sm" className="rounded-xl border-pink-500/30 text-pink-300 hover:bg-pink-500/10">
+                      Browse File
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Automatic Features */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {[
+                  { title: 'Auto Handle Extraction', desc: 'Converts full URLs, story links & handles to clean usernames' },
+                  { title: 'Smart Follower Parser', desc: 'Parses 12K, 364k, 1.5M into pure integer numbers' },
+                  { title: 'Mobile Normalizer', desc: 'Strips +91, spaces & hyphens into valid 10-digit mobiles' },
+                  { title: '100% Upload Compatible', desc: 'Generates standard headers for 1-click import' },
+                ].map((feat, i) => (
+                  <div key={i} className="p-3 bg-slate-800/40 border border-white/5 rounded-xl text-xs space-y-0.5">
+                    <p className="font-bold text-slate-200 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      {feat.title}
+                    </p>
+                    <p className="text-[11px] text-slate-400 pl-5">{feat.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Results & Preview Screen */
+            <div className="space-y-6">
+              {/* Summary Stats */}
+              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5 mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                      <FileSpreadsheet className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-white flex items-center gap-2">
+                        {formatterFileName}
+                        <span className="text-[10px] font-mono font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Formatted &amp; Cleaned
+                        </span>
+                      </h2>
+                      <p className="text-xs text-slate-400">Ready to download or send directly to Bulk Import</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={resetFormatter}
+                      className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Upload Another
+                    </button>
+                    <button
+                      onClick={downloadFormattedCSV}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download Upload-Ready CSV
+                    </button>
+                    <button
+                      onClick={sendToBulkImport}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileUp className="h-3.5 w-3.5" />
+                      Direct Import ({formatterStats.total.toLocaleString()})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="bg-slate-800/60 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Total Rows</p>
+                    <p className="text-xl font-bold text-white">{formatterStats.total.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Instagram Handles</p>
+                    <p className="text-xl font-bold text-pink-400">{formatterStats.validHandles.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Valid Mobiles</p>
+                    <p className="text-xl font-bold text-emerald-400">{formatterStats.validPhones.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Followers Parsed</p>
+                    <p className="text-xl font-bold text-indigo-400">{formatterStats.withFollowers.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3.5 border border-white/5">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Bank Records</p>
+                    <p className="text-xl font-bold text-amber-400">{formatterStats.withBank.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Preview Table */}
+              <div className="bg-slate-900/60 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden shadow-xl">
+                <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white">Cleaned Data Preview</h3>
+                    <span className="text-xs text-slate-500 font-mono">({filteredFormatterRows.length.toLocaleString()} matching)</span>
+                  </div>
+
+                  <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search names, phones, handles, IDs..."
+                      value={formatterSearch}
+                      onChange={(e) => setFormatterSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-800/80 border border-white/10 rounded-xl text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto max-h-[480px] custom-scrollbar">
+                  <table className="w-full text-xs text-left">
+                    <thead className="sticky top-0 bg-slate-950/90 backdrop-blur-md border-b border-white/10 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                      <tr>
+                        <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">User ID</th>
+                        <th className="px-4 py-3">Name</th>
+                        <th className="px-4 py-3">Phone</th>
+                        <th className="px-4 py-3">Instagram Handle</th>
+                        <th className="px-4 py-3">Followers</th>
+                        <th className="px-4 py-3">Gender</th>
+                        <th className="px-4 py-3">Location</th>
+                        <th className="px-4 py-3">Bank Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-slate-300">
+                      {filteredFormatterRows.slice(0, 100).map((r) => (
+                        <tr key={r._index} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="px-4 py-2.5 font-mono text-slate-500">{r._index}</td>
+                          <td className="px-4 py-2.5 font-mono font-bold text-indigo-300">{r.influencer_id || 'Auto'}</td>
+                          <td className="px-4 py-2.5 font-semibold text-white">{r.full_name || '—'}</td>
+                          <td className="px-4 py-2.5 font-mono text-slate-300">{r.mobile || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            {r.instagram_username ? (
+                              <span className="font-semibold text-pink-400">@{r.instagram_username}</span>
+                            ) : (
+                              <span className="text-slate-500 italic">None</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 font-mono text-slate-300">
+                            {r.followers ? Number(r.followers).toLocaleString() : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 capitalize">{r.gender || '—'}</td>
+                          <td className="px-4 py-2.5 truncate max-w-[160px]">
+                            {r.city ? `${r.city}, ` : ''}{r.state || '—'}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {r.account_number ? (
+                              <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-bold">
+                                {r.ifsc_code ? `${r.ifsc_code} • ` : ''}***{r.account_number.slice(-4)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 text-[10px]">No bank</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {filteredFormatterRows.length > 100 && (
+                  <div className="px-4 py-3 border-t border-white/5 text-center bg-slate-950/40">
+                    <p className="text-xs text-slate-400">
+                      Showing first 100 of {filteredFormatterRows.length.toLocaleString()} rows. All {formatterRows.length.toLocaleString()} rows will be exported in the download.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ─── Direct Bulk Import Tab ─── */
+        <>
+          {/* ─── Steps ──────────────────────────────────────────── */}
+          <StepIndicator currentStep={importResults ? 4 : step} />
+
+          {/* ─── Results Screen ─────────────────────────────────── */}
+          {importResults ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1238,6 +1797,8 @@ export default function ImportPage() {
           )}
         </>
       )}
-    </div>
+    </>
+  )}
+</div>
   )
 }
