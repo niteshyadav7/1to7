@@ -21,6 +21,7 @@ export async function GET() {
       .select('*')
       .eq('is_live', true)
       .eq('status', 'Active')
+      .or('approval_status.eq.Approved,approval_status.is.null')
       .order('display_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
 

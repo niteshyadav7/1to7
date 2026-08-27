@@ -7,9 +7,12 @@ import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
   Instagram, Youtube, ShoppingBag, Globe, Search, Trash2,
   Copy, Check, Upload, GripVertical, ArrowUp, ArrowDown,
-  ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers
+  ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
+  ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
+  Info, UserCheck, AlertTriangle, FileText, CheckCheck, X
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
@@ -23,11 +26,27 @@ interface Campaign {
   category: string
   platform: string
   budget_type: string
+  budget_amount?: number
   status: string
   is_live: boolean
   created_at: string
   application_count: number
   display_order?: number
+  approval_status?: 'Approved' | 'Pending Approval' | 'Rejected'
+  created_by_admin_id?: string
+  created_by_admin_name?: string
+  created_by_admin_email?: string
+  approved_by_admin_id?: string
+  approved_by_admin_name?: string
+  approved_by_admin_email?: string
+  approved_at?: string
+  rejection_reason?: string
+  requirements?: string
+  deliverables?: string
+  followers?: string
+  min_followers?: number
+  location?: string
+  location_type?: string
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -44,9 +63,10 @@ const statusColors: Record<string, string> = {
   'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
 }
 
-const filters = ['All', 'Active', 'Draft', 'Review', 'Closed', 'Completed']
+const filters = ['All', 'Pending Approvals', 'Active', 'Draft', 'Review', 'Closed', 'Completed']
 
 export default function AdminCampaignsPage() {
+  const { admin, isSuperAdmin } = useAdminPermissions()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
@@ -55,6 +75,12 @@ export default function AdminCampaignsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
+
+  // Approval & Governance States
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [rejectModalCampaign, setRejectModalCampaign] = useState<Campaign | null>(null)
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('')
+  const [reviewModalCampaign, setReviewModalCampaign] = useState<Campaign | null>(null)
 
   // Reorder & Sequence Management States
   const [isReorderMode, setIsReorderMode] = useState(false)
@@ -92,6 +118,68 @@ export default function AdminCampaignsPage() {
       toast.error('Failed to load campaigns')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle Campaign Approval
+  const handleApproveCampaign = async (campaign: Campaign) => {
+    // Check maker-checker rule
+    if (!isSuperAdmin && admin?.id && campaign.created_by_admin_id === admin.id) {
+      toast.error('Dual control policy: You created this campaign and cannot self-approve. Another admin or Super Admin must review and approve it.')
+      return
+    }
+
+    setApprovingId(campaign.id)
+    try {
+      const res = await fetch(`/api/admin/campaigns/${campaign.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to approve campaign')
+
+      toast.success(data.message || `Campaign "${campaign.brand_name}" approved and published live!`)
+      if (reviewModalCampaign?.id === campaign.id) {
+        setReviewModalCampaign(null)
+      }
+      fetchCampaigns()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to approve campaign')
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  // Handle Campaign Rejection
+  const handleRejectCampaign = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!rejectModalCampaign) return
+
+    setApprovingId(rejectModalCampaign.id)
+    try {
+      const res = await fetch(`/api/admin/campaigns/${rejectModalCampaign.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject',
+          rejection_reason: rejectionReasonInput.trim() || 'Rejected during admin review'
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reject campaign')
+
+      toast.success(data.message || `Campaign "${rejectModalCampaign.brand_name}" marked as Rejected.`)
+      setRejectModalCampaign(null)
+      setRejectionReasonInput('')
+      if (reviewModalCampaign?.id === rejectModalCampaign.id) {
+        setReviewModalCampaign(null)
+      }
+      fetchCampaigns()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reject campaign')
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -287,12 +375,23 @@ export default function AdminCampaignsPage() {
     }
   }
 
+  const pendingCount = campaigns.filter(c => c.approval_status === 'Pending Approval').length
+
   const filtered = campaigns.filter(c => {
-    const matchesFilter = activeFilter === 'All' || c.status === activeFilter
+    let matchesFilter = true
+    if (activeFilter === 'Pending Approvals') {
+      matchesFilter = c.approval_status === 'Pending Approval'
+    } else if (activeFilter !== 'All') {
+      matchesFilter = c.status === activeFilter
+    }
     const matchesSearch = 
       c.brand_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
       c.campaign_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.platform.toLowerCase().includes(searchQuery.toLowerCase())
+      c.platform.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.created_by_admin_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.created_by_admin_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.approved_by_admin_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.approved_by_admin_email || '').toLowerCase().includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
   })
 
@@ -307,7 +406,7 @@ export default function AdminCampaignsPage() {
         <div className="flex items-center justify-between gap-4 w-full">
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Campaigns</h1>
-            <p className="text-xs text-slate-400">Manage brand campaigns & priority arrangement</p>
+            <p className="text-xs text-slate-400">Manage brand campaigns, dual-admin approvals & priority arrangement</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Reorder / Sequence Mode Toggle */}
@@ -394,30 +493,56 @@ export default function AdminCampaignsPage() {
         </motion.div>
       )}
 
+      {/* Pending Approvals Notice Banner if viewing Pending tab */}
+      {activeFilter === 'Pending Approvals' && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+          <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-xs text-slate-300">
+            <p className="font-bold text-amber-300 text-sm">Dual-Admin Approval Queue</p>
+            <p className="mt-0.5">
+              Campaigns listed here require sign-off before they can go live to creators. To prevent conflicts of interest, an admin who created a campaign cannot self-approve it (unless Super Admin).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-wrap gap-2">
-          {filters.map(f => (
-            <button
-              key={f}
-              onClick={() => setActiveFilter(f)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                activeFilter === f
-                  ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
-                  : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              {f}
-              {f !== 'All' && (
-                <span className="ml-1.5 text-[10px] opacity-60">
-                  ({campaigns.filter(c => c.status === f).length})
-                </span>
-              )}
-              {f === 'All' && (
-                <span className="ml-1.5 text-[10px] opacity-60">({campaigns.length})</span>
-              )}
-            </button>
-          ))}
+          {filters.map(f => {
+            const isPendingTab = f === 'Pending Approvals'
+            return (
+              <button
+                key={f}
+                onClick={() => setActiveFilter(f)}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-1.5 ${
+                  activeFilter === f
+                    ? isPendingTab
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/10 font-bold'
+                      : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                    : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {isPendingTab && <Clock className="h-3 w-3 text-amber-400" />}
+                <span>{f}</span>
+                {isPendingTab ? (
+                  pendingCount > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 animate-pulse">
+                      {pendingCount}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] opacity-60">(0)</span>
+                  )
+                ) : f !== 'All' ? (
+                  <span className="text-[10px] opacity-60">
+                    ({campaigns.filter(c => c.status === f).length})
+                  </span>
+                ) : (
+                  <span className="text-[10px] opacity-60">({campaigns.length})</span>
+                )}
+              </button>
+            )
+          })}
         </div>
 
         <div className="relative w-full sm:w-64 shrink-0">
@@ -425,7 +550,7 @@ export default function AdminCampaignsPage() {
           <Input
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder="Search campaigns..."
+            placeholder="Search campaigns or admin emails..."
             className="pl-9 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
           />
         </div>
@@ -468,12 +593,14 @@ export default function AdminCampaignsPage() {
                       ? 'border-amber-400 bg-amber-500/10 scale-[1.02] shadow-xl shadow-amber-500/10 ring-2 ring-amber-500/40'
                       : isBeingDragged
                       ? 'border-indigo-500/50 bg-indigo-900/30'
+                      : campaign.approval_status === 'Pending Approval'
+                      ? 'border-amber-500/30 bg-slate-900/80 hover:bg-slate-800/90 shadow-amber-500/5'
                       : 'border-white/5 bg-slate-900/60 hover:bg-slate-800/80 hover:border-white/10 hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-0.5'
                   }`}
                 >
                   <div>
                     {/* Top Row: Rank Badge, Drag Grip, Platform Icon, Brand & Quick Position Buttons */}
-                    <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5 min-w-0">
                         {/* Drag Handle */}
                         <div
@@ -562,14 +689,25 @@ export default function AdminCampaignsPage() {
                           <span className="hidden sm:inline">{copiedId === campaign.id ? 'Copied' : 'Link'}</span>
                         </button>
 
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
-                          {campaign.status}
-                        </span>
+                        {/* Approval or Status Badge */}
+                        {campaign.approval_status === 'Pending Approval' ? (
+                          <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold border bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Pending 2nd Approval
+                          </span>
+                        ) : campaign.approval_status === 'Rejected' ? (
+                          <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 flex items-center gap-1">
+                            <XCircle className="h-3 w-3" /> Rejected
+                          </span>
+                        ) : (
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium border ${statusColors[campaign.status] || statusColors['Draft']}`}>
+                            {campaign.status}
+                          </span>
+                        )}
                       </div>
                     </div>
 
                     {/* Metadata tags */}
-                    <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-slate-400 ml-8">
+                    <div className="flex flex-wrap items-center gap-2 mb-3 text-xs text-slate-400 ml-8">
                       {campaign.category && (
                         <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5">{campaign.category}</span>
                       )}
@@ -581,23 +719,109 @@ export default function AdminCampaignsPage() {
                         {campaign.application_count} applied
                       </span>
                     </div>
+
+                    {/* Admin Audit Box: Creator & Approver Information */}
+                    <div className="ml-8 mb-3 p-2.5 rounded-xl bg-slate-950/70 border border-white/5 text-[11px] space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 text-slate-400">
+                        <span className="flex items-center gap-1.5 truncate">
+                          <UserCheck className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                          <span className="text-slate-500">Created by:</span>
+                          <span className="text-slate-200 font-semibold truncate">{campaign.created_by_admin_name || 'Admin'}</span>
+                        </span>
+                        {campaign.created_by_admin_email && (
+                          <span className="font-mono text-[10px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0">
+                            {campaign.created_by_admin_email}
+                          </span>
+                        )}
+                      </div>
+
+                      {campaign.approval_status === 'Approved' && (
+                        <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                            <span className="text-slate-500">Approved by:</span>
+                            <span className="text-emerald-300 font-semibold truncate">{campaign.approved_by_admin_name || 'Super Admin'}</span>
+                          </span>
+                          {campaign.approved_by_admin_email && (
+                            <span className="font-mono text-[10px] text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 shrink-0">
+                              {campaign.approved_by_admin_email}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {campaign.approval_status === 'Rejected' && campaign.rejection_reason && (
+                        <div className="text-rose-300 text-[10px] pt-1.5 border-t border-white/5 flex items-start gap-1">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
+                          <span><strong>Rejection Reason:</strong> {campaign.rejection_reason}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Card Actions Footer */}
                   <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 mt-auto">
-                    {/* Live Toggle */}
-                    <button
-                      onClick={() => toggleLive(campaign)}
-                      disabled={togglingId === campaign.id}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-                        campaign.is_live
-                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
-                          : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                      }`}
-                    >
-                      {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                      {campaign.is_live ? 'Live' : 'Offline'}
-                    </button>
+                    {/* Approval Actions for Pending Campaigns */}
+                    {campaign.approval_status === 'Pending Approval' ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={() => setReviewModalCampaign(campaign)}
+                          variant="outline"
+                          className="h-8 px-2.5 rounded-lg border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold text-xs transition-all cursor-pointer"
+                        >
+                          <FileText className="h-3.5 w-3.5 mr-1" />
+                          Review
+                        </Button>
+
+                        {!isSuperAdmin && admin?.id && campaign.created_by_admin_id === admin.id ? (
+                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg">
+                            Awaiting 2nd Admin (Self-created)
+                          </span>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              disabled={approvingId === campaign.id}
+                              onClick={() => handleApproveCampaign(campaign)}
+                              className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                            >
+                              <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                              {approvingId === campaign.id ? 'Approving...' : 'Approve & Go Live'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={approvingId === campaign.id}
+                              onClick={() => {
+                                setRejectModalCampaign(campaign)
+                                setRejectionReasonInput('')
+                              }}
+                              variant="outline"
+                              className="h-8 px-2.5 rounded-lg border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs transition-all cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {/* Live Toggle */}
+                        <button
+                          onClick={() => toggleLive(campaign)}
+                          disabled={togglingId === campaign.id}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                            campaign.is_live
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                              : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          {campaign.is_live ? 'Live' : 'Offline'}
+                        </button>
+                      </>
+                    )}
 
                     {/* Edit */}
                     <Link href={`/admin/campaigns/${campaign.id}`}>
@@ -638,6 +862,182 @@ export default function AdminCampaignsPage() {
         onClose={() => setShowBulkModal(false)}
         onSuccess={fetchCampaigns}
       />
+
+      {/* Campaign Details Review Modal (Before Approval) */}
+      {reviewModalCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    {reviewModalCampaign.brand_name}
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {reviewModalCampaign.campaign_code}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Platform: {reviewModalCampaign.platform} • Category: {reviewModalCampaign.category || 'General'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setReviewModalCampaign(null)}
+                className="h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Campaign Specifications */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
+                <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Budget & Payout</span>
+                <p className="text-slate-200 font-bold text-sm">
+                  {reviewModalCampaign.budget_type} {reviewModalCampaign.budget_amount ? `(₹${reviewModalCampaign.budget_amount})` : ''}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
+                <span className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Follower Requirement</span>
+                <p className="text-slate-200 font-bold text-sm">
+                  {reviewModalCampaign.min_followers ? `${reviewModalCampaign.min_followers.toLocaleString()}+ followers` : 'Any follower count'}
+                </p>
+              </div>
+            </div>
+
+            {/* Creator Information & Audit */}
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs space-y-1.5">
+              <span className="text-indigo-400 font-bold uppercase tracking-wider text-[10px]">Admin Audit Details</span>
+              <div className="flex items-center justify-between text-slate-300">
+                <span>Created by: <strong>{reviewModalCampaign.created_by_admin_name || 'Admin'}</strong></span>
+                <span className="font-mono text-[11px] text-indigo-300">{reviewModalCampaign.created_by_admin_email || 'N/A'}</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Created on: {new Date(reviewModalCampaign.created_at).toLocaleString()}
+              </p>
+            </div>
+
+            {/* Deliverables & Requirements */}
+            {reviewModalCampaign.deliverables && (
+              <div className="space-y-1">
+                <span className="text-slate-400 text-xs font-semibold">Deliverables:</span>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {reviewModalCampaign.deliverables}
+                </div>
+              </div>
+            )}
+
+            {reviewModalCampaign.requirements && (
+              <div className="space-y-1">
+                <span className="text-slate-400 text-xs font-semibold">Requirements:</span>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {reviewModalCampaign.requirements}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setReviewModalCampaign(null)}
+                className="h-9 px-4 rounded-xl text-slate-400 hover:text-white text-xs cursor-pointer"
+              >
+                Close
+              </Button>
+
+              {!isSuperAdmin && admin?.id && reviewModalCampaign.created_by_admin_id === admin.id ? (
+                <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                  Dual Control: Another admin must approve your campaign
+                </span>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setRejectModalCampaign(reviewModalCampaign)
+                      setRejectionReasonInput('')
+                    }}
+                    className="h-9 px-4 rounded-xl border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold cursor-pointer"
+                  >
+                    <X className="h-4 w-4 mr-1.5" />
+                    Reject Campaign
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={approvingId === reviewModalCampaign.id}
+                    onClick={() => handleApproveCampaign(reviewModalCampaign)}
+                    className="h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 cursor-pointer"
+                  >
+                    <CheckCheck className="h-4 w-4 mr-1.5" />
+                    {approvingId === reviewModalCampaign.id ? 'Approving...' : 'Approve & Publish Live'}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Campaign Modal */}
+      {rejectModalCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Reject Campaign</h3>
+                <p className="text-xs text-slate-400 truncate max-w-[260px]">
+                  {rejectModalCampaign.brand_name} ({rejectModalCampaign.campaign_code})
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleRejectCampaign} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                  Reason for Rejection / Feedback for Admin
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. Please update the follower criteria, check deliverable dates, or revise the budget amount."
+                  className="w-full rounded-xl bg-slate-800 border border-white/10 p-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setRejectModalCampaign(null)}
+                  className="h-9 px-4 rounded-xl text-slate-400 hover:text-white text-xs cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={approvingId === rejectModalCampaign.id}
+                  className="h-9 px-5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/20 cursor-pointer"
+                >
+                  {approvingId === rejectModalCampaign.id ? 'Rejecting...' : 'Confirm Rejection'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Direct Sequence / Rank Number Changer Modal */}
       {rankModalCampaign && (

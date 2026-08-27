@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import { StoreLocation } from '@/lib/utils/location-utils'
@@ -25,6 +26,7 @@ const DRAFT_KEY = 'admin_campaign_create_draft'
 
 export default function AdminCreateCampaignPage() {
   const router = useRouter()
+  const { admin, isSuperAdmin } = useAdminPermissions()
   const [saving, setSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null)
 
@@ -217,14 +219,29 @@ export default function AdminCreateCampaignPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-extrabold text-white tracking-tight">Create Campaign</h1>
                 <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+                {isSuperAdmin ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-bold text-emerald-400">
+                    <ShieldCheck className="h-3 w-3" />
+                    Super Admin: Direct Live Publish
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-bold text-amber-400">
+                    <Clock className="h-3 w-3" />
+                    Maker-Checker: Requires 2nd Admin Approval
+                  </span>
+                )}
                 {lastSavedTime && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-medium text-emerald-400">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-white/10 text-[11px] font-medium text-slate-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     Draft saved {lastSavedTime}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400">Single-page unified campaign builder</p>
+              <p className="text-[11px] text-slate-400">
+                {isSuperAdmin
+                  ? 'Campaign will be published immediately upon creation.'
+                  : 'Campaign will enter Pending Approval state until reviewed by another admin.'}
+              </p>
             </div>
           </div>
 
@@ -246,17 +263,21 @@ export default function AdminCreateCampaignPage() {
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              className={`h-10 px-5 rounded-xl text-white font-bold text-xs shadow-lg cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
+                isSuperAdmin
+                  ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+                  : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/25'
+              }`}
             >
               {saving ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Creating...</span>
+                  <span>Submitting...</span>
                 </>
               ) : (
                 <>
                   <Save className="h-3.5 w-3.5" />
-                  <span>Create Campaign</span>
+                  <span>{isSuperAdmin ? 'Publish Campaign Live' : 'Submit for Approval'}</span>
                 </>
               )}
             </Button>

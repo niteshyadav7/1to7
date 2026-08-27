@@ -3,7 +3,11 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock, FileText } from 'lucide-react'
+import {
+  ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList,
+  Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock,
+  FileText, UserCheck, ShieldCheck, AlertTriangle
+} from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +36,15 @@ interface CampaignData {
   gender_required: string
   status: string
   is_live: boolean
+  approval_status?: 'Approved' | 'Pending Approval' | 'Rejected'
+  created_by_admin_id?: string
+  created_by_admin_name?: string
+  created_by_admin_email?: string
+  approved_by_admin_id?: string
+  approved_by_admin_name?: string
+  approved_by_admin_email?: string
+  approved_at?: string
+  rejection_reason?: string
   location?: string
   location_type?: string
   target_states?: string[]
@@ -246,6 +259,42 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         animate={{ opacity: 1, y: 0 }}
         className="space-y-5"
       >
+        {/* Creator & Approver Audit Card */}
+        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-indigo-400 shrink-0" />
+            <span className="text-slate-400">
+              Created by <strong className="text-white">{campaign.created_by_admin_name || 'Admin'}</strong>
+              {campaign.created_by_admin_email && (
+                <span className="ml-1.5 font-mono text-[11px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                  {campaign.created_by_admin_email}
+                </span>
+              )}
+            </span>
+          </div>
+
+          {campaign.approval_status === 'Approved' ? (
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span className="text-slate-400">
+                Approved by <strong className="text-emerald-300">{campaign.approved_by_admin_name || 'Super Admin'}</strong>
+                {campaign.approved_by_admin_email && (
+                  <span className="ml-1.5 font-mono text-[11px] text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    {campaign.approved_by_admin_email}
+                  </span>
+                )}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+              <span className="text-amber-400 font-semibold">
+                Status: {campaign.approval_status || 'Pending Approval'}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Status & Live Controls */}
         <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

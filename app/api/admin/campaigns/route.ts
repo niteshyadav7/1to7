@@ -112,12 +112,26 @@ export async function POST(request: Request) {
 
     await client.connect()
 
+    // Determine Super Admin status
+    const isSuperAdmin = admin.role === 'super_admin' || Boolean(admin.is_super_admin)
+    const adminName = admin.full_name || admin.name || (isSuperAdmin ? 'Super Admin' : 'Admin')
+    const adminEmail = admin.email || ''
+
     // Calculate next order if not specified
     let targetOrder = display_order ? parseInt(display_order) : null
     if (!targetOrder) {
       const orderRes = await client.query('SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM public.campaigns')
       targetOrder = parseInt(orderRes.rows[0]?.next_order) || 1
     }
+
+    // Super Admin campaigns are immediately approved and go live; Regular admin campaigns require second-admin approval
+    const approvalStatus = isSuperAdmin ? 'Approved' : 'Pending Approval'
+    const isLive = isSuperAdmin ? true : false
+    const campaignStatus = isSuperAdmin ? 'Active' : 'Review'
+    const approvedAt = isSuperAdmin ? new Date().toISOString() : null
+    const approvedById = isSuperAdmin ? admin.id : null
+    const approvedByName = isSuperAdmin ? adminName : null
+    const approvedByEmail = isSuperAdmin ? adminEmail : null
 
     const query = `
       INSERT INTO public.campaigns (
@@ -128,9 +142,11 @@ export async function POST(request: Request) {
         looking_for, followers, min_followers, enforce_followers, additional_info, 
         collab_date, form_link, form_fields, order_form, 
         order_form_fields, show_order_form, payment_form_fields, status, is_live, 
-        completion_days, completion_deadline, enforce_completion_deadline, display_order, brief_document_url
+        completion_days, completion_deadline, enforce_completion_deadline, display_order, brief_document_url,
+        approval_status, created_by_admin_id, created_by_admin_name, created_by_admin_email,
+        approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45
       ) RETURNING *
     `
     const values = [
@@ -164,19 +180,33 @@ export async function POST(request: Request) {
       JSON.stringify(order_form_fields || []),
       show_order_form !== false,
       JSON.stringify(payment_form_fields || []),
-      'Active',
-      true,
+      campaignStatus,
+      isLive,
       completion_days !== undefined && completion_days !== null ? parseInt(completion_days, 10) || 7 : 7,
       completion_deadline || null,
       enforce_completion_deadline !== false,
       targetOrder,
       brief_document_url || null,
+      approvalStatus,
+      admin.id,
+      adminName,
+      adminEmail,
+      approvedById,
+      approvedByName,
+      approvedByEmail,
+      approvedAt,
     ]
 
     const res = await client.query(query, values)
     const campaign = res.rows[0]
 
-    return NextResponse.json({ success: true, campaign })
+    return NextResponse.json({
+      success: true,
+      campaign,
+      message: isSuperAdmin
+        ? 'Campaign created and published live!'
+        : 'Campaign created and submitted for second-admin approval.'
+    })
   } catch (error: any) {
     console.error('API /admin/campaigns POST Error:', error)
     if (error.code === '23505') {
