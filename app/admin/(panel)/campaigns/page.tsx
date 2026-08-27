@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
   Instagram, Youtube, ShoppingBag, Globe, Search, Trash2,
-  Copy, Check, Upload, GripVertical, ArrowUp, ArrowDown,
+  Copy, CopyPlus, Check, Upload, GripVertical, ArrowUp, ArrowDown,
   ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   Info, UserCheck, AlertTriangle, FileText, CheckCheck, X
@@ -101,6 +101,17 @@ export default function AdminCampaignsPage() {
     setCopiedId(c.id)
     toast.success(`Copied campaign link for ${c.brand_name}!`)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleCopyCampaignDetails = (c: Campaign) => {
+    try {
+      const configStr = JSON.stringify(c, null, 2)
+      navigator.clipboard.writeText(configStr)
+      localStorage.setItem('admin_copied_campaign_config', configStr)
+      toast.success(`Copied all specifications of "${c.brand_name}" to clipboard & template storage!`)
+    } catch {
+      toast.error('Failed to copy campaign specifications')
+    }
   }
 
   const fetchCampaigns = async () => {
@@ -822,6 +833,29 @@ export default function AdminCampaignsPage() {
                         </button>
                       </>
                     )}
+
+                    {/* Duplicate / Clone to New Campaign */}
+                    <Link href={`/admin/campaigns/create?clone_from=${campaign.id}`}>
+                      <button
+                        type="button"
+                        title="Clone all specifications into a new campaign"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <CopyPlus className="h-3.5 w-3.5 text-amber-400" />
+                        Duplicate
+                      </button>
+                    </Link>
+
+                    {/* Copy Full Specs */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCampaignDetails(campaign)}
+                      title="Copy full campaign specifications to clipboard / template"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+                    >
+                      <Copy className="h-3.5 w-3.5 text-slate-400" />
+                      Copy Specs
+                    </button>
 
                     {/* Edit */}
                     <Link href={`/admin/campaigns/${campaign.id}`}>

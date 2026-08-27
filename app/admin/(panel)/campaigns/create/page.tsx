@@ -7,7 +7,8 @@ import {
   ArrowLeft, Check, Loader2, Save, Megaphone,
   FileSliders, ClipboardList, Wallet, CreditCard, Sparkles,
   Percent, IndianRupee, Layers, CheckCircle2, AlertCircle,
-  RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock, FileText
+  RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock, FileText,
+  Copy, CopyPlus, ClipboardPaste, Sparkle
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -29,6 +30,7 @@ export default function AdminCreateCampaignPage() {
   const { admin, isSuperAdmin } = useAdminPermissions()
   const [saving, setSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null)
+  const [existingCampaigns, setExistingCampaigns] = useState<any[]>([])
 
   const [formData, setFormData] = useState({
     campaign_code: '',
@@ -76,8 +78,139 @@ export default function AdminCreateCampaignPage() {
   ])
   const [paymentFormFields, setPaymentFormFields] = useState<FormField[]>([])
 
-  // Restore saved draft on mount
+  // Helper to populate all form fields from another campaign
+  const populateFromCampaign = (source: any) => {
+    if (!source) return
+    const randomSuffix = Math.floor(100 + Math.random() * 900)
+    const baseCode = source.campaign_code ? source.campaign_code.replace(/-COPY(-\d+)?$/i, '') : 'CAM'
+    const newCode = `${baseCode}-COPY-${randomSuffix}`
+
+    setFormData({
+      campaign_code: newCode,
+      brand_name: source.brand_name ? `${source.brand_name} (Copy)` : '',
+      category: source.category || '',
+      platform: source.platform || 'Instagram',
+      budget_type: source.budget_type || 'Paid',
+      budget_amount: source.budget_amount ? String(source.budget_amount) : '',
+      partial_payment_enabled: Boolean(source.partial_payment_enabled),
+      partial_payment_config: source.partial_payment_config || { type: 'percentage', value: '' },
+      deliverables: source.deliverables || '',
+      product_links: Array.isArray(source.product_links) ? source.product_links.join('\n') : (source.product_links || ''),
+      requirements: source.requirements || '',
+      gender_required: source.gender_required || 'Any',
+      location: source.location || '',
+      location_type: source.location_type || 'PAN_INDIA',
+      target_states: Array.isArray(source.target_states) ? source.target_states : [],
+      target_cities: Array.isArray(source.target_cities) ? source.target_cities : [],
+      store_locations: Array.isArray(source.store_locations) ? source.store_locations : [],
+      enforce_location: Boolean(source.enforce_location),
+      looking_for: source.looking_for || '',
+      followers: source.followers || '',
+      min_followers: source.min_followers ? String(source.min_followers) : '',
+      enforce_followers: Boolean(source.enforce_followers),
+      additional_info: source.additional_info || '',
+      collab_date: source.collab_date || '',
+      form_link: source.form_link || '',
+      order_form: Boolean(source.order_form),
+      show_order_form: source.show_order_form !== false,
+      completion_days: source.completion_days ? String(source.completion_days) : '7',
+      completion_deadline: source.completion_deadline || '',
+      enforce_completion_deadline: source.enforce_completion_deadline !== false,
+      brief_document_url: source.brief_document_url || '',
+    })
+
+    if (Array.isArray(source.form_fields) && source.form_fields.length > 0) {
+      setCustomFields(source.form_fields)
+    }
+    if (Array.isArray(source.order_form_fields) && source.order_form_fields.length > 0) {
+      setOrderFormFields(source.order_form_fields)
+    }
+    if (Array.isArray(source.payment_form_fields) && source.payment_form_fields.length > 0) {
+      setPaymentFormFields(source.payment_form_fields)
+    }
+
+    toast.success(`Loaded all specifications from "${source.brand_name}"! You can now customize and publish.`)
+  }
+
+  // Paste configuration from clipboard or localStorage
+  const handlePasteConfig = async () => {
+    try {
+      let text = ''
+      try {
+        text = await navigator.clipboard.readText()
+      } catch {
+        text = localStorage.getItem('admin_copied_campaign_config') || ''
+      }
+
+      if (!text) {
+        text = localStorage.getItem('admin_copied_campaign_config') || ''
+      }
+
+      if (!text) {
+        toast.error('No campaign specifications found on clipboard. Click "Copy Specs" on any campaign card first!')
+        return
+      }
+
+      const parsed = JSON.parse(text)
+      if (!parsed.brand_name && !parsed.campaign_code && !parsed.deliverables) {
+        toast.error('The clipboard data does not contain valid campaign details.')
+        return
+      }
+
+      populateFromCampaign(parsed)
+    } catch {
+      toast.error('Failed to parse clipboard data. Make sure valid campaign JSON was copied.')
+    }
+  }
+
+  // Copy current form configuration
+  const handleCopyCurrentConfig = () => {
+    try {
+      const payload = {
+        ...formData,
+        form_fields: customFields,
+        order_form_fields: orderFormFields,
+        payment_form_fields: paymentFormFields,
+      }
+      const str = JSON.stringify(payload, null, 2)
+      navigator.clipboard.writeText(str)
+      localStorage.setItem('admin_copied_campaign_config', str)
+      toast.success('Copied current campaign details to clipboard & template storage!')
+    } catch {
+      toast.error('Failed to copy current details')
+    }
+  }
+
+  // Restore saved draft or clone from URL on mount
   useEffect(() => {
+    // Fetch list of all campaigns for template dropdown
+    fetch('/api/admin/campaigns')
+      .then(res => res.json())
+      .then(data => {
+        if (data.campaigns) setExistingCampaigns(data.campaigns)
+      })
+      .catch(() => {})
+
+    // Check if clone_from is in URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const cloneFromId = params.get('clone_from')
+      if (cloneFromId) {
+        fetch(`/api/admin/campaigns/${cloneFromId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.campaign) {
+              populateFromCampaign(data.campaign)
+            }
+          })
+          .catch(() => {
+            toast.error('Failed to load source campaign for cloning')
+          })
+        return
+      }
+    }
+
+    // Otherwise restore saved draft on mount
     try {
       const savedDraft = localStorage.getItem(DRAFT_KEY)
       if (savedDraft) {
@@ -287,6 +420,78 @@ export default function AdminCreateCampaignPage() {
 
       {/* Main Single-Page Unified Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* ─── QUICK CLONE & TEMPLATE ASSISTANT TOOLBAR ─── */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-slate-900 via-amber-950/20 to-slate-900 p-4 sm:p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0 shadow-inner">
+              <CopyPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                1-Click Campaign Clone & Template Assistant
+                <span className="text-[10px] lowercase font-semibold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30">
+                  Instant Auto-Fill
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Choose an existing campaign to auto-fill all deliverables, requirements, location rules, & custom questions
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap sm:flex-nowrap">
+            {/* Quick Template Selector */}
+            <div className="w-full sm:w-64">
+              <Select onValueChange={(val) => {
+                const selected = existingCampaigns.find(c => c.id === val)
+                if (selected) {
+                  populateFromCampaign(selected)
+                }
+              }}>
+                <SelectTrigger className="bg-slate-950 border-amber-500/30 text-white h-9.5 text-xs focus:ring-amber-400 rounded-xl hover:border-amber-400/50 transition-colors">
+                  <SelectValue placeholder="⚡ Clone from Template..." />
+                </SelectTrigger>
+                <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white max-h-[260px] shadow-2xl shadow-black/80">
+                  {existingCampaigns.length === 0 ? (
+                    <div className="p-3 text-xs text-slate-400 text-center">No existing campaigns found</div>
+                  ) : (
+                    existingCampaigns.map((c) => (
+                      <SelectItem key={c.id} value={c.id} className="text-xs py-2 text-slate-200 hover:text-white focus:bg-amber-500/20 cursor-pointer">
+                        <span className="font-bold text-white">{c.brand_name}</span>
+                        <span className="text-[10px] text-slate-400 ml-1.5 font-mono">({c.campaign_code})</span>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Paste Specs Button */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePasteConfig}
+              title="Paste campaign specifications from clipboard"
+              className="h-9.5 px-3 rounded-xl border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold shrink-0 cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+            >
+              <ClipboardPaste className="h-4 w-4 text-amber-400" />
+              Paste Specs
+            </Button>
+
+            {/* Copy Current Specs Button */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCopyCurrentConfig}
+              title="Copy current form specifications to clipboard"
+              className="h-9.5 px-3 rounded-xl border-white/10 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+            >
+              <Copy className="h-3.5 w-3.5 text-slate-400" />
+              Copy Current
+            </Button>
+          </div>
+        </div>
 
         {/* ─── SECTION 1: Essentials & Core Identity ─── */}
         <div className="rounded-2xl border border-white/10 bg-slate-900/80 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5">
