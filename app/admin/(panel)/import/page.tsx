@@ -932,6 +932,40 @@ export default function ImportPage() {
     toast.success(`Downloaded ${data.length} failed rows as CSV`)
   }
 
+  // ─── Download invalid preview rows as CSV ─────────────────
+  const downloadInvalidPreviewRows = () => {
+    const invalidRows = parsedRows.filter(r => !r._valid)
+    if (invalidRows.length === 0) return toast.error('No invalid rows to download')
+
+    const data = invalidRows.map(r => ({
+      'Row Number': r._rowIndex,
+      'User ID': r.influencer_id || '',
+      'Name': r.full_name || '',
+      'Mobile': r.mobile || '',
+      'Email': r.email || '',
+      'Instagram ID': r.instagram_username || '',
+      'Followers': r.followers || '',
+      'Gender': r.gender || '',
+      'State': r.state || '',
+      'City': r.city || '',
+      'Account Name': r.account_name || '',
+      'Account Number': r.account_number || '',
+      'IFSC': r.ifsc_code || '',
+      'Category': r.category || '',
+      'Error Reasons': r._errors.join(' | ')
+    }))
+
+    const csv = Papa.unparse(data)
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `invalid_preview_rows_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${invalidRows.length} invalid rows CSV!`)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Injection */}
@@ -1642,21 +1676,31 @@ export default function ImportPage() {
 
               {/* Validation Errors Notice */}
               {invalidCount > 0 && (
-                <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-2xl flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1 text-xs">
-                    <p className="font-semibold text-red-300">
-                      {invalidCount} {invalidCount === 1 ? 'row has' : 'rows have'} errors and will be skipped:
-                    </p>
-                    <ul className="list-disc list-inside text-[11px] text-red-300/80 space-y-0.5">
-                      {Array.from(new Set(parsedRows.flatMap(r => r._errors))).map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      Check the &quot;Import Status&quot; column below for details on each row, or remove invalid rows using the trash icon.
-                    </p>
+                <div className="p-4 bg-red-500/10 border border-red-500/25 rounded-2xl flex flex-col sm:flex-row items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-xs">
+                      <p className="font-semibold text-red-300">
+                        {invalidCount} {invalidCount === 1 ? 'row has' : 'rows have'} errors and will be skipped:
+                      </p>
+                      <ul className="list-disc list-inside text-[11px] text-red-300/80 space-y-0.5 max-h-40 overflow-y-auto">
+                        {Array.from(new Set(parsedRows.flatMap(r => r._errors))).map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Check the &quot;Import Status&quot; column below for details on each row, or remove invalid rows using the trash icon.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={downloadInvalidPreviewRows}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/30 hover:bg-red-500/30 transition-all cursor-pointer shadow-sm"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Invalid Rows CSV</span>
+                  </button>
                 </div>
               )}
 
