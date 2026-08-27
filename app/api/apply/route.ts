@@ -175,15 +175,64 @@ export async function POST(request: Request) {
         { error: 'You must be logged in or provide a mobile number to apply' },
         { status: 401 }
       )
+    }    // Execute all necessary verification reads in a single concurrent Promise.all batch
+    const [
+      { data: user, error: userError },
+      { data: campaign, error: campaignError },
+      { data: userActiveApps },
+      { data: existing }
+    ] = await Promise.all([
+      supabase
+        .from('users')
+        .select('id, email, full_name, followers, state, city, shipping_addresses, dob, custom_attributes, gender, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
+        .eq('id', userId)
+        .single(),
+      supabase
+        .from('campaigns')
+        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location')
+        .eq('id', campaignId)
+        .single(),
+      supabase
+        .from('applications')
+        .select(`
+          id,
+          campaign_id,
+          status,
+          form_data,
+          completion_deadline,
+          is_delay_exempted,
+          delay_exemption_reason,
+          completion_submitted_at,
+          created_at,
+          updated_at,
+          campaigns (
+            id,
+            brand_name,
+            campaign_code,
+            completion_days,
+            completion_deadline,
+            enforce_completion_deadline
+          )
+        `)
+        .eq('user_id', userId)
+        .in('status', ['Approved', 'Order Placed']),
+      supabase
+        .from('applications')
+        .select('id, status')
+        .eq('user_id', userId)
+        .eq('campaign_id', campaignId)
+        .single()
+    ])
+
+    // Verify user exists
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: 'Your account appears to have been deleted. Please clear your cookies/return to home page.' },
+        { status: 401 }
+      )
     }
 
     // Check campaign exists and is active
-    const { data: campaign } = await supabase
-      .from('campaigns')
-      .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location')
-      .eq('id', campaignId)
-      .single()
-
     if (!campaign || campaign.status !== 'Active' || !campaign.is_live) {
       return NextResponse.json(
         { error: 'This campaign is no longer accepting applications' },
@@ -191,32 +240,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check if creator is blocked due to overdue completion submissions on other approved campaigns
-    const { data: userActiveApps } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        campaign_id,
-        status,
-        form_data,
-        completion_deadline,
-        is_delay_exempted,
-        delay_exemption_reason,
-        completion_submitted_at,
-        created_at,
-        updated_at,
-        campaigns (
-          id,
-          brand_name,
-          campaign_code,
-          completion_days,
-          completion_deadline,
-          enforce_completion_deadline
-        )
-      `)
-      .eq('user_id', userId)
-      .in('status', ['Approved', 'Order Placed'])
-
+    // Check if creator is blocked due to overdue completion submissions
     if (userActiveApps && userActiveApps.length > 0) {
       const completionEligibility = checkCreatorCompletionEligibility(userActiveApps as any)
       if (!completionEligibility.isEligible) {
@@ -233,13 +257,7 @@ export async function POST(request: Request) {
 
     // Check follower requirements if campaign strictly enforces follower minimum
     if (campaign.enforce_followers) {
-      const { data: creator } = await supabase
-        .from('users')
-        .select('followers')
-        .eq('id', userId)
-        .single()
-
-      const eligibility = checkFollowerEligibility(creator?.followers, campaign)
+      const eligibility = checkFollowerEligibility(user.followers, campaign)
       if (!eligibility.eligible) {
         return NextResponse.json(
           { error: eligibility.message || 'You do not meet the minimum followers requirement for this campaign' },
@@ -250,13 +268,7 @@ export async function POST(request: Request) {
 
     // Check location requirements if campaign strictly enforces location
     if (campaign.enforce_location) {
-      const { data: creator } = await supabase
-        .from('users')
-        .select('state, city, shipping_addresses')
-        .eq('id', userId)
-        .single()
-
-      const locationEligibility = checkCampaignLocationEligibility(campaign, creator)
+      const locationEligibility = checkCampaignLocationEligibility(campaign, user)
       if (!locationEligibility.isEligible) {
         return NextResponse.json(
           { error: locationEligibility.reason || `This campaign is restricted to creators with an address in ${locationEligibility.requiredLocationText}` },
@@ -265,14 +277,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if user already applied
-    const { data: existing } = await supabase
-      .from('applications')
-      .select('id, status')
-      .eq('user_id', userId)
-      .eq('campaign_id', campaignId)
-      .single()
-
+    // Handle existing application
     if (existing) {
       if (existing.status === 'Rejected') {
         // If rejected, allow re-application by updating the existing record
@@ -288,43 +293,28 @@ export async function POST(request: Request) {
 
         if (updateError) throw updateError
 
-        // Auto-sync answers to Creator Profile on re-application
-        if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
+        // Background non-blocking: Auto-sync answers to Creator Profile & send email
+        Promise.resolve().then(async () => {
           try {
-            const { data: currentUser } = await supabase
-              .from('users')
-              .select('dob, custom_attributes, gender, city, state, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
-              .eq('id', userId)
-              .single()
-
-            const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, currentUser)
-
-            if (hasChanges && Object.keys(profileUpdates).length > 0) {
-              profileUpdates.updated_at = new Date().toISOString()
-              await supabase.from('users').update(profileUpdates).eq('id', userId)
+            if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
+              const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user)
+              if (hasChanges && Object.keys(profileUpdates).length > 0) {
+                profileUpdates.updated_at = new Date().toISOString()
+                await supabase.from('users').update(profileUpdates).eq('id', userId)
+              }
             }
-          } catch (syncErr) {
-            console.error('Error in profile auto-sync from re-application:', syncErr)
+            if (user?.email) {
+              await sendApplicationSubmittedEmail(
+                user.email,
+                user.full_name || 'Creator',
+                campaign.brand_name,
+                campaign.campaign_code
+              )
+            }
+          } catch (bgErr) {
+            console.error('Background apply post-process error (Re-apply):', bgErr)
           }
-        }
-
-        // Send confirmation email for re-application
-        const { data: user } = await supabase
-          .from('users')
-          .select('email, full_name')
-          .eq('id', userId)
-          .single()
-
-        if (user?.email) {
-          Promise.resolve(
-            sendApplicationSubmittedEmail(
-              user.email,
-              user.full_name || 'Creator',
-              campaign.brand_name,
-              campaign.campaign_code
-            )
-          ).catch((e) => console.error('Background Email Error (Re-apply):', e))
-        }
+        })
         
         return NextResponse.json({
           success: true,
@@ -339,7 +329,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Insert application
+    // Insert new application
     const { data: application, error } = await supabase
       .from('applications')
       .insert({
@@ -354,53 +344,28 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    // Auto-sync answers to Creator Profile (DOB, sizes, preferences, custom attributes)
-    if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
+    // Background non-blocking: Auto-sync answers to Creator Profile & send confirmation email
+    Promise.resolve().then(async () => {
       try {
-        const { data: currentUser } = await supabase
-          .from('users')
-          .select('dob, custom_attributes, gender, city, state, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
-          .eq('id', userId)
-          .single()
-
-        const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, currentUser)
-
-        if (hasChanges && Object.keys(profileUpdates).length > 0) {
-          profileUpdates.updated_at = new Date().toISOString()
-          const { error: profileUpdateError } = await supabase
-            .from('users')
-            .update(profileUpdates)
-            .eq('id', userId)
-
-          if (profileUpdateError) {
-            console.error('Warning: Failed to auto-sync campaign answers to user profile:', profileUpdateError)
-          } else {
-            console.log(`[ProfileSync] Successfully enriched profile for user ${userId} with keys:`, Object.keys(profileUpdates))
+        if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
+          const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user)
+          if (hasChanges && Object.keys(profileUpdates).length > 0) {
+            profileUpdates.updated_at = new Date().toISOString()
+            await supabase.from('users').update(profileUpdates).eq('id', userId)
           }
         }
-      } catch (syncErr) {
-        console.error('Error in profile auto-sync from application:', syncErr)
+        if (user?.email) {
+          await sendApplicationSubmittedEmail(
+            user.email,
+            user.full_name || 'Creator',
+            campaign.brand_name,
+            campaign.campaign_code
+          )
+        }
+      } catch (bgErr) {
+        console.error('Background apply post-process error:', bgErr)
       }
-    }
-
-    // Send confirmation email (fire-and-forget)
-    const { data: user } = await supabase
-      .from('users')
-      .select('email, full_name')
-      .eq('id', userId)
-      .single()
-
-    // Send confirmation email asynchronously without blocking the response
-    if (user?.email) {
-      Promise.resolve(
-        sendApplicationSubmittedEmail(
-          user.email,
-          user.full_name || 'Creator',
-          campaign.brand_name,
-          campaign.campaign_code
-        )
-      ).catch((e) => console.error('Background Email Error:', e))
-    }
+    })
 
     return NextResponse.json({
       success: true,

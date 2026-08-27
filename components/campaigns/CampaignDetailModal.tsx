@@ -416,28 +416,19 @@ export default function CampaignDetailModal({
 
     setSavingProfile(true)
     try {
-      // Step 1: Save profile if there are missing fields
-      const missing = getMissingFields()
-      if (missing.length > 0) {
-        const res = await fetch('/api/dashboard/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...user, ...inlineData }),
-        })
-        if (!res.ok) throw new Error('Failed to update profile')
-        await refreshUserProfile()
+      // Submit application with both inline profile fields and custom form questions in a single fast request
+      const combinedFormData = {
+        ...inlineData,
+        ...(hasCustomFields ? customFormData : {}),
+        comments: commentText || '',
       }
 
-      // Step 2: Submit application with custom form data
       const res = await fetch('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          formData: {
-            ...(hasCustomFields ? customFormData : {}),
-            comments: commentText || '',
-          },
+          formData: combinedFormData,
           selectedStore: selectedStoreOutlet,
         }),
       })
@@ -445,6 +436,11 @@ export default function CampaignDetailModal({
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
 
       setIsSuccess(true)
+
+      // Refresh in-memory user cache in background without blocking UI
+      if (refreshUserProfile) {
+        refreshUserProfile().catch(() => {})
+      }
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong')
     } finally {

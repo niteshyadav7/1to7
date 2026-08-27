@@ -166,7 +166,7 @@ function computeProfileStrength(data: any): number {
 }
 
 export default function ProfilePage() {
-  const { user: authUser, refreshUserProfile } = useAuth()
+  const { user: authUser, login, refreshUserProfile } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -696,7 +696,13 @@ export default function ProfilePage() {
       
       lastSavedPayload.current = payloadStr
       setSaveStatus('saved')
-      await refreshUserProfile()
+      
+      if (data.user) {
+        login(data.user)
+        setProfile(data.user)
+      } else {
+        await refreshUserProfile()
+      }
       
       if (!isAutoSave) {
         toast.success('Profile updated successfully!')
