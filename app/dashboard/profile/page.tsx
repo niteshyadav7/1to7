@@ -241,7 +241,6 @@ export default function ProfilePage() {
   const [editingIgId, setEditingIgId] = useState<string | null>(null)
   const [igFormHandle, setIgFormHandle] = useState('')
   const [igFormFollowers, setIgFormFollowers] = useState('')
-  const [igFormCategory, setIgFormCategory] = useState('')
   const [igFormIsPrimary, setIgFormIsPrimary] = useState(false)
   const [igAvailability, setIgAvailability] = useState<{ checking: boolean; available: boolean | null; message?: string }>({
     checking: false,
@@ -284,7 +283,6 @@ export default function ProfilePage() {
     setEditingIgId(null)
     setIgFormHandle('')
     setIgFormFollowers('')
-    setIgFormCategory(formData.category?.split(',')[0]?.trim() || '')
     setIgFormIsPrimary(instagramProfiles.length === 0)
     setIgAvailability({ checking: false, available: null })
     setIgModalOpen(true)
@@ -294,7 +292,6 @@ export default function ProfilePage() {
     setEditingIgId(p.id)
     setIgFormHandle(p.username)
     setIgFormFollowers(String(p.followers || '0'))
-    setIgFormCategory(p.category || '')
     setIgFormIsPrimary(p.is_primary)
     setIgAvailability({ checking: false, available: null })
     setIgModalOpen(true)
@@ -310,14 +307,13 @@ export default function ProfilePage() {
     setIgSubmitting(true)
     try {
       if (editingIgId) {
-        // Update existing profile (followers/category)
+        // Update existing profile (followers)
         const res = await fetch('/api/dashboard/instagram-accounts', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             profileId: editingIgId,
             followers: parseInt(igFormFollowers || '0', 10) || 0,
-            category: igFormCategory,
             is_primary: igFormIsPrimary
           })
         })
@@ -333,7 +329,6 @@ export default function ProfilePage() {
           body: JSON.stringify({
             username: igFormHandle,
             followers: parseInt(igFormFollowers || '0', 10) || 0,
-            category: igFormCategory,
             is_primary: igFormIsPrimary
           })
         })
@@ -2202,17 +2197,6 @@ export default function ProfilePage() {
                     className="pl-9 h-10 text-xs border-slate-200 rounded-xl focus-visible:ring-pink-500"
                   />
                 </div>
-              </div>
-
-              {/* Niche / Category */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Profile Niche / Category (Optional)</Label>
-                <Input
-                  value={igFormCategory}
-                  onChange={(e) => setIgFormCategory(e.target.value)}
-                  placeholder="e.g. Fitness & Health, Fashion, Travel"
-                  className="h-10 text-xs border-slate-200 rounded-xl focus-visible:ring-pink-500"
-                />
               </div>
 
               {/* Primary Toggle */}
