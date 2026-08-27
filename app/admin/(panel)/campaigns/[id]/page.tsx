@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList,
   Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock,
-  FileText, UserCheck, ShieldCheck, AlertTriangle
+  FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,10 @@ interface CampaignData {
   created_by_admin_id?: string
   created_by_admin_name?: string
   created_by_admin_email?: string
+  last_edited_by_admin_id?: string
+  last_edited_by_admin_name?: string
+  last_edited_by_admin_email?: string
+  last_edited_at?: string
   approved_by_admin_id?: string
   approved_by_admin_name?: string
   approved_by_admin_email?: string
@@ -259,22 +263,49 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         animate={{ opacity: 1, y: 0 }}
         className="space-y-5"
       >
-        {/* Creator & Approver Audit Card */}
-        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4 text-indigo-400 shrink-0" />
-            <span className="text-slate-400">
-              Created by <strong className="text-white">{campaign.created_by_admin_name || 'Admin'}</strong>
-              {campaign.created_by_admin_email && (
-                <span className="ml-1.5 font-mono text-[11px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
-                  {campaign.created_by_admin_email}
+        {/* Dual Governance Re-Approval Warning Banner */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 flex items-start gap-3 text-xs text-amber-200 shadow-lg">
+          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-amber-300 text-sm">Strict Dual-Admin Governance Policy</p>
+            <p className="text-slate-300 leading-relaxed">
+              Saving any edits to this campaign will <strong className="text-amber-300">automatically reset prior approvals</strong> and set its status to <strong className="text-amber-300">Pending Approval</strong>. The admin who makes these edits cannot self-approve; another admin must review and approve the clean version before it goes Live.
+            </p>
+          </div>
+        </div>
+
+        {/* Creator, Last Editor & Approver Audit Card */}
+        <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-indigo-400 shrink-0" />
+              <span className="text-slate-400">
+                Created by <strong className="text-white">{campaign.created_by_admin_name || 'Admin'}</strong>
+                {campaign.created_by_admin_email && (
+                  <span className="ml-1.5 font-mono text-[11px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                    {campaign.created_by_admin_email}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {campaign.last_edited_by_admin_name && campaign.last_edited_by_admin_name !== campaign.created_by_admin_name && (
+              <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+                <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+                <span className="text-slate-400">
+                  Last edited by <strong className="text-amber-300">{campaign.last_edited_by_admin_name}</strong>
+                  {campaign.last_edited_at && (
+                    <span className="ml-1.5 text-[11px] text-slate-400">
+                      ({new Date(campaign.last_edited_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })})
+                    </span>
+                  )}
                 </span>
-              )}
-            </span>
+              </div>
+            )}
           </div>
 
           {campaign.approval_status === 'Approved' ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
               <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
               <span className="text-slate-400">
                 Approved by <strong className="text-emerald-300">{campaign.approved_by_admin_name || 'Super Admin'}</strong>
@@ -286,47 +317,27 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20">
               <Clock className="h-4 w-4 text-amber-400 shrink-0" />
-              <span className="text-amber-400 font-semibold">
-                Status: {campaign.approval_status || 'Pending Approval'}
+              <span className="text-amber-400 font-bold">
+                Governance Status: {campaign.approval_status || 'Pending Approval'}
               </span>
             </div>
           )}
         </div>
 
-        {/* Status & Live Controls */}
-        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Status</Label>
-              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v || 'Draft' })}>
-                <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
-                  <SelectItem value="Draft" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Draft</SelectItem>
-                  <SelectItem value="Active" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Active</SelectItem>
-                  <SelectItem value="Review" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Review</SelectItem>
-                  <SelectItem value="Closed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Closed</SelectItem>
-                  <SelectItem value="Completed" className="text-slate-100 hover:text-white focus:text-white focus:bg-purple-500/30 cursor-pointer py-2.5 font-medium">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Visibility</Label>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, is_live: !formData.is_live })}
-                className={`w-full h-11 rounded-xl text-sm font-medium transition-all cursor-pointer border ${
-                  formData.is_live
-                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
-                    : 'bg-slate-950/50 text-slate-400 border-white/10'
-                }`}
-              >
-                {formData.is_live ? '🟢 Live — Visible to Influencers' : '⚫ Offline — Hidden'}
-              </button>
-            </div>
+        {/* Live Publishing Notice */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-white">Live Publication Control</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Live status is governed strictly by Dual Admin Approval. Saving changes submits this campaign for 2nd Admin Review.
+            </p>
+          </div>
+          <div className="shrink-0">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+              <Clock className="h-3.5 w-3.5" /> Re-Approval Required on Save
+            </span>
           </div>
         </div>
 

@@ -37,6 +37,10 @@ interface Campaign {
   created_by_admin_id?: string
   created_by_admin_name?: string
   created_by_admin_email?: string
+  last_edited_by_admin_id?: string
+  last_edited_by_admin_name?: string
+  last_edited_by_admin_email?: string
+  last_edited_at?: string
   approved_by_admin_id?: string
   approved_by_admin_name?: string
   approved_by_admin_email?: string
@@ -244,9 +248,11 @@ export default function AdminCampaignsPage() {
 
   // Handle Campaign Approval
   const handleApproveCampaign = async (campaign: Campaign) => {
-    // Check maker-checker rule
-    if (!isSuperAdmin && admin?.id && campaign.created_by_admin_id === admin.id) {
-      toast.error('Dual control policy: You created this campaign and cannot self-approve. Another admin or Super Admin must review and approve it.')
+    // Check strict maker-checker rule: Creator or Last Editor cannot self-approve
+    const isLastAuthor = (campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin?.id) ||
+                         (campaign.created_by_admin_id === admin?.id)
+    if (!isSuperAdmin && admin?.id && isLastAuthor) {
+      toast.error('Dual control policy: You created or made the latest modifications to this campaign and cannot self-approve. Another admin must review and approve it.')
       return
     }
 
@@ -919,6 +925,21 @@ export default function AdminCampaignsPage() {
                         )}
                       </div>
 
+                      {campaign.last_edited_by_admin_name && campaign.last_edited_by_admin_name !== campaign.created_by_admin_name && (
+                        <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                            <span className="text-slate-500">Last edited by:</span>
+                            <span className="text-amber-300 font-semibold truncate">{campaign.last_edited_by_admin_name}</span>
+                          </span>
+                          {campaign.last_edited_at && (
+                            <span className="text-[10px] text-slate-500 shrink-0">
+                              {new Date(campaign.last_edited_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {campaign.approval_status === 'Approved' && (
                         <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5">
                           <span className="flex items-center gap-1.5 truncate">
@@ -958,9 +979,11 @@ export default function AdminCampaignsPage() {
                           Review
                         </Button>
 
-                        {!isSuperAdmin && admin?.id && campaign.created_by_admin_id === admin.id ? (
+                        {!isSuperAdmin && admin?.id && ((campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin.id) || campaign.created_by_admin_id === admin.id) ? (
                           <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg">
-                            Awaiting 2nd Admin (Self-created)
+                            {campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin.id && campaign.created_by_admin_id !== admin.id
+                              ? 'Awaiting 2nd Admin (You edited)'
+                              : 'Awaiting 2nd Admin (Self-created)'}
                           </span>
                         ) : (
                           <>
@@ -1133,15 +1156,24 @@ export default function AdminCampaignsPage() {
               </div>
             </div>
 
-            {/* Creator Information & Audit */}
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs space-y-1.5">
-              <span className="text-indigo-400 font-bold uppercase tracking-wider text-[10px]">Admin Audit Details</span>
+            {/* Creator & Last Editor Information & Audit */}
+            <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs space-y-2">
+              <span className="text-indigo-400 font-bold uppercase tracking-wider text-[10px]">Admin Audit & Governance Details</span>
               <div className="flex items-center justify-between text-slate-300">
                 <span>Created by: <strong>{reviewModalCampaign.created_by_admin_name || 'Admin'}</strong></span>
                 <span className="font-mono text-[11px] text-indigo-300">{reviewModalCampaign.created_by_admin_email || 'N/A'}</span>
               </div>
+
+              {reviewModalCampaign.last_edited_by_admin_name && reviewModalCampaign.last_edited_by_admin_name !== reviewModalCampaign.created_by_admin_name && (
+                <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-white/5">
+                  <span>Last edited by: <strong className="text-amber-300">{reviewModalCampaign.last_edited_by_admin_name}</strong></span>
+                  <span className="font-mono text-[11px] text-amber-300">{reviewModalCampaign.last_edited_by_admin_email || ''}</span>
+                </div>
+              )}
+
               <p className="text-[11px] text-slate-400">
                 Created on: {new Date(reviewModalCampaign.created_at).toLocaleString()}
+                {reviewModalCampaign.last_edited_at && ` • Last modified: ${new Date(reviewModalCampaign.last_edited_at).toLocaleString()}`}
               </p>
             </div>
 
@@ -1175,9 +1207,11 @@ export default function AdminCampaignsPage() {
                 Close
               </Button>
 
-              {!isSuperAdmin && admin?.id && reviewModalCampaign.created_by_admin_id === admin.id ? (
+              {!isSuperAdmin && admin?.id && ((reviewModalCampaign.last_edited_by_admin_id && reviewModalCampaign.last_edited_by_admin_id === admin.id) || reviewModalCampaign.created_by_admin_id === admin.id) ? (
                 <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
-                  Dual Control: Another admin must approve your campaign
+                  {reviewModalCampaign.last_edited_by_admin_id && reviewModalCampaign.last_edited_by_admin_id === admin.id && reviewModalCampaign.created_by_admin_id !== admin.id
+                    ? 'Dual Control: You modified these details. Another admin must review & approve.'
+                    : 'Dual Control: You created this campaign. Another admin must review & approve.'}
                 </span>
               ) : (
                 <>

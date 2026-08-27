@@ -44,12 +44,13 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
-    // Only allow updating specific fields
+    // Only allow updating campaign content/configuration fields
+    // is_live and status are strictly managed through the dual-approval workflow
     const allowedFields = [
       'brand_name', 'category', 'platform', 'budget_type',
       'budget_amount', 'partial_payment_enabled', 'partial_payment_config',
       'deliverables', 'product_links', 'requirements',
-      'gender_required', 'is_live', 'status',
+      'gender_required',
       'location', 'location_type', 'target_states', 'target_cities', 'store_locations', 'enforce_location',
       'looking_for', 'followers', 'min_followers', 'enforce_followers', 'additional_info',
       'collab_date', 'form_link', 'form_fields',
@@ -64,6 +65,26 @@ export async function PUT(
         updates[field] = body[field]
       }
     }
+
+    // Strict Maker-Checker Rule:
+    // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live
+    const adminName = admin.full_name || admin.name || 'Admin'
+    const adminEmail = admin.email || ''
+
+    updates.approval_status = 'Pending Approval'
+    updates.status = 'Review'
+    updates.is_live = false
+    updates.approved_by_admin_id = null
+    updates.approved_by_admin_name = null
+    updates.approved_by_admin_email = null
+    updates.approved_at = null
+    updates.rejection_reason = null
+
+    // Track the latest editor
+    updates.last_edited_by_admin_id = admin.id
+    updates.last_edited_by_admin_name = adminName
+    updates.last_edited_by_admin_email = adminEmail
+    updates.last_edited_at = new Date().toISOString()
     updates.updated_at = new Date().toISOString()
 
     const { data: campaign, error } = await supabase
@@ -75,7 +96,11 @@ export async function PUT(
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, campaign })
+    return NextResponse.json({
+      success: true,
+      message: 'Campaign updated and submitted for 2nd Admin Approval.',
+      campaign
+    })
   } catch (error) {
     console.error('API /admin/campaigns/[id] PUT Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -42,11 +42,17 @@ export async function POST(
     const campaign = campRes.rows[0]
     const isSuperAdmin = admin.role === 'super_admin' || Boolean(admin.is_super_admin)
 
-    // 2. Maker-Checker Rule: Creator cannot self-approve unless Super Admin
-    if (!isSuperAdmin && campaign.created_by_admin_id && campaign.created_by_admin_id === admin.id) {
+    // 2. Strict Maker-Checker Rule:
+    // Neither the original creator nor the admin who made the latest edits can self-approve!
+    // Another admin must review the final unmodified details before publishing live.
+    const lastAuthorId = campaign.last_edited_by_admin_id || campaign.created_by_admin_id
+    if (!isSuperAdmin && lastAuthorId && lastAuthorId === admin.id) {
       await client.end()
+      const isEditor = campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin.id && campaign.created_by_admin_id !== admin.id
       return NextResponse.json({
-        error: 'Dual control required: You created this campaign and cannot self-approve. Another admin or Super Admin must review and approve it.'
+        error: isEditor
+          ? 'Dual control policy: You made the latest modifications to this campaign and cannot self-approve. Another admin or Super Admin must review and approve the clean version.'
+          : 'Dual control policy: You created this campaign and cannot self-approve. Another admin or Super Admin must review and approve it.'
       }, { status: 403 })
     }
 
