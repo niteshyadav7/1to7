@@ -44,11 +44,13 @@ const statusColors: Record<string, string> = {
   'Order Details Pending': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
 }
 
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+
 const statuses = ['All', 'Applied', 'Under Process', 'Rejected']
 
 export default function AppliedCampaignsPage() {
-  const [applications, setApplications] = useState<Application[]>([])
-  const [loading, setLoading] = useState(true)
+  const [applications, setApplications] = useState<Application[]>(() => getFastCache<Application[]>('creator_applied_apps') || [])
+  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_applied_apps'))
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [reviewApp, setReviewApp] = useState<Application | null>(null)
@@ -58,7 +60,9 @@ export default function AppliedCampaignsPage() {
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
-      setApplications(data.applications || [])
+      const apps = data.applications || []
+      setApplications(apps)
+      setFastCache('creator_applied_apps', apps)
     } catch {
       console.error('Failed to fetch applications')
     } finally {

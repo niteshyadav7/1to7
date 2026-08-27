@@ -31,9 +31,11 @@ interface Application {
   }
 }
 
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+
 export default function ApprovedCampaignsPage() {
-  const [applications, setApplications] = useState<Application[]>([])
-  const [loading, setLoading] = useState(true)
+  const [applications, setApplications] = useState<Application[]>(() => getFastCache<Application[]>('creator_approved_apps') || [])
+  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_approved_apps'))
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 
   const fetchApproved = useCallback(async () => {
@@ -51,6 +53,7 @@ export default function ApprovedCampaignsPage() {
         return true
       })
       setApplications(filtered)
+      setFastCache('creator_approved_apps', filtered)
     } catch {
       console.error('Failed to fetch approved campaigns')
     } finally {

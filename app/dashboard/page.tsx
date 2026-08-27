@@ -44,10 +44,12 @@ const statusColors: Record<string, string> = {
   'Payment Initiated': 'bg-amber-50 text-amber-700 border-amber-200',
 }
 
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [campaigns, setCampaigns] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<Stats | null>(() => getFastCache<Stats>('creator_dashboard_stats'))
+  const [campaigns, setCampaigns] = useState<any[]>(() => getFastCache<any[]>('creator_dashboard_campaigns') || [])
+  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_dashboard_stats') && !getFastCache('creator_dashboard_campaigns'))
   const [searchQuery, setSearchQuery] = useState('')
 
   // Modal states
@@ -59,7 +61,10 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
+    if (!stats && !campaigns.length && !isBackground) {
+      setLoading(true)
+    }
     try {
       const [statsRes, campaignsRes] = await Promise.all([
         fetch('/api/dashboard/stats'),
@@ -68,8 +73,14 @@ export default function DashboardPage() {
       const statsData = await statsRes.json()
       const campaignsData = await campaignsRes.json()
 
-      setStats(statsData.stats || null)
-      setCampaigns(campaignsData.campaigns || [])
+      const freshStats = statsData.stats || null
+      const freshCampaigns = campaignsData.campaigns || []
+
+      setStats(freshStats)
+      setCampaigns(freshCampaigns)
+
+      setFastCache('creator_dashboard_stats', freshStats)
+      setFastCache('creator_dashboard_campaigns', freshCampaigns)
     } catch {
       console.error('Failed to fetch dashboard data')
     } finally {

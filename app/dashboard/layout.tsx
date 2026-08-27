@@ -124,6 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={true}
                 onClick={() => setSidebarOpen(false)}
                 title={isCollapsed ? link.label : undefined}
                 className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border ${

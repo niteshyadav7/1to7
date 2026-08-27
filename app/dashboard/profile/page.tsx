@@ -165,10 +165,13 @@ function computeProfileStrength(data: any): number {
   return Math.min(100, Math.round((filled / (fields.length + 1)) * 100))
 }
 
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+
 export default function ProfilePage() {
   const { user: authUser, login, refreshUserProfile } = useAuth()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cachedProfile = getFastCache<UserProfile>('creator_profile_data')
+  const [profile, setProfile] = useState<UserProfile | null>(() => cachedProfile || (authUser as any) || null)
+  const [loading, setLoading] = useState<boolean>(() => !cachedProfile && !authUser)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved' | 'error'>('idle')
   const [showOTPModal, setShowOTPModal] = useState(false)
@@ -187,29 +190,32 @@ export default function ProfilePage() {
   const lastSavedPayload = useRef<string>('')
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  const [formData, setFormData] = useState({
-    full_name: '',
-    instagram_username: '',
-    instagram_profile_pic: '',
-    gender: '',
-    category: '',
-    languages: '',
-    state: '',
-    city: '',
-    pincode: '',
-    followers: 0,
-    dob: '',
-    alt_mobile: '',
-    tshirt_size: '',
-    shoe_size: '',
-    bio: '',
-    youtube: '',
-    custom_attributes: {} as Record<string, any>,
-    account_name: '',
-    account_number: '',
-    ifsc_code: '',
-    shipping_addresses: [] as ShippingAddress[],
-    address_remarks: '',
+  const [formData, setFormData] = useState(() => {
+    const initSrc: any = cachedProfile || authUser || {}
+    return {
+      full_name: initSrc.full_name || '',
+      instagram_username: initSrc.instagram_username || '',
+      instagram_profile_pic: initSrc.instagram_profile_pic || '',
+      gender: initSrc.gender || '',
+      category: initSrc.category || '',
+      languages: initSrc.languages || '',
+      state: initSrc.state || '',
+      city: initSrc.city || '',
+      pincode: initSrc.pincode || '',
+      followers: initSrc.followers || 0,
+      dob: initSrc.dob || '',
+      alt_mobile: initSrc.alt_mobile || '',
+      tshirt_size: initSrc.tshirt_size || '',
+      shoe_size: initSrc.shoe_size || '',
+      bio: initSrc.bio || '',
+      youtube: initSrc.youtube || '',
+      custom_attributes: initSrc.custom_attributes || {},
+      account_name: initSrc.account_name || '',
+      account_number: initSrc.account_number || '',
+      ifsc_code: initSrc.ifsc_code || '',
+      shipping_addresses: (initSrc.shipping_addresses || []) as ShippingAddress[],
+      address_remarks: initSrc.address_remarks || '',
+    }
   })
 
   // Address Modal States
@@ -763,6 +769,7 @@ export default function ProfilePage() {
         lastSavedPayload.current = JSON.stringify(payload)
         isInitialLoaded.current = true
         setSaveStatus('saved')
+        setFastCache('creator_profile_data', data.user)
       }
     } catch (err) {
       console.error('[ProfilePage] fetchProfile error:', err)
@@ -1483,8 +1490,9 @@ export default function ProfilePage() {
                   {/* Captured Campaign Attributes Box (only displays truly custom campaign-specific questions) */}
                   {(() => {
                     const extraCustomEntries = Object.entries(formData.custom_attributes || {}).filter(([slug, item]) => {
-                      const label = typeof item === 'object' && item !== null ? item.label || slug : slug
-                      const val = typeof item === 'object' && item !== null ? item.value : String(item)
+                      const itemObj = typeof item === 'object' && item !== null ? (item as any) : null
+                      const label = itemObj?.label || slug
+                      const val = itemObj ? itemObj.value : String(item)
                       if (!val || !String(val).trim()) return false
                       return !isStandardProfileField(slug) && !isStandardProfileField(label)
                     })
@@ -1507,8 +1515,9 @@ export default function ProfilePage() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {extraCustomEntries.map(([slug, item]) => {
-                            const label = typeof item === 'object' && item !== null ? item.label || slug : slug
-                            const val = typeof item === 'object' && item !== null ? item.value : String(item)
+                            const itemObj = typeof item === 'object' && item !== null ? (item as any) : null
+                            const label = itemObj?.label || slug
+                            const val = itemObj ? itemObj.value : String(item)
 
                             return (
                               <div key={slug} className="flex items-start justify-between p-2.5 rounded-lg bg-white/90 border border-slate-200/80 text-xs shadow-2xs">
