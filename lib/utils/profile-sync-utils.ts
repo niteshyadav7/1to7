@@ -402,27 +402,37 @@ export function extractProfileUpdatesFromFormData(
         hasChanges = true
       }
 
-      // Also mirror in custom_attributes for quick lookup
-      customAttributes[canonicalKey] = {
-        label: CANONICAL_FIELDS.find(f => f.key === canonicalKey)?.label || rawKey,
-        value: valueStr,
-        updated_at: new Date().toISOString()
-      }
-    } else {
-      // Arbitrary custom question (e.g., "Skin Tone", "Vehicle Type", "Tattoo")
+      // Clean up from customAttributes to avoid duplicate rendering
+      delete customAttributes[canonicalKey]
       const slug = createAttributeSlug(rawKey)
-      if (slug) {
-        customAttributes[slug] = {
-          label: rawKey.trim(),
-          value: valueStr,
-          updated_at: new Date().toISOString()
+      if (slug) delete customAttributes[slug]
+    } else {
+      // Arbitrary custom question (e.g., "Skin Tone", "Vehicle Type", "Tattoo", "Pitch", "Feedback")
+      if (!isStandardProfileField(rawKey)) {
+        const slug = createAttributeSlug(rawKey)
+        if (slug) {
+          customAttributes[slug] = {
+            label: rawKey.trim(),
+            value: valueStr,
+            updated_at: new Date().toISOString()
+          }
+          hasChanges = true
         }
-        hasChanges = true
       }
     }
   }
 
-  if (Object.keys(customAttributes).length > 0) {
+  // Clean out any legacy canonical duplicates from customAttributes
+  for (const key of Object.keys(customAttributes)) {
+    const item = customAttributes[key]
+    const label = typeof item === 'object' && item !== null ? item.label || key : key
+    if (isStandardProfileField(key) || isStandardProfileField(label)) {
+      delete customAttributes[key]
+      hasChanges = true
+    }
+  }
+
+  if (Object.keys(customAttributes).length > 0 || existingProfile?.custom_attributes) {
     profileUpdates.custom_attributes = customAttributes
   }
 
@@ -431,6 +441,31 @@ export function extractProfileUpdatesFromFormData(
     customAttributes,
     hasChanges
   }
+}
+
+/**
+ * Checks if a key or label corresponds to a built-in standard profile field.
+ */
+export function isStandardProfileField(keyOrLabel: string): boolean {
+  if (!keyOrLabel) return false
+  const canonical = getCanonicalField(keyOrLabel)
+  if (canonical) return true
+
+  const norm = keyOrLabel.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const standardKeys = [
+    'dob', 'dateofbirth', 'birthdate', 'birthday',
+    'gender', 'sex',
+    'fullname', 'name', 'creatorname',
+    'email', 'emailaddress',
+    'mobile', 'phone', 'whatsapp', 'altmobile', 'alternatemobile', 'contactnumber',
+    'instagram', 'instagramhandle', 'instagramusername', 'instaid', 'followers', 'followercount',
+    'city', 'state', 'sate', 'pincode', 'pincod', 'zip', 'zipcode', 'address', 'shippingaddress',
+    'tshirtsize', 'tshirt', 'clothsize', 'shoesize', 'shoe', 'footwearsize',
+    'youtube', 'youtubelink', 'youtubechannel',
+    'bio', 'about', 'languages', 'language',
+    'accountname', 'accountnumber', 'ifsccode', 'ifsc', 'bankname'
+  ]
+  return standardKeys.includes(norm)
 }
 
 /**

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { isStandardProfileField } from '@/lib/utils/profile-sync-utils'
 
 export async function GET() {
   try {
@@ -95,6 +96,18 @@ export async function PUT(request: Request) {
       if (body[key] !== undefined) {
         updateData[key] = body[key]
       }
+    }
+
+    // Cleanse custom_attributes of standard profile fields to prevent duplication
+    if (updateData.custom_attributes && typeof updateData.custom_attributes === 'object') {
+      const sanitized: Record<string, any> = {}
+      for (const [k, v] of Object.entries(updateData.custom_attributes)) {
+        const label = typeof v === 'object' && v !== null ? (v as any).label || k : k
+        if (!isStandardProfileField(k) && !isStandardProfileField(label)) {
+          sanitized[k] = v
+        }
+      }
+      updateData.custom_attributes = sanitized
     }
 
     // Handle Instagram Username Uniqueness and Sync

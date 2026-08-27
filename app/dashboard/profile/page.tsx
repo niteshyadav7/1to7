@@ -20,6 +20,7 @@ import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import BrandLoader from '@/components/ui/BrandLoader'
 import InstagramMediaGrid from '@/components/dashboard/InstagramMediaGrid'
 import { extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
+import { isStandardProfileField } from '@/lib/utils/profile-sync-utils'
 
 export interface ShippingAddress {
   id: string
@@ -1385,46 +1386,56 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Captured Campaign Attributes Box (if creator answered extra questions) */}
-                  {formData.custom_attributes && Object.keys(formData.custom_attributes).length > 0 && (
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50/50 via-pink-50/30 to-amber-50/30 border border-indigo-100 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-indigo-600" />
-                          <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">
-                            Captured Campaign Answers & Preferences
-                          </h4>
+                  {/* Captured Campaign Attributes Box (only displays truly custom campaign-specific questions) */}
+                  {(() => {
+                    const extraCustomEntries = Object.entries(formData.custom_attributes || {}).filter(([slug, item]) => {
+                      const label = typeof item === 'object' && item !== null ? item.label || slug : slug
+                      const val = typeof item === 'object' && item !== null ? item.value : String(item)
+                      if (!val || !String(val).trim()) return false
+                      return !isStandardProfileField(slug) && !isStandardProfileField(label)
+                    })
+
+                    if (extraCustomEntries.length === 0) return null
+
+                    return (
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50/50 via-pink-50/30 to-amber-50/30 border border-indigo-100 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-indigo-600" />
+                            <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider">
+                              Captured Campaign Answers & Preferences
+                            </h4>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
+                            {extraCustomEntries.length} saved
+                          </span>
                         </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 font-bold">
-                          {Object.keys(formData.custom_attributes).length} saved
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {Object.entries(formData.custom_attributes).map(([slug, item]) => {
-                          const label = typeof item === 'object' && item !== null ? item.label || slug : slug
-                          const val = typeof item === 'object' && item !== null ? item.value : String(item)
-                          if (!val) return null
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {extraCustomEntries.map(([slug, item]) => {
+                            const label = typeof item === 'object' && item !== null ? item.label || slug : slug
+                            const val = typeof item === 'object' && item !== null ? item.value : String(item)
 
-                          return (
-                            <div key={slug} className="flex items-start justify-between p-2.5 rounded-lg bg-white/90 border border-slate-200/80 text-xs shadow-2xs">
-                              <div className="min-w-0 pr-2">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
-                                  {label}
-                                </span>
-                                <span className="font-semibold text-slate-800 break-words">
-                                  {val}
+                            return (
+                              <div key={slug} className="flex items-start justify-between p-2.5 rounded-lg bg-white/90 border border-slate-200/80 text-xs shadow-2xs">
+                                <div className="min-w-0 pr-2">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
+                                    {label}
+                                  </span>
+                                  <span className="font-semibold text-slate-800 break-words">
+                                    {val}
+                                  </span>
+                                </div>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0 font-medium">
+                                  Auto-saved
                                 </span>
                               </div>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0 font-medium">
-                                Auto-saved
-                              </span>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Category / Niche (Multi-Select) */}
                   <div className="space-y-3">
