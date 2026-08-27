@@ -1211,21 +1211,6 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Gender */}
-                    <div className="space-y-1.5">
-                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Gender</Label>
-                      <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v || '' })}>
-                        <SelectTrigger className="bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus:ring-[#f50057] rounded-lg focus:bg-white transition-all">
-                          <SelectValue placeholder="Select Gender" />
-                        </SelectTrigger>
-                        <SelectContent side="bottom" className="bg-white border border-slate-200 text-slate-900 shadow-xl max-h-[200px]">
-                          <SelectItem value="Male" className="text-xs py-2">Male</SelectItem>
-                          <SelectItem value="Female" className="text-xs py-2">Female</SelectItem>
-                          <SelectItem value="Other" className="text-xs py-2">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
                     {/* Email (Read-only) */}
                     <div className="space-y-1.5">
                       <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
@@ -1239,9 +1224,7 @@ export default function ProfilePage() {
                         <Input value={profile?.email || authUser?.email || ''} readOnly className="pl-9 bg-slate-100 border border-slate-200 text-slate-600 h-10 text-xs rounded-lg select-none" />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Mobile */}
                     <div className="space-y-1.5">
                       <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
@@ -1262,21 +1245,6 @@ export default function ProfilePage() {
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-semibold">+91</span>
                         <Input value={profile?.mobile || authUser?.mobile || ''} readOnly className="pl-10 bg-slate-100 border border-slate-200 text-slate-600 h-10 text-xs rounded-lg select-none" />
-                      </div>
-                    </div>
-
-                    {/* Followers Count */}
-                    <div className="space-y-1.5">
-                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Followers Count</Label>
-                      <div className="relative">
-                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          type="number"
-                          value={formData.followers === 0 ? '' : formData.followers}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })}
-                          placeholder="Enter Followers count"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
-                        />
                       </div>
                     </div>
                   </div>
@@ -1321,6 +1289,23 @@ export default function ProfilePage() {
                           value={formData.alt_mobile}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, alt_mobile: e.target.value })}
                           placeholder="e.g. 9876543210"
+                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Followers Count */}
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Followers Count</Label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          type="number"
+                          value={formData.followers === 0 ? '' : formData.followers}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })}
+                          placeholder="Enter Followers count"
                           className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
                         />
                       </div>
