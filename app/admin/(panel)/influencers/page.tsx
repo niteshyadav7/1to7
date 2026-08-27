@@ -6,7 +6,7 @@ import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
-  Tag, Package, Home, Star, FileText, Languages
+  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -451,6 +451,22 @@ export default function InfluencersDirectoryPage() {
   // Modal
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
 
+  // Export State
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close export menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const fetchInfluencers = useCallback(async () => {
     setLoading(true)
     try {
@@ -493,43 +509,61 @@ export default function InfluencersDirectoryPage() {
     }))
   }
 
-  const exportCSV = () => {
-    if (influencers.length === 0) return toast.error('No data to export')
-    
-    const csvRows: string[] = []
-    const headers = ['ID', 'Name', 'Email', 'Mobile', 'Instagram', 'Followers', 'Niches / Categories', 'Languages', 'Location', 'Primary PIN', 'Delivery Addresses Remarks', 'Gender', 'Profile Strength', 'Verified', 'Joined']
-    csvRows.push(headers.join(','))
-
-    for (const u of influencers) {
-      const defaultAddr = u.shipping_addresses?.find(a => a.is_default) || u.shipping_addresses?.[0]
-      const row = [
-        `"${u.influencer_id}"`,
-        `"${u.full_name}"`,
-        `"${u.email}"`,
-        `"${u.mobile}"`,
-        `"${getInstagramDisplayHandle(u.instagram_username)}"`,
-        u.followers,
-        `"${u.category || ''}"`,
-        `"${u.languages || ''}"`,
-        `"${u.city ? u.city + ', ' : ''}${u.state || ''}"`,
-        `"${defaultAddr?.pincode || ''}"`,
-        `"${(u.address_remarks || '').replace(/"/g, '""').replace(/\n/g, ' | ')}"`,
-        `"${u.gender || ''}"`,
-        `"${u.profile_strength}%"`,
-        `"${u.is_email_verified ? 'Yes' : 'No'}"`,
-        `"${new Date(u.created_at).toISOString().split('T')[0]}"`
-      ]
-      csvRows.push(row.join(','))
+  // Export all matching or all creators with complete details
+  const handleExport = async (scope: 'filtered' | 'all' | 'current_page' = 'filtered') => {
+    if (scope === 'current_page' && influencers.length === 0) {
+      return toast.error('No data on current page to export')
     }
 
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `influencers_export_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Current list exported to CSV')
+    const totalToExport = scope === 'all'
+      ? stats.total
+      : scope === 'filtered'
+      ? (pagination?.total || stats.total)
+      : influencers.length
+
+    if (totalToExport === 0) {
+      return toast.error('No creators found to export')
+    }
+
+    setIsExporting(true)
+    setExportMenuOpen(false)
+    const toastId = toast.loading(`Preparing export of ${totalToExport.toLocaleString()} creators with all details...`)
+
+    try {
+      const qs = new URLSearchParams({
+        scope: scope === 'current_page' ? 'filtered' : scope,
+        search: scope === 'all' ? '' : debouncedSearch,
+        gender: scope === 'all' ? '' : (genderFilter !== 'All' ? genderFilter : ''),
+        category: scope === 'all' ? '' : (categoryFilter !== 'All' ? categoryFilter : ''),
+        sort: sortConfig.column,
+        order: sortConfig.direction
+      })
+
+      const res = await fetch(`/api/admin/influencers/export?${qs}`)
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}))
+        throw new Error(errJson.error || 'Export failed')
+      }
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const dateStr = new Date().toISOString().split('T')[0]
+      const scopeLabel = scope === 'all' ? 'all_creators' : scope === 'current_page' ? 'current_page' : 'filtered_creators'
+      a.download = `influencers_export_${scopeLabel}_${dateStr}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      toast.success(`Successfully exported ${totalToExport.toLocaleString()} creators to CSV!`, { id: toastId })
+    } catch (err: any) {
+      console.error('Export error:', err)
+      toast.error(err.message || 'Failed to export influencers', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Helpers
@@ -553,9 +587,97 @@ export default function InfluencersDirectoryPage() {
             <h1 className="text-xl font-extrabold text-white tracking-tight">Influencers Directory</h1>
             <p className="text-xs text-slate-400">Manage and view comprehensive profiles of onboarded creators</p>
           </div>
-          <Button onClick={exportCSV} variant="outline" className="h-9 rounded-xl bg-slate-800/80 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-xs cursor-pointer">
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV
-          </Button>
+          
+          {/* Export Dropdown Component */}
+          <div className="relative" ref={exportMenuRef}>
+            <div className="flex items-center shadow-lg shadow-indigo-500/10">
+              <Button 
+                onClick={() => handleExport('filtered')} 
+                disabled={isExporting}
+                variant="outline" 
+                className="h-9 rounded-l-xl rounded-r-none border-r-0 bg-slate-800/90 border-white/10 text-slate-200 hover:text-white hover:bg-slate-700/80 transition-all text-xs cursor-pointer disabled:opacity-50 font-semibold"
+                title={`Export ${debouncedSearch || genderFilter !== 'All' || categoryFilter !== 'All' ? 'Filtered' : 'All'} Creators (${(pagination?.total || stats.total).toLocaleString()})`}
+              >
+                {isExporting ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin text-indigo-400" />
+                ) : (
+                  <Download className="mr-1.5 h-3.5 w-3.5 text-indigo-400" />
+                )}
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+              <Button
+                onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                disabled={isExporting}
+                variant="outline"
+                className="h-9 px-2.5 rounded-r-xl rounded-l-none bg-slate-800/90 border-white/10 text-slate-300 hover:text-white hover:bg-slate-700/80 transition-all text-xs cursor-pointer border-l-white/10 disabled:opacity-50"
+                title="Export Options"
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${exportMenuOpen ? 'rotate-180' : ''}`} />
+              </Button>
+            </div>
+
+            {exportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="px-3 py-2 border-b border-white/10 mb-1.5">
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-indigo-400" />
+                    Export Influencers Data
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Exports all 50 full profile, bank &amp; address columns</p>
+                </div>
+
+                <div className="space-y-1">
+                  <button
+                    onClick={() => handleExport('filtered')}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-xs hover:bg-indigo-500/15 flex items-center justify-between text-slate-200 hover:text-white transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Download className="h-3.5 w-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <div>
+                        <span className="font-semibold block leading-tight">Export Matching</span>
+                        <span className="text-[10px] text-slate-400">Current filters &amp; search</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold border border-indigo-500/30">
+                      {(pagination?.total || stats.total).toLocaleString()}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleExport('all')}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-xs hover:bg-emerald-500/15 flex items-center justify-between text-slate-200 hover:text-white transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <div>
+                        <span className="font-semibold block leading-tight">Export All Creators</span>
+                        <span className="text-[10px] text-slate-400">Entire creator directory</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                      {stats.total.toLocaleString()}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleExport('current_page')}
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-xs hover:bg-white/5 flex items-center justify-between text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="h-3.5 w-3.5 text-slate-400" />
+                      <div>
+                        <span className="font-semibold block leading-tight">Current Page Only</span>
+                        <span className="text-[10px] text-slate-400">Visible table rows</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-white/5">
+                      {influencers.length}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </SetAdminHeader>
 
