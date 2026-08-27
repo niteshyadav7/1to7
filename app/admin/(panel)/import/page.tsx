@@ -157,13 +157,31 @@ function normalizeHeader(header: string): string {
 
 function validateRow(row: ParsedRow): ParsedRow {
   const errors: string[] = []
-  const mobile = row.mobile?.toString().trim()
-  const influencerId = row.influencer_id?.toString().trim()
+  let mobile = row.mobile ? row.mobile.toString().trim() : ''
+  const influencerId = row.influencer_id ? row.influencer_id.toString().trim() : ''
+
+  // Normalize phone digits
+  let digits = mobile.replace(/[\s\-\+]/g, '')
+  if (digits.startsWith('91') && digits.length === 12) {
+    digits = digits.slice(2)
+  } else if (digits.startsWith('0') && digits.length === 11) {
+    digits = digits.slice(1)
+  }
+
+  if (digits.length >= 10 && digits.length <= 15) {
+    mobile = digits
+  } else if (mobile) {
+    // If mobile is not a valid 10-15 digit phone:
+    if (influencerId) {
+      // If User ID exists, gracefully clear invalid mobile so User ID is used without failing validation
+      mobile = ''
+    } else {
+      errors.push(`Invalid mobile format "${mobile}" (must be 10-15 digits)`)
+    }
+  }
 
   if (!mobile && !influencerId) {
     errors.push('Mobile number or User ID is missing')
-  } else if (mobile && !/^\d{10,15}$/.test(mobile.replace(/[\s\-\+]/g, ''))) {
-    errors.push(`Invalid mobile format "${mobile}" (must be 10-15 digits)`)
   }
 
   // Normalize status if present
