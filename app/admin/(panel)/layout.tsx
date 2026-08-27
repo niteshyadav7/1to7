@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   ArrowLeft,
   IndianRupee,
+  Tags,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -61,6 +62,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
   { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
   { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
+  { href: '/admin/categories', label: 'Categories & Niches', icon: Tags, moduleKey: 'influencers' },
   { href: '/admin/staff', label: 'Staff Management', icon: UserCheck, moduleKey: 'staff' },
   { href: '/admin/roles', label: 'Roles & Access', icon: Sliders, moduleKey: 'roles' },
 ]
@@ -76,6 +78,7 @@ function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname.startsWith('/admin/analytics')) return 'analytics'
   if (pathname.startsWith('/admin/import')) return 'import'
   if (pathname.startsWith('/admin/influencers')) return 'influencers'
+  if (pathname.startsWith('/admin/categories')) return 'influencers'
   if (pathname.startsWith('/admin/staff')) return 'staff'
   if (pathname.startsWith('/admin/roles')) return 'roles'
   return null

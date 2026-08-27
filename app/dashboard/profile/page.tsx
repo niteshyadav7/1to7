@@ -172,6 +172,12 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved' | 'error'>('idle')
   const [showOTPModal, setShowOTPModal] = useState(false)
+  const [availableNiches, setAvailableNiches] = useState<string[]>(INFLUENCER_CATEGORIES)
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>(CREATOR_LANGUAGES)
+  const [suggestModalOpen, setSuggestModalOpen] = useState(false)
+  const [suggestType, setSuggestType] = useState<'niche' | 'language'>('niche')
+  const [suggestInput, setSuggestInput] = useState('')
+  const [submittingSuggest, setSubmittingSuggest] = useState(false)
   const [customNicheInput, setCustomNicheInput] = useState('')
   const [customLanguageInput, setCustomLanguageInput] = useState('')
   const [currentStep, setCurrentStep] = useState(1)
@@ -380,6 +386,68 @@ export default function ProfilePage() {
       await refreshUserProfile()
     } catch (err: any) {
       toast.error(err.message || 'Failed to unlink Instagram profile')
+    }
+  }
+
+  // Fetch admin-managed categories and languages
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.niches && Array.isArray(data.niches) && data.niches.length > 0) {
+          setAvailableNiches(data.niches)
+        }
+        if (data.languages && Array.isArray(data.languages) && data.languages.length > 0) {
+          setAvailableLanguages(data.languages)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleOpenSuggestModal = (type: 'niche' | 'language') => {
+    setSuggestType(type)
+    setSuggestInput('')
+    setSuggestModalOpen(true)
+  }
+
+  const handleSubmitSuggestion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = suggestInput.trim()
+    if (!trimmed) return
+
+    setSubmittingSuggest(true)
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmed,
+          type: suggestType,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit suggestion')
+
+      // Add to current user's profile selection
+      if (suggestType === 'niche') {
+        if (!selectedCategories.includes(trimmed)) {
+          const next = [...selectedCategories, trimmed]
+          setFormData((prev) => ({ ...prev, category: next.join(', ') }))
+        }
+      } else {
+        if (!selectedLanguages.includes(trimmed)) {
+          const next = [...selectedLanguages, trimmed]
+          setFormData((prev) => ({ ...prev, languages: next.join(', ') }))
+        }
+      }
+
+      toast.success(data.message || `Request for "${trimmed}" sent to Admin! Added to your profile.`)
+      setSuggestModalOpen(false)
+      setSuggestInput('')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit')
+    } finally {
+      setSubmittingSuggest(false)
     }
   }
 
@@ -1459,11 +1527,21 @@ export default function ProfilePage() {
 
                     {/* Available Categories Pills */}
                     <div className="space-y-1.5">
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Click to select all niches that match your content:
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Click to select all niches that match your content:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSuggestModal('niche')}
+                          className="text-[11px] font-bold text-[#f50057] hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          Other / Request Niche
+                        </button>
+                      </div>
                       <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto p-2.5 bg-slate-50/60 border border-slate-200/80 rounded-xl">
-                        {INFLUENCER_CATEGORIES.map((cat) => {
+                        {availableNiches.map((cat) => {
                           const isSelected = selectedCategories.includes(cat)
                           return (
                             <button
@@ -1482,34 +1560,6 @@ export default function ProfilePage() {
                           )
                         })}
                       </div>
-                    </div>
-
-                    {/* Custom Niche Adder */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <div className="relative flex-1">
-                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                        <Input
-                          value={customNicheInput}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomNicheInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              handleAddCustomCategory()
-                            }
-                          }}
-                          placeholder="Add custom niche (e.g. Sneakerhead, AI Tools)..."
-                          className="pl-8 bg-slate-50/50 border border-slate-200 text-slate-900 h-9 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleAddCustomCategory}
-                        disabled={!customNicheInput.trim()}
-                        className="h-9 px-3.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add
-                      </Button>
                     </div>
                   </div>
 
@@ -1552,11 +1602,21 @@ export default function ProfilePage() {
 
                     {/* Available Languages Pills */}
                     <div className="space-y-1.5">
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        Click to select all languages you speak or create content in:
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Click to select all languages you speak or create content in:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSuggestModal('language')}
+                          className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          Other / Request Language
+                        </button>
+                      </div>
                       <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto p-2.5 bg-slate-50/60 border border-slate-200/80 rounded-xl">
-                        {CREATOR_LANGUAGES.map((lang) => {
+                        {availableLanguages.map((lang) => {
                           const isSelected = selectedLanguages.includes(lang)
                           return (
                             <button
@@ -1575,34 +1635,6 @@ export default function ProfilePage() {
                           )
                         })}
                       </div>
-                    </div>
-
-                    {/* Custom Language Adder */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <div className="relative flex-1">
-                        <Languages className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                        <Input
-                          value={customLanguageInput}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomLanguageInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              handleAddCustomLanguage()
-                            }
-                          }}
-                          placeholder="Add custom language / regional dialect (e.g. Garhwali, Tulu)..."
-                          className="pl-8 bg-slate-50/50 border border-slate-200 text-slate-900 h-9 text-xs focus-visible:ring-indigo-500 rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleAddCustomLanguage}
-                        disabled={!customLanguageInput.trim()}
-                        className="h-9 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shrink-0 cursor-pointer disabled:opacity-50"
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Add
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -2237,6 +2269,82 @@ export default function ProfilePage() {
                   ) : (
                     editingIgId ? 'Save Changes' : 'Link Profile'
                   )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Suggest Niche / Language Modal */}
+      {suggestModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                    suggestType === 'niche' ? 'bg-[#f50057]/10 text-[#f50057]' : 'bg-indigo-50 text-indigo-600'
+                  }`}
+                >
+                  {suggestType === 'niche' ? <Tag className="h-4 w-4" /> : <Languages className="h-4 w-4" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Suggest a {suggestType === 'niche' ? 'Content Niche' : 'Language'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Admin will review and approve it for the official platform directory
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSuggestModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitSuggestion} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">
+                  {suggestType === 'niche' ? 'Niche Name' : 'Language Name'} *
+                </Label>
+                <Input
+                  required
+                  value={suggestInput}
+                  onChange={(e) => setSuggestInput(e.target.value)}
+                  placeholder={
+                    suggestType === 'niche'
+                      ? 'e.g. Sneakerhead, AI Tools, Pet Care'
+                      : 'e.g. Garhwali, Tulu, Sanskrit'
+                  }
+                  className="h-10 text-xs bg-slate-50 border border-slate-200 text-slate-900 rounded-xl focus-visible:ring-indigo-500"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setSuggestModalOpen(false)}
+                  className="h-9 px-4 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submittingSuggest || !suggestInput.trim()}
+                  className={`h-9 px-5 text-xs font-bold rounded-xl text-white shadow-sm cursor-pointer ${
+                    suggestType === 'niche'
+                      ? 'bg-[#f50057] hover:bg-[#d4004c]'
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {submittingSuggest ? 'Submitting...' : 'Send Request to Admin'}
                 </Button>
               </div>
             </form>
