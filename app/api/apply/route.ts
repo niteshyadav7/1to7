@@ -12,7 +12,7 @@ import { extractProfileUpdatesFromFormData } from '@/lib/utils/profile-sync-util
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { campaignId, formData, mobile, verifiedUserId, guestProfile, selectedStore } = body
+    const { campaignId, formData, mobile, verifiedUserId, guestProfile, selectedStore, selectedInstagramProfile } = body
 
     if (!campaignId) {
       return NextResponse.json(
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
     ] = await Promise.all([
       supabase
         .from('users')
-        .select('id, email, full_name, followers, state, city, shipping_addresses, dob, custom_attributes, gender, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
+        .select('id, email, full_name, followers, instagram_username, instagram_profiles, state, city, shipping_addresses, dob, custom_attributes, gender, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
         .eq('id', userId)
         .single(),
       supabase
@@ -255,9 +255,17 @@ export async function POST(request: Request) {
       }
     }
 
+    // Determine effective followers based on creator's selected Instagram account
+    let effectiveFollowers = user.followers || 0
+    if (selectedInstagramProfile && selectedInstagramProfile.followers !== undefined && selectedInstagramProfile.followers !== null) {
+      effectiveFollowers = typeof selectedInstagramProfile.followers === 'number'
+        ? selectedInstagramProfile.followers
+        : (parseInt(String(selectedInstagramProfile.followers), 10) || 0)
+    }
+
     // Check follower requirements if campaign strictly enforces follower minimum
     if (campaign.enforce_followers) {
-      const eligibility = checkFollowerEligibility(user.followers, campaign)
+      const eligibility = checkFollowerEligibility(effectiveFollowers, campaign)
       if (!eligibility.eligible) {
         return NextResponse.json(
           { error: eligibility.message || 'You do not meet the minimum followers requirement for this campaign' },
@@ -277,6 +285,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // Enrich form_data with selected Instagram profile details for admin and brand visibility
+    const enrichedFormData = {
+      ...(formData || {}),
+      ...(selectedInstagramProfile ? {
+        applied_instagram_username: selectedInstagramProfile.username,
+        applied_instagram_followers: selectedInstagramProfile.followers,
+      } : {})
+    }
+
     // Handle existing application
     if (existing) {
       if (existing.status === 'Rejected') {
@@ -284,7 +301,7 @@ export async function POST(request: Request) {
         const { error: updateError } = await supabase
           .from('applications')
           .update({
-            form_data: formData || {},
+            form_data: enrichedFormData,
             selected_store: selectedStore || (formData?.preferred_store ? { name: formData.preferred_store } : null),
             status: 'Applied',
             updated_at: new Date().toISOString()
@@ -335,7 +352,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         campaign_id: campaignId,
-        form_data: formData || {},
+        form_data: enrichedFormData,
         selected_store: selectedStore || (formData?.preferred_store ? { name: formData.preferred_store } : null),
         status: 'Applied'
       })

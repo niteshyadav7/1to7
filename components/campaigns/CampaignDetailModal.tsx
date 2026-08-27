@@ -387,6 +387,12 @@ export default function CampaignDetailModal({
           campaignId: campaign.id,
           formData: customFormData,
           selectedStore: selectedStoreOutlet,
+          selectedInstagramProfile: activeSelectedProfile ? {
+            id: activeSelectedProfile.id,
+            username: activeSelectedProfile.username,
+            followers: activeSelectedProfile.followers,
+            is_primary: activeSelectedProfile.is_primary,
+          } : undefined,
         }),
       })
       const data = await res.json()
@@ -430,6 +436,12 @@ export default function CampaignDetailModal({
           campaignId: campaign.id,
           formData: combinedFormData,
           selectedStore: selectedStoreOutlet,
+          selectedInstagramProfile: activeSelectedProfile ? {
+            id: activeSelectedProfile.id,
+            username: activeSelectedProfile.username,
+            followers: activeSelectedProfile.followers,
+            is_primary: activeSelectedProfile.is_primary,
+          } : undefined,
         }),
       })
       const data = await res.json()
@@ -521,15 +533,20 @@ export default function CampaignDetailModal({
                           </div>
                         </div>
 
-                        {/* Instagram Profile Card */}
-                        {user?.instagram_username && (
+                        {/* Selected Instagram Profile Card */}
+                        {(activeSelectedProfile?.username || user?.instagram_username) && (
                           <div className="flex items-center gap-3 rounded-md bg-gray-muted border border-border-subtle p-3">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-md bg-secondary text-white shrink-0">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-md bg-pink-600 text-white shrink-0 shadow-sm">
                               <Instagram className="h-5 w-5 text-white" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-bold text-charcoal-surface truncate">{getInstagramDisplayHandle(user.instagram_username)}</p>
-                              <p className="text-[11px] text-secondary">Primary Instagram Profile</p>
+                              <p className="text-sm font-bold text-charcoal-surface truncate">
+                                {getInstagramDisplayHandle(activeSelectedProfile?.username || user?.instagram_username)}
+                              </p>
+                              <p className="text-[11px] text-secondary font-semibold">
+                                {(activeSelectedProfile?.followers ?? user?.followers ?? 0).toLocaleString('en-IN')} Followers
+                                {activeSelectedProfile?.is_primary ? ' • Primary Profile' : ' • Selected Profile'}
+                              </p>
                             </div>
                           </div>
                         )}

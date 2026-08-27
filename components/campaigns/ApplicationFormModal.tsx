@@ -397,6 +397,12 @@ export default function ApplicationFormModal({
       const payload: any = {
         campaignId: campaign.id,
         formData: { ...formData, pitch: pitch.trim() },
+        selectedInstagramProfile: activeSelectedProfile ? {
+          id: activeSelectedProfile.id,
+          username: activeSelectedProfile.username,
+          followers: activeSelectedProfile.followers,
+          is_primary: activeSelectedProfile.is_primary,
+        } : undefined,
       }
 
       // If guest (not logged in), attach identity info
