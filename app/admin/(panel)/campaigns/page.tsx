@@ -9,7 +9,8 @@ import {
   Copy, CopyPlus, Check, Upload, GripVertical, ArrowUp, ArrowDown,
   ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
-  Info, UserCheck, AlertTriangle, FileText, CheckCheck, X
+  Info, UserCheck, AlertTriangle, FileText, CheckCheck, X,
+  Download, FileSpreadsheet, ChevronDown, Loader2
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -89,6 +90,115 @@ export default function AdminCampaignsPage() {
   const [dragOverCampaignId, setDragOverCampaignId] = useState<string | null>(null)
   const [rankModalCampaign, setRankModalCampaign] = useState<Campaign | null>(null)
   const [targetRankInput, setTargetRankInput] = useState<string>('')
+
+  // Export States & Handlers
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const [exportingCampaignId, setExportingCampaignId] = useState<string | null>(null)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close export dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleExportCampaigns = async (scope: 'all' | 'filtered') => {
+    setIsExporting(true)
+    const toastId = toast.loading('Generating campaigns export CSV...')
+    try {
+      let url = '/api/admin/campaigns/export?type=campaigns'
+      if (scope === 'filtered') {
+        if (activeFilter !== 'All') url += `&status=${encodeURIComponent(activeFilter)}`
+        if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`
+      }
+
+      const res = await fetch(url)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to export campaigns')
+      }
+
+      const blob = await res.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `campaigns_specs_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      toast.success('Campaigns specifications exported successfully!', { id: toastId })
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportAllApplications = async () => {
+    setIsExporting(true)
+    const toastId = toast.loading('Generating all applications export CSV...')
+    try {
+      const url = '/api/admin/campaigns/export?type=applications'
+      const res = await fetch(url)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to export applications')
+      }
+
+      const blob = await res.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `all_campaign_applicants_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      toast.success('All campaign applications exported successfully!', { id: toastId })
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed', { id: toastId })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportSingleCampaignApplications = async (campaign: Campaign) => {
+    setExportingCampaignId(campaign.id)
+    const toastId = toast.loading(`Exporting applications for ${campaign.brand_name}...`)
+    try {
+      const url = `/api/admin/campaigns/export?type=applications&campaign_id=${campaign.id}`
+      const res = await fetch(url)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to export applications')
+      }
+
+      const blob = await res.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `campaign_${campaign.campaign_code}_applicants_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(downloadUrl)
+
+      toast.success(`Exported applications for ${campaign.brand_name}!`, { id: toastId })
+    } catch (err: any) {
+      toast.error(err.message || 'Export failed', { id: toastId })
+    } finally {
+      setExportingCampaignId(null)
+    }
+  }
 
   useEffect(() => {
     fetchCampaigns()
@@ -448,6 +558,69 @@ export default function AdminCampaignsPage() {
               <Upload className="mr-1.5 h-3.5 w-3.5 text-indigo-400" />
               Bulk Upload
             </Button>
+
+            {/* Export Dropdown */}
+            <div className="relative" ref={exportMenuRef}>
+              <Button
+                onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                disabled={isExporting}
+                variant="outline"
+                className="h-9 px-3.5 rounded-xl border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 hover:text-white font-semibold text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                ) : (
+                  <Download className="h-3.5 w-3.5 text-emerald-400" />
+                )}
+                <span>Export</span>
+                <ChevronDown className={`h-3.5 w-3.5 text-emerald-400/80 transition-transform ${exportDropdownOpen ? 'rotate-180' : ''}`} />
+              </Button>
+
+              <AnimatePresence>
+                {exportDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-72 z-50 rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-white/10 p-1.5 shadow-2xl shadow-black/50"
+                  >
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false)
+                        handleExportCampaigns('all')
+                      }}
+                      className="w-full flex items-start gap-3 p-2.5 rounded-xl text-left hover:bg-white/5 transition-all text-xs cursor-pointer group"
+                    >
+                      <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 group-hover:bg-indigo-500/20">
+                        <FileSpreadsheet className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">All Campaigns (Setup Specs)</p>
+                        <p className="text-[11px] text-slate-400">Export complete campaigns for Bulk Upload re-import</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setExportDropdownOpen(false)
+                        handleExportAllApplications()
+                      }}
+                      className="w-full flex items-start gap-3 p-2.5 rounded-xl text-left hover:bg-white/5 transition-all text-xs cursor-pointer group"
+                    >
+                      <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500/20">
+                        <Users className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white">All Campaign Applications</p>
+                        <p className="text-[11px] text-slate-400">Export creator applications formatted for Import Sync</p>
+                      </div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Link href="/admin/campaigns/create">
               <Button className="h-9 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-500 hover:from-indigo-500 hover:to-purple-400 text-white font-semibold text-xs shadow-lg shadow-indigo-500/20 cursor-pointer">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -875,8 +1048,24 @@ export default function AdminCampaignsPage() {
                       Delete
                     </button>
 
+                    {/* Export Campaign Applicants */}
+                    <button
+                      type="button"
+                      onClick={() => handleExportSingleCampaignApplications(campaign)}
+                      disabled={exportingCampaignId === campaign.id}
+                      title={`Export all applicants of ${campaign.brand_name} as upload-ready CSV`}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer shadow-sm disabled:opacity-50 ml-auto"
+                    >
+                      {exportingCampaignId === campaign.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 text-emerald-400" />
+                      )}
+                      <span>Export CSV</span>
+                    </button>
+
                     {/* View Applications */}
-                    <Link href={`/admin/applications/${campaign.id}`} className="ml-auto">
+                    <Link href={`/admin/applications/${campaign.id}`}>
                       <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 hover:shadow-lg hover:shadow-indigo-500/10 transition-all cursor-pointer">
                         <Users className="h-3.5 w-3.5" />
                         View Applications

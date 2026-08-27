@@ -1123,11 +1123,16 @@ export default function AllApplicationsPage() {
     <div className="space-y-5 pb-24 relative">
       {/* ─── Header Injection ───────────────────────────── */}
       <SetAdminHeader>
-        <div>
-          <h1 className="text-xl font-extrabold text-white tracking-tight">All Applications</h1>
-          <p className="text-xs text-slate-400">
-            Manage applications across all active campaigns • <span className="text-indigo-300 font-semibold">{applications.length}</span> total
-          </p>
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div>
+            <h1 className="text-xl font-extrabold text-white tracking-tight">All Applications</h1>
+            <p className="text-xs text-slate-400">
+              Manage applications across all active campaigns • <span className="text-indigo-300 font-semibold">{applications.length}</span> total
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportDropdown onExport={handleExport} />
+          </div>
         </div>
       </SetAdminHeader>
 
