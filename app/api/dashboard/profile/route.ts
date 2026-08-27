@@ -121,6 +121,39 @@ export async function PUT(request: Request) {
       updateData.custom_attributes = sanitized
     }
 
+    // Validate shipping addresses count and PIN codes (max 6 addresses limit)
+    if (body.shipping_addresses !== undefined) {
+      if (Array.isArray(body.shipping_addresses)) {
+        if (body.shipping_addresses.length > 6) {
+          return NextResponse.json({
+            error: 'Maximum limit of 6 delivery addresses allowed.'
+          }, { status: 400 })
+        }
+        for (const addr of body.shipping_addresses) {
+          if (addr.pincode) {
+            const cleanPin = String(addr.pincode).replace(/\D/g, '')
+            if (cleanPin.length !== 6) {
+              return NextResponse.json({
+                error: `Invalid PIN code "${addr.pincode}". Postal PIN code must be exactly 6 digits.`
+              }, { status: 400 })
+            }
+            addr.pincode = cleanPin
+          }
+        }
+        updateData.shipping_addresses = body.shipping_addresses
+      }
+    }
+
+    if (body.pincode !== undefined && body.pincode !== null && body.pincode !== '') {
+      const cleanPincode = String(body.pincode).replace(/\D/g, '')
+      if (cleanPincode.length > 0 && cleanPincode.length !== 6) {
+        return NextResponse.json({
+          error: 'Postal PIN code must be exactly 6 digits.'
+        }, { status: 400 })
+      }
+      updateData.pincode = cleanPincode
+    }
+
     // Handle Instagram Username Uniqueness and Sync ONLY if handle changed
     if (body.instagram_username !== undefined) {
       const { extractInstagramUsername, normalizeInstagramUsername, checkInstagramHandleAvailability } = await import('@/lib/instagram-utils')

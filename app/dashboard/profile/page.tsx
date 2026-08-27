@@ -196,6 +196,7 @@ export default function ProfilePage() {
     languages: '',
     state: '',
     city: '',
+    pincode: '',
     followers: 0,
     dob: '',
     alt_mobile: '',
@@ -508,7 +509,13 @@ export default function ProfilePage() {
   }
 
   // Address Management Handlers
+  const MAX_ADDRESSES = 6
+
   const openAddAddressModal = () => {
+    if ((formData.shipping_addresses || []).length >= MAX_ADDRESSES) {
+      toast.error(`Maximum limit of ${MAX_ADDRESSES} delivery addresses reached. Please edit or delete an existing address.`)
+      return
+    }
     setEditingAddressId(null)
     setAddressForm({
       id: `addr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
@@ -555,27 +562,45 @@ export default function ProfilePage() {
       toast.error('Please select City')
       return
     }
-    if (!addressForm.pincode.trim() || addressForm.pincode.replace(/\D/g, '').length !== 6) {
-      toast.error('Please enter a valid 6-digit postal pincode')
+
+    const cleanPin = (addressForm.pincode || '').replace(/\D/g, '')
+    if (!cleanPin || cleanPin.length !== 6 || !/^\d{6}$/.test(cleanPin)) {
+      toast.error('Please enter a valid 6-digit postal PIN code (e.g. 400001)')
       return
     }
 
     const currentAddrs = [...(formData.shipping_addresses || [])]
+
+    if (!editingAddressId && currentAddrs.length >= MAX_ADDRESSES) {
+      toast.error(`Maximum limit of ${MAX_ADDRESSES} delivery addresses reached.`)
+      return
+    }
+
+    const sanitizedAddressForm: ShippingAddress = {
+      ...addressForm,
+      pincode: cleanPin,
+      recipient_name: addressForm.recipient_name.trim(),
+      address_line1: addressForm.address_line1.trim(),
+      address_line2: addressForm.address_line2 ? addressForm.address_line2.trim() : '',
+      landmark: addressForm.landmark ? addressForm.landmark.trim() : '',
+      delivery_remarks: addressForm.delivery_remarks ? addressForm.delivery_remarks.trim() : '',
+    }
+
     let updatedAddrs: ShippingAddress[]
 
     if (editingAddressId) {
       // Edit existing address
       updatedAddrs = currentAddrs.map((a) => {
         if (a.id === editingAddressId) {
-          return { ...addressForm, id: editingAddressId }
+          return { ...sanitizedAddressForm, id: editingAddressId }
         }
-        return addressForm.is_default ? { ...a, is_default: false } : a
+        return sanitizedAddressForm.is_default ? { ...a, is_default: false } : a
       })
     } else {
       // Add new address
       const newAddr: ShippingAddress = {
-        ...addressForm,
-        id: addressForm.id || `addr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        ...sanitizedAddressForm,
+        id: sanitizedAddressForm.id || `addr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         created_at: new Date().toISOString(),
       }
       if (newAddr.is_default) {
@@ -599,6 +624,7 @@ export default function ProfilePage() {
       shipping_addresses: updatedAddrs,
       state: defaultAddr?.state || formData.state,
       city: defaultAddr?.city || formData.city,
+      pincode: defaultAddr?.pincode || formData.pincode,
     }
 
     setFormData(updatedFormData)
@@ -685,6 +711,7 @@ export default function ProfilePage() {
           languages: data.user.languages || '',
           state: data.user.state || '',
           city: data.user.city || '',
+          pincode: data.user.pincode || (loadedAddresses[0]?.pincode || ''),
           followers: data.user.followers || 0,
           dob: data.user.dob || '',
           alt_mobile: data.user.alt_mobile || '',
@@ -1659,14 +1686,20 @@ export default function ProfilePage() {
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      onClick={openAddAddressModal}
-                      className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer shrink-0"
-                    >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-                      Add Address
-                    </Button>
+                    {(formData.shipping_addresses || []).length < MAX_ADDRESSES ? (
+                      <Button
+                        type="button"
+                        onClick={openAddAddressModal}
+                        className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer shrink-0"
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add Address
+                      </Button>
+                    ) : (
+                      <span className="text-[11px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shrink-0">
+                        Max 6 Saved
+                      </span>
+                    )}
                   </div>
 
                   {/* Saved Addresses List */}
@@ -1674,8 +1707,13 @@ export default function ProfilePage() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                         <MapPin className="h-3.5 w-3.5 text-[#f50057]" />
-                        Saved Delivery Locations ({(formData.shipping_addresses || []).length})
+                        Saved Delivery Locations ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES})
                       </h3>
+                      {(formData.shipping_addresses || []).length >= MAX_ADDRESSES && (
+                        <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          Limit Reached (6/6)
+                        </span>
+                      )}
                     </div>
 
                     {(formData.shipping_addresses || []).length === 0 ? (
@@ -1807,15 +1845,21 @@ export default function ProfilePage() {
 
                   {/* Add New Address Trigger (if list has items) */}
                   {(formData.shipping_addresses || []).length > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={openAddAddressModal}
-                      className="w-full h-10 border-dashed border-2 border-slate-200 hover:border-[#f50057] hover:bg-pink-50/30 text-slate-700 hover:text-[#f50057] font-semibold text-xs rounded-xl transition-all cursor-pointer"
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      Add Another Delivery Location (e.g. Studio, Agency, Alternate)
-                    </Button>
+                    (formData.shipping_addresses || []).length < MAX_ADDRESSES ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={openAddAddressModal}
+                        className="w-full h-10 border-dashed border-2 border-slate-200 hover:border-[#f50057] hover:bg-pink-50/30 text-slate-700 hover:text-[#f50057] font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                      >
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Add Another Delivery Location ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES} Saved)
+                      </Button>
+                    ) : (
+                      <div className="w-full py-3 px-4 text-center rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-bold text-amber-800 flex items-center justify-center gap-2">
+                        <span>Maximum limit of {MAX_ADDRESSES} delivery locations reached. You can edit or delete existing addresses above.</span>
+                      </div>
+                    )
                   )}
                 </div>
               )}
@@ -2085,13 +2129,29 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">Pincode *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-slate-700">Postal PIN Code *</Label>
+                    {addressForm.pincode && (
+                      <span
+                        className={`text-[10px] font-bold ${
+                          addressForm.pincode.length === 6 ? 'text-emerald-600' : 'text-amber-600'
+                        }`}
+                      >
+                        {addressForm.pincode.length === 6 ? '✓ 6-Digit PIN' : `${addressForm.pincode.length}/6 digits`}
+                      </span>
+                    )}
+                  </div>
                   <Input
                     required
                     maxLength={6}
                     value={addressForm.pincode}
-                    onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value.replace(/\D/g, '') })}
-                    placeholder="6-digit PIN"
+                    onChange={(e) =>
+                      setAddressForm({
+                        ...addressForm,
+                        pincode: e.target.value.replace(/\D/g, '').slice(0, 6),
+                      })
+                    }
+                    placeholder="e.g. 400001"
                     className="h-9 text-xs border-slate-200 rounded-lg font-mono font-bold focus-visible:ring-[#f50057]"
                   />
                 </div>
