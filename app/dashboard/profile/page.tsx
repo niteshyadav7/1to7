@@ -248,6 +248,7 @@ export default function ProfilePage() {
   const [editingIgId, setEditingIgId] = useState<string | null>(null)
   const [igFormHandle, setIgFormHandle] = useState('')
   const [igFormFollowers, setIgFormFollowers] = useState('')
+  const [igFormCategory, setIgFormCategory] = useState('')
   const [igFormIsPrimary, setIgFormIsPrimary] = useState(false)
   const [igAvailability, setIgAvailability] = useState<{ checking: boolean; available: boolean | null; message?: string }>({
     checking: false,
@@ -290,6 +291,7 @@ export default function ProfilePage() {
     setEditingIgId(null)
     setIgFormHandle('')
     setIgFormFollowers('')
+    setIgFormCategory('')
     setIgFormIsPrimary(instagramProfiles.length === 0)
     setIgAvailability({ checking: false, available: null })
     setIgModalOpen(true)
@@ -299,6 +301,7 @@ export default function ProfilePage() {
     setEditingIgId(p.id)
     setIgFormHandle(p.username)
     setIgFormFollowers(String(p.followers || '0'))
+    setIgFormCategory(p.category || '')
     setIgFormIsPrimary(p.is_primary)
     setIgAvailability({ checking: false, available: null })
     setIgModalOpen(true)
@@ -314,13 +317,14 @@ export default function ProfilePage() {
     setIgSubmitting(true)
     try {
       if (editingIgId) {
-        // Update existing profile (followers)
+        // Update existing profile (followers & category)
         const res = await fetch('/api/dashboard/instagram-accounts', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             profileId: editingIgId,
             followers: parseInt(igFormFollowers || '0', 10) || 0,
+            category: igFormCategory ? igFormCategory.trim() : null,
             is_primary: igFormIsPrimary
           })
         })
@@ -336,6 +340,7 @@ export default function ProfilePage() {
           body: JSON.stringify({
             username: igFormHandle,
             followers: parseInt(igFormFollowers || '0', 10) || 0,
+            category: igFormCategory ? igFormCategory.trim() : null,
             is_primary: igFormIsPrimary
           })
         })
@@ -669,6 +674,14 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile()
+    fetch('/api/categories')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.niches && Array.isArray(d.niches) && d.niches.length > 0) {
+          setAvailableNiches(d.niches)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const fetchProfile = async () => {
@@ -2289,6 +2302,42 @@ export default function ProfilePage() {
                     className="pl-9 h-10 text-xs border-slate-200 rounded-xl focus-visible:ring-pink-500"
                   />
                 </div>
+              </div>
+
+              {/* Niche / Category Dropdown */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-slate-700">Content Niche / Category</Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSuggestType('niche')
+                      setSuggestInput('')
+                      setSuggestModalOpen(true)
+                    }}
+                    className="text-[10px] font-bold text-[#f50057] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    + Suggest Niche
+                  </button>
+                </div>
+                <Select
+                  value={igFormCategory || ''}
+                  onValueChange={(val) => setIgFormCategory(val === '__none__' ? '' : (val || ''))}
+                >
+                  <SelectTrigger className="h-10 text-xs border-slate-200 rounded-xl focus:ring-pink-500 bg-white">
+                    <SelectValue placeholder="Select primary niche for this profile..." />
+                  </SelectTrigger>
+                  <SelectContent side="bottom" className="bg-white border border-slate-200 text-slate-900 shadow-xl max-h-[220px]">
+                    <SelectItem value="__none__" className="text-xs py-2 text-slate-400 italic">
+                      -- No Specific Niche / General --
+                    </SelectItem>
+                    {availableNiches.map((niche) => (
+                      <SelectItem key={niche} value={niche} className="text-xs py-2 font-medium">
+                        {niche}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Primary Toggle */}
