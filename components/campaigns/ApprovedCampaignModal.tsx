@@ -28,7 +28,12 @@ import {
   MapPin,
   FileCheck,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardList,
+  ShoppingBag,
+  Gift,
+  Users,
+  Globe
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,12 +60,28 @@ interface Application {
     brand_name: string
     campaign_code: string
     platform: string
+    category?: string
     deliverables: string
     budget_type?: string
+    budget_amount?: number | null
     commercial_amount?: number | null
+    requirements?: string | null
+    looking_for?: string | null
+    additional_info?: string | null
+    collab_date?: string | null
+    product_links?: string[] | null
     brief_document_url?: string | null
+    location?: string | null
+    location_type?: string | null
+    target_states?: string[] | null
+    target_cities?: string[] | null
+    store_locations?: any[] | null
+    completion_days?: number | null
+    completion_deadline?: string | null
+    enforce_completion_deadline?: boolean
     payment_form_fields?: any[]
     custom_fields?: any[]
+    form_fields?: any[]
   }
   form_data?: any
 }
@@ -72,7 +93,7 @@ interface ApprovedCampaignModalProps {
   application: Application | null
 }
 
-type ModalTab = 'completion' | 'payout' | 'review'
+type ModalTab = 'details' | 'completion' | 'payout'
 
 export default function ApprovedCampaignModal({
   isOpen,
@@ -82,7 +103,7 @@ export default function ApprovedCampaignModal({
 }: ApprovedCampaignModalProps) {
   const { user } = useAuth()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<ModalTab>('completion')
+  const [activeTab, setActiveTab] = useState<ModalTab>('details')
 
   // Completion Form State
   const [liveDate, setLiveDate] = useState('')
@@ -382,6 +403,19 @@ export default function ApprovedCampaignModal({
                 <div className="flex gap-1 p-1 bg-slate-200/70 rounded-xl mt-4 border border-slate-300/60">
                   <button
                     type="button"
+                    onClick={() => setActiveTab('details')}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      activeTab === 'details'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <ClipboardList className="h-3.5 w-3.5 text-indigo-600" />
+                    Campaign Details
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setActiveTab('completion')}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeTab === 'completion'
@@ -389,7 +423,7 @@ export default function ApprovedCampaignModal({
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <FileCheck className="h-3.5 w-3.5 text-indigo-600" />
+                    <FileCheck className="h-3.5 w-3.5 text-emerald-600" />
                     Completion Form
                     {isCompletionSubmitted && (
                       <span className="w-2 h-2 rounded-full bg-emerald-500" title="Deliverable Submitted" />
@@ -413,19 +447,6 @@ export default function ApprovedCampaignModal({
                       </span>
                     )}
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('review')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                      activeTab === 'review'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Eye className="h-3.5 w-3.5 text-slate-600" />
-                    My Application
-                  </button>
                 </div>
               </div>
 
@@ -433,13 +454,228 @@ export default function ApprovedCampaignModal({
               <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
 
                 {/* ═══════════════════════════════════════════
-                    TAB 1: DELIVERABLES & COMPLETION FORM
+                    TAB 1: CAMPAIGN DETAILS & OVERVIEW (DEFAULT)
+                ═══════════════════════════════════════════ */}
+                {activeTab === 'details' && (
+                  <div className="space-y-4">
+                    {/* 1. Quick Highlights Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1 shadow-2xs">
+                        <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                          <Tag className="h-3 w-3 text-indigo-600" /> Deliverables
+                        </p>
+                        <p className="text-xs font-bold text-slate-900 line-clamp-2">
+                          {application.campaigns?.deliverables || '1 Reel / Post'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1 shadow-2xs">
+                        <p className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1">
+                          <IndianRupee className="h-3 w-3 text-emerald-600" /> Deal Value
+                        </p>
+                        <p className="text-xs font-bold text-emerald-700">
+                          {isPaid ? `₹${totalAmount.toLocaleString()}` : (application.campaigns?.budget_type || 'Barter Collab')}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-pink-50/70 border border-pink-100 rounded-xl space-y-1 shadow-2xs">
+                        <p className="text-[10px] font-bold text-pink-900 uppercase tracking-wider flex items-center gap-1">
+                          <Instagram className="h-3 w-3 text-pink-600" /> Platform & Niche
+                        </p>
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {application.campaigns?.platform || 'Instagram'} {application.campaigns?.category ? `• ${application.campaigns.category}` : ''}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl space-y-1 shadow-2xs">
+                        <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-amber-600" /> Timeline
+                        </p>
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {application.campaigns?.collab_date 
+                            ? application.campaigns.collab_date 
+                            : (application.campaigns?.completion_days ? `${application.campaigns.completion_days} Days post-approval` : 'Standard timeline')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 2. Official Campaign Brief Document Banner (if attached) */}
+                    {application.campaigns?.brief_document_url && (
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-indigo-950/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300 shrink-0">
+                            <Sparkles className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-white">
+                              Official Brand Brief & Guidelines Document
+                            </h4>
+                            <p className="text-[11px] text-purple-200 mt-0.5">
+                              Download or preview the official guidelines PDF provided by {application.campaigns?.brand_name}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={application.campaigns.brief_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white text-slate-950 hover:bg-slate-100 text-xs font-extrabold shadow-sm transition-all cursor-pointer shrink-0"
+                        >
+                          <FileText className="h-3.5 w-3.5 text-purple-700" />
+                          Open Campaign Brief ↗
+                        </a>
+                      </div>
+                    )}
+
+                    {/* 3. Campaign Requirements, Instructions & Brief Details */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3.5">
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-indigo-600" />
+                          <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                            Campaign Guidelines & Instructions
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Requirements */}
+                      {application.campaigns?.requirements && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            What You Need To Do (Deliverables & Shooting Guidelines)
+                          </p>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 font-medium whitespace-pre-line leading-relaxed">
+                            {application.campaigns.requirements}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Looking For */}
+                      {application.campaigns?.looking_for && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Target Creator Profile
+                          </p>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 font-medium">
+                            {application.campaigns.looking_for}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Info / Do's & Don'ts */}
+                      {application.campaigns?.additional_info && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Important Notes & Guidelines
+                          </p>
+                          <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 font-medium whitespace-pre-line leading-relaxed">
+                            {application.campaigns.additional_info}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Product Links if available */}
+                      {application.campaigns?.product_links && application.campaigns.product_links.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Featured Product Reference Links
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {application.campaigns.product_links.map((link: string, idx: number) => (
+                              <a
+                                key={idx}
+                                href={link.startsWith('http') ? link : `https://${link}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:border-indigo-300 shadow-2xs transition-all"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Product Link #{idx + 1}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Location & Store Details */}
+                      {(application.selected_store || application.campaigns?.location || application.campaigns?.target_states?.length || application.campaigns?.target_cities?.length) && (
+                        <div className="space-y-2 pt-1">
+                          {application.selected_store ? (
+                            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1">
+                              <p className="text-[10px] font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1">
+                                <Store className="h-3.5 w-3.5" /> Selected Store Branch
+                              </p>
+                              <p className="text-xs font-bold text-purple-950">{application.selected_store.name}</p>
+                              {application.selected_store.address && (
+                                <p className="text-[11px] text-purple-800">{application.selected_store.address}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-white rounded-xl border border-slate-200/70 space-y-1">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <MapPin className="h-3 w-3 text-slate-500" /> Target Campaign Locations
+                              </p>
+                              <p className="text-xs font-semibold text-slate-800">
+                                {[
+                                  ...(application.campaigns?.target_states || []),
+                                  ...(application.campaigns?.target_cities || []),
+                                  application.campaigns?.location
+                                ].filter(Boolean).join(', ') || 'All India / Open Location'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. My Submitted Application Answers */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-indigo-600" />
+                          <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                            My Submitted Application Answers
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Applied: {new Date(application.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+
+                      {/* Custom Form Responses */}
+                      {application.form_data && Object.keys(application.form_data).length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                          {Object.entries(application.form_data).map(([key, val]) => {
+                            if (['payment_request', 'completion_submission', 'requests', 'total_deal', 'rejection_reason', 'revocation_note', 'order_details', 'order_details_approved'].includes(key)) {
+                              return null
+                            }
+                            return (
+                              <div key={key} className="p-2.5 bg-white rounded-xl border border-slate-200/60 space-y-0.5 shadow-2xs">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">
+                                  {key.replace(/_/g, ' ')}
+                                </p>
+                                <p className="text-xs font-semibold text-slate-800 break-words">
+                                  {typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val) || '—'}
+                                </p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500 italic">No additional questionnaire was required for this campaign application.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ═══════════════════════════════════════════
+                    TAB 2: DELIVERABLES & COMPLETION FORM
                 ═══════════════════════════════════════════ */}
                 {activeTab === 'completion' && (
                   <div className="space-y-5">
                     {/* Gated Campaign Brief Document (Unlocked for Approved Profiles) */}
                     {application.campaigns?.brief_document_url && (
-                      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent border border-purple-500/30 flex items-center justify-between gap-3 shadow-sm">
+                      <div className="p-4 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-between gap-3 shadow-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-md">
                             <Sparkles className="h-5 w-5" />
@@ -449,12 +685,12 @@ export default function ApprovedCampaignModal({
                               <h4 className="text-xs font-black text-purple-950 uppercase tracking-wider">
                                 Official Campaign Brief & Guidelines
                               </h4>
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 border border-purple-300">
-                                🔓 Unlocked
+                              <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-purple-100 text-purple-700 uppercase">
+                                Unlocked
                               </span>
                             </div>
-                            <p className="text-[11px] text-purple-900 mt-0.5 leading-snug">
-                              Review script instructions, hashtags, tagging handles, and dos/don'ts before recording.
+                            <p className="text-[11px] text-purple-800/80 mt-0.5">
+                              Attached by brand for approved creators
                             </p>
                           </div>
                         </div>
@@ -462,7 +698,7 @@ export default function ApprovedCampaignModal({
                           href={application.campaigns.brief_document_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow-md transition-all flex items-center gap-1.5 shrink-0"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0 cursor-pointer"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           View Brief
@@ -787,64 +1023,6 @@ export default function ApprovedCampaignModal({
                         )}
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* ═══════════════════════════════════════════
-                    TAB 3: MY SUBMITTED APPLICATION (SELF-REVIEW)
-                ═══════════════════════════════════════════ */}
-                {activeTab === 'review' && (
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-indigo-600" />
-                          <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-                            My Application Summary
-                          </span>
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          Applied: {new Date(application.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
-                      </div>
-
-                      {/* Store Visit Info if Applicable */}
-                      {application.selected_store && (
-                        <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1">
-                          <p className="text-[10px] font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1">
-                            <Store className="h-3.5 w-3.5" /> Selected Store Branch
-                          </p>
-                          <p className="text-xs font-bold text-purple-950">{application.selected_store.name}</p>
-                          {application.selected_store.address && (
-                            <p className="text-[11px] text-purple-800">{application.selected_store.address}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Custom Form Responses */}
-                      {application.form_data && Object.keys(application.form_data).length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                          {Object.entries(application.form_data).map(([key, val]) => {
-                            // Filter out internal system keys
-                            if (['payment_request', 'completion_submission', 'requests', 'total_deal', 'rejection_reason', 'revocation_note'].includes(key)) {
-                              return null
-                            }
-                            return (
-                              <div key={key} className="p-3 bg-white rounded-xl border border-slate-200/60 space-y-1">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                  {key.replace(/_/g, ' ')}
-                                </p>
-                                <p className="text-xs font-semibold text-slate-800 break-words">
-                                  {typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val) || '—'}
-                                </p>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-500 italic">No custom responses recorded for this application.</p>
-                      )}
-                    </div>
                   </div>
                 )}
 

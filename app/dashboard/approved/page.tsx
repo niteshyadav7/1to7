@@ -34,11 +34,14 @@ interface Application {
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 export default function ApprovedCampaignsPage() {
-  const [applications, setApplications] = useState<Application[]>(() => getFastCache<Application[]>('creator_approved_apps') || [])
-  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_approved_apps'))
+  const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 
-  const fetchApproved = useCallback(async () => {
+  const fetchApproved = useCallback(async (isBackground = false) => {
+    if (!isBackground && applications.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
@@ -59,10 +62,17 @@ export default function ApprovedCampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applications.length])
 
   useEffect(() => {
-    fetchApproved()
+    const cached = getFastCache<Application[]>('creator_approved_apps')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setApplications(cached)
+      setLoading(false)
+      fetchApproved(true)
+    } else {
+      fetchApproved(false)
+    }
   }, [fetchApproved])
 
   // Auto-refresh when admin updates applications

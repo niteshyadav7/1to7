@@ -47,9 +47,9 @@ const statusColors: Record<string, string> = {
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(() => getFastCache<Stats>('creator_dashboard_stats'))
-  const [campaigns, setCampaigns] = useState<any[]>(() => getFastCache<any[]>('creator_dashboard_campaigns') || [])
-  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_dashboard_stats') && !getFastCache('creator_dashboard_campaigns'))
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [campaigns, setCampaigns] = useState<any[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Modal states
@@ -57,12 +57,8 @@ export default function DashboardPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
   const fetchData = async (isBackground = false) => {
-    if (!stats && !campaigns.length && !isBackground) {
+    if (!isBackground && !stats && campaigns.length === 0) {
       setLoading(true)
     }
     try {
@@ -87,6 +83,19 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const cachedStats = getFastCache<Stats>('creator_dashboard_stats')
+    const cachedCampaigns = getFastCache<any[]>('creator_dashboard_campaigns')
+    if (cachedStats || (cachedCampaigns && cachedCampaigns.length > 0)) {
+      if (cachedStats) setStats(cachedStats)
+      if (cachedCampaigns) setCampaigns(cachedCampaigns)
+      setLoading(false)
+      fetchData(true)
+    } else {
+      fetchData(false)
+    }
+  }, [])
 
   const handleViewDetails = (campaign: any) => {
     setSelectedCampaign(campaign)

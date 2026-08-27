@@ -189,7 +189,7 @@ export async function POST(request: Request) {
         .single(),
       supabase
         .from('campaigns')
-        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location')
+        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location, form_fields')
         .eq('id', campaignId)
         .single(),
       supabase
@@ -314,7 +314,7 @@ export async function POST(request: Request) {
         Promise.resolve().then(async () => {
           try {
             if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
-              const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user)
+              const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
               if (hasChanges && Object.keys(profileUpdates).length > 0) {
                 profileUpdates.updated_at = new Date().toISOString()
                 await supabase.from('users').update(profileUpdates).eq('id', userId)
@@ -365,7 +365,7 @@ export async function POST(request: Request) {
     Promise.resolve().then(async () => {
       try {
         if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
-          const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user)
+          const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
           if (hasChanges && Object.keys(profileUpdates).length > 0) {
             profileUpdates.updated_at = new Date().toISOString()
             await supabase.from('users').update(profileUpdates).eq('id', userId)

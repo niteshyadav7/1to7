@@ -49,14 +49,17 @@ import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 const statuses = ['All', 'Applied', 'Under Process', 'Rejected']
 
 export default function AppliedCampaignsPage() {
-  const [applications, setApplications] = useState<Application[]>(() => getFastCache<Application[]>('creator_applied_apps') || [])
-  const [loading, setLoading] = useState<boolean>(() => !getFastCache('creator_applied_apps'))
+  const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [reviewApp, setReviewApp] = useState<Application | null>(null)
   const { user } = useAuth()
 
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (isBackground = false) => {
+    if (!isBackground && applications.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
@@ -68,10 +71,17 @@ export default function AppliedCampaignsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applications.length])
 
   useEffect(() => {
-    fetchApplications()
+    const cached = getFastCache<Application[]>('creator_applied_apps')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setApplications(cached)
+      setLoading(false)
+      fetchApplications(true)
+    } else {
+      fetchApplications(false)
+    }
   }, [fetchApplications])
 
   // Auto-refresh when admin updates any application

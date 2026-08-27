@@ -20,7 +20,7 @@ import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import BrandLoader from '@/components/ui/BrandLoader'
 import InstagramMediaGrid from '@/components/dashboard/InstagramMediaGrid'
 import { extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
-import { isStandardProfileField } from '@/lib/utils/profile-sync-utils'
+import { isStandardProfileField, TRANSIENT_CAMPAIGN_SLUGS, createAttributeSlug } from '@/lib/utils/profile-sync-utils'
 
 export interface ShippingAddress {
   id: string
@@ -169,9 +169,8 @@ import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 export default function ProfilePage() {
   const { user: authUser, login, refreshUserProfile } = useAuth()
-  const cachedProfile = getFastCache<UserProfile>('creator_profile_data')
-  const [profile, setProfile] = useState<UserProfile | null>(() => cachedProfile || (authUser as any) || null)
-  const [loading, setLoading] = useState<boolean>(() => !cachedProfile && !authUser)
+  const [profile, setProfile] = useState<UserProfile | null>(() => (authUser as any) || null)
+  const [loading, setLoading] = useState<boolean>(() => !authUser)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved' | 'error'>('idle')
   const [showOTPModal, setShowOTPModal] = useState(false)
@@ -191,7 +190,7 @@ export default function ProfilePage() {
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const [formData, setFormData] = useState(() => {
-    const initSrc: any = cachedProfile || authUser || {}
+    const initSrc: any = authUser || {}
     return {
       full_name: initSrc.full_name || '',
       instagram_username: initSrc.instagram_username || '',
@@ -1494,6 +1493,13 @@ export default function ProfilePage() {
                       const label = itemObj?.label || slug
                       const val = itemObj ? itemObj.value : String(item)
                       if (!val || !String(val).trim()) return false
+
+                      const cleanSlug = createAttributeSlug(slug)
+                      const cleanLabelSlug = createAttributeSlug(label)
+                      if (TRANSIENT_CAMPAIGN_SLUGS.includes(cleanSlug) || TRANSIENT_CAMPAIGN_SLUGS.includes(cleanLabelSlug)) {
+                        return false
+                      }
+
                       return !isStandardProfileField(slug) && !isStandardProfileField(label)
                     })
 

@@ -38,12 +38,29 @@ export async function GET(request: Request) {
           category,
           platform,
           budget_type,
+          budget_amount,
           deliverables,
           requirements,
+          looking_for,
+          additional_info,
+          collab_date,
+          product_links,
+          brief_document_url,
+          location,
+          location_type,
+          target_states,
+          target_cities,
+          store_locations,
+          completion_days,
+          completion_deadline,
+          enforce_completion_deadline,
           gender_required,
+          followers,
+          min_followers,
           order_form,
           order_form_fields,
-          payment_form_fields
+          payment_form_fields,
+          form_fields
         )
       `)
       .eq('user_id', payload.id)

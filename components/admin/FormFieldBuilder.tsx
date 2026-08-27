@@ -15,6 +15,7 @@ import {
   PROFILE_FIELD_PRESETS,
   ProfileFieldPreset,
   getFieldSyncStatus,
+  getCanonicalField,
   CANONICAL_FIELDS
 } from '@/lib/utils/profile-sync-utils'
 
@@ -23,6 +24,7 @@ export interface FormField {
   type: 'text' | 'number' | 'textarea' | 'dropdown' | 'image' | 'date'
   required: boolean
   options: string[] // only for dropdown
+  sync_to_profile?: boolean // explicit toggle: true = sync to profile, false = campaign-only
   profile_sync_key?: string // optional explicit profile target key
 }
 
@@ -54,7 +56,7 @@ export default function FormFieldBuilder({
   const [optionInput, setOptionInput] = useState<Record<number, string>>({})
 
   const addField = () => {
-    onChange([...fields, { name: '', type: 'text', required: true, options: [], profile_sync_key: 'auto' }])
+    onChange([...fields, { name: '', type: 'text', required: true, options: [], sync_to_profile: false, profile_sync_key: 'none' }])
   }
 
   const addPresetField = (preset: ProfileFieldPreset) => {
@@ -72,6 +74,7 @@ export default function FormFieldBuilder({
       type: preset.type,
       required: preset.required,
       options: [...preset.options],
+      sync_to_profile: true,
       profile_sync_key: preset.canonicalKey,
     }
     onChange([...fields, newField])
@@ -163,32 +166,32 @@ export default function FormFieldBuilder({
         </div>
       </div>
 
-      {/* ─── Field Cards List ─── */}
-      <AnimatePresence mode="popLayout">
+      {/* ─── Field List ─── */}
+      <AnimatePresence>
         {fields.map((field, index) => {
           const syncStatus = getFieldSyncStatus(field)
+          const isSyncOn = field.sync_to_profile === true || (field.sync_to_profile !== false && syncStatus.isProfileSync)
+
           return (
             <motion.div
-              layout
               key={index}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className={`rounded-xl border p-4 space-y-3.5 transition-all ${
-                syncStatus.isProfileSync
-                  ? 'border-indigo-500/30 bg-slate-950/60 shadow-sm'
-                  : 'border-white/10 bg-slate-950/40'
+              exit={{ opacity: 0, height: 0 }}
+              className={`p-3.5 sm:p-4 rounded-xl border transition-all space-y-3 ${
+                isSyncOn
+                  ? 'bg-slate-900/80 border-emerald-500/30 ring-1 ring-emerald-500/10'
+                  : 'bg-slate-900/50 border-white/10'
               }`}
             >
-              {/* Header row: Order, Name, Type, Required, Delete */}
               <div className="flex items-center gap-2">
-                <div className="flex flex-col gap-0.5">
+                {/* Reorder Grip */}
+                <div className="flex flex-col gap-0.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => moveField(index, index - 1)}
                     disabled={index === 0}
-                    className="text-slate-500 hover:text-white disabled:opacity-20 transition-colors cursor-pointer"
+                    className="text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors cursor-pointer"
                   >
                     <ChevronUp className="h-3.5 w-3.5" />
                   </button>
@@ -196,7 +199,7 @@ export default function FormFieldBuilder({
                     type="button"
                     onClick={() => moveField(index, index + 1)}
                     disabled={index === fields.length - 1}
-                    className="text-slate-500 hover:text-white disabled:opacity-20 transition-colors cursor-pointer"
+                    className="text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors cursor-pointer"
                   >
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
@@ -209,7 +212,7 @@ export default function FormFieldBuilder({
                   <Input
                     value={field.name}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(index, { name: e.target.value })}
-                    placeholder="Field name (e.g. Shoe Size, Date of Birth, Comments)"
+                    placeholder="Question / Field label (e.g. Pitch, Shoe Size, Comments)"
                     className="w-full bg-slate-950/70 border-white/10 text-white h-9 text-xs sm:text-sm focus-visible:ring-indigo-500 rounded-lg placeholder:text-slate-500"
                   />
                 </div>
@@ -261,51 +264,67 @@ export default function FormFieldBuilder({
                 </button>
               </div>
 
-              {/* ─── Profile Sync Indicator & Mapping Controls ─── */}
-              <div className="ml-7 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 pb-1 border-t border-white/5">
-                {/* Visual Sync Badge */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {syncStatus.isProfileSync ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold shadow-xs">
-                      <span>{syncStatus.icon}</span>
-                      <span>Syncs to Profile: <strong>{syncStatus.targetLabel}</strong></span>
+              {/* ─── Sync to Creator Profile Toggler ─── */}
+              <div className="ml-7 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 pb-1 border-t border-white/5">
+                {/* Switch & Mode Label */}
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextSync = !isSyncOn
+                      updateField(index, {
+                        sync_to_profile: nextSync,
+                        profile_sync_key: nextSync
+                          ? (field.profile_sync_key && field.profile_sync_key !== 'none' ? field.profile_sync_key : (getCanonicalField(field.name) || 'dob'))
+                          : 'none'
+                      })
+                    }}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      isSyncOn ? 'bg-emerald-500 shadow-xs shadow-emerald-500/40' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        isSyncOn ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-bold ${isSyncOn ? 'text-emerald-300' : 'text-slate-400'}`}>
+                      {isSyncOn ? '⚡ Syncs to Creator Profile' : '📄 Campaign-Only'}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-800/60 text-slate-400 border border-white/10 text-[11px] font-medium">
-                      <span>📄</span>
-                      <span>Campaign Application Only</span>
+                    <span className="text-[10px] text-slate-500 hidden lg:inline">
+                      {isSyncOn
+                        ? '— Pre-fills and permanently updates creator profile'
+                        : '— Stored in application submission only (does not touch creator profile)'}
                     </span>
-                  )}
-                  <span className="text-[10px] text-slate-500 hidden md:inline">
-                    {syncStatus.description}
-                  </span>
+                  </div>
                 </div>
 
-                {/* Explicit Profile Mapping Dropdown */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Label className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Sync Target:</Label>
-                  <select
-                    value={field.profile_sync_key || 'auto'}
-                    onChange={(e) => updateField(index, { profile_sync_key: e.target.value })}
-                    className="h-7 bg-slate-900 border border-white/10 text-white text-[11px] rounded-md px-2 focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
-                  >
-                    <option value="auto">⚡ Auto-Detect by Name</option>
-                    <option disabled className="text-slate-500">── Profile Attributes ──</option>
-                    <option value="dob">🎂 Date of Birth</option>
-                    <option value="shoe_size">👟 Shoe Size</option>
-                    <option value="tshirt_size">👕 T-Shirt / Cloth Size</option>
-                    <option value="languages">🗣️ Spoken Languages</option>
-                    <option value="alt_mobile">📱 WhatsApp / Alt Mobile</option>
-                    <option value="city">🏙️ Current City</option>
-                    <option value="state">📍 State / UT</option>
-                    <option value="pincode">📮 Pincode</option>
-                    <option value="gender">👤 Gender</option>
-                    <option value="bio">📝 Bio / About</option>
-                    <option value="youtube">🎥 YouTube Channel</option>
-                    <option disabled className="text-slate-500">── General ──</option>
-                    <option value="none">📄 None (Campaign Only)</option>
-                  </select>
-                </div>
+                {/* Target Profile Field Selector (When Sync is ON) */}
+                {isSyncOn && (
+                  <div className="flex items-center gap-2 shrink-0 animate-in fade-in">
+                    <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Target Field:</Label>
+                    <select
+                      value={field.profile_sync_key && field.profile_sync_key !== 'none' && field.profile_sync_key !== 'auto' ? field.profile_sync_key : (getCanonicalField(field.name) || 'dob')}
+                      onChange={(e) => updateField(index, { sync_to_profile: true, profile_sync_key: e.target.value })}
+                      className="h-7 bg-slate-950 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] rounded-md px-2 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+                    >
+                      <option value="dob">🎂 Date of Birth</option>
+                      <option value="shoe_size">👟 Shoe Size</option>
+                      <option value="tshirt_size">👕 T-Shirt / Cloth Size</option>
+                      <option value="languages">🗣️ Spoken Languages</option>
+                      <option value="alt_mobile">📱 WhatsApp / Alt Mobile</option>
+                      <option value="city">🏙️ Current City</option>
+                      <option value="state">📍 State / UT</option>
+                      <option value="pincode">📮 Pincode</option>
+                      <option value="gender">👤 Gender</option>
+                      <option value="bio">📝 Bio / About</option>
+                      <option value="youtube">🎥 YouTube Channel</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Dropdown Options */}

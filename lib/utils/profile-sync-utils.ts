@@ -240,18 +240,27 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
   }
 ]
 
+export interface FormFieldSyncConfig {
+  name: string
+  type?: string
+  required?: boolean
+  options?: string[]
+  sync_to_profile?: boolean
+  profile_sync_key?: string
+}
+
 /**
  * Checks whether a question field is mapped to a Creator Profile field or is Campaign-Only.
  */
-export function getFieldSyncStatus(field: { name: string; profile_sync_key?: string }): {
+export function getFieldSyncStatus(field: { name: string; sync_to_profile?: boolean; profile_sync_key?: string }): {
   isProfileSync: boolean
   targetKey: string | null
   targetLabel: string | null
   icon: string
   description: string
 } {
-  // If explicitly marked as 'none'
-  if (field.profile_sync_key === 'none') {
+  // If explicitly disabled or marked as 'none'
+  if (field.sync_to_profile === false || field.profile_sync_key === 'none') {
     return {
       isProfileSync: false,
       targetKey: null,
@@ -262,7 +271,7 @@ export function getFieldSyncStatus(field: { name: string; profile_sync_key?: str
   }
 
   // If explicitly mapped to a specific canonical key
-  if (field.profile_sync_key && field.profile_sync_key !== 'auto') {
+  if (field.profile_sync_key && field.profile_sync_key !== 'auto' && field.profile_sync_key !== 'none') {
     const canonical = CANONICAL_FIELDS.find(f => f.key === field.profile_sync_key)
     const preset = PROFILE_FIELD_PRESETS.find(p => p.canonicalKey === field.profile_sync_key)
     return {
@@ -274,17 +283,19 @@ export function getFieldSyncStatus(field: { name: string; profile_sync_key?: str
     }
   }
 
-  // Auto-detect based on question label
-  const canonicalKey = getCanonicalField(field.name)
-  if (canonicalKey) {
-    const canonical = CANONICAL_FIELDS.find(f => f.key === canonicalKey)
-    const preset = PROFILE_FIELD_PRESETS.find(p => p.canonicalKey === canonicalKey)
-    return {
-      isProfileSync: true,
-      targetKey: canonicalKey,
-      targetLabel: canonical?.label || canonicalKey,
-      icon: preset?.icon || '⚡',
-      description: `Auto-recognized! Pre-fills & syncs to Profile → ${canonical?.label || canonicalKey}`
+  // If sync_to_profile is true or auto, check if label matches a canonical field
+  if (field.sync_to_profile === true || field.profile_sync_key === 'auto') {
+    const canonicalKey = getCanonicalField(field.name)
+    if (canonicalKey) {
+      const canonical = CANONICAL_FIELDS.find(f => f.key === canonicalKey)
+      const preset = PROFILE_FIELD_PRESETS.find(p => p.canonicalKey === canonicalKey)
+      return {
+        isProfileSync: true,
+        targetKey: canonicalKey,
+        targetLabel: canonical?.label || canonicalKey,
+        icon: preset?.icon || '⚡',
+        description: `Auto-recognized! Pre-fills & syncs to Profile → ${canonical?.label || canonicalKey}`
+      }
     }
   }
 
@@ -339,7 +350,39 @@ export function getCanonicalField(rawLabel: string): string | null {
 }
 
 /**
- * Extracts and maps form data answers into standard user profile updates and custom_attributes.
+ * Transient campaign question slugs that should NEVER be stored in creator permanent profiles
+ */
+export const TRANSIENT_CAMPAIGN_SLUGS = [
+  'pitch',
+  'video_pitch',
+  'comments',
+  'comment',
+  'feedback',
+  'commercials',
+  'commercial',
+  'quote',
+  'ad_rights',
+  'ad_rights_1_month_usage',
+  'usage_rights',
+  'are_you_a_punjabi_speaking',
+  'punjabi_speaking',
+  'satet3',
+  'state2',
+  'sate',
+  'instagram_id',
+  'followers_count',
+  'profile_category',
+  'applied_instagram_username',
+  'applied_instagram_followers',
+  'preferred_store',
+  'order_details',
+  'order_details_approved'
+]
+
+/**
+ * Extracts and maps form data answers into standard user profile updates.
+ * STRICT: Only syncs fields that are explicitly configured with sync_to_profile = true
+ * or mapped to a standard profile column. Never dumps arbitrary questions into custom_attributes.
  */
 export function extractProfileUpdatesFromFormData(
   formData: Record<string, any>,
@@ -357,7 +400,8 @@ export function extractProfileUpdatesFromFormData(
     languages?: string | null
     custom_attributes?: Record<string, any> | null
     [key: string]: any
-  } | null
+  } | null,
+  campaignFormFields?: FormFieldSyncConfig[] | null
 ): {
   profileUpdates: Record<string, any>
   customAttributes: Record<string, any>
@@ -373,16 +417,76 @@ export function extractProfileUpdatesFromFormData(
   }
   let hasChanges = false
 
+  // Create lookup map of campaign form fields if provided
+  const fieldsMap = new Map<string, FormFieldSyncConfig>()
+  if (Array.isArray(campaignFormFields)) {
+    for (const f of campaignFormFields) {
+      if (f && f.name) {
+        fieldsMap.set(f.name.trim().toLowerCase(), f)
+        fieldsMap.set(cleanQuestionLabel(f.name).toLowerCase(), f)
+      }
+    }
+  }
+
   for (const [rawKey, rawValue] of Object.entries(formData)) {
     if (rawValue === undefined || rawValue === null || rawValue === '') continue
 
     const valueStr = typeof rawValue === 'string' ? rawValue.trim() : String(rawValue)
     if (!valueStr) continue
 
-    const canonicalKey = getCanonicalField(rawKey)
+    const rawKeyLower = rawKey.trim().toLowerCase()
+    const cleanedKeyLower = cleanQuestionLabel(rawKey).toLowerCase()
 
+    // 1. Check if campaignFormFields explicitly specified this field
+    const configuredField = fieldsMap.get(rawKeyLower) || fieldsMap.get(cleanedKeyLower)
+
+    if (configuredField) {
+      // If admin explicitly set sync_to_profile = false or profile_sync_key = 'none' -> SKIP
+      if (configuredField.sync_to_profile === false || configuredField.profile_sync_key === 'none') {
+        continue
+      }
+
+      // If mapped to a specific canonical target
+      let targetCanonical: string | null = null
+      if (configuredField.profile_sync_key && configuredField.profile_sync_key !== 'auto') {
+        targetCanonical = configuredField.profile_sync_key
+      } else if (configuredField.sync_to_profile === true) {
+        targetCanonical = getCanonicalField(configuredField.name) || getCanonicalField(rawKey)
+      }
+
+      if (targetCanonical) {
+        if (targetCanonical === 'dob') {
+          profileUpdates.dob = valueStr
+          hasChanges = true
+        } else if (targetCanonical === 'gender') {
+          const lower = valueStr.toLowerCase()
+          if (lower.startsWith('m')) profileUpdates.gender = 'Male'
+          else if (lower.startsWith('f')) profileUpdates.gender = 'Female'
+          else if (lower.includes('other') || lower.includes('non')) profileUpdates.gender = 'Other'
+          else profileUpdates.gender = valueStr
+          hasChanges = true
+        } else if (targetCanonical === 'alt_mobile') {
+          profileUpdates.alt_mobile = valueStr.replace(/[^0-9+]/g, '')
+          hasChanges = true
+        } else if (['city', 'state', 'pincode', 'shoe_size', 'tshirt_size', 'bio', 'youtube', 'languages'].includes(targetCanonical)) {
+          profileUpdates[targetCanonical] = valueStr
+          hasChanges = true
+        }
+
+        // Clean from customAttributes
+        delete customAttributes[targetCanonical]
+        const slug = createAttributeSlug(rawKey)
+        if (slug) delete customAttributes[slug]
+        continue
+      }
+
+      // If sync_to_profile is false or unmapped, DO NOT save to profile
+      continue
+    }
+
+    // 2. If campaignFormFields not provided (fallback), only match strictly known canonical fields
+    const canonicalKey = getCanonicalField(rawKey)
     if (canonicalKey) {
-      // It matches a known profile column
       if (canonicalKey === 'dob') {
         profileUpdates.dob = valueStr
         hasChanges = true
@@ -394,45 +498,38 @@ export function extractProfileUpdatesFromFormData(
         else profileUpdates.gender = valueStr
         hasChanges = true
       } else if (canonicalKey === 'alt_mobile') {
-        const cleanedPhone = valueStr.replace(/[^0-9+]/g, '')
-        profileUpdates.alt_mobile = cleanedPhone
+        profileUpdates.alt_mobile = valueStr.replace(/[^0-9+]/g, '')
         hasChanges = true
       } else if (['city', 'state', 'pincode', 'shoe_size', 'tshirt_size', 'bio', 'youtube', 'languages'].includes(canonicalKey)) {
         profileUpdates[canonicalKey] = valueStr
         hasChanges = true
       }
 
-      // Clean up from customAttributes to avoid duplicate rendering
       delete customAttributes[canonicalKey]
       const slug = createAttributeSlug(rawKey)
       if (slug) delete customAttributes[slug]
-    } else {
-      // Arbitrary custom question (e.g., "Skin Tone", "Vehicle Type", "Tattoo", "Pitch", "Feedback")
-      if (!isStandardProfileField(rawKey)) {
-        const slug = createAttributeSlug(rawKey)
-        if (slug) {
-          customAttributes[slug] = {
-            label: rawKey.trim(),
-            value: valueStr,
-            updated_at: new Date().toISOString()
-          }
-          hasChanges = true
-        }
-      }
     }
   }
 
-  // Clean out any legacy canonical duplicates from customAttributes
+  // 3. Clean out all transient campaign junk and canonical duplicates from customAttributes
   for (const key of Object.keys(customAttributes)) {
     const item = customAttributes[key]
     const label = typeof item === 'object' && item !== null ? item.label || key : key
-    if (isStandardProfileField(key) || isStandardProfileField(label)) {
+    const slug = createAttributeSlug(key)
+    const labelSlug = createAttributeSlug(label)
+
+    if (
+      isStandardProfileField(key) ||
+      isStandardProfileField(label) ||
+      TRANSIENT_CAMPAIGN_SLUGS.includes(slug) ||
+      TRANSIENT_CAMPAIGN_SLUGS.includes(labelSlug)
+    ) {
       delete customAttributes[key]
       hasChanges = true
     }
   }
 
-  if (Object.keys(customAttributes).length > 0 || existingProfile?.custom_attributes) {
+  if (hasChanges || existingProfile?.custom_attributes) {
     profileUpdates.custom_attributes = customAttributes
   }
 
@@ -442,6 +539,7 @@ export function extractProfileUpdatesFromFormData(
     hasChanges
   }
 }
+
 
 /**
  * Checks if a key or label corresponds to a built-in standard profile field.
