@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: Params) {
 
     const res = await client.query(
       `SELECT 
-        a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.created_at,
+        a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
         r.display_name as role_display_name, r.permissions as role_permissions
        FROM public.admins a
        LEFT JOIN public.roles r ON a.role = r.name
@@ -34,10 +34,16 @@ export async function GET(request: Request, { params }: Params) {
     await client.end()
 
     if (res.rows.length === 0) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ staff: res.rows[0] })
+    const staffRow = res.rows[0]
+    return NextResponse.json({
+      staff: {
+        ...staffRow,
+        password: staffRow.role === 'super_admin' ? null : (staffRow.plain_password || null),
+      },
+    })
   } catch (error) {
     console.error('API /admin/staff/[id] GET Error:', error)
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
@@ -49,7 +55,7 @@ export async function PUT(request: Request, { params }: Params) {
   try {
     const currentAdmin = await getAdminFromRequest()
     if (!currentAdmin || !hasActionPermission(currentAdmin, 'staff', 'edit')) {
-      return NextResponse.json({ error: 'Unauthorized: Permission to edit staff is denied' }, { status: 403 })
+      return NextResponse.json({ error: 'Unauthorized: Permission to edit employee is denied' }, { status: 403 })
     }
 
     const { id } = await params
@@ -66,7 +72,7 @@ export async function PUT(request: Request, { params }: Params) {
     const existing = await client.query('SELECT * FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
       await client.end()
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
     const targetStaff = existing.rows[0]
@@ -93,6 +99,10 @@ export async function PUT(request: Request, { params }: Params) {
       }
     }
 
+    // If role changed to super_admin, clear plain_password
+    const finalRole = role ?? targetStaff.role
+    const shouldClearPlainPass = finalRole === 'super_admin'
+
     const updatedRes = await client.query(
       `UPDATE public.admins 
        SET 
@@ -101,24 +111,30 @@ export async function PUT(request: Request, { params }: Params) {
          role = COALESCE($3, role),
          permissions = COALESCE($4, permissions),
          is_active = COALESCE($5, is_active),
+         plain_password = CASE WHEN $6 = true THEN NULL ELSE plain_password END,
          updated_at = NOW()
-       WHERE id = $6
-       RETURNING id, name, email, role, permissions, is_active, updated_at`,
+       WHERE id = $7
+       RETURNING id, name, email, role, permissions, is_active, plain_password, updated_at`,
       [
         name?.trim() ?? null,
         email ? email.toLowerCase().trim() : null,
         role ?? null,
         permissions !== undefined ? JSON.stringify(permissions) : null,
         is_active !== undefined ? is_active : null,
+        shouldClearPlainPass,
         id,
       ]
     )
     await client.end()
 
+    const updatedStaff = updatedRes.rows[0]
     return NextResponse.json({
       success: true,
-      message: 'Staff updated successfully',
-      staff: updatedRes.rows[0],
+      message: 'Employee updated successfully',
+      staff: {
+        ...updatedStaff,
+        password: updatedStaff.role === 'super_admin' ? null : (updatedStaff.plain_password || null),
+      },
     })
   } catch (error) {
     console.error('API /admin/staff/[id] PUT Error:', error)

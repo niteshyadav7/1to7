@@ -35,23 +35,30 @@ export async function POST(request: Request, { params }: Params) {
     await client.connect()
 
     // Verify staff exists
-    const existing = await client.query('SELECT id, email, name FROM public.admins WHERE id = $1', [id])
+    const existing = await client.query('SELECT id, email, name, role FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
       await client.end()
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
+
+    const isSuper = existing.rows[0].role === 'super_admin'
+    const plainPassToStore = isSuper ? null : newPassword
 
     // Hash new password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(newPassword, salt)
 
     // Update password
-    await client.query('UPDATE public.admins SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, id])
+    await client.query(
+      'UPDATE public.admins SET password_hash = $1, plain_password = $2, updated_at = NOW() WHERE id = $3',
+      [passwordHash, plainPassToStore, id]
+    )
     await client.end()
 
     return NextResponse.json({
       success: true,
-      message: `Password has been reset successfully for ${existing.rows[0].name || existing.rows[0].email}`,
+      message: `Password has been changed successfully for ${existing.rows[0].name || existing.rows[0].email}`,
+      password: plainPassToStore,
     })
   } catch (error) {
     console.error('API /admin/staff/[id]/reset-password POST Error:', error)

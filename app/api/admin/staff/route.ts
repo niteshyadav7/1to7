@@ -31,6 +31,7 @@ export async function GET() {
         a.is_active, 
         a.last_login, 
         a.created_at,
+        a.plain_password,
         r.display_name as role_display_name,
         r.permissions as role_permissions
        FROM public.admins a
@@ -47,7 +48,7 @@ export async function GET() {
       return {
         id: row.id,
         email: row.email,
-        name: row.name || 'Staff Member',
+        name: row.name || 'Employee',
         role: row.role || 'staff',
         roleDisplayName: row.role_display_name || row.role,
         permissions: row.permissions || {},
@@ -55,6 +56,7 @@ export async function GET() {
         is_active: row.is_active ?? true,
         last_login: row.last_login,
         created_at: row.created_at,
+        password: row.role === 'super_admin' ? null : (row.plain_password || null),
       }
     })
 
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
   try {
     const currentAdmin = await getAdminFromRequest()
     if (!currentAdmin || !hasActionPermission(currentAdmin, 'staff', 'create')) {
-      return NextResponse.json({ error: 'Unauthorized: Permission to create staff is denied' }, { status: 403 })
+      return NextResponse.json({ error: 'Unauthorized: Permission to create employee is denied' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -94,26 +96,31 @@ export async function POST(request: Request) {
     const existing = await client.query('SELECT id FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
     if (existing.rows.length > 0) {
       await client.end()
-      return NextResponse.json({ error: 'An admin or staff account with this email already exists' }, { status: 409 })
+      return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(password, salt)
+    const plainPassToStore = role === 'super_admin' ? null : password
 
     // Insert staff
     const insertRes = await client.query(
-      `INSERT INTO public.admins (name, email, password_hash, role, permissions, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, name, email, role, permissions, is_active, created_at`,
-      [name?.trim() || 'Staff Member', email.toLowerCase().trim(), passwordHash, role, JSON.stringify(permissions), is_active]
+      `INSERT INTO public.admins (name, email, password_hash, plain_password, role, permissions, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, email, role, permissions, is_active, created_at, plain_password`,
+      [name?.trim() || 'Employee', email.toLowerCase().trim(), passwordHash, plainPassToStore, role, JSON.stringify(permissions), is_active]
     )
     await client.end()
 
+    const createdStaff = insertRes.rows[0]
     return NextResponse.json({
       success: true,
-      message: 'Staff account created successfully',
-      staff: insertRes.rows[0],
+      message: 'Employee account created successfully',
+      staff: {
+        ...createdStaff,
+        password: createdStaff.role === 'super_admin' ? null : (createdStaff.plain_password || null),
+      },
     })
   } catch (error) {
     console.error('API /admin/staff POST Error:', error)

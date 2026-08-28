@@ -62,6 +62,7 @@ interface StaffMember {
   is_active: boolean
   last_login?: string
   created_at: string
+  password?: string | null
 }
 
 export default function StaffManagementPage() {
@@ -72,6 +73,11 @@ export default function StaffManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({})
+
+  const togglePasswordReveal = (id: string) => {
+    setRevealedPasswords((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -316,6 +322,11 @@ export default function StaffManagementPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to reset password')
 
       toast.success(data.message || 'Password changed successfully')
+      if (data.password !== undefined) {
+        setStaffList((prev) =>
+          prev.map((s) => (s.id === selectedStaff.id ? { ...s, password: data.password } : s))
+        )
+      }
       setIsResetPassModalOpen(false)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to reset password')
@@ -537,6 +548,7 @@ export default function StaffManagementPage() {
             <thead>
               <tr className="border-b border-white/10 bg-slate-950/40 text-xs font-semibold uppercase text-slate-400 tracking-wider">
                 <th className="py-4 px-6">Employee</th>
+                <th className="py-4 px-6">Password</th>
                 <th className="py-4 px-6">Assigned Role</th>
                 <th className="py-4 px-6">Accessible Tabs</th>
                 <th className="py-4 px-6 text-center">Status</th>
@@ -547,14 +559,14 @@ export default function StaffManagementPage() {
             <tbody className="divide-y divide-white/5 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-400" />
                     Loading employee directory...
                   </td>
                 </tr>
               ) : filteredStaff.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     No employee accounts match your current filters.
                   </td>
                 </tr>
@@ -562,6 +574,7 @@ export default function StaffManagementPage() {
                 filteredStaff.map((staff) => {
                   const allowedModules = Object.keys(staff.effectivePermissions || {})
                   const isCurrentLoggedUser = currentAdmin?.id === staff.id
+                  const isRevealed = !!revealedPasswords[staff.id]
 
                   return (
                     <tr key={staff.id} className="hover:bg-white/[0.02] transition-colors">
@@ -583,6 +596,60 @@ export default function StaffManagementPage() {
                             <p className="text-xs text-slate-400 truncate">{staff.email}</p>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Password Column */}
+                      <td className="py-4 px-6">
+                        {staff.role === 'super_admin' ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-mono italic px-2.5 py-1 rounded-lg bg-slate-950/40 border border-white/5">
+                            <Lock className="h-3 w-3 text-purple-400 shrink-0" />
+                            <span>Protected</span>
+                          </span>
+                        ) : staff.password ? (
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-mono text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                                isRevealed
+                                  ? 'text-amber-300 font-bold select-all bg-amber-500/10 border-amber-500/20 shadow-sm shadow-amber-500/10'
+                                  : 'text-slate-400 tracking-widest bg-slate-950/70 border-white/10'
+                              }`}
+                            >
+                              {isRevealed ? staff.password : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordReveal(staff.id)}
+                              className="p-1 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                              title={isRevealed ? 'Hide Password' : 'Show Password'}
+                            >
+                              {isRevealed ? (
+                                <EyeOff className="h-3.5 w-3.5 text-amber-400" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(staff.password || '')
+                                toast.success(`Password for ${staff.name || staff.email} copied!`)
+                              }}
+                              className="p-1 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors cursor-pointer"
+                              title="Copy Password"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openResetPassModal(staff)}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                            title="Click to set password"
+                          >
+                            <Key className="h-3 w-3" /> Set Password
+                          </button>
+                        )}
                       </td>
 
                       {/* Role Badge */}
