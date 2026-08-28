@@ -191,28 +191,28 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-[151] flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl pointer-events-auto">
+            <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-2xl pointer-events-auto text-slate-900">
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 z-10 rounded-full p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+                className="absolute top-4 right-4 z-10 rounded-full p-2 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-all cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
 
               {/* Header */}
               <div className="p-6 pb-0 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/30 shadow-lg shadow-amber-500/10">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-inner text-amber-500">
                   {step === 'success' ? (
-                    <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+                    <CheckCircle2 className="h-7 w-7 text-emerald-500" />
                   ) : (
-                    <Phone className="h-7 w-7 text-amber-400" />
+                    <Phone className="h-7 w-7 text-amber-500" />
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-white tracking-tight">
+                <h3 className="text-xl font-bold text-slate-900 tracking-tight">
                   {step === 'success' ? 'Mobile Verified!' : 'Verify Mobile Number'}
                 </h3>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-slate-500 mt-1">
                   {step === 'send' && `We'll send an OTP to +91 ${mobile}`}
                   {step === 'verify' && `Enter the 6-digit code sent to +91 ${mobile}`}
                   {step === 'success' && 'Your mobile number has been verified successfully'}
@@ -223,14 +223,14 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
               <div className="p-6 space-y-4">
                 {step === 'send' && (
                   <>
-                    <div className="rounded-2xl bg-slate-950/60 border border-white/10 p-4">
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600">
                           <Phone className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-white">+91 {mobile}</p>
-                          <p className="text-xs text-slate-400">SMS OTP will be sent</p>
+                          <p className="text-sm font-bold text-slate-900">+91 {mobile}</p>
+                          <p className="text-xs text-slate-500">SMS OTP will be sent</p>
                         </div>
                       </div>
                     </div>
@@ -238,7 +238,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                     <Button
                       onClick={handleSendOTP}
                       disabled={sending}
-                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/25 cursor-pointer disabled:opacity-50 transition-all"
+                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 transition-all"
                     >
                       {sending ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</>
@@ -252,7 +252,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                 {step === 'verify' && (
                   <>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
                         Enter 6-Digit OTP
                       </label>
                       <Input
@@ -264,7 +264,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                         }}
                         placeholder="000000"
                         maxLength={6}
-                        className="bg-slate-950/60 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus-visible:ring-amber-400 focus-visible:border-amber-400/50 placeholder:text-slate-600 placeholder:tracking-[0.5em]"
+                        className="bg-slate-50 border-slate-200 text-slate-900 h-14 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus-visible:ring-amber-400 focus-visible:border-amber-400 placeholder:text-slate-300 placeholder:tracking-[0.5em]"
                         autoFocus
                       />
                     </div>
@@ -272,7 +272,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                     <Button
                       onClick={handleVerifyOTP}
                       disabled={verifying || otp.length !== 6}
-                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/25 cursor-pointer disabled:opacity-50 transition-all"
+                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 transition-all"
                     >
                       {verifying ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
@@ -283,13 +283,13 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
 
                     <div className="text-center">
                       {countdown > 0 ? (
-                        <p className="text-xs text-slate-400">
-                          Resend OTP in <span className="text-amber-400 font-semibold">{countdown}s</span>
+                        <p className="text-xs text-slate-500">
+                          Resend OTP in <span className="text-amber-600 font-bold">{countdown}s</span>
                         </p>
                       ) : (
                         <button
                           onClick={handleResend}
-                          className="text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer transition-colors"
+                          className="text-xs text-amber-600 hover:text-amber-700 font-bold cursor-pointer transition-colors"
                         >
                           Resend OTP
                         </button>
@@ -304,11 +304,11 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: 'spring', damping: 15 }}
-                      className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 border border-emerald-500/30"
+                      className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20"
                     >
-                      <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+                      <CheckCircle2 className="h-8 w-8 text-emerald-500" />
                     </motion.div>
-                    <p className="text-sm text-emerald-300 font-medium">
+                    <p className="text-sm text-emerald-600 font-bold">
                       +91 {mobile} is now verified
                     </p>
                   </div>
@@ -319,10 +319,10 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                   <motion.div
                     initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3"
+                    className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3"
                   >
-                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0" />
-                    <p className="text-xs text-red-300">{error}</p>
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                    <p className="text-xs text-red-600 font-medium">{error}</p>
                   </motion.div>
                 )}
               </div>
