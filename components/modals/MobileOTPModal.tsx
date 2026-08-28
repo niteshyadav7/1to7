@@ -202,14 +202,14 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
 
               {/* Header */}
               <div className="p-6 pb-0 text-center">
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/30 shadow-lg shadow-amber-500/10">
                   {step === 'success' ? (
                     <CheckCircle2 className="h-7 w-7 text-emerald-400" />
                   ) : (
-                    <Phone className="h-7 w-7 text-purple-400" />
+                    <Phone className="h-7 w-7 text-amber-400" />
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-lg font-bold text-white tracking-tight">
                   {step === 'success' ? 'Mobile Verified!' : 'Verify Mobile Number'}
                 </h3>
                 <p className="text-sm text-slate-400 mt-1">
@@ -223,14 +223,14 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
               <div className="p-6 space-y-4">
                 {step === 'send' && (
                   <>
-                    <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+                    <div className="rounded-2xl bg-slate-950/60 border border-white/10 p-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-300">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
                           <Phone className="h-5 w-5" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-white">+91 {mobile}</p>
-                          <p className="text-xs text-slate-500">SMS OTP will be sent</p>
+                          <p className="text-sm font-semibold text-white">+91 {mobile}</p>
+                          <p className="text-xs text-slate-400">SMS OTP will be sent</p>
                         </div>
                       </div>
                     </div>
@@ -238,7 +238,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                     <Button
                       onClick={handleSendOTP}
                       disabled={sending}
-                      className="w-full h-12 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white font-bold shadow-lg shadow-purple-500/20 cursor-pointer disabled:opacity-50"
+                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/25 cursor-pointer disabled:opacity-50 transition-all"
                     >
                       {sending ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</>
@@ -252,7 +252,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                 {step === 'verify' && (
                   <>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">
                         Enter 6-Digit OTP
                       </label>
                       <Input
@@ -264,7 +264,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                         }}
                         placeholder="000000"
                         maxLength={6}
-                        className="bg-white/5 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus-visible:ring-purple-500 placeholder:text-slate-700 placeholder:tracking-[0.5em]"
+                        className="bg-slate-950/60 border-white/10 text-white h-14 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus-visible:ring-amber-400 focus-visible:border-amber-400/50 placeholder:text-slate-600 placeholder:tracking-[0.5em]"
                         autoFocus
                       />
                     </div>
@@ -272,7 +272,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                     <Button
                       onClick={handleVerifyOTP}
                       disabled={verifying || otp.length !== 6}
-                      className="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+                      className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/25 cursor-pointer disabled:opacity-50 transition-all"
                     >
                       {verifying ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...</>
@@ -283,13 +283,13 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
 
                     <div className="text-center">
                       {countdown > 0 ? (
-                        <p className="text-xs text-slate-500">
-                          Resend OTP in <span className="text-purple-400 font-medium">{countdown}s</span>
+                        <p className="text-xs text-slate-400">
+                          Resend OTP in <span className="text-amber-400 font-semibold">{countdown}s</span>
                         </p>
                       ) : (
                         <button
                           onClick={handleResend}
-                          className="text-xs text-purple-400 hover:text-purple-300 font-medium cursor-pointer transition-colors"
+                          className="text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer transition-colors"
                         >
                           Resend OTP
                         </button>
