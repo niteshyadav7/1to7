@@ -349,6 +349,18 @@ export default function ApplicationFormModal({
       toast.error('Please enter your follower count')
       return
     }
+    const numFollowers = parseInt(guestFollowers.replace(/\D/g, ''), 10) || 0
+    if (numFollowers <= 0) {
+      toast.error('Please enter a valid follower count greater than 0')
+      return
+    }
+    if (campaign?.enforce_followers) {
+      const eligibility = checkFollowerEligibility(numFollowers, campaign)
+      if (!eligibility.eligible) {
+        toast.error(eligibility.message || `This campaign strictly requires a minimum of ${formatFollowerCount(eligibility.requiredFollowers)} followers.`)
+        return
+      }
+    }
     if (!guestGender) {
       toast.error('Please select your gender')
       return
@@ -549,7 +561,7 @@ export default function ApplicationFormModal({
                       </Button>
                     </div>
                   </div>
-                ) : !checkFollowerEligibility(user?.followers, campaign).eligible ? (
+                ) : (user && !checkFollowerEligibility(user?.followers, campaign).eligible) ? (
                   <div className="text-center space-y-4 py-6">
                     <div className="mx-auto h-16 w-16 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-lg shadow-amber-500/10">
                       <Lock className="h-8 w-8" />

@@ -7,7 +7,7 @@ import {
   ArrowLeft, Copy, Check, Instagram, Youtube, ShoppingBag,
   Sparkles, Users, MapPin, Calendar, CheckCircle2, ShieldCheck,
   ExternalLink, FileText, Gift, AlertCircle, Loader2, ArrowRight,
-  Globe, Lock, Store
+  Globe, Lock, Store, Clock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -520,7 +520,7 @@ export default function StandaloneCampaignPage({
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Link>
                         </div>
-                      ) : !checkFollowerEligibility(user?.followers, campaign).eligible ? (
+                      ) : (user && !checkFollowerEligibility(user?.followers, campaign).eligible) ? (
                         <div className="space-y-2">
                           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
                             <Lock className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
@@ -536,7 +536,7 @@ export default function StandaloneCampaignPage({
                             Min {formatFollowerCount(checkFollowerEligibility(user?.followers, campaign).requiredFollowers)} Followers Required
                           </Button>
                         </div>
-                      ) : !checkCampaignLocationEligibility(campaign, user).isEligible ? (
+                      ) : (user && !checkCampaignLocationEligibility(campaign, user).isEligible) ? (
                         <div className="space-y-2">
                           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-900">
                             <MapPin className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
@@ -551,6 +551,22 @@ export default function StandaloneCampaignPage({
                             <MapPin className="mr-1.5 h-3.5 w-3.5 text-white" />
                             Add Location Address to Apply
                           </Button>
+                        </div>
+                      ) : (user && !completionEligibility.isEligible) ? (
+                        <div className="space-y-2">
+                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-xs text-rose-900">
+                            <Clock className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                            <span className="leading-snug">
+                              {completionEligibility.message}
+                            </span>
+                          </div>
+                          <Link
+                            href="/dashboard/approved"
+                            className="w-full h-10 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Submit Overdue Deliverable</span>
+                          </Link>
                         </div>
                       ) : (
                         <Button

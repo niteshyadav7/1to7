@@ -1419,7 +1419,7 @@ export default function CampaignDetailModal({
                 )}
 
                 {/* Followers Ineligibility Banner */}
-                {(!campaign.applied || campaign.application_status === 'Rejected') && !checkFollowerEligibility(effectiveFollowers, campaign).eligible && (
+                {isLoggedIn && (!campaign.applied || campaign.application_status === 'Rejected') && !checkFollowerEligibility(effectiveFollowers, campaign).eligible && (
                   <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
                     <div className="h-9 w-9 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                       <Lock className="h-5 w-5" />
@@ -1441,7 +1441,7 @@ export default function CampaignDetailModal({
                 )}
 
                 {/* Overdue Completion / Deliverable Blocking Banner */}
-                {(!campaign.applied || campaign.application_status === 'Rejected') && !completionEligibility.isEligible && (
+                {isLoggedIn && (!campaign.applied || campaign.application_status === 'Rejected') && !completionEligibility.isEligible && (
                   <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 flex items-start gap-3 shadow-xs">
                     <div className="h-9 w-9 rounded-lg bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                       <Clock className="h-5 w-5" />
@@ -1470,7 +1470,7 @@ export default function CampaignDetailModal({
                 )}
 
                 {/* Terms Checkbox (Available if not applied OR if rejected and eligible to re-apply) */}
-                {(!campaign.applied || campaign.application_status === 'Rejected') && checkFollowerEligibility(effectiveFollowers, campaign).eligible && locationEligibility.isEligible && completionEligibility.isEligible && (
+                {(!campaign.applied || campaign.application_status === 'Rejected') && (isLoggedIn ? (checkFollowerEligibility(effectiveFollowers, campaign).eligible && locationEligibility.isEligible && completionEligibility.isEligible) : true) && (
                   <div className="pt-4 space-y-4">
                     {/* Preferred Store Outlet Selector for Store Visit Campaigns */}
                     {campaign.store_locations && campaign.store_locations.length > 0 && (
@@ -1484,37 +1484,43 @@ export default function CampaignDetailModal({
                             Step 1: Pick Nearest Outlet
                           </span>
                         </div>
-                        <p className="text-[11px] text-purple-900 leading-snug">
-                          Please select the exact outlet where you will visit for creating content/shoot:
+                        <p className="text-[11px] text-purple-900">
+                          Please select the specific brand outlet branch you will visit for creating content:
                         </p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {campaign.store_locations.map((store, sIdx) => {
-                            const isSelected = selectedStoreOutlet?.id === store.id || (selectedStoreOutlet?.name === store.name && selectedStoreOutlet?.city === store.city)
+                        <div className="space-y-2">
+                          {campaign.store_locations.map((store, idx) => {
+                            const isSelected = selectedStoreOutlet?.name === store.name && selectedStoreOutlet?.city === store.city
                             return (
-                              <button
-                                key={store.id || sIdx}
-                                type="button"
+                              <div
+                                key={idx}
                                 onClick={() => setSelectedStoreOutlet(store)}
-                                className={`p-3 rounded-xl text-left border transition-all cursor-pointer flex items-start justify-between gap-2 ${
+                                className={`p-3 rounded-lg border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
                                   isSelected
-                                    ? 'bg-purple-600 text-white border-purple-600 shadow-md ring-2 ring-purple-400/40'
-                                    : 'bg-white text-slate-800 border-purple-200/80 hover:border-purple-400 hover:bg-purple-50/50'
+                                    ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                    : 'bg-white text-slate-800 border-purple-200 hover:bg-purple-50/50'
                                 }`}
                               >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-900'}`}>{store.name}</span>
-                                    <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${isSelected ? 'bg-purple-700 text-white' : 'bg-purple-100 text-purple-800'}`}>{store.city}</span>
-                                  </div>
-                                  <p className={`text-[11px] mt-0.5 line-clamp-1 ${isSelected ? 'text-purple-100' : 'text-slate-600'}`}>{store.address}</p>
-                                  {store.area && (
-                                    <p className={`text-[10px] mt-0.5 font-medium ${isSelected ? 'text-purple-200' : 'text-purple-700'}`}>📍 {store.area}</p>
-                                  )}
-                                </div>
-                                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-white bg-white text-purple-600' : 'border-slate-300 bg-white'}`}>
+                                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                  isSelected ? 'border-white bg-white text-purple-600' : 'border-purple-300 bg-white'
+                                }`}>
                                   {isSelected && <div className="h-2 w-2 rounded-full bg-purple-600" />}
                                 </div>
-                              </button>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                                    <span className="font-bold">{store.name}</span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                      isSelected ? 'bg-purple-700 text-purple-100' : 'bg-purple-100 text-purple-800'
+                                    }`}>
+                                      {store.city}, {store.state}
+                                    </span>
+                                  </div>
+                                  {store.address && (
+                                    <p className={`text-[11px] mt-0.5 line-clamp-1 ${isSelected ? 'text-purple-100' : 'text-slate-500'}`}>
+                                      {store.address}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
                             )
                           })}
                         </div>
@@ -1552,7 +1558,7 @@ export default function CampaignDetailModal({
                     <span>View Application in Dashboard</span>
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Button>
-                ) : !checkFollowerEligibility(effectiveFollowers, campaign).eligible ? (
+                ) : (isLoggedIn && !checkFollowerEligibility(effectiveFollowers, campaign).eligible) ? (
                   <Button
                     disabled
                     className="w-full h-14 rounded-md bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-sm cursor-not-allowed opacity-90"
@@ -1560,19 +1566,23 @@ export default function CampaignDetailModal({
                     <Lock className="mr-2 h-4 w-4 text-amber-800" />
                     <span>Min {formatFollowerCount(checkFollowerEligibility(effectiveFollowers, campaign).requiredFollowers)} Followers Required to Apply</span>
                   </Button>
-                ) : !locationEligibility.isEligible ? (
+                ) : (isLoggedIn && !locationEligibility.isEligible) ? (
                   <Button
                     onClick={() => {
-                      if (!isLoggedIn) {
-                        onApply(campaign)
-                      } else {
-                        setQuickAddressModalOpen(true)
-                      }
+                      setQuickAddressModalOpen(true)
                     }}
                     className="w-full h-14 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all active:scale-[0.98] group cursor-pointer shadow-sm"
                   >
                     <MapPin className="mr-2 h-4 w-4" />
                     <span>Add an Address in {locationEligibility.requiredLocationText} to Apply</span>
+                  </Button>
+                ) : (isLoggedIn && !completionEligibility.isEligible) ? (
+                  <Button
+                    disabled
+                    className="w-full h-14 rounded-md bg-rose-500/20 border border-rose-300 text-rose-950 font-bold text-sm cursor-not-allowed opacity-90"
+                  >
+                    <Clock className="mr-2 h-4 w-4 text-rose-800" />
+                    <span>Submit Overdue Deliverable to Apply</span>
                   </Button>
                 ) : (
                   <Button
@@ -1583,7 +1593,7 @@ export default function CampaignDetailModal({
                     {campaign.applied && campaign.application_status === 'Rejected'
                       ? 'Re-Apply to Campaign'
                       : !isLoggedIn 
-                      ? 'Quick Apply' 
+                      ? 'Apply Now' 
                       : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
                     }
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />

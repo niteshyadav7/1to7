@@ -244,12 +244,12 @@ export default function CampaignCard({
                 <span>Already Applied ✓ View Details</span>
               </button>
             )
-          ) : !eligibility.eligible ? (
+          ) : (user && !eligibility.eligible) ? (
             <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 border border-amber-300 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
               <Lock className="h-3.5 w-3.5 text-amber-700" />
               <span>Min {formatFollowerCount(eligibility.requiredFollowers)} Followers Required</span>
             </button>
-          ) : !locationEligibility.isEligible ? (
+          ) : (user && !locationEligibility.isEligible) ? (
             <button className="w-full relative group/btn flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 font-extrabold text-xs py-3 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer active:scale-[0.98]">
               <MapPin className="h-3.5 w-3.5 text-rose-600" />
               <span className="truncate">{locationEligibility.requiredLocationText} Address Required</span>
