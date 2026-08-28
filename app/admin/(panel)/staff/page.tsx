@@ -115,7 +115,7 @@ export default function StaffManagementPage() {
         setRolesList(rolesData.roles || [])
       }
     } catch {
-      toast.error('Failed to load staff management data')
+      toast.error('Failed to load employee management data')
     } finally {
       setLoading(false)
     }
@@ -250,13 +250,13 @@ export default function StaffManagementPage() {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create staff')
+      if (!res.ok) throw new Error(data.error || 'Failed to create employee')
 
-      toast.success(`Staff account created for ${formName || formEmail}`)
+      toast.success(`Employee account created for ${formName || formEmail}`)
       setIsCreateModalOpen(false)
       fetchData()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create staff')
+      toast.error(err instanceof Error ? err.message : 'Failed to create employee')
     } finally {
       setSubmitting(false)
     }
@@ -282,13 +282,13 @@ export default function StaffManagementPage() {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update staff')
+      if (!res.ok) throw new Error(data.error || 'Failed to update employee')
 
-      toast.success('Staff account updated successfully')
+      toast.success('Employee account updated successfully')
       setIsEditModalOpen(false)
       fetchData()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update staff')
+      toast.error(err instanceof Error ? err.message : 'Failed to update employee')
     } finally {
       setSubmitting(false)
     }
@@ -334,13 +334,13 @@ export default function StaffManagementPage() {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to delete staff')
+      if (!res.ok) throw new Error(data.error || 'Failed to delete employee')
 
-      toast.success('Staff account removed')
+      toast.success('Employee account removed')
       setStaffToDelete(null)
       fetchData()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete staff')
+      toast.error(err instanceof Error ? err.message : 'Failed to delete employee')
     }
   }
 
@@ -414,10 +414,10 @@ export default function StaffManagementPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
             <Users className="h-6 w-6 text-indigo-400" />
-            Staff Management
+            Employee Management
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Manage admin users, configure dynamic tab access, and securely change passwords.
+            Manage employee users, configure dynamic tab access, and securely change passwords.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -436,7 +436,7 @@ export default function StaffManagementPage() {
               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl h-10 px-4 font-semibold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
             >
               <UserPlus className="h-4 w-4 mr-2" />
-              Add Staff Member
+              Add Employee
             </Button>
           )}
         </div>
@@ -446,7 +446,7 @@ export default function StaffManagementPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-5 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Staff</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Employees</span>
             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
               <Users className="h-4 w-4" />
             </div>
@@ -457,7 +457,7 @@ export default function StaffManagementPage() {
 
         <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-5 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Active Staff</span>
+            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Active Employees</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
             </div>
@@ -536,7 +536,7 @@ export default function StaffManagementPage() {
           <table className="w-full text-left border-collapse font-sans">
             <thead>
               <tr className="border-b border-white/10 bg-slate-950/40 text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                <th className="py-4 px-6">Staff Member</th>
+                <th className="py-4 px-6">Employee</th>
                 <th className="py-4 px-6">Assigned Role</th>
                 <th className="py-4 px-6">Accessible Tabs</th>
                 <th className="py-4 px-6 text-center">Status</th>
@@ -549,13 +549,13 @@ export default function StaffManagementPage() {
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-400" />
-                    Loading staff directory...
+                    Loading employee directory...
                   </td>
                 </tr>
               ) : filteredStaff.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
-                    No staff accounts match your current filters.
+                    No employee accounts match your current filters.
                   </td>
                 </tr>
               ) : (
@@ -569,11 +569,11 @@ export default function StaffManagementPage() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-md">
-                            {staff.name?.charAt(0)?.toUpperCase() || 'S'}
+                            {staff.name?.charAt(0)?.toUpperCase() || 'E'}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold text-white truncate">{staff.name || 'Staff Member'}</p>
+                              <p className="font-semibold text-white truncate">{staff.name || 'Employee'}</p>
                               {isCurrentLoggedUser && (
                                 <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-semibold border border-indigo-500/30">
                                   You
@@ -678,7 +678,7 @@ export default function StaffManagementPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() => openEditModal(staff)}
-                              title="Edit Staff & Permissions"
+                              title="Edit Employee & Permissions"
                               className="h-8 w-8 p-0 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg cursor-pointer"
                             >
                               <Edit2 className="h-4 w-4" />
@@ -733,8 +733,8 @@ export default function StaffManagementPage() {
                     <UserPlus className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-white tracking-tight">Create Staff Account</h2>
-                    <p className="text-xs text-slate-400">Add a new admin/staff member and configure their permissions</p>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Create Employee Account</h2>
+                    <p className="text-xs text-slate-400">Add a new admin/employee and configure their permissions</p>
                   </div>
                 </div>
                 <button
@@ -874,7 +874,7 @@ export default function StaffManagementPage() {
                         </span>
                         <p className="text-[11px] text-slate-400">
                           {customPermissionsEnabled
-                            ? 'Custom permission overrides are currently active for this staff member.'
+                            ? 'Custom permission overrides are currently active for this employee.'
                             : 'Using standard permissions from the assigned role preset.'}
                         </p>
                       </div>
@@ -1009,7 +1009,7 @@ export default function StaffManagementPage() {
                     <Edit2 className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-white tracking-tight">Edit Staff Account</h2>
+                    <h2 className="text-lg font-bold text-white tracking-tight">Edit Employee Account</h2>
                     <p className="text-xs text-slate-400">Modify profile, role assignments, and permission overrides</p>
                   </div>
                 </div>
@@ -1031,7 +1031,7 @@ export default function StaffManagementPage() {
                       <Input
                         value={formName}
                         onChange={(e) => setFormName(e.target.value)}
-                        placeholder="Staff Name"
+                        placeholder="Employee Name"
                         className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm"
                       />
                     </div>
@@ -1102,7 +1102,7 @@ export default function StaffManagementPage() {
                         </span>
                         <p className="text-[11px] text-slate-400">
                           {customPermissionsEnabled
-                            ? 'Custom permission overrides are currently active for this staff member.'
+                            ? 'Custom permission overrides are currently active for this employee.'
                             : 'Using standard permissions from the assigned role preset.'}
                         </p>
                       </div>
@@ -1298,7 +1298,7 @@ export default function StaffManagementPage() {
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs leading-relaxed flex items-start gap-2.5">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-400" />
                   <span>
-                    Setting a new password will allow the staff member to log in immediately with these credentials.
+                    Setting a new password will allow the employee to log in immediately with these credentials.
                   </span>
                 </div>
 
@@ -1335,20 +1335,20 @@ export default function StaffManagementPage() {
 
             <div className="space-y-1.5">
               <AlertDialogTitle className="text-xl font-bold tracking-tight text-white">
-                Delete Staff Account?
+                Delete Employee Account?
               </AlertDialogTitle>
               <AlertDialogDescription className="text-slate-400 text-sm leading-relaxed max-w-[340px] mx-auto">
-                Are you sure you want to permanently remove this staff account?
+                Are you sure you want to permanently remove this employee account?
               </AlertDialogDescription>
             </div>
 
             {staffToDelete && (
               <div className="w-full p-3.5 rounded-2xl bg-slate-950/70 border border-white/10 text-left flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-sm shrink-0 shadow-md">
-                  {staffToDelete.name?.charAt(0)?.toUpperCase() || 'S'}
+                  {staffToDelete.name?.charAt(0)?.toUpperCase() || 'E'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white truncate">{staffToDelete.name || 'Staff Member'}</p>
+                  <p className="text-sm font-semibold text-white truncate">{staffToDelete.name || 'Employee'}</p>
                   <p className="text-xs text-slate-400 truncate">{staffToDelete.email}</p>
                 </div>
                 <span className="text-[10px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-white/10 shrink-0 font-medium">

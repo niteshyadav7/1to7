@@ -63,7 +63,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
   { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
   { href: '/admin/categories', label: 'Categories & Niches', icon: Tags, moduleKey: 'influencers' },
-  { href: '/admin/staff', label: 'Staff Management', icon: UserCheck, moduleKey: 'staff' },
+  { href: '/admin/staff', label: 'Employee Management', icon: UserCheck, moduleKey: 'staff' },
   { href: '/admin/roles', label: 'Roles & Access', icon: Sliders, moduleKey: 'roles' },
 ]
 

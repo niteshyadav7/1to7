@@ -106,15 +106,15 @@ export const ADMIN_MODULES: ModuleDefinition[] = [
   },
   {
     key: 'staff',
-    name: 'Staff Management',
+    name: 'Employee Management',
     href: '/admin/staff',
-    description: 'Admin and staff user management, role assignments, and password resets.',
+    description: 'Admin and employee user management, role assignments, and password resets.',
     actions: [
-      { key: 'view', name: 'View Staff', description: 'Can view staff directory' },
-      { key: 'create', name: 'Create Staff', description: 'Can create new staff accounts' },
-      { key: 'edit', name: 'Edit Staff', description: 'Can edit roles and custom permissions' },
-      { key: 'reset_password', name: 'Reset Password', description: 'Can reset staff passwords directly' },
-      { key: 'delete', name: 'Delete Staff', description: 'Can delete staff accounts' },
+      { key: 'view', name: 'View Employees', description: 'Can view employee directory' },
+      { key: 'create', name: 'Create Employee', description: 'Can create new employee accounts' },
+      { key: 'edit', name: 'Edit Employee', description: 'Can edit roles and custom permissions' },
+      { key: 'reset_password', name: 'Reset Password', description: 'Can reset employee passwords directly' },
+      { key: 'delete', name: 'Delete Employee', description: 'Can delete employee accounts' },
     ],
   },
   {

@@ -599,7 +599,7 @@ export default function RolesManagementPage() {
 
             <div className="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2 text-left">
               <ShieldAlert className="h-4 w-4 shrink-0 text-red-400" />
-              <span>This role can only be removed if no active staff members are assigned to it.</span>
+              <span>This role can only be removed if no active employees are assigned to it.</span>
             </div>
           </AlertDialogHeader>
 
