@@ -248,11 +248,14 @@ export default function AdminCampaignsPage() {
 
   // Handle Campaign Approval
   const handleApproveCampaign = async (campaign: Campaign) => {
-    // Check strict maker-checker rule: Creator or Last Editor cannot self-approve
-    const isLastAuthor = (campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin?.id) ||
-                         (campaign.created_by_admin_id === admin?.id)
-    if (!isSuperAdmin && admin?.id && isLastAuthor) {
-      toast.error('Dual control policy: You created or made the latest modifications to this campaign and cannot self-approve. Another admin must review and approve it.')
+    // Check strict maker-checker rule: Only author of latest state cannot self-approve
+    const latestAuthorId = campaign.last_edited_by_admin_id || campaign.created_by_admin_id
+    if (!isSuperAdmin && admin?.id && latestAuthorId === admin.id) {
+      toast.error(
+        campaign.last_edited_by_admin_id
+          ? 'Dual control policy: You made the latest modifications to this campaign and cannot self-approve. Another admin must review and approve it.'
+          : 'Dual control policy: You created this campaign and cannot self-approve. Another admin must review and approve it.'
+      )
       return
     }
 
@@ -979,38 +982,47 @@ export default function AdminCampaignsPage() {
                           Review
                         </Button>
 
-                        {!isSuperAdmin && admin?.id && ((campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin.id) || campaign.created_by_admin_id === admin.id) ? (
-                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg">
-                            {campaign.last_edited_by_admin_id && campaign.last_edited_by_admin_id === admin.id && campaign.created_by_admin_id !== admin.id
-                              ? 'Awaiting 2nd Admin (You edited)'
-                              : 'Awaiting 2nd Admin (Self-created)'}
-                          </span>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              disabled={approvingId === campaign.id}
-                              onClick={() => handleApproveCampaign(campaign)}
-                              className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                            >
-                              <CheckCheck className="h-3.5 w-3.5 mr-1" />
-                              {approvingId === campaign.id ? 'Approving...' : 'Approve & Go Live'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              disabled={approvingId === campaign.id}
-                              onClick={() => {
-                                setRejectModalCampaign(campaign)
-                                setRejectionReasonInput('')
-                              }}
-                              variant="outline"
-                              className="h-8 px-2.5 rounded-lg border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs transition-all cursor-pointer"
-                            >
-                              <X className="h-3.5 w-3.5 mr-1" />
-                              Reject
-                            </Button>
-                          </>
-                        )}
+                        {(() => {
+                          const latestAuthorId = campaign.last_edited_by_admin_id || campaign.created_by_admin_id
+                          const isLatestAuthor = !isSuperAdmin && admin?.id && latestAuthorId === admin.id
+
+                          if (isLatestAuthor) {
+                            return (
+                              <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg">
+                                {campaign.last_edited_by_admin_id
+                                  ? 'Awaiting 2nd Admin (You edited)'
+                                  : 'Awaiting 2nd Admin (Self-created)'}
+                              </span>
+                            )
+                          }
+
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                disabled={approvingId === campaign.id}
+                                onClick={() => handleApproveCampaign(campaign)}
+                                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                              >
+                                <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                                {approvingId === campaign.id ? 'Approving...' : 'Approve & Go Live'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={approvingId === campaign.id}
+                                onClick={() => {
+                                  setRejectModalCampaign(campaign)
+                                  setRejectionReasonInput('')
+                                }}
+                                variant="outline"
+                                className="h-8 px-2.5 rounded-lg border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs transition-all cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )
+                        })()}
                       </div>
                     ) : (
                       <>
@@ -1207,37 +1219,46 @@ export default function AdminCampaignsPage() {
                 Close
               </Button>
 
-              {!isSuperAdmin && admin?.id && ((reviewModalCampaign.last_edited_by_admin_id && reviewModalCampaign.last_edited_by_admin_id === admin.id) || reviewModalCampaign.created_by_admin_id === admin.id) ? (
-                <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
-                  {reviewModalCampaign.last_edited_by_admin_id && reviewModalCampaign.last_edited_by_admin_id === admin.id && reviewModalCampaign.created_by_admin_id !== admin.id
-                    ? 'Dual Control: You modified these details. Another admin must review & approve.'
-                    : 'Dual Control: You created this campaign. Another admin must review & approve.'}
-                </span>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setRejectModalCampaign(reviewModalCampaign)
-                      setRejectionReasonInput('')
-                    }}
-                    className="h-9 px-4 rounded-xl border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold cursor-pointer"
-                  >
-                    <X className="h-4 w-4 mr-1.5" />
-                    Reject Campaign
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={approvingId === reviewModalCampaign.id}
-                    onClick={() => handleApproveCampaign(reviewModalCampaign)}
-                    className="h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 cursor-pointer"
-                  >
-                    <CheckCheck className="h-4 w-4 mr-1.5" />
-                    {approvingId === reviewModalCampaign.id ? 'Approving...' : 'Approve & Publish Live'}
-                  </Button>
-                </>
-              )}
+              {(() => {
+                const latestAuthorId = reviewModalCampaign.last_edited_by_admin_id || reviewModalCampaign.created_by_admin_id
+                const isLatestAuthor = !isSuperAdmin && admin?.id && latestAuthorId === admin.id
+
+                if (isLatestAuthor) {
+                  return (
+                    <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl">
+                      {reviewModalCampaign.last_edited_by_admin_id
+                        ? 'Dual Control: You modified these details. Another admin must review & approve.'
+                        : 'Dual Control: You created this campaign. Another admin must review & approve.'}
+                    </span>
+                  )
+                }
+
+                return (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setRejectModalCampaign(reviewModalCampaign)
+                        setRejectionReasonInput('')
+                      }}
+                      className="h-9 px-4 rounded-xl border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold cursor-pointer"
+                    >
+                      <X className="h-4 w-4 mr-1.5" />
+                      Reject Campaign
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={approvingId === reviewModalCampaign.id}
+                      onClick={() => handleApproveCampaign(reviewModalCampaign)}
+                      className="h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 cursor-pointer"
+                    >
+                      <CheckCheck className="h-4 w-4 mr-1.5" />
+                      {approvingId === reviewModalCampaign.id ? 'Approving...' : 'Approve & Publish Live'}
+                    </Button>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>
