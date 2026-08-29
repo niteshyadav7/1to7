@@ -4,7 +4,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   X, User, MapPin, Store, Tag, Instagram, Calendar, CheckCircle2,
-  ClipboardList, Clock, IndianRupee, FileText, Sparkles, ExternalLink
+  ClipboardList, Clock, IndianRupee, FileText, Sparkles, ExternalLink, RotateCcw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -125,6 +125,20 @@ export default function ApplicationReviewModal({
                 </p>
               </div>
             </div>
+
+            {/* Rejection / Re-Apply Feedback Banner */}
+            {application.status === 'Rejected' && formData.rejection_reason && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-2.5 shadow-2xs">
+                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600 shrink-0 mt-0.5">
+                  <RotateCcw className="h-4 w-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-rose-900">Admin Feedback / Reason for Re-Apply</h4>
+                  <p className="text-xs text-rose-700 mt-0.5">{formData.rejection_reason}</p>
+                  <p className="text-[11px] text-rose-600 font-medium mt-1">You can update your answers or profile details and re-apply for this campaign.</p>
+                </div>
+              </div>
+            )}
 
             {/* Campaign Brief PDF Banner if available */}
             {camp.brief_document_url && (

@@ -538,12 +538,14 @@ function ActionsDropdown({
   onStatusChange,
   onRevertApproval,
   onRevokeApproval,
+  onRejectWithReason,
   onDeleteApp,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
   onRevertApproval?: (app: Application) => void
   onRevokeApproval?: (app: Application) => void
+  onRejectWithReason?: (app: Application) => void
   onDeleteApp: (id: string, name?: string) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
@@ -609,8 +611,16 @@ function ActionsDropdown({
                   key={a.status}
                   onClick={(e) => {
                     e.stopPropagation()
-                    onStatusChange(app.id, a.status)
                     setOpen(false)
+                    if (a.status === 'Rejected') {
+                      if (onRejectWithReason) {
+                        onRejectWithReason(app)
+                      } else {
+                        onStatusChange(app.id, a.status)
+                      }
+                    } else {
+                      onStatusChange(app.id, a.status)
+                    }
                   }}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${a.color}`}
                 >
@@ -731,6 +741,12 @@ export default function AllApplicationsPage() {
   const [selectedRevokeReason, setSelectedRevokeReason] = useState('Accidental approval / Selection misclick')
   const [customRevokeReason, setCustomRevokeReason] = useState('')
   const [sendRevokeEmail, setSendRevokeEmail] = useState(false)
+
+  // Allow Re-apply / Reject with Reason Modal state
+  const [rejectModalApps, setRejectModalApps] = useState<{ id: string; name?: string; campaign?: string }[] | null>(null)
+  const [selectedRejectReason, setSelectedRejectReason] = useState('Follower count / criteria mismatch')
+  const [customRejectReason, setCustomRejectReason] = useState('')
+  const [sendRejectEmail, setSendRejectEmail] = useState(true)
 
   const updateApplicationTimeline = async (
     appId: string,
@@ -1515,10 +1531,17 @@ export default function AllApplicationsPage() {
                         {/* Status */}
                         {visibleCols.status && (
                           <td className={`px-4 ${densityPadding[density]}`}>
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
-                              {app.status}
-                            </span>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
+                                {app.status}
+                              </span>
+                              {app.status === 'Rejected' && app.form_data?.rejection_reason && (
+                                <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md max-w-[170px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
+                                  💬 {app.form_data.rejection_reason}
+                                </span>
+                              )}
+                            </div>
                           </td>
                         )}
 
@@ -1539,6 +1562,12 @@ export default function AllApplicationsPage() {
                               onStatusChange={updateSingleStatus}
                               onRevertApproval={handleRevertApproval}
                               onRevokeApproval={(app) => setRevokeModalApp(app)}
+                              onRejectWithReason={(app) => {
+                                setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
+                                setSelectedRejectReason('Follower count / criteria mismatch')
+                                setCustomRejectReason('')
+                                setSendRejectEmail(true)
+                              }}
                               onDeleteApp={handleDeleteApplication}
                             />
                           </td>
@@ -1556,6 +1585,18 @@ export default function AllApplicationsPage() {
                               className="overflow-hidden"
                             >
                               <div className="border-t border-white/5 px-6 py-6 space-y-6 bg-slate-950/30">
+                                {/* Rejection / Re-Apply Comment if Rejected */}
+                                {app.status === 'Rejected' && app.form_data?.rejection_reason && (
+                                  <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5">
+                                    <div className="p-1 rounded-lg bg-rose-500/20 text-rose-300 shrink-0 mt-0.5">
+                                      <RotateCcw className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-bold text-rose-300">Rejection Reason / Feedback Sent to Creator</p>
+                                      <p className="text-xs text-rose-200 mt-0.5">{app.form_data.rejection_reason}</p>
+                                    </div>
+                                  </div>
+                                )}
                                 {/* Influencer Profile Details */}
                                 <div>
                                   <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
@@ -2152,10 +2193,19 @@ export default function AllApplicationsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleBulkAction('Rejected')}
+                onClick={() => {
+                  const selectedApps = Array.from(selectedIds).map(id => {
+                    const app = applications.find(a => a.id === id)
+                    return { id, name: app?.users?.full_name, campaign: app?.campaigns?.brand_name }
+                  })
+                  setRejectModalApps(selectedApps)
+                  setSelectedRejectReason('Follower count / criteria mismatch')
+                  setCustomRejectReason('')
+                  setSendRejectEmail(true)
+                }}
                 disabled={bulkUpdating}
                 className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
-                title="Reject selected applications and allow creators to re-apply"
+                title="Reject selected applications and allow creators to re-apply with feedback"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>ALLOW RE-APPLY</span>
@@ -2373,6 +2423,174 @@ export default function AllApplicationsPage() {
                   className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
                 >
                   Confirm Revocation
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Allow Re-Apply / Reject with Comments Modal ─── */}
+      <AnimatePresence>
+        {rejectModalApps && rejectModalApps.length > 0 && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-slate-900 border border-rose-500/30 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar scrollbar-none"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    <RotateCcw className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      {rejectModalApps.length === 1 ? 'Reject & Allow Re-Apply' : `Bulk Reject (${rejectModalApps.length} Selected)`}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {rejectModalApps.length === 1 
+                        ? `${rejectModalApps[0].name || 'Creator'} • ${rejectModalApps[0].campaign || 'Campaign'}`
+                        : `Allow ${rejectModalApps.length} creators to update details and re-apply`
+                      }
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRejectModalApps(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                  Select Rejection Reason / Creator Feedback
+                </label>
+                
+                <div className="space-y-2">
+                  {[
+                    'Follower count / criteria mismatch',
+                    'Location / City not eligible for this campaign',
+                    'Please update complete delivery address & pincode',
+                    'Content / Niche mismatch for this brand',
+                    'Profile engagement / authenticity requirement not met',
+                    'Campaign slots full for this phase',
+                    'Custom'
+                  ].map(r => (
+                    <label
+                      key={r}
+                      onClick={() => setSelectedRejectReason(r)}
+                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
+                        selectedRejectReason === r
+                          ? 'bg-rose-500/15 border-rose-500/40 text-rose-200 font-semibold'
+                          : 'bg-slate-950/40 border-white/5 text-slate-400 hover:bg-white/5'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="reject_reason"
+                        checked={selectedRejectReason === r}
+                        onChange={() => setSelectedRejectReason(r)}
+                        className="accent-rose-500"
+                      />
+                      <span>{r === 'Custom' ? '✍️ Other / Custom Comment' : r}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {selectedRejectReason === 'Custom' && (
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] text-slate-400">Custom Comment for Creator</label>
+                    <textarea
+                      value={customRejectReason}
+                      onChange={(e) => setCustomRejectReason(e.target.value)}
+                      placeholder="e.g. Please update your profile with active fashion reels before applying again..."
+                      className="w-full h-20 p-2.5 rounded-xl bg-slate-950/60 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500/50 resize-none"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950/50 border border-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendRejectEmail}
+                      onChange={(e) => setSendRejectEmail(e.target.checked)}
+                      className="h-4 w-4 rounded accent-rose-500 bg-slate-900 border-white/20"
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-white">Send Feedback & Re-Apply instructions via Email</p>
+                      <p className="text-[10px] text-slate-400">Creator will receive an email with your feedback so they can fix details.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRejectModalApps(null)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={bulkUpdating}
+                  onClick={async () => {
+                    const finalReason = selectedRejectReason === 'Custom' ? (customRejectReason.trim() || 'Needs Revision / Allowed Re-Apply') : selectedRejectReason
+                    if (rejectModalApps.length === 1) {
+                      await updateSingleStatus(rejectModalApps[0].id, 'Rejected', {
+                        rejection_reason: finalReason,
+                        send_email: sendRejectEmail,
+                        is_revert: false,
+                      })
+                    } else {
+                      setBulkUpdating(true)
+                      try {
+                        const res = await fetch(`/api/admin/applications/bulk`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            applicationIds: rejectModalApps.map(a => a.id),
+                            status: 'Rejected',
+                            rejection_reason: finalReason,
+                            send_email: sendRejectEmail,
+                          }),
+                        })
+                        if (!res.ok) throw new Error('Failed')
+                        const idsSet = new Set(rejectModalApps.map(a => a.id))
+                        setApplications(prev => prev.map(a => idsSet.has(a.id) ? {
+                          ...a,
+                          status: 'Rejected',
+                          form_data: {
+                            ...(a.form_data || {}),
+                            rejection_reason: finalReason,
+                            revocation_note: finalReason,
+                            revoked_at: new Date().toISOString()
+                          }
+                        } : a))
+                        toast.success(`${rejectModalApps.length} applications rejected with comment: "${finalReason}"`)
+                        setSelectedIds(new Set())
+                      } catch {
+                        toast.error('Failed to reject applications')
+                      } finally {
+                        setBulkUpdating(false)
+                      }
+                    }
+                    setRejectModalApps(null)
+                  }}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                >
+                  {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
+                  Confirm Rejection & Comments
                 </Button>
               </div>
             </motion.div>

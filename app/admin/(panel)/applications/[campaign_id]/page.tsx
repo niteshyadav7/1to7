@@ -9,7 +9,7 @@ import {
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
   IndianRupee, Phone, Save, Search, Clock, RotateCcw, Trash2,
   History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle,
-  Share2, Download, CheckSquare, Square, Tag, RefreshCw
+  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -101,6 +101,12 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   const [customRevokeReason, setCustomRevokeReason] = useState('')
   const [sendRevokeEmail, setSendRevokeEmail] = useState(false)
   const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
+
+  // Rejection with Comments state
+  const [rejectModalApp, setRejectModalApp] = useState<Application | null>(null)
+  const [selectedRejectReason, setSelectedRejectReason] = useState('Follower count / criteria mismatch')
+  const [customRejectReason, setCustomRejectReason] = useState('')
+  const [sendRejectEmail, setSendRejectEmail] = useState(true)
 
   // ─── Sprint 5: Sent to Brand Batch Tracker States ─────────
   const [brandSentFilter, setBrandSentFilter] = useState<'all' | 'sent' | 'not_sent'>('all')
@@ -645,6 +651,11 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                       {app.status}
                     </span>
+                    {app.status === 'Rejected' && app.form_data?.rejection_reason && (
+                      <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md max-w-[170px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
+                        💬 {app.form_data.rejection_reason}
+                      </span>
+                    )}
                     {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
                   </div>
                 </div>
@@ -652,6 +663,19 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="border-t border-white/5 px-5 py-5 space-y-5">
+                    {/* Rejection / Re-Apply Feedback if Rejected */}
+                    {app.status === 'Rejected' && app.form_data?.rejection_reason && (
+                      <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5">
+                        <div className="p-1 rounded-lg bg-rose-500/20 text-rose-300 shrink-0 mt-0.5">
+                          <RotateCcw className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-rose-300">Rejection Reason / Feedback given to Creator</p>
+                          <p className="text-xs text-rose-200 mt-0.5">{app.form_data.rejection_reason}</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* User Profile Details */}
                     <div>
                       <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Influencer Profile</p>
@@ -1067,10 +1091,15 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                           {app.status !== 'Rejected' ? (
                             <Button
                               size="sm"
-                              onClick={() => updateStatus(app.id, 'Rejected')}
+                              onClick={() => {
+                                setRejectModalApp(app)
+                                setSelectedRejectReason('Follower count / criteria mismatch')
+                                setCustomRejectReason('')
+                                setSendRejectEmail(true)
+                              }}
                               disabled={updatingId === app.id}
                               className="h-9 px-4 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/20 hover:bg-rose-500/25 text-xs font-medium cursor-pointer"
-                              title="Reject and allow creator to re-apply"
+                              title="Reject and allow creator to re-apply with feedback comments"
                             >
                               <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                               Allow Re-Apply
@@ -1469,6 +1498,133 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                       Confirm & Tag Batch
                     </>
                   )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Allow Re-Apply / Reject with Comments Modal ─── */}
+      <AnimatePresence>
+        {rejectModalApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-slate-900 border border-rose-500/30 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar scrollbar-none"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    <RotateCcw className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Reject & Allow Re-Apply</h3>
+                    <p className="text-xs text-slate-400">{rejectModalApp.users?.full_name || 'Creator'} • {campaign?.brand_name || 'Campaign'}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRejectModalApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                  Select Rejection Reason / Creator Feedback
+                </label>
+                
+                <div className="space-y-2">
+                  {[
+                    'Follower count / criteria mismatch',
+                    'Location / City not eligible for this campaign',
+                    'Please update complete delivery address & pincode',
+                    'Content / Niche mismatch for this brand',
+                    'Profile engagement / authenticity requirement not met',
+                    'Campaign slots full for this phase',
+                    'Custom'
+                  ].map(r => (
+                    <label
+                      key={r}
+                      onClick={() => setSelectedRejectReason(r)}
+                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
+                        selectedRejectReason === r
+                          ? 'bg-rose-500/15 border-rose-500/40 text-rose-200 font-semibold'
+                          : 'bg-slate-950/40 border-white/5 text-slate-400 hover:bg-white/5'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="reject_reason_single"
+                        checked={selectedRejectReason === r}
+                        onChange={() => setSelectedRejectReason(r)}
+                        className="accent-rose-500"
+                      />
+                      <span>{r === 'Custom' ? '✍️ Other / Custom Comment' : r}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {selectedRejectReason === 'Custom' && (
+                  <div className="space-y-1.5 pt-1">
+                    <label className="text-[11px] text-slate-400">Custom Comment for Creator</label>
+                    <textarea
+                      value={customRejectReason}
+                      onChange={(e) => setCustomRejectReason(e.target.value)}
+                      placeholder="e.g. Please update your profile with active fashion reels before applying again..."
+                      className="w-full h-20 p-2.5 rounded-xl bg-slate-950/60 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500/50 resize-none"
+                    />
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-950/50 border border-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendRejectEmail}
+                      onChange={(e) => setSendRejectEmail(e.target.checked)}
+                      className="h-4 w-4 rounded accent-rose-500 bg-slate-900 border-white/20"
+                    />
+                    <div>
+                      <p className="text-[11px] font-semibold text-white">Send Feedback & Re-Apply instructions via Email</p>
+                      <p className="text-[10px] text-slate-400">Creator will receive an email with your feedback so they can fix details.</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRejectModalApp(null)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={updatingId === rejectModalApp.id}
+                  onClick={async () => {
+                    const finalReason = selectedRejectReason === 'Custom' ? (customRejectReason.trim() || 'Needs Revision / Allowed Re-Apply') : selectedRejectReason
+                    await updateStatus(rejectModalApp.id, 'Rejected', {
+                      rejection_reason: finalReason,
+                      send_email: sendRejectEmail,
+                      is_revert: false,
+                    })
+                    setRejectModalApp(null)
+                  }}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                >
+                  {updatingId === rejectModalApp.id ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
+                  Confirm Rejection & Comments
                 </Button>
               </div>
             </motion.div>

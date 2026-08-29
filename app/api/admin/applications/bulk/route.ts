@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { applicationIds, status } = body
+    const { applicationIds, status, rejection_reason, send_email } = body
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return NextResponse.json({ error: 'applicationIds array is required' }, { status: 400 })
@@ -21,20 +21,59 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'status is required' }, { status: 400 })
     }
 
-    // In Supabase, we can use the `in` filter to update multiple rows at once
-    const { data, error } = await supabase
-      .from('applications')
-      .update({ status, updated_at: new Date().toISOString() })
-      .in('id', applicationIds)
-      .select('id, status, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
+    let data: any[] = []
 
-    if (error) {
-      console.error('Supabase bulk update error:', error)
-      throw error
+    if (status === 'Rejected' && rejection_reason) {
+      // Fetch existing applications to preserve existing form_data while appending rejection_reason
+      const { data: existingApps, error: fetchErr } = await supabase
+        .from('applications')
+        .select('id, form_data')
+        .in('id', applicationIds)
+
+      if (fetchErr) {
+        console.error('Fetch error during bulk reject:', fetchErr)
+      }
+
+      // Update each application with merged form_data
+      const updatePromises = (existingApps || []).map(app => {
+        const currForm = (app.form_data && typeof app.form_data === 'object') ? app.form_data : {}
+        const mergedForm = {
+          ...currForm,
+          rejection_reason,
+          revocation_note: rejection_reason,
+          revoked_at: new Date().toISOString(),
+        }
+        return supabase
+          .from('applications')
+          .update({
+            status: 'Rejected',
+            form_data: mergedForm,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', app.id)
+          .select('id, status, form_data, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
+          .single()
+      })
+
+      const results = await Promise.all(updatePromises)
+      data = results.filter(r => r.data).map(r => r.data)
+    } else {
+      // Standard bulk update
+      const { data: bulkData, error } = await supabase
+        .from('applications')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', applicationIds)
+        .select('id, status, form_data, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
+
+      if (error) {
+        console.error('Supabase bulk update error:', error)
+        throw error
+      }
+      data = bulkData || []
     }
 
     // Send email notifications for Approved/Rejected (fire-and-forget)
-    if (data && (status === 'Approved' || status === 'Rejected')) {
+    if (data && (status === 'Approved' || status === 'Rejected') && send_email !== false) {
       for (const app of data) {
         const userEmail = (app as any).users?.email
         const userName = (app as any).users?.full_name || 'Creator'
@@ -45,7 +84,7 @@ export async function POST(request: Request) {
           if (status === 'Approved') {
             sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
           } else {
-            sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode)
+            sendApplicationRejectedEmail(userEmail, userName, brandName, campaignCode, rejection_reason)
           }
         }
       }

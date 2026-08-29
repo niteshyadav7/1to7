@@ -116,7 +116,8 @@ export async function sendApplicationRejectedEmail(
   email: string,
   userName: string,
   brandName: string,
-  campaignCode: string
+  campaignCode: string,
+  reason?: string
 ) {
   await sendNotificationEmail({
     to: email,
@@ -126,10 +127,11 @@ export async function sendApplicationRejectedEmail(
       <p style="font-size: 16px; color: #333;">Thank you for your interest in the <strong>${brandName}</strong> campaign <span style="color: #6366f1; font-weight: 600;">(${campaignCode})</span>.</p>
       
       <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px 20px; border-radius: 8px; margin: 25px 0;">
-        <p style="font-size: 14px; color: #991b1b; margin: 0;">❌ <strong>Status:</strong> <span style="font-weight: 600;">Not Selected</span></p>
+        <p style="font-size: 14px; color: #991b1b; margin: 0 0 ${reason ? '8px' : '0'} 0;">❌ <strong>Status:</strong> <span style="font-weight: 600;">Needs Revision / Not Selected</span></p>
+        ${reason ? `<p style="font-size: 13px; color: #7f1d1d; margin: 0;">💬 <strong>Feedback / Reason:</strong> ${reason}</p>` : ''}
       </div>
 
-      <p style="font-size: 14px; color: #64748b;">Unfortunately, your application was not selected this time. Don't worry — new campaigns are posted regularly. Keep applying and you'll find the perfect match!</p>
+      <p style="font-size: 14px; color: #64748b;">You may update your profile or details and re-apply from your dashboard. Keep applying and you'll find the perfect collaboration!</p>
     `,
   })
 }
