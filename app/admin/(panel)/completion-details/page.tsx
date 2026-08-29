@@ -1308,29 +1308,74 @@ export default function CompletionDetailsPage() {
                                     )}
                                   </div>
 
-                                  {/* Verification Actions */}
-                                  <div className="flex gap-2 pt-3 border-t border-white/10">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() => {
-                                        setRevisionModalApp(app)
-                                        setRevisionReason('')
-                                      }}
-                                      className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/20 font-bold text-xs h-9 cursor-pointer"
-                                    >
-                                      <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                                      Request Revision
-                                    </Button>
+                                  {/* Verification Actions & Status */}
+                                  <div className="pt-3 border-t border-white/10">
+                                    {compStatus === 'Completed' ? (
+                                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl">
+                                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                                          <span>Deliverables Verified & Approved</span>
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setRevisionModalApp(app)
+                                            setRevisionReason('')
+                                          }}
+                                          className="bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border-white/10 hover:border-rose-500/20 text-[11px] h-8 cursor-pointer font-semibold"
+                                        >
+                                          Reopen & Request Revision
+                                        </Button>
+                                      </div>
+                                    ) : compStatus === 'Revision Needed' ? (
+                                      <div className="space-y-2.5 bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl">
+                                        <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
+                                          <XCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                                          <span>Revision Requested from Creator</span>
+                                        </div>
+                                        {app.form_data?.rejection_reason && (
+                                          <p className="text-[11px] text-rose-300 font-medium bg-rose-950/40 p-2 rounded-lg border border-rose-500/20">
+                                            Feedback: {app.form_data?.rejection_reason}
+                                          </p>
+                                        )}
+                                        <div className="flex gap-2 pt-1">
+                                          <Button
+                                            type="button"
+                                            onClick={() => setApproveModalApp(app)}
+                                            className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs h-9 cursor-pointer shadow-lg shadow-emerald-500/20"
+                                          >
+                                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                            Approve & Complete Now
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setRevisionModalApp(app)
+                                            setRevisionReason('')
+                                          }}
+                                          className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/20 font-bold text-xs h-9 cursor-pointer"
+                                        >
+                                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                          Request Revision
+                                        </Button>
 
-                                    <Button
-                                      type="button"
-                                      onClick={() => setApproveModalApp(app)}
-                                      className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs h-9 cursor-pointer shadow-lg shadow-emerald-500/20"
-                                    >
-                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                      Verify & Complete
-                                    </Button>
+                                        <Button
+                                          type="button"
+                                          onClick={() => setApproveModalApp(app)}
+                                          className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs h-9 cursor-pointer shadow-lg shadow-emerald-500/20"
+                                        >
+                                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                                          Verify & Complete
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
