@@ -3,6 +3,7 @@ import { Montserrat, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { PwaProvider } from "@/components/pwa/PwaProvider";
+import { NetworkStatusProvider } from "@/components/providers/NetworkStatusProvider";
 import { ConditionalNavbar } from "@/components/ConditionalNavbar";
 import { Toaster } from "sonner";
 
@@ -71,15 +72,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${fontSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <PwaProvider>
-            <div className="min-h-screen flex flex-col bg-slate-50">
-              <ConditionalNavbar />
-              <main className="flex-grow">
-                {children}
-              </main>
-            </div>
-            <Toaster theme="dark" position="top-center" richColors />
-          </PwaProvider>
+          <NetworkStatusProvider>
+            <PwaProvider>
+              <div className="min-h-screen flex flex-col bg-slate-50">
+                <ConditionalNavbar />
+                <main className="flex-grow">
+                  {children}
+                </main>
+              </div>
+              <Toaster theme="dark" position="top-center" richColors />
+            </PwaProvider>
+          </NetworkStatusProvider>
         </AuthProvider>
       </body>
     </html>
