@@ -1482,324 +1482,306 @@ export default function OrderDetailsPage() {
                                 transition={{ duration: 0.25 }}
                                 className="overflow-hidden"
                               >
-                                <div className="px-6 py-5 bg-indigo-500/[0.02] border-b border-white/5 space-y-6">
-                                  {/* Influencer Profile */}
-                                  <div>
-                                    <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                      <Users className="h-3.5 w-3.5" />
-                                      Influencer Profile
-                                    </p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Full Name</p>
-                                        <p className="text-slate-300">{user?.full_name || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Influencer ID</p>
-                                        <p className="text-slate-300 font-mono">{user?.influencer_id || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Email</p>
-                                        <p className="text-slate-300 truncate">{user?.email || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Mobile</p>
-                                        <p className="text-slate-300">{user?.mobile || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Instagram</p>
-                                        <div className="text-slate-300 flex items-center gap-1">
-                                          {user?.instagram_username ? (
-                                            <a href={getInstagramUrl(user.instagram_username)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-indigo-400 hover:underline transition-colors" onClick={(e) => e.stopPropagation()}>
-                                              <Instagram className="h-3 w-3 text-pink-400" />
-                                              {getInstagramDisplayHandle(user.instagram_username)}
-                                            </a>
-                                          ) : '—'}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Followers</p>
-                                        <p className="text-slate-300 font-medium">
-                                          {user?.followers > 0 ? user.followers.toLocaleString() : '—'}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Location</p>
-                                        <p className="text-slate-300 flex items-center gap-1">
-                                          <MapPin className="h-3 w-3" />
-                                          {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Gender</p>
-                                        <p className="text-slate-300">{user?.gender || '—'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Campaign Info */}
-                                  <div>
-                                    <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                      <Megaphone className="h-3.5 w-3.5" />
-                                      Campaign Details
-                                    </p>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Brand</p>
-                                        <p className="text-slate-300 font-medium">{camp?.brand_name || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Campaign Code</p>
-                                        <p className="text-slate-300 font-mono">{camp?.campaign_code || '—'}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Platform</p>
-                                        <p className="text-slate-300">{camp?.platform || '—'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Application Form Responses (Custom Fields) */}
-                                  {order.form_data && (() => {
-                                    const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
-                                    const customEntries = Object.entries(order.form_data).filter(([key]) => !internalKeys.includes(key))
-                                    if (customEntries.length === 0) return null
-
-                                    const isImg = (key: string, value: any) => {
-                                      if (typeof value !== 'string') return false
-                                      return value.startsWith('http') && (value.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo'))
-                                    }
-
-                                    return (
-                                      <div className="bg-purple-500/5 border border-purple-500/15 rounded-2xl p-5">
-                                        <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                          <ClipboardList className="h-3.5 w-3.5" />
-                                          Application Form Responses
-                                          <span className="ml-auto text-[10px] text-slate-500 normal-case tracking-normal font-medium">{customEntries.length} field{customEntries.length !== 1 ? 's' : ''}</span>
-                                        </p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                                          {customEntries.map(([key, value]) => (
-                                            <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
-                                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">
-                                                {key.replace(/[_-]/g, ' ')}
-                                              </p>
-                                              {isImg(key, value) ? (
-                                                <div className="mt-1">
-                                                  <button
-                                                    onClick={() => setPreviewImage({ src: String(value), alt: key })}
-                                                    className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full"
-                                                  >
-                                                    <img src={String(value)} alt={key} className="h-28 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                      <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View Full</span>
-                                                    </div>
-                                                  </button>
-                                                </div>
-                                              ) : (
-                                                <p className="text-white font-medium break-words">
-                                                  {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                                                </p>
-                                              )}
+                                <div className="p-4 sm:p-5 bg-slate-950/70 border-b border-white/10 space-y-4">
+                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                    {/* LEFT: Creator Profile, Campaign & Application Responses (7 cols) */}
+                                    <div className="lg:col-span-7 space-y-3.5">
+                                      {/* Creator & Campaign Card */}
+                                      <div className="bg-slate-900/80 border border-white/5 rounded-2xl p-4 space-y-3 shadow-sm">
+                                        {/* Creator Header */}
+                                        <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold text-white shadow-md shrink-0">
+                                              {user?.full_name?.charAt(0) || 'U'}
                                             </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )
-                                  })()}
-
-                                  {/* Full Order Details */}
-                                  <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-5 shadow-inner">
-                                    <div className="flex items-center justify-between mb-4">
-                                      <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold flex items-center gap-2">
-                                        <ClipboardList className="h-4 w-4" />
-                                        Submitted Order Details
-                                      </p>
-                                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-bold tracking-widest uppercase border border-emerald-500/20">
-                                        Action Required
-                                      </span>
-                                    </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-                                      {Object.entries(details).map(([key, value]) => {
-                                        const isImg = isImageValue(key, value)
-                                        return (
-                                          <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">
-                                              {key.replace(/[_-]/g, ' ')}
-                                            </p>
-                                            {isImg ? (
-                                              <div className="mt-2">
-                                                <button
-                                                  onClick={() => setPreviewImage({ src: String(value), alt: key })}
-                                                  className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-indigo-400 transition-colors bg-black cursor-pointer w-full"
-                                                >
-                                                  <img src={String(value)} alt={key} className="h-32 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View Full</span>
-                                                  </div>
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <p className="text-white font-medium break-words text-lg">
-                                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                                              </p>
-                                            )}
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-
-                                    {/* Previous Rejected Submissions History */}
-                                    {order.form_data?.order_history && order.form_data.order_history.length > 0 && (
-                                      <div className="mt-6 pt-4 border-t border-red-500/15">
-                                        <p className="text-[11px] text-red-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                          <Clock className="h-3.5 w-3.5" />
-                                          Previous Submissions ({order.form_data.order_history.length})
-                                        </p>
-                                        <div className="space-y-4">
-                                          {[...order.form_data.order_history].reverse().map((entry: any, idx: number) => (
-                                            <div key={idx} className="bg-red-500/5 border border-red-500/15 rounded-xl p-4">
-                                              <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[10px] font-bold uppercase border border-red-500/20">
-                                                    Rejected
-                                                  </span>
-                                                  <span className="text-[10px] text-slate-500">
-                                                    Submission #{order.form_data.order_history.length - idx}
-                                                  </span>
-                                                </div>
-                                                <span className="text-[10px] text-slate-500">
-                                                  {entry.rejected_at ? new Date(entry.rejected_at).toLocaleString('en-IN') : '—'}
+                                            <div className="min-w-0">
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-sm font-bold text-white truncate">{user?.full_name || '—'}</span>
+                                                <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-white/5 text-slate-400 border border-white/5">
+                                                  {user?.influencer_id || '—'}
                                                 </span>
                                               </div>
-                                              {entry.rejection_reason && (
-                                                <div className="mb-3 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/15">
-                                                  <p className="text-[10px] text-red-400 uppercase tracking-wider font-bold mb-0.5">Rejection Reason</p>
-                                                  <p className="text-xs text-red-300">{entry.rejection_reason}</p>
-                                                </div>
-                                              )}
-                                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                                                {Object.entries(entry.order_details || {}).map(([key, value]: [string, any]) => {
-                                                  const isImg = isImageValue(key, value)
-                                                  return (
-                                                    <div key={key} className="bg-slate-900/60 p-2.5 rounded-lg border border-white/5">
-                                                      <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-1">
-                                                        {key.replace(/[_-]/g, ' ')}
-                                                      </p>
-                                                      {isImg ? (
-                                                        <button
-                                                          onClick={() => setPreviewImage({ src: String(value), alt: key })}
-                                                          className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-indigo-400 transition-colors bg-black cursor-pointer w-full mt-1"
-                                                        >
-                                                          <img src={String(value)} alt={key} className="h-20 w-full object-cover opacity-70 group-hover:opacity-100 transition-opacity" />
-                                                        </button>
-                                                      ) : (
-                                                        <p className="text-slate-300 font-medium break-words text-sm">
-                                                          {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                                                        </p>
-                                                      )}
-                                                    </div>
-                                                  )
-                                                })}
-                                              </div>
+                                              <p className="text-xs text-slate-400 truncate">{user?.email || '—'}</p>
                                             </div>
-                                          ))}
+                                          </div>
+
+                                          {/* Contact Badges */}
+                                          <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                            {user?.instagram_username && (
+                                              <a
+                                                href={getInstagramUrl(user.instagram_username)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20 text-xs font-semibold hover:bg-pink-500/20 transition-colors"
+                                              >
+                                                <Instagram className="h-3.5 w-3.5 text-pink-400" />
+                                                <span>{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                                {user?.followers > 0 && (
+                                                  <span className="text-[10px] font-normal text-pink-300/80 ml-1 font-mono">
+                                                    ({user.followers.toLocaleString()})
+                                                  </span>
+                                                )}
+                                              </a>
+                                            )}
+                                            {user?.mobile && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-white/5 text-xs font-medium font-mono">
+                                                <Phone className="h-3 w-3 text-slate-400" />
+                                                {user.mobile}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Creator Meta Grid & Campaign Meta */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-0.5">
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Campaign</span>
+                                            <span className="text-white font-medium truncate block">{camp?.brand_name || '—'}</span>
+                                            <span className="text-[10px] text-slate-400 font-mono">{camp?.campaign_code || ''}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Platform</span>
+                                            <span className="text-slate-300 font-medium">{camp?.platform || '—'}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Location</span>
+                                            <span className="text-slate-300 font-medium truncate flex items-center gap-1">
+                                              <MapPin className="h-3 w-3 text-slate-500 shrink-0" />
+                                              {[user?.city, user?.state].filter(Boolean).join(', ') || '—'}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Gender</span>
+                                            <span className="text-slate-300 font-medium">{user?.gender || '—'}</span>
+                                          </div>
                                         </div>
                                       </div>
-                                    )}
 
-                                    {/* Action Buttons & Status */}
-                                    <div className="mt-6 pt-4 border-t border-indigo-500/20">
-                                      {(() => {
-                                        const reviewStatus = getOrderVerificationStatus(order)
-                                        if (reviewStatus === 'Approved') {
-                                          return (
-                                            <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl w-fit">
-                                              <CheckCircle2 className="h-4 w-4" />
-                                              Order Verified & Approved
-                                            </div>
-                                          )
+                                      {/* Application Form Responses (Compact) */}
+                                      {order.form_data && (() => {
+                                        const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+                                        const customEntries = Object.entries(order.form_data).filter(([key]) => !internalKeys.includes(key))
+                                        if (customEntries.length === 0) return null
+
+                                        const isImg = (key: string, value: any) => {
+                                          if (typeof value !== 'string') return false
+                                          return value.startsWith('http') && (value.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo'))
                                         }
-                                        if (reviewStatus === 'Rejected') {
-                                          return (
-                                            <div className="flex flex-col gap-1.5">
-                                              <div className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl w-fit">
-                                                <XCircle className="h-4 w-4" />
-                                                Order Rejected
-                                              </div>
-                                              {order.form_data?.rejection_reason && (
-                                                <p className="text-xs text-red-300 font-medium ml-1">Reason: {order.form_data?.rejection_reason}</p>
-                                              )}
-                                            </div>
-                                          )
-                                        }
+
                                         return (
-                                          <div className="flex flex-wrap items-center gap-3">
-                                            <Button
-                                              size="sm"
-                                              onClick={() => setInitiatePaymentApp(order)}
-                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer"
-                                            >
-                                              <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                                              Verify & Approve Order
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              onClick={() => setRejectApp(order)}
-                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
-                                            >
-                                              <XCircle className="mr-1.5 h-4 w-4" />
-                                              Reject (with reason)
-                                            </Button>
+                                          <div className="bg-purple-500/[0.04] border border-purple-500/15 rounded-2xl p-3.5">
+                                            <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-2.5 flex items-center gap-1.5">
+                                              <ClipboardList className="h-3.5 w-3.5" />
+                                              Application Responses ({customEntries.length})
+                                            </p>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                              {customEntries.map(([key, value]) => (
+                                                <div key={key} className="bg-slate-900/60 p-2 rounded-xl border border-white/5">
+                                                  <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold truncate mb-0.5">
+                                                    {key.replace(/[_-]/g, ' ')}
+                                                  </p>
+                                                  {isImg(key, value) ? (
+                                                    <button
+                                                      onClick={() => setPreviewImage({ src: String(value), alt: key })}
+                                                      className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full mt-1"
+                                                    >
+                                                      <img src={String(value)} alt={key} className="h-16 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                    </button>
+                                                  ) : (
+                                                    <p className="text-xs font-semibold text-white truncate">
+                                                      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                            {/* Payment Details (if any) */}
+                                            {(order.partial_payment > 0 || order.final_payment > 0 || order.pending_amount > 0 || order.manager_phone) && (
+                                              <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-3 mt-4">
+                                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-2 flex items-center gap-1">
+                                                  <IndianRupee className="h-3 w-3 text-amber-400" />
+                                                  Payout & Deal Status
+                                                </p>
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                                  <div>
+                                                    <span className="text-[9px] text-slate-500 uppercase font-semibold block">Total Deal</span>
+                                                    <span className="text-white font-bold">{order.pending_amount > 0 ? `₹${order.pending_amount.toLocaleString()}` : '—'}</span>
+                                                  </div>
+                                                  <div>
+                                                    <span className="text-[9px] text-slate-500 uppercase font-semibold block">Partial Paid</span>
+                                                    <span className="text-emerald-400 font-semibold">{order.partial_payment > 0 ? `₹${order.partial_payment.toLocaleString()}` : '—'}</span>
+                                                  </div>
+                                                  <div>
+                                                    <span className="text-[9px] text-slate-500 uppercase font-semibold block">Final Paid</span>
+                                                    <span className="text-purple-400 font-semibold">{order.final_payment > 0 ? `₹${order.final_payment.toLocaleString()}` : '—'}</span>
+                                                  </div>
+                                                  {order.manager_phone && (
+                                                    <div>
+                                                      <span className="text-[9px] text-slate-500 uppercase font-semibold block">Manager</span>
+                                                      <span className="text-slate-300 font-mono">{order.manager_phone}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
                                         )
                                       })()}
                                     </div>
+
+                                    {/* RIGHT: Order Verification & Action Card (5 cols) */}
+                                    <div className="lg:col-span-5 flex flex-col justify-between bg-gradient-to-b from-indigo-950/30 to-slate-900/80 border border-indigo-500/20 rounded-2xl p-4 shadow-lg space-y-3.5">
+                                      <div>
+                                        <div className="flex items-center justify-between mb-3 border-b border-indigo-500/15 pb-2.5">
+                                          <p className="text-xs font-bold text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
+                                            <Package className="h-4 w-4 text-indigo-400" />
+                                            Order Verification
+                                          </p>
+                                          {(() => {
+                                            const rev = getOrderVerificationStatus(order)
+                                            if (rev === 'Approved') return <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Verified</span>
+                                            if (rev === 'Rejected') return <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">Rejected</span>
+                                            return <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30 animate-pulse">Action Required</span>
+                                          })()}
+                                        </div>
+
+                                        {/* Order Info Fields */}
+                                        <div className="grid grid-cols-2 gap-2.5 mb-3">
+                                          {orderId && (
+                                            <div className="bg-slate-900/80 p-2.5 rounded-xl border border-white/5">
+                                              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Order ID</p>
+                                              <p className="text-xs font-mono font-bold text-indigo-300">{orderId}</p>
+                                            </div>
+                                          )}
+                                          {amount && (
+                                            <div className="bg-slate-900/80 p-2.5 rounded-xl border border-white/5">
+                                              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Order Amount</p>
+                                              <p className="text-xs font-bold text-emerald-400">₹{amount}</p>
+                                            </div>
+                                          )}
+                                          {Object.entries(details).map(([k, v]) => {
+                                            if (['order_id', 'orderid', 'order_number', 'ordernumber', 'id', 'amount', 'price', 'product_amount', 'productamount', 'order_amount', 'orderamount'].includes(k.toLowerCase())) return null
+                                            if (isImageValue(k, v)) return null
+                                            return (
+                                              <div key={k} className="bg-slate-900/80 p-2.5 rounded-xl border border-white/5 col-span-2 sm:col-span-1">
+                                                <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold truncate">{k.replace(/[_-]/g, ' ')}</p>
+                                                <p className="text-xs font-medium text-slate-200 truncate">{String(v)}</p>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+
+                                        {/* Featured Screenshot */}
+                                        {screenshotUrl ? (
+                                          <div>
+                                            <p className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold mb-1.5">Order Screenshot</p>
+                                            <button
+                                              onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
+                                              className="w-full relative group overflow-hidden rounded-xl border border-white/10 hover:border-indigo-400 transition-all bg-black cursor-pointer aspect-video max-h-44"
+                                            >
+                                              <img src={screenshotUrl} alt="Order Screenshot" className="w-full h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity" />
+                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-xs font-bold text-white bg-black/70 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5">
+                                                  <Eye className="h-3.5 w-3.5" /> View Full Image
+                                                </span>
+                                              </div>
+                                            </button>
+                                          </div>
+                                        ) : null}
+                                      </div>
+
+                                      {/* Action Buttons & Status */}
+                                      <div className="pt-3 border-t border-white/5 space-y-2">
+                                        {(() => {
+                                          const reviewStatus = getOrderVerificationStatus(order)
+                                          if (reviewStatus === 'Approved') {
+                                            return (
+                                              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2.5 rounded-xl">
+                                                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                                Order Verified & Approved
+                                              </div>
+                                            )
+                                          }
+                                          if (reviewStatus === 'Rejected') {
+                                            return (
+                                              <div className="space-y-1.5">
+                                                <div className="flex items-center gap-2 text-red-400 text-xs font-bold bg-red-500/10 border border-red-500/20 px-3.5 py-2 rounded-xl">
+                                                  <XCircle className="h-4 w-4 shrink-0" />
+                                                  Order Rejected
+                                                </div>
+                                                {order.form_data?.rejection_reason && (
+                                                  <p className="text-[11px] text-red-300 font-medium px-1">Reason: {order.form_data?.rejection_reason}</p>
+                                                )}
+                                              </div>
+                                            )
+                                          }
+                                          return (
+                                            <div className="flex flex-wrap items-center gap-2.5">
+                                              <Button
+                                                size="sm"
+                                                onClick={() => setInitiatePaymentApp(order)}
+                                                className="flex-1 h-9 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer text-xs"
+                                              >
+                                                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                                                Verify & Approve
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                onClick={() => setRejectApp(order)}
+                                                className="h-9 px-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer text-xs"
+                                              >
+                                                <XCircle className="mr-1 h-4 w-4" />
+                                                Reject
+                                              </Button>
+                                            </div>
+                                          )
+                                        })()}
+
+                                        <p className="text-[9px] text-slate-500">
+                                          Submitted: {new Date(order.updated_at).toLocaleString('en-IN')}
+                                          {order.created_at !== order.updated_at && ` • Applied: ${new Date(order.created_at).toLocaleString('en-IN')}`}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
 
-                                  {/* Payment Info */}
-                                  {(order.partial_payment > 0 || order.final_payment > 0 || order.pending_amount > 0 || order.manager_phone) && (
-                                    <div>
-                                      <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                        <IndianRupee className="h-3.5 w-3.5" />
-                                        Payment Details
+                                  {/* Previous Rejected Submissions History (if any) */}
+                                  {order.form_data?.order_history && order.form_data.order_history.length > 0 && (
+                                    <div className="pt-3 border-t border-red-500/15">
+                                      <p className="text-[10px] text-red-400 uppercase tracking-wider font-bold mb-2 flex items-center gap-1.5">
+                                        <Clock className="h-3 w-3" />
+                                        Previous Submissions History ({order.form_data.order_history.length})
                                       </p>
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                                        <div>
-                                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Partial Payment</p>
-                                          <p className="text-slate-300 flex items-center gap-1">
-                                            {order.partial_payment > 0 ? `₹${order.partial_payment.toLocaleString()}` : '—'}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Final Payment</p>
-                                          <p className="text-slate-300 flex items-center gap-1">
-                                            {order.final_payment > 0 ? `₹${order.final_payment.toLocaleString()}` : '—'}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Pending Amount</p>
-                                          <p className="text-slate-300 flex items-center gap-1">
-                                            {order.pending_amount > 0 ? `₹${order.pending_amount.toLocaleString()}` : '—'}
-                                          </p>
-                                        </div>
-                                        {order.manager_phone && (
-                                          <div>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Manager Phone</p>
-                                            <p className="text-slate-300 flex items-center gap-1">
-                                              <Phone className="h-3 w-3" />
-                                              {order.manager_phone}
-                                            </p>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                        {[...order.form_data.order_history].reverse().map((entry: any, idx: number) => (
+                                          <div key={idx} className="bg-red-500/5 border border-red-500/15 rounded-xl p-3">
+                                            <div className="flex items-center justify-between mb-1.5">
+                                              <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-400 text-[9px] font-bold uppercase">
+                                                Rejected #{order.form_data.order_history.length - idx}
+                                              </span>
+                                              <span className="text-[9px] text-slate-500">
+                                                {entry.rejected_at ? new Date(entry.rejected_at).toLocaleString('en-IN') : '—'}
+                                              </span>
+                                            </div>
+                                            {entry.rejection_reason && (
+                                              <p className="text-[11px] text-red-300 font-medium mb-1.5">Reason: {entry.rejection_reason}</p>
+                                            )}
+                                            <div className="flex flex-wrap gap-1.5 text-xs">
+                                              {Object.entries(entry.order_details || {}).map(([k, v]: [string, any]) => {
+                                                if (isImageValue(k, v)) return null
+                                                return (
+                                                  <span key={k} className="bg-slate-900/60 px-2 py-0.5 rounded text-slate-300 text-[10px]">
+                                                    <strong className="text-slate-500">{k}:</strong> {String(v)}
+                                                  </span>
+                                                )
+                                              })}
+                                            </div>
                                           </div>
-                                        )}
+                                        ))}
                                       </div>
                                     </div>
                                   )}
-
-                                  {/* Meta */}
-                                  <p className="text-[10px] text-slate-600">
-                                    Submitted: {new Date(order.updated_at).toLocaleString('en-IN')}
-                                    {order.created_at !== order.updated_at && ` • Applied: ${new Date(order.created_at).toLocaleString('en-IN')}`}
-                                  </p>
                                 </div>
                               </motion.div>
                             </td>
