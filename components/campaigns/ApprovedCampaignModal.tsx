@@ -598,7 +598,12 @@ export default function ApprovedCampaignModal({
                       )}
 
                       {/* Location & Store Details */}
-                      {(application.selected_store || application.campaigns?.location || application.campaigns?.target_states?.length || application.campaigns?.target_cities?.length) && (
+                      {Boolean(
+                        application.selected_store ||
+                        application.campaigns?.location ||
+                        (application.campaigns?.target_states && application.campaigns.target_states.length > 0) ||
+                        (application.campaigns?.target_cities && application.campaigns.target_cities.length > 0)
+                      ) && (
                         <div className="space-y-2 pt-1">
                           {application.selected_store ? (
                             <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1">
@@ -625,6 +630,18 @@ export default function ApprovedCampaignModal({
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {/* Fallback if no specific instructions are typed */}
+                      {!application.campaigns?.requirements &&
+                       !application.campaigns?.looking_for &&
+                       !application.campaigns?.additional_info &&
+                       !(application.campaigns?.product_links && application.campaigns.product_links.length > 0) &&
+                       !application.selected_store &&
+                       !application.campaigns?.location && (
+                        <p className="text-xs text-slate-500 italic py-1">
+                          Standard campaign guidelines apply. Please complete the deliverables specified above.
+                        </p>
                       )}
                     </div>
 
