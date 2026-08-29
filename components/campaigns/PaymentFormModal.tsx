@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, CreditCard, Loader2, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,16 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
   const [submitting, setSubmitting] = useState(false)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   
-  const paymentFields: any[] = application?.campaigns?.payment_form_fields || []
+  const isCoreField = (name: string) => {
+    const norm = (name || '').toLowerCase().replace(/[\s_-]/g, '')
+    return ['amount', 'paymentamount', 'livedate', 'date', 'paymentreason', 'reason', 'supportingdocument', 'document', 'screenshot', 'proof'].includes(norm)
+  }
+
+  const dynamicCustomFields: any[] = useMemo(() => {
+    const raw: any[] = application?.campaigns?.payment_form_fields || []
+    return raw.filter(f => !isCoreField(f.name))
+  }, [application])
+
   const [formData, setFormData] = useState<Record<string, string>>({})
 
   // Format the bank details string for the read-only box
@@ -39,12 +48,12 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
         'payment_amount': '',
         'supporting_document': ''
       }
-      paymentFields.forEach(f => {
+      dynamicCustomFields.forEach(f => {
         initial[f.name] = ''
       })
       setFormData(initial)
     }
-  }, [isOpen, application]) // Removed paymentFields from dependency array to avoid infinite loops
+  }, [isOpen, application, dynamicCustomFields])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0]
@@ -93,7 +102,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
     }
 
     // Validate custom required fields
-    for (const field of paymentFields) {
+    for (const field of dynamicCustomFields) {
       if (field.required && !formData[field.name]) {
         toast.error(`"${field.name}" is required`)
         return
@@ -193,7 +202,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
             </div>
 
             {/* Dynamic Custom Fields */}
-            {paymentFields.map((field, idx) => (
+            {dynamicCustomFields.map((field, idx) => (
               <div key={`pf-${idx}`} className="space-y-1.5">
                 <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
                   {field.name}
