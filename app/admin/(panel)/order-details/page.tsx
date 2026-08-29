@@ -1483,11 +1483,11 @@ export default function OrderDetailsPage() {
                                 className="overflow-hidden"
                               >
                                 <div className="p-4 sm:p-5 bg-slate-950/70 border-b border-white/10 space-y-4">
-                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
                                     {/* LEFT: Creator Profile, Campaign & Application Responses (7 cols) */}
-                                    <div className="lg:col-span-7 space-y-3.5">
+                                    <div className="lg:col-span-7 flex flex-col space-y-3.5">
                                       {/* Creator & Campaign Card */}
-                                      <div className="bg-slate-900/80 border border-white/5 rounded-2xl p-4 space-y-3 shadow-sm">
+                                      <div className="bg-slate-900/80 border border-white/5 rounded-2xl p-4 space-y-3 shadow-sm shrink-0">
                                         {/* Creator Header */}
                                         <div className="flex items-center justify-between gap-3 border-b border-white/5 pb-3">
                                           <div className="flex items-center gap-3 min-w-0">
@@ -1558,7 +1558,7 @@ export default function OrderDetailsPage() {
                                         </div>
                                       </div>
 
-                                      {/* Application Form Responses (Compact) */}
+                                      {/* Application Form Responses (Fills remaining height) */}
                                       {order.form_data && (() => {
                                         const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
                                         const customEntries = Object.entries(order.form_data).filter(([key]) => !internalKeys.includes(key))
@@ -1570,35 +1570,37 @@ export default function OrderDetailsPage() {
                                         }
 
                                         return (
-                                          <div className="bg-purple-500/[0.04] border border-purple-500/15 rounded-2xl p-3.5">
-                                            <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-2.5 flex items-center gap-1.5">
-                                              <ClipboardList className="h-3.5 w-3.5" />
-                                              Application Responses ({customEntries.length})
-                                            </p>
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                              {customEntries.map(([key, value]) => (
-                                                <div key={key} className="bg-slate-900/60 p-2 rounded-xl border border-white/5">
-                                                  <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold truncate mb-0.5">
-                                                    {key.replace(/[_-]/g, ' ')}
-                                                  </p>
-                                                  {isImg(key, value) ? (
-                                                    <button
-                                                      onClick={() => setPreviewImage({ src: String(value), alt: key })}
-                                                      className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full mt-1"
-                                                    >
-                                                      <img src={String(value)} alt={key} className="h-16 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                                                    </button>
-                                                  ) : (
-                                                    <p className="text-xs font-semibold text-white truncate">
-                                                      {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                          <div className="bg-purple-500/[0.04] border border-purple-500/15 rounded-2xl p-3.5 flex-1 flex flex-col justify-between shadow-sm">
+                                            <div>
+                                              <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-2.5 flex items-center gap-1.5">
+                                                <ClipboardList className="h-3.5 w-3.5" />
+                                                Application Responses ({customEntries.length})
+                                              </p>
+                                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                {customEntries.map(([key, value]) => (
+                                                  <div key={key} className="bg-slate-900/60 p-2.5 rounded-xl border border-white/5 flex flex-col justify-between">
+                                                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold truncate mb-1">
+                                                      {key.replace(/[_-]/g, ' ')}
                                                     </p>
-                                                  )}
-                                                </div>
-                                              ))}
+                                                    {isImg(key, value) ? (
+                                                      <button
+                                                        onClick={() => setPreviewImage({ src: String(value), alt: key })}
+                                                        className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full mt-1"
+                                                      >
+                                                        <img src={String(value)} alt={key} className="h-16 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                      </button>
+                                                    ) : (
+                                                      <p className="text-xs font-semibold text-white break-words">
+                                                        {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                ))}
+                                              </div>
                                             </div>
                                             {/* Payment Details (if any) */}
                                             {(order.partial_payment > 0 || order.final_payment > 0 || order.pending_amount > 0 || order.manager_phone) && (
-                                              <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-3 mt-4">
+                                              <div className="bg-slate-900/60 border border-white/5 rounded-2xl p-3 mt-3">
                                                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-2 flex items-center gap-1">
                                                   <IndianRupee className="h-3 w-3 text-amber-400" />
                                                   Payout & Deal Status
@@ -1631,8 +1633,8 @@ export default function OrderDetailsPage() {
                                     </div>
 
                                     {/* RIGHT: Order Verification & Action Card (5 cols) */}
-                                    <div className="lg:col-span-5 flex flex-col justify-between bg-gradient-to-b from-indigo-950/30 to-slate-900/80 border border-indigo-500/20 rounded-2xl p-4 shadow-lg space-y-3.5">
-                                      <div>
+                                    <div className="lg:col-span-5 flex flex-col justify-between bg-gradient-to-b from-indigo-950/30 to-slate-900/80 border border-indigo-500/20 rounded-2xl p-4 shadow-lg space-y-3.5 h-full">
+                                      <div className="flex-1 flex flex-col">
                                         <div className="flex items-center justify-between mb-3 border-b border-indigo-500/15 pb-2.5">
                                           <p className="text-xs font-bold text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
                                             <Package className="h-4 w-4 text-indigo-400" />
@@ -1661,7 +1663,8 @@ export default function OrderDetailsPage() {
                                             </div>
                                           )}
                                           {Object.entries(details).map(([k, v]) => {
-                                            if (['order_id', 'orderid', 'order_number', 'ordernumber', 'id', 'amount', 'price', 'product_amount', 'productamount', 'order_amount', 'orderamount'].includes(k.toLowerCase())) return null
+                                            const normalized = k.toLowerCase().replace(/[\s_-]/g, '')
+                                            if (['orderid', 'order', 'ordernumber', 'id', 'amount', 'price', 'productamount', 'orderamount', 'commercials', 'screenshot', 'orderscreenshot', 'image', 'photo', 'proof'].includes(normalized)) return null
                                             if (isImageValue(k, v)) return null
                                             return (
                                               <div key={k} className="bg-slate-900/80 p-2.5 rounded-xl border border-white/5 col-span-2 sm:col-span-1">
@@ -1674,15 +1677,19 @@ export default function OrderDetailsPage() {
 
                                         {/* Featured Screenshot */}
                                         {screenshotUrl ? (
-                                          <div>
+                                          <div className="flex-1 flex flex-col min-h-[140px]">
                                             <p className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold mb-1.5">Order Screenshot</p>
                                             <button
                                               onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
-                                              className="w-full relative group overflow-hidden rounded-xl border border-white/10 hover:border-indigo-400 transition-all bg-black cursor-pointer aspect-video max-h-44"
+                                              className="w-full flex-1 min-h-[130px] max-h-52 relative group overflow-hidden rounded-xl border border-white/10 hover:border-indigo-400 transition-all bg-slate-950/90 cursor-pointer flex items-center justify-center p-1.5"
                                             >
-                                              <img src={screenshotUrl} alt="Order Screenshot" className="w-full h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity" />
-                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-xs font-bold text-white bg-black/70 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5">
+                                              <img
+                                                src={screenshotUrl}
+                                                alt="Order Screenshot"
+                                                className="w-full h-full object-contain rounded-lg opacity-95 group-hover:opacity-100 transition-opacity"
+                                              />
+                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
+                                                <span className="text-xs font-bold text-white bg-black/80 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-xl">
                                                   <Eye className="h-3.5 w-3.5" /> View Full Image
                                                 </span>
                                               </div>
@@ -1692,7 +1699,7 @@ export default function OrderDetailsPage() {
                                       </div>
 
                                       {/* Action Buttons & Status */}
-                                      <div className="pt-3 border-t border-white/5 space-y-2">
+                                      <div className="pt-3 border-t border-white/5 space-y-2 shrink-0">
                                         {(() => {
                                           const reviewStatus = getOrderVerificationStatus(order)
                                           if (reviewStatus === 'Approved') {
