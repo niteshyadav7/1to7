@@ -1144,7 +1144,7 @@ export default function AdminCampaignsPage() {
       {/* Campaign Details Review Modal (Before Approval) */}
       {reviewModalCampaign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar scrollbar-none">
             <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30">

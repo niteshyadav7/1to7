@@ -164,7 +164,7 @@ export function CampaignEditHistoryModal({
           </div>
 
           {/* Timeline Content */}
-          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
+          <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 no-scrollbar scrollbar-none">
             {historyList.length === 0 ? (
               <div className="text-center py-12 space-y-2">
                 <ShieldCheck className="h-10 w-10 text-slate-600 mx-auto" />
