@@ -55,6 +55,22 @@ export async function PUT(
     }
 
     const currentFormData = application.form_data || {}
+    const existingSubmission = currentFormData.completion_submission
+    const existingHistory = Array.isArray(currentFormData.completion_history)
+      ? currentFormData.completion_history
+      : []
+
+    const updatedHistory = [...existingHistory]
+    if (existingSubmission && (existingSubmission.live_date || existingSubmission.deliverable_link || existingSubmission.supporting_document)) {
+      updatedHistory.push({
+        ...existingSubmission,
+        archived_at: new Date().toISOString(),
+        attempt: existingHistory.length + 1,
+        rejection_reason: currentFormData.rejection_reason || undefined,
+        previous_status: application.status,
+      })
+    }
+
     const updatedFormData = {
       ...currentFormData,
       completion_submission: {
@@ -65,7 +81,11 @@ export async function PUT(
         notes: notes || '',
         custom_responses: custom_responses || {},
         submitted_at: new Date().toISOString(),
+        attempt: updatedHistory.length + 1,
       },
+      completion_history: updatedHistory,
+      completion_approved: null,
+      rejection_reason: null,
     }
 
     const { error: updateErr } = await supabase

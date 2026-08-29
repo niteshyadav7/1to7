@@ -13,7 +13,7 @@ import {
   FileSpreadsheet, FileJson, UserCheck, UserX,
   Image, ExternalLink, Package, Eye, Clock,
   FileCheck, Link2, Sparkles, Pencil, Save, AlertCircle,
-  RotateCcw, CheckSquare, EyeOff
+  RotateCcw, CheckSquare, EyeOff, History
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -40,25 +40,28 @@ interface UserInfo {
 }
 
 interface CampaignInfo {
-  id?: string
+  id: string
   brand_name: string
   campaign_code: string
   platform: string
-  budget_amount?: number
-  budget_type?: string
+  commercial_type: string
+  commercial_amount: number
+  payout_structure?: string
   deliverables?: string
+  timeline_days?: number
   completion_days?: number
   collab_date?: string
 }
 
-interface CompletionSubmission {
+export interface CompletionSubmission {
   live_date?: string
   deliverable_link?: string
   supporting_document?: string
-  views_count?: string | number
+  views_count?: string
   notes?: string
   custom_responses?: Record<string, any>
   submitted_at?: string
+  attempt?: number
 }
 
 export interface CompletionEntry {
@@ -67,6 +70,7 @@ export interface CompletionEntry {
   form_data?: {
     order_details?: Record<string, any>
     completion_submission?: CompletionSubmission
+    completion_history?: any[]
     payment_request?: {
       live_date?: string
       supporting_document?: string
@@ -349,7 +353,7 @@ export default function CompletionDetailsPage() {
   // ─── Edit Submission Modal Open & Save ──────────────────
   const openEditModal = (app: CompletionEntry) => {
     const comp = getCompletionDetails(app)
-    const internalKeys = ['order_details', 'completion_submission', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+    const internalKeys = ['order_details', 'completion_submission', 'completion_history', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
     const customResponses: Record<string, any> = {}
     if (app.form_data) {
       Object.entries(app.form_data).forEach(([k, v]) => {
@@ -953,11 +957,17 @@ export default function CompletionDetailsPage() {
                         {visibleCols.campaign && (
                           <td className={densityPadding}>
                             <p className="font-bold text-white">{app.campaigns?.brand_name}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                               <span className="font-mono text-[10px] text-slate-400">{app.campaigns?.campaign_code}</span>
                               {app.campaigns?.platform && (
                                 <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-800 text-indigo-300 border border-white/5">
                                   {app.campaigns.platform}
+                                </span>
+                              )}
+                              {app.form_data?.completion_history && app.form_data.completion_history.length > 0 && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5" title={`${app.form_data.completion_history.length} previous refills archived`}>
+                                  <History className="h-2.5 w-2.5" />
+                                  Attempt #{app.form_data.completion_history.length + 1}
                                 </span>
                               )}
                             </div>
@@ -1156,7 +1166,7 @@ export default function CompletionDetailsPage() {
 
                                   {/* Application Form Responses */}
                                   {app.form_data && (() => {
-                                    const internalKeys = ['order_details', 'completion_submission', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+                                    const internalKeys = ['order_details', 'completion_submission', 'completion_history', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
                                     const customEntries = Object.entries(app.form_data).filter(([k]) => !internalKeys.includes(k) && !k.startsWith('_'))
                                     if (customEntries.length === 0) return null
 
@@ -1377,6 +1387,93 @@ export default function CompletionDetailsPage() {
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* ─── Previous Submissions / Refills History (Old vs New) ─── */}
+                                  {app.form_data?.completion_history && app.form_data.completion_history.length > 0 && (
+                                    <div className="pt-3 border-t border-white/10 space-y-2.5">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5 text-xs font-extrabold text-indigo-300">
+                                          <History className="h-3.5 w-3.5 text-indigo-400" />
+                                          <span>Previous Submissions History ({app.form_data.completion_history.length})</span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 font-semibold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                                          Old Submissions Archived
+                                        </span>
+                                      </div>
+
+                                      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                                        {[...app.form_data.completion_history].reverse().map((hist: any, hIdx: number) => {
+                                          const attemptNum = (app.form_data?.completion_history?.length || 0) - hIdx
+                                          return (
+                                            <div key={hIdx} className="bg-slate-900/90 p-3 rounded-xl border border-white/5 space-y-2 text-xs hover:border-indigo-500/30 transition-all">
+                                              <div className="flex items-center justify-between">
+                                                <span className="font-extrabold text-amber-400 text-[11px] bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                                                  Attempt #{attemptNum} (Archived)
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-medium">
+                                                  {hist.submitted_at || hist.archived_at ? new Date(hist.submitted_at || hist.archived_at).toLocaleString('en-IN') : 'Previous attempt'}
+                                                </span>
+                                              </div>
+
+                                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                                <div className="bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                                                  <p className="text-[9px] text-slate-500 uppercase font-semibold">Live Date</p>
+                                                  <p className="font-bold text-slate-200 mt-0.5">{hist.live_date || '—'}</p>
+                                                </div>
+                                                <div className="bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                                                  <p className="text-[9px] text-slate-500 uppercase font-semibold">Views / Reach</p>
+                                                  <p className="font-bold text-emerald-400 mt-0.5">{hist.views_count ? formatViews(hist.views_count) : '—'}</p>
+                                                </div>
+                                              </div>
+
+                                              {hist.deliverable_link && (
+                                                <div className="bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                                                  <p className="text-[9px] text-slate-500 uppercase font-semibold">Content Link</p>
+                                                  <a
+                                                    href={hist.deliverable_link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[11px] text-indigo-400 hover:underline flex items-center gap-1 font-mono truncate mt-0.5"
+                                                  >
+                                                    <ExternalLink className="h-3 w-3 shrink-0" />
+                                                    <span className="truncate">{hist.deliverable_link}</span>
+                                                  </a>
+                                                </div>
+                                              )}
+
+                                              {hist.supporting_document && (
+                                                <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-white/5">
+                                                  <div className="flex items-center gap-2">
+                                                    <img src={hist.supporting_document} alt="Old Proof" className="h-8 w-12 object-cover rounded border border-white/10" />
+                                                    <span className="text-[11px] text-slate-300">Proof Screenshot</span>
+                                                  </div>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setPreviewImage({ src: hist.supporting_document, alt: `Attempt #${attemptNum} Proof` })}
+                                                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded cursor-pointer"
+                                                  >
+                                                    View Image
+                                                  </button>
+                                                </div>
+                                              )}
+
+                                              {hist.notes && (
+                                                <p className="text-[10px] text-slate-400 italic bg-slate-950/40 p-1.5 rounded-lg border border-white/5">
+                                                  Remarks: {hist.notes}
+                                                </p>
+                                              )}
+
+                                              {hist.rejection_reason && (
+                                                <p className="text-[10px] text-rose-300 font-medium bg-rose-950/40 border border-rose-500/20 p-2 rounded-lg">
+                                                  Admin Feedback: {hist.rejection_reason}
+                                                </p>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </motion.div>

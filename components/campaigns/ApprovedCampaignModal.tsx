@@ -33,7 +33,9 @@ import {
   ShoppingBag,
   Gift,
   Users,
-  Globe
+  Globe,
+  RotateCcw,
+  History
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -157,6 +159,23 @@ export default function ApprovedCampaignModal({
   const isCompletionSubmitted = Boolean(
     application?.completion_submitted_at || application?.form_data?.completion_submission
   )
+
+  const completionHistory = useMemo(() => {
+    return Array.isArray(application?.form_data?.completion_history)
+      ? application.form_data.completion_history
+      : []
+  }, [application])
+
+  const [showCompletionHistory, setShowCompletionHistory] = useState(false)
+
+  const handleRefillForm = () => {
+    setLiveDate('')
+    setDeliverableLink('')
+    setViewsCount('')
+    setProofUrl('')
+    setCompletionNotes('')
+    toast.info('Form cleared for a fresh refill. Enter your new deliverable details.')
+  }
 
   const allAppeals = useMemo(() => {
     const reqs = application?.form_data?.requests || []
@@ -723,22 +742,109 @@ export default function ApprovedCampaignModal({
                       </div>
                     )}
 
-                    {/* Completion Status Alert if already submitted */}
-                    {isCompletionSubmitted && (
-                      <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                    {/* Revision Feedback Alert if admin requested changes */}
+                    {application?.form_data?.rejection_reason && (
+                      <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider">Deliverables Submitted</h4>
-                          <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
-                            Your campaign completion proof was submitted on{' '}
-                            <strong>
-                              {application.completion_submitted_at
-                                ? new Date(application.completion_submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : 'recently'}
-                            </strong>
-                            . You can update your links or screenshots below if needed.
+                          <h4 className="text-xs font-extrabold text-rose-900 uppercase tracking-wider">Revision Requested by Admin</h4>
+                          <p className="text-xs text-rose-800 mt-0.5 leading-relaxed font-medium">
+                            {application.form_data.rejection_reason}
+                          </p>
+                          <p className="text-[11px] text-rose-700 mt-1">
+                            Please refill the form below with your corrected content link and insights proof.
                           </p>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Completion Status & Refill Control Header */}
+                    {isCompletionSubmitted && (
+                      <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                            <div>
+                              <h4 className="text-xs font-extrabold text-emerald-900 uppercase tracking-wider flex items-center gap-2">
+                                <span>Deliverables Submitted</span>
+                                <span className="bg-emerald-200/80 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                  Attempt #{completionHistory.length + 1}
+                                </span>
+                              </h4>
+                              <p className="text-xs text-emerald-800 mt-0.5">
+                                Submitted on {application.completion_submitted_at ? new Date(application.completion_submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'recently'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleRefillForm}
+                              className="bg-white hover:bg-slate-50 text-indigo-600 border-indigo-200 text-xs font-bold h-8 cursor-pointer shadow-sm"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                              Refill Form
+                            </Button>
+
+                            {completionHistory.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowCompletionHistory(!showCompletionHistory)}
+                                className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 text-xs font-medium h-8 cursor-pointer shadow-sm"
+                              >
+                                <History className="h-3.5 w-3.5 mr-1 text-slate-500" />
+                                Past Attempts ({completionHistory.length})
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Past Attempts Expandable Drawer */}
+                        {showCompletionHistory && completionHistory.length > 0 && (
+                          <div className="pt-3 border-t border-emerald-200/70 space-y-2">
+                            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Archived Previous Submissions:</p>
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                              {[...completionHistory].reverse().map((hist: any, idx: number) => {
+                                const attemptNum = completionHistory.length - idx
+                                return (
+                                  <div key={idx} className="bg-white/90 p-2.5 rounded-xl border border-emerald-200/60 text-xs space-y-1">
+                                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                                      <span className="text-indigo-600 font-extrabold">Attempt #{attemptNum}</span>
+                                      <span className="text-slate-400 font-normal">
+                                        {hist.submitted_at || hist.archived_at ? new Date(hist.submitted_at || hist.archived_at).toLocaleString('en-IN') : ''}
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-slate-600 text-[11px]">
+                                      <div><span className="text-slate-400">Live Date:</span> {hist.live_date || '—'}</div>
+                                      <div><span className="text-slate-400">Views:</span> {hist.views_count || '—'}</div>
+                                    </div>
+                                    {hist.deliverable_link && (
+                                      <a
+                                        href={hist.deliverable_link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1 font-mono truncate max-w-full"
+                                      >
+                                        <Link2 className="h-3 w-3 shrink-0" />
+                                        <span className="truncate">{hist.deliverable_link}</span>
+                                      </a>
+                                    )}
+                                    {hist.rejection_reason && (
+                                      <p className="text-[10px] text-rose-600 font-medium bg-rose-50 p-1.5 rounded-lg border border-rose-200/60">
+                                        Admin Feedback: {hist.rejection_reason}
+                                      </p>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -892,7 +998,7 @@ export default function ApprovedCampaignModal({
                         {submittingCompletion ? (
                           <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting Deliverables...</>
                         ) : isCompletionSubmitted ? (
-                          <><CheckCircle2 className="mr-2 h-4 w-4" /> Update Submitted Deliverables</>
+                          <><FileCheck className="mr-2 h-4 w-4" /> Submit Refilled Deliverables</>
                         ) : (
                           <><FileCheck className="mr-2 h-4 w-4" /> Submit Campaign Completion</>
                         )}
