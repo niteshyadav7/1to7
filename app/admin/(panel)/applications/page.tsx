@@ -2098,64 +2098,82 @@ export default function AllApplicationsPage() {
       <AnimatePresence>
         {selectedIds.size > 0 && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-wrap justify-center items-center gap-3 sm:gap-5 px-4 sm:px-6 py-3.5 w-[90vw] sm:w-auto max-w-lg bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/30 rounded-2xl lg:ml-32"
+            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3 w-auto max-w-[95vw] bg-slate-900/95 backdrop-blur-2xl border border-white/15 shadow-[0_12px_45px_rgba(0,0,0,0.6)] rounded-2xl ring-1 ring-white/10 lg:ml-32"
           >
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-white">{selectedIds.size} selected</span>
-              <span className="text-[11px] text-slate-500">applications</span>
+            {/* Left Selection Info & Deselect */}
+            <div className="flex items-center gap-2.5 shrink-0 pr-1">
+              <div className="flex h-8 px-2.5 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-extrabold text-xs">
+                {selectedIds.size}
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-bold text-white leading-tight">Selected</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] text-slate-400 hover:text-indigo-300 underline cursor-pointer text-left transition-colors"
+                >
+                  Deselect all
+                </button>
+              </div>
             </div>
-            <div className="w-px h-8 bg-white/10" />
-            {(() => {
-              const allApplied = Array.from(selectedIds).every(id => applications.find(a => a.id === id)?.status === 'Applied')
-              return (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleBulkAction('Under Process')}
-                    disabled={bulkUpdating}
-                    className="h-9 px-3 rounded-xl border-amber-500/20 text-amber-300 hover:bg-amber-500/10 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
-                  >
-                    <Clock className="h-3.5 w-3.5 mr-1.5" />
-                    Under Process
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleBulkAction('Rejected')}
-                    disabled={bulkUpdating}
-                    className="h-9 px-3 rounded-xl border-rose-500/20 text-rose-300 hover:bg-rose-500/10 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
-                    title="Allow selected applicants to re-apply"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                    Allow Re-Apply
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleBulkAction('Approved')}
-                    disabled={bulkUpdating}
-                    className="h-9 px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25 border-none font-medium cursor-pointer disabled:opacity-50"
-                  >
-                    {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
-                    Approve
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    disabled={bulkUpdating}
-                    className="h-9 px-3 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/15 bg-slate-950 font-medium cursor-pointer disabled:opacity-50"
-                    title="Reset/Delete selected applications"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                    Reset
-                  </Button>
-                </div>
-              )
-            })()}
+
+            <div className="w-px h-7 bg-white/15 shrink-0" />
+
+            {/* Buttons in a Single Aligned Row */}
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar scrollbar-none">
+              {/* 1. APPROVE (Primary Action - Green) */}
+              <Button
+                size="sm"
+                onClick={() => handleBulkAction('Approved')}
+                disabled={bulkUpdating}
+                className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-500/25 border-none cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                <span>APPROVE</span>
+              </Button>
+
+              {/* 2. UNDER PROCESS (Amber) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAction('Under Process')}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                <span>UNDER PROCESS</span>
+              </Button>
+
+              {/* 3. ALLOW RE-APPLY (Rose) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAction('Rejected')}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+                title="Reject selected applications and allow creators to re-apply"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>ALLOW RE-APPLY</span>
+              </Button>
+
+              {/* 4. RESET (Red / Delete) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+                title="Reset/Delete selected applications"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>RESET</span>
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
