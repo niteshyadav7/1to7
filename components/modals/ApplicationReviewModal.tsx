@@ -86,7 +86,7 @@ export default function ApplicationReviewModal({
           </div>
 
           {/* Body */}
-          <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+          <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 no-scrollbar scrollbar-none">
             {/* Status & Highlights */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl space-y-1 shadow-2xs">

@@ -189,7 +189,7 @@ export default function QuickAddAddressModal({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
+          <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs no-scrollbar scrollbar-none">
             {/* Target Helper Pill */}
             {targetStates.length > 0 && (
               <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center gap-2 text-indigo-900">

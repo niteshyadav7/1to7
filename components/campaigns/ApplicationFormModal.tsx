@@ -527,7 +527,7 @@ export default function ApplicationFormModal({
               )}
 
               {/* Content Area */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-6 no-scrollbar scrollbar-none">
 
                 {/* ===== ALREADY APPLIED VIEW ===== */}
                 {campaign?.applied ? (

@@ -553,7 +553,7 @@ export default function CampaignDetailModal({
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 no-scrollbar scrollbar-none">
                       {/* Missing Requirements Alert Box */}
                       {getPendingInlineRequirements().length > 0 && (
                         <motion.div 
@@ -885,7 +885,7 @@ export default function CampaignDetailModal({
                        <p className="text-secondary text-sm mt-1">Fill in the details below to apply for <span className="text-charcoal-surface font-semibold">{campaign.brand_name}</span></p>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 no-scrollbar scrollbar-none">
                       {/* Missing custom requirements alert box */}
                       {getPendingCustomRequirements().length > 0 && (
                         <motion.div 
@@ -1072,7 +1072,7 @@ export default function CampaignDetailModal({
               </div>
 
               {/* Scrollable Body - Grid Layout */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-4 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-4 space-y-6 no-scrollbar scrollbar-none">
                 
                 {/* Top Quick Stats */}
                 <div className="grid grid-cols-2 gap-4">

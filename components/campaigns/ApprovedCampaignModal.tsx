@@ -451,7 +451,7 @@ export default function ApprovedCampaignModal({
               </div>
 
               {/* Modal Body with Tab Contents */}
-              <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
+              <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6 no-scrollbar scrollbar-none">
 
                 {/* ═══════════════════════════════════════════
                     TAB 1: CAMPAIGN DETAILS & OVERVIEW (DEFAULT)
@@ -1177,7 +1177,7 @@ export default function ApprovedCampaignModal({
                 </button>
               </div>
 
-              <div className="p-5 space-y-5 overflow-y-auto flex-1">
+              <div className="p-5 space-y-5 overflow-y-auto flex-1 no-scrollbar scrollbar-none">
                 {activePendingAppeal ? (
                   <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2.5">
                     <div className="flex items-center justify-between">
