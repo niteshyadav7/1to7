@@ -11,7 +11,8 @@ import {
   Calendar, X, MoreHorizontal, SlidersHorizontal,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
-  RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle
+  RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
+  Pencil, Save
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -747,6 +748,59 @@ export default function AllApplicationsPage() {
   const [selectedRejectReason, setSelectedRejectReason] = useState('Follower count / criteria mismatch')
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [sendRejectEmail, setSendRejectEmail] = useState(true)
+
+  // Edit Application Form Responses Modal
+  const [editingResponsesApp, setEditingResponsesApp] = useState<Application | null>(null)
+  const [editResponsesData, setEditResponsesData] = useState<Record<string, any>>({})
+  const [savingResponsesEdit, setSavingResponsesEdit] = useState(false)
+
+  const openEditResponsesModal = (app: Application) => {
+    const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+    const customResponses: Record<string, any> = {}
+    if (app.form_data) {
+      Object.entries(app.form_data).forEach(([k, v]) => {
+        if (!internalKeys.includes(k) && !k.startsWith('_')) {
+          customResponses[k] = v
+        }
+      })
+    }
+    setEditingResponsesApp(app)
+    setEditResponsesData({ ...customResponses })
+  }
+
+  const handleSaveResponsesEdits = async () => {
+    if (!editingResponsesApp) return
+    setSavingResponsesEdit(true)
+    try {
+      const currentFormData = editingResponsesApp.form_data || {}
+      const updatedFormData = {
+        ...currentFormData,
+        ...editResponsesData,
+        _edited_by_admin: {
+          at: new Date().toISOString(),
+        }
+      }
+
+      const res = await fetch(`/api/admin/applications/${editingResponsesApp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          form_data: updatedFormData,
+          send_email: false,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update application responses')
+
+      setApplications(prev => prev.map(a => a.id === editingResponsesApp.id ? { ...a, form_data: updatedFormData } : a))
+      toast.success('Application responses updated successfully')
+      setEditingResponsesApp(null)
+    } catch {
+      toast.error('Failed to update application responses')
+    } finally {
+      setSavingResponsesEdit(false)
+    }
+  }
 
   const updateApplicationTimeline = async (
     appId: string,
@@ -1850,11 +1904,25 @@ export default function AllApplicationsPage() {
 
                                   return (
                                     <div className="bg-purple-500/5 border border-purple-500/15 rounded-2xl p-5">
-                                      <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">
-                                        <ClipboardList className="h-3.5 w-3.5" />
-                                        Application Form Responses
-                                        <span className="ml-auto text-[10px] text-slate-500 normal-case tracking-normal font-medium">{customEntries.length} field{customEntries.length !== 1 ? 's' : ''}</span>
-                                      </p>
+                                      <div className="flex items-center justify-between mb-3">
+                                        <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                          <ClipboardList className="h-3.5 w-3.5" />
+                                          Application Form Responses
+                                          <span className="text-[10px] text-slate-500 normal-case tracking-normal font-medium ml-1">({customEntries.length} fields)</span>
+                                        </p>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openEditResponsesModal(app)
+                                          }}
+                                          className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 hover:text-purple-200 bg-purple-500/15 hover:bg-purple-500/25 px-2.5 py-1 rounded-lg border border-purple-500/25 transition-all cursor-pointer shadow-sm"
+                                          title="Edit applicant responses"
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                          Edit Responses
+                                        </button>
+                                      </div>
                                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                                         {customEntries.map(([key, value]) => (
                                           <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
@@ -2591,6 +2659,125 @@ export default function AllApplicationsPage() {
                 >
                   {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
                   Confirm Rejection & Comments
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Application Form Responses Modal */}
+      <AnimatePresence>
+        {editingResponsesApp && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => !savingResponsesEdit && setEditingResponsesApp(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-white/10 bg-slate-950/50 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Pencil className="h-4 w-4 text-purple-400" />
+                    Edit Application Responses
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {editingResponsesApp.users?.full_name || 'Applicant'} •{' '}
+                    <span className="font-mono text-slate-300">{editingResponsesApp.users?.influencer_id || 'ID'}</span> •{' '}
+                    <span className="text-purple-300">{editingResponsesApp.campaigns?.brand_name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => !savingResponsesEdit && setEditingResponsesApp(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body Scrollable */}
+              <div className="p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                <p className="text-xs text-slate-400">
+                  Update any field values or fix mistakes made by the creator during form submission.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  {Object.entries(editResponsesData).map(([key, val]) => {
+                    const isImg = typeof val === 'string' && (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo')))
+                    if (isImg) return null
+
+                    const isBool = typeof val === 'boolean' || val === 'true' || val === 'false' || val === 'Yes' || val === 'No'
+
+                    return (
+                      <div key={key} className={typeof val === 'string' && val.length > 40 ? 'sm:col-span-2' : ''}>
+                        <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block truncate">
+                          {key.replace(/[_-]/g, ' ')}
+                        </label>
+                        {isBool ? (
+                          <select
+                            value={typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
+                            onChange={(e) => {
+                              const v = e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value
+                              setEditResponsesData(prev => ({ ...prev, [key]: v }))
+                            }}
+                            className="w-full bg-slate-800 border border-white/10 text-white text-xs rounded-lg px-2.5 py-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          >
+                            <option value="true">Yes / True</option>
+                            <option value="false">No / False</option>
+                          </select>
+                        ) : typeof val === 'string' && val.length > 50 ? (
+                          <textarea
+                            value={String(val ?? '')}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              setEditResponsesData(prev => ({ ...prev, [key]: v }))
+                            }}
+                            rows={2}
+                            className="w-full bg-slate-800 border border-white/10 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                          />
+                        ) : (
+                          <Input
+                            type="text"
+                            value={String(val ?? '')}
+                            onChange={(e) => {
+                              const v = e.target.value
+                              setEditResponsesData(prev => ({ ...prev, [key]: v }))
+                            }}
+                            className="bg-slate-800 border-white/10 text-white text-xs focus:ring-purple-500"
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 bg-slate-950/60 flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingResponsesApp(null)}
+                  disabled={savingResponsesEdit}
+                  className="bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveResponsesEdits}
+                  disabled={savingResponsesEdit}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold border-none cursor-pointer text-xs shadow-lg shadow-purple-500/20"
+                >
+                  {savingResponsesEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                  Save Changes
                 </Button>
               </div>
             </motion.div>

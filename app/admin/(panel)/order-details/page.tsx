@@ -11,7 +11,8 @@ import {
   Calendar, X, SlidersHorizontal,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX,
-  Image, ExternalLink, Package, Eye, Clock
+  Image, ExternalLink, Package, Eye, Clock,
+  Pencil, Save, AlertCircle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -652,6 +653,12 @@ export default function OrderDetailsPage() {
   const [paymentCommission, setPaymentCommission] = useState('')
   const [rejectReason, setRejectReason] = useState('')
 
+  // Edit Submission Modal
+  const [editSubmissionOrder, setEditSubmissionOrder] = useState<OrderEntry | null>(null)
+  const [editOrderDetails, setEditOrderDetails] = useState<Record<string, any>>({})
+  const [editFormResponses, setEditFormResponses] = useState<Record<string, any>>({})
+  const [savingEdit, setSavingEdit] = useState(false)
+
   // ─── Derived data ─────────────────────────────────────
   const uniqueBrands = useMemo(() =>
     [...new Set(orders.map(o => o.campaigns?.brand_name).filter(Boolean))].sort(),
@@ -958,6 +965,58 @@ export default function OrderDetailsPage() {
       setRejectReason('')
     } catch {
       toast.error('Failed to reject order')
+    }
+  }
+
+  // ─── Edit Submission Handlers ───────────────────────────
+  const openEditSubmissionModal = (order: OrderEntry) => {
+    const details = order.form_data?.order_details || {}
+    const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+    const customResponses: Record<string, any> = {}
+    if (order.form_data) {
+      Object.entries(order.form_data).forEach(([k, v]) => {
+        if (!internalKeys.includes(k) && !k.startsWith('_')) {
+          customResponses[k] = v
+        }
+      })
+    }
+    setEditSubmissionOrder(order)
+    setEditOrderDetails({ ...details })
+    setEditFormResponses({ ...customResponses })
+  }
+
+  const handleSaveSubmissionEdits = async () => {
+    if (!editSubmissionOrder) return
+    setSavingEdit(true)
+    try {
+      const currentFormData = editSubmissionOrder.form_data || {}
+      const updatedFormData = {
+        ...currentFormData,
+        ...editFormResponses,
+        order_details: editOrderDetails,
+        _edited_by_admin: {
+          at: new Date().toISOString(),
+        }
+      }
+
+      const res = await fetch(`/api/admin/applications/${editSubmissionOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          form_data: updatedFormData,
+          send_email: false,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update submission')
+
+      setOrders(prev => prev.map(o => o.id === editSubmissionOrder.id ? { ...o, form_data: updatedFormData } : o))
+      toast.success('Creator submission updated successfully')
+      setEditSubmissionOrder(null)
+    } catch {
+      toast.error('Failed to update creator submission')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -1572,10 +1631,24 @@ export default function OrderDetailsPage() {
                                         return (
                                           <div className="bg-purple-500/[0.04] border border-purple-500/15 rounded-2xl p-3.5 flex-1 flex flex-col justify-between shadow-sm">
                                             <div>
-                                              <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold mb-2.5 flex items-center gap-1.5">
-                                                <ClipboardList className="h-3.5 w-3.5" />
-                                                Application Responses ({customEntries.length})
-                                              </p>
+                                              <div className="flex items-center justify-between mb-2.5">
+                                                <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                  <ClipboardList className="h-3.5 w-3.5" />
+                                                  Application Responses ({customEntries.length})
+                                                </p>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    openEditSubmissionModal(order)
+                                                  }}
+                                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 hover:text-purple-200 bg-purple-500/15 hover:bg-purple-500/25 px-2 py-0.5 rounded-lg border border-purple-500/25 transition-all cursor-pointer shadow-sm"
+                                                  title="Edit creator responses or answers"
+                                                >
+                                                  <Pencil className="h-3 w-3" />
+                                                  Edit
+                                                </button>
+                                              </div>
                                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                 {customEntries.map(([key, value]) => (
                                                   <div key={key} className="bg-slate-900/60 p-2.5 rounded-xl border border-white/5 flex flex-col justify-between">
@@ -1636,10 +1709,24 @@ export default function OrderDetailsPage() {
                                     <div className="lg:col-span-5 flex flex-col justify-between bg-gradient-to-b from-indigo-950/30 to-slate-900/80 border border-indigo-500/20 rounded-2xl p-4 shadow-lg space-y-3.5 h-full">
                                       <div className="flex-1 flex flex-col">
                                         <div className="flex items-center justify-between mb-3 border-b border-indigo-500/15 pb-2.5">
-                                          <p className="text-xs font-bold text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
-                                            <Package className="h-4 w-4 text-indigo-400" />
-                                            Order Verification
-                                          </p>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-xs font-bold text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
+                                              <Package className="h-4 w-4 text-indigo-400" />
+                                              Order Verification
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                openEditSubmissionModal(order)
+                                              }}
+                                              className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-300 hover:text-indigo-200 bg-indigo-500/15 hover:bg-indigo-500/25 px-2 py-0.5 rounded-lg border border-indigo-500/25 transition-all cursor-pointer shadow-sm"
+                                              title="Edit Order ID, Amount, or custom fields"
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                              Edit
+                                            </button>
+                                          </div>
                                           {(() => {
                                             const rev = getOrderVerificationStatus(order)
                                             if (rev === 'Approved') return <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Verified</span>
@@ -1980,6 +2067,223 @@ export default function OrderDetailsPage() {
                   Confirm Payment
                 </Button>
               </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Creator Submission Modal */}
+      <AnimatePresence>
+        {editSubmissionOrder && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              onClick={() => !savingEdit && setEditSubmissionOrder(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-white/10 bg-slate-950/50 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <Pencil className="h-4 w-4 text-indigo-400" />
+                    Edit Creator Submission
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {editSubmissionOrder.users?.full_name || 'Creator'} •{' '}
+                    <span className="font-mono text-slate-300">{editSubmissionOrder.users?.influencer_id || 'ID'}</span> •{' '}
+                    <span className="text-indigo-300">{editSubmissionOrder.campaigns?.brand_name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => !savingEdit && setEditSubmissionOrder(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Modal Body Scrollable */}
+              <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+                {/* Section 1: Order Verification Fields */}
+                <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-xl p-4 space-y-3">
+                  <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold flex items-center gap-1.5 border-b border-indigo-500/10 pb-2">
+                    <Package className="h-3.5 w-3.5" />
+                    Order Verification Details
+                  </p>
+                  
+                  {/* Order ID & Order Amount Standard Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Order ID
+                      </label>
+                      <Input
+                        type="text"
+                        value={
+                          editOrderDetails['order_id'] ??
+                          editOrderDetails['orderId'] ??
+                          editOrderDetails['order_number'] ??
+                          editOrderDetails['ordernumber'] ??
+                          editOrderDetails['id'] ??
+                          ''
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setEditOrderDetails(prev => ({
+                            ...prev,
+                            order_id: val,
+                            ...(prev.orderId !== undefined ? { orderId: val } : {}),
+                            ...(prev.order_number !== undefined ? { order_number: val } : {}),
+                          }))
+                        }}
+                        placeholder="e.g. 34353"
+                        className="bg-slate-800 border-white/10 text-white focus:ring-indigo-500 font-mono text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Order Amount (₹)
+                      </label>
+                      <Input
+                        type="text"
+                        value={
+                          editOrderDetails['amount'] ??
+                          editOrderDetails['price'] ??
+                          editOrderDetails['product_amount'] ??
+                          editOrderDetails['productamount'] ??
+                          editOrderDetails['order_amount'] ??
+                          editOrderDetails['orderamount'] ??
+                          ''
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setEditOrderDetails(prev => ({
+                            ...prev,
+                            amount: val,
+                            ...(prev.price !== undefined ? { price: val } : {}),
+                            ...(prev.product_amount !== undefined ? { product_amount: val } : {}),
+                            ...(prev.order_amount !== undefined ? { order_amount: val } : {}),
+                          }))
+                        }}
+                        placeholder="e.g. 5000"
+                        className="bg-slate-800 border-white/10 text-white focus:ring-indigo-500 font-bold text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Any Other Custom Order Details Fields */}
+                  {Object.entries(editOrderDetails).map(([key, val]) => {
+                    const norm = key.toLowerCase().replace(/[\s_-]/g, '')
+                    if (['orderid', 'order', 'ordernumber', 'id', 'amount', 'price', 'productamount', 'orderamount'].includes(norm)) return null
+                    if (typeof val === 'string' && (val.startsWith('http') || norm.includes('screenshot') || norm.includes('image') || norm.includes('photo'))) return null
+
+                    return (
+                      <div key={key}>
+                        <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                          {key.replace(/[_-]/g, ' ')}
+                        </label>
+                        <Input
+                          type="text"
+                          value={String(val ?? '')}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            setEditOrderDetails(prev => ({ ...prev, [key]: v }))
+                          }}
+                          className="bg-slate-800 border-white/10 text-white text-xs focus:ring-indigo-500"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Section 2: Application Form Responses */}
+                {Object.keys(editFormResponses).length > 0 && (
+                  <div className="bg-purple-500/5 border border-purple-500/15 rounded-xl p-4 space-y-3">
+                    <p className="text-[11px] text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1.5 border-b border-purple-500/10 pb-2">
+                      <ClipboardList className="h-3.5 w-3.5" />
+                      Application Form Responses
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {Object.entries(editFormResponses).map(([key, val]) => {
+                        const isImg = typeof val === 'string' && (val.startsWith('http') && (val.match(/\.(jpg|jpeg|png|webp|gif|svg)/i) || key.toLowerCase().includes('image') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('photo')))
+                        if (isImg) return null
+
+                        const isBool = typeof val === 'boolean' || val === 'true' || val === 'false' || val === 'Yes' || val === 'No'
+
+                        return (
+                          <div key={key} className={typeof val === 'string' && val.length > 40 ? 'sm:col-span-2' : ''}>
+                            <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block truncate">
+                              {key.replace(/[_-]/g, ' ')}
+                            </label>
+                            {isBool ? (
+                              <select
+                                value={typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val)}
+                                onChange={(e) => {
+                                  const v = e.target.value === 'true' ? true : e.target.value === 'false' ? false : e.target.value
+                                  setEditFormResponses(prev => ({ ...prev, [key]: v }))
+                                }}
+                                className="w-full bg-slate-800 border border-white/10 text-white text-xs rounded-lg px-2.5 py-2 cursor-pointer focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              >
+                                <option value="true">Yes / True</option>
+                                <option value="false">No / False</option>
+                              </select>
+                            ) : typeof val === 'string' && val.length > 50 ? (
+                              <textarea
+                                value={String(val ?? '')}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setEditFormResponses(prev => ({ ...prev, [key]: v }))
+                                }}
+                                rows={2}
+                                className="w-full bg-slate-800 border border-white/10 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                              />
+                            ) : (
+                              <Input
+                                type="text"
+                                value={String(val ?? '')}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setEditFormResponses(prev => ({ ...prev, [key]: v }))
+                                }}
+                                className="bg-slate-800 border-white/10 text-white text-xs focus:ring-purple-500"
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 bg-slate-950/60 flex items-center justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setEditSubmissionOrder(null)}
+                  disabled={savingEdit}
+                  className="bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveSubmissionEdits}
+                  disabled={savingEdit}
+                  className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold border-none cursor-pointer text-xs shadow-lg shadow-indigo-500/20"
+                >
+                  {savingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                  Save Changes
+                </Button>
               </div>
             </motion.div>
           </div>
