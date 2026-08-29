@@ -10,7 +10,7 @@ import {
   ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   Info, UserCheck, AlertTriangle, FileText, CheckCheck, X,
-  Download, FileSpreadsheet, ChevronDown, Loader2
+  Download, FileSpreadsheet, ChevronDown, Loader2, History
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -19,6 +19,8 @@ import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { BulkCampaignUploadModal } from '@/components/admin/BulkCampaignUploadModal'
+import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
+import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
 
 interface Campaign {
   id: string
@@ -52,6 +54,7 @@ interface Campaign {
   min_followers?: number
   location?: string
   location_type?: string
+  edit_history?: CampaignEditLogEntry[]
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -86,6 +89,7 @@ export default function AdminCampaignsPage() {
   const [rejectModalCampaign, setRejectModalCampaign] = useState<Campaign | null>(null)
   const [rejectionReasonInput, setRejectionReasonInput] = useState('')
   const [reviewModalCampaign, setReviewModalCampaign] = useState<Campaign | null>(null)
+  const [historyModalCampaign, setHistoryModalCampaign] = useState<Campaign | null>(null)
 
   // Reorder & Sequence Management States
   const [isReorderMode, setIsReorderMode] = useState(false)
@@ -929,17 +933,33 @@ export default function AdminCampaignsPage() {
                       </div>
 
                       {campaign.last_edited_by_admin_name && campaign.last_edited_by_admin_name !== campaign.created_by_admin_name && (
-                        <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5">
+                        <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5 flex-wrap">
                           <span className="flex items-center gap-1.5 truncate">
                             <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                             <span className="text-slate-500">Last edited by:</span>
                             <span className="text-amber-300 font-semibold truncate">{campaign.last_edited_by_admin_name}</span>
                           </span>
-                          {campaign.last_edited_at && (
-                            <span className="text-[10px] text-slate-500 shrink-0">
-                              {new Date(campaign.last_edited_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {campaign.edit_history && campaign.edit_history.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setHistoryModalCampaign(campaign)
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 transition-all cursor-pointer shadow-xs hover:scale-105"
+                                title="Click to view detailed field modifications"
+                              >
+                                <History className="h-3 w-3" />
+                                <span>What Changed? ({campaign.edit_history[0]?.changes_count || campaign.edit_history[0]?.changes?.length || campaign.edit_history.length})</span>
+                              </button>
+                            )}
+                            {campaign.last_edited_at && (
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(campaign.last_edited_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -1150,6 +1170,14 @@ export default function AdminCampaignsPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Recent Modifications Before-After Diff Box */}
+            {reviewModalCampaign.edit_history && reviewModalCampaign.edit_history.length > 0 && (
+              <CampaignRecentDiffBanner
+                entry={reviewModalCampaign.edit_history[0]}
+                onViewAllHistory={() => setHistoryModalCampaign(reviewModalCampaign)}
+              />
+            )}
 
             {/* Campaign Specifications */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -1403,6 +1431,14 @@ export default function AdminCampaignsPage() {
           </div>
         </div>
       )}
+
+      {/* Full Edit History Timeline Modal */}
+      <CampaignEditHistoryModal
+        isOpen={!!historyModalCampaign}
+        onClose={() => setHistoryModalCampaign(null)}
+        campaignName={historyModalCampaign?.brand_name}
+        editHistory={historyModalCampaign?.edit_history}
+      />
     </div>
   )
 }

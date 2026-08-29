@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
+import { computeCampaignDiff, CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
 
 export async function GET(
   request: Request,
@@ -66,6 +67,17 @@ export async function PUT(
       }
     }
 
+    // Fetch existing campaign snapshot to compute exact field-level diff
+    const { data: existingCampaign, error: fetchError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !existingCampaign) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    }
+
     // Strict Maker-Checker Rule:
     // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live
     const adminName = admin.full_name || admin.name || 'Admin'
@@ -87,6 +99,16 @@ export async function PUT(
     updates.last_edited_at = new Date().toISOString()
     updates.updated_at = new Date().toISOString()
 
+    // Compute diff and record audit log
+    const diffEntry = computeCampaignDiff(existingCampaign, updates, admin)
+    if (diffEntry) {
+      const existingHistory: CampaignEditLogEntry[] = Array.isArray(existingCampaign.edit_history)
+        ? existingCampaign.edit_history
+        : []
+      // Prepend latest diff (keep up to 30 historical edits)
+      updates.edit_history = [diffEntry, ...existingHistory].slice(0, 30)
+    }
+
     const { data: campaign, error } = await supabase
       .from('campaigns')
       .update(updates)
@@ -99,7 +121,8 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       message: 'Campaign updated and submitted for 2nd Admin Approval.',
-      campaign
+      campaign,
+      diff: diffEntry
     })
   } catch (error) {
     console.error('API /admin/campaigns/[id] PUT Error:', error)

@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList,
   Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock,
-  FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle
+  FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle, History
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,8 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import { StoreLocation } from '@/lib/utils/location-utils'
+import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
+import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
 
 interface CampaignData {
   id: string
@@ -59,6 +61,7 @@ interface CampaignData {
   followers?: string
   min_followers?: number
   enforce_followers?: boolean
+  edit_history?: CampaignEditLogEntry[]
   additional_info?: string
   collab_date?: string
   form_link?: string
@@ -115,6 +118,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
   const [paymentFormFields, setPaymentFormFields] = useState<FormField[]>([])
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   useEffect(() => {
     fetchCampaign()
@@ -290,7 +294,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             </div>
 
             {campaign.last_edited_by_admin_name && campaign.last_edited_by_admin_name !== campaign.created_by_admin_name && (
-              <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+              <div className="flex items-center gap-2 border-l border-white/10 pl-4 flex-wrap">
                 <Clock className="h-4 w-4 text-amber-400 shrink-0" />
                 <span className="text-slate-400">
                   Last edited by <strong className="text-amber-300">{campaign.last_edited_by_admin_name}</strong>
@@ -300,6 +304,16 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     </span>
                   )}
                 </span>
+                {campaign.edit_history && campaign.edit_history.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setHistoryModalOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 transition-all cursor-pointer shadow-xs ml-2"
+                  >
+                    <History className="h-3.5 w-3.5" />
+                    <span>View Changes ({campaign.edit_history[0]?.changes_count || campaign.edit_history[0]?.changes?.length || campaign.edit_history.length})</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -340,6 +354,14 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             </span>
           </div>
         </div>
+
+        {/* Recent Edit Diff Banner */}
+        {campaign.edit_history && campaign.edit_history.length > 0 && (
+          <CampaignRecentDiffBanner
+            entry={campaign.edit_history[0]}
+            onViewAllHistory={() => setHistoryModalOpen(true)}
+          />
+        )}
 
         {/* Campaign Details */}
         <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
@@ -940,6 +962,14 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           )}
         </Button>
       </motion.form>
+
+      {/* Full Edit History Timeline Modal */}
+      <CampaignEditHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        campaignName={campaign?.brand_name}
+        editHistory={campaign?.edit_history}
+      />
     </div>
   )
 }
