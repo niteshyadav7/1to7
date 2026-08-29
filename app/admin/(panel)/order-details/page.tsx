@@ -90,7 +90,17 @@ const statusDots: Record<string, string> = {
   'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Approved', 'Rejected', 'Payment Requested']
+export function getOrderVerificationStatus(order: { status?: string; form_data?: Record<string, any> }): 'Pending' | 'Approved' | 'Rejected' {
+  if (order.form_data?.order_details_approved === true) {
+    return 'Approved'
+  }
+  if (order.status === 'Rejected' || order.form_data?.rejection_reason) {
+    return 'Rejected'
+  }
+  return 'Pending'
+}
+
+const statusFilters = ['All', 'Pending', 'Approved', 'Rejected']
 
 const dateRanges = [
   { label: 'All Time', value: 'all' },
@@ -680,9 +690,9 @@ export default function OrderDetailsPage() {
   const processedData = useMemo(() => {
     let result = [...orders]
 
-    // Status filter
+    // Status filter (by order verification status)
     if (activeStatus !== 'All') {
-      result = result.filter(o => o.status === activeStatus)
+      result = result.filter(o => getOrderVerificationStatus(o) === activeStatus)
     }
 
     // Search
@@ -723,7 +733,11 @@ export default function OrderDetailsPage() {
             valB = parseFloat(amtB) || 0
             break
           }
-          case 'status': valA = a.status; valB = b.status; break
+          case 'status': {
+            valA = getOrderVerificationStatus(a)
+            valB = getOrderVerificationStatus(b)
+            break
+          }
           case 'date': valA = new Date(a.updated_at).getTime(); valB = new Date(b.updated_at).getTime(); break
           default: return 0
         }
@@ -1017,8 +1031,16 @@ export default function OrderDetailsPage() {
 
   // ─── Status counts ───────────────────────────────────
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1 })
+    const counts: Record<string, number> = {
+      'All': orders.length,
+      'Pending': 0,
+      'Approved': 0,
+      'Rejected': 0,
+    }
+    orders.forEach(o => {
+      const st = getOrderVerificationStatus(o)
+      counts[st] = (counts[st] || 0) + 1
+    })
     return counts
   }, [orders])
 
@@ -1052,14 +1074,14 @@ export default function OrderDetailsPage() {
           <button
             key={f}
             onClick={() => setActiveStatus(f)}
-            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
               activeStatus === f
-                ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-lg shadow-indigo-500/10 font-bold'
                 : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
             }`}
           >
-            {f}
-            <span className="ml-1.5 text-[10px] opacity-60">
+            {f === 'All' ? 'All Orders' : f === 'Pending' ? 'Pending Review' : f === 'Approved' ? 'Order Verified' : 'Order Rejected'}
+            <span className="ml-1.5 text-[10px] opacity-75 font-mono">
               ({f === 'All' ? orders.length : (statusCounts[f] || 0)})
             </span>
           </button>
@@ -1400,14 +1422,40 @@ export default function OrderDetailsPage() {
                         )}
 
                         {/* Status */}
-                        {visibleCols.status && (
-                          <td className={`px-3 ${densityPadding[density]}`}>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[order.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusDots[order.status] || 'bg-slate-400'}`} />
-                              {order.status}
-                            </span>
-                          </td>
-                        )}
+                        {visibleCols.status && (() => {
+                          const reviewStatus = getOrderVerificationStatus(order)
+                          return (
+                            <td className={`px-3 ${densityPadding[density]}`}>
+                              <div className="flex flex-col gap-1 items-start">
+                                {/* 1. Order Details Review Status */}
+                                {reviewStatus === 'Pending' ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-xs whitespace-nowrap">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                                    Pending Review
+                                  </span>
+                                ) : reviewStatus === 'Approved' ? (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs whitespace-nowrap">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                    Order Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-xs whitespace-nowrap" title={order.form_data?.rejection_reason || ''}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+                                    Order Rejected
+                                  </span>
+                                )}
+
+                                {/* 2. Campaign Application Status */}
+                                <span className="inline-flex items-center gap-1 text-[9px] font-medium text-slate-400 px-1 whitespace-nowrap">
+                                  <span className="text-slate-500 font-semibold">App:</span>
+                                  <span className={`font-bold ${order.status === 'Approved' ? 'text-emerald-400' : order.status === 'Rejected' ? 'text-rose-400' : 'text-blue-400'}`}>
+                                    {order.status}
+                                  </span>
+                                </span>
+                              </div>
+                            </td>
+                          )
+                        })()}
 
                         {/* Date */}
                         {visibleCols.date && (
@@ -1661,39 +1709,50 @@ export default function OrderDetailsPage() {
 
                                     {/* Action Buttons & Status */}
                                     <div className="mt-6 pt-4 border-t border-indigo-500/20">
-                                      {order.form_data?.order_details_approved ? (
-                                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl w-fit">
-                                          <CheckCircle2 className="h-4 w-4" />
-                                          Order Verified & Approved
-                                        </div>
-                                      ) : order.status === 'Rejected' ? (
-                                        <div className="flex flex-col gap-1.5">
-                                          <div className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl w-fit">
-                                            <XCircle className="h-4 w-4" />
-                                            Order Rejected
+                                      {(() => {
+                                        const reviewStatus = getOrderVerificationStatus(order)
+                                        if (reviewStatus === 'Approved') {
+                                          return (
+                                            <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl w-fit">
+                                              <CheckCircle2 className="h-4 w-4" />
+                                              Order Verified & Approved
+                                            </div>
+                                          )
+                                        }
+                                        if (reviewStatus === 'Rejected') {
+                                          return (
+                                            <div className="flex flex-col gap-1.5">
+                                              <div className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl w-fit">
+                                                <XCircle className="h-4 w-4" />
+                                                Order Rejected
+                                              </div>
+                                              {order.form_data?.rejection_reason && (
+                                                <p className="text-xs text-red-300 font-medium ml-1">Reason: {order.form_data?.rejection_reason}</p>
+                                              )}
+                                            </div>
+                                          )
+                                        }
+                                        return (
+                                          <div className="flex flex-wrap items-center gap-3">
+                                            <Button
+                                              size="sm"
+                                              onClick={() => setInitiatePaymentApp(order)}
+                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-bold border-none cursor-pointer"
+                                            >
+                                              <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                                              Verify & Approve Order
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              onClick={() => setRejectApp(order)}
+                                              className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
+                                            >
+                                              <XCircle className="mr-1.5 h-4 w-4" />
+                                              Reject (with reason)
+                                            </Button>
                                           </div>
-                                          <p className="text-xs text-red-300 font-medium ml-1">Reason: {order.form_data?.rejection_reason}</p>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-wrap items-center gap-3">
-                                          <Button
-                                            size="sm"
-                                            onClick={() => setInitiatePaymentApp(order)}
-                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer"
-                                          >
-                                            <IndianRupee className="mr-1.5 h-4 w-4" />
-                                            Verify & Approved
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            onClick={() => setRejectApp(order)}
-                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer"
-                                          >
-                                            <XCircle className="mr-1.5 h-4 w-4" />
-                                            Reject (with reason)
-                                          </Button>
-                                        </div>
-                                      )}
+                                        )
+                                      })()}
                                     </div>
                                   </div>
 
