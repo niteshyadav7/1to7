@@ -267,7 +267,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
 
       if (newStatus === 'Approved') {
         toast.success(`Approved ${creatorName} for collaboration!`, {
-          description: 'Galti se approve hua? Click Undo.',
+          description: 'Approved by mistake? Click Undo to revert.',
           duration: 8000,
           action: {
             label: 'Undo',
@@ -277,7 +277,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
       } else if (newStatus === 'Applied' && extraPayload?.is_revert) {
         toast.success(`Approval reverted. ${creatorName} moved back to Applied.`)
       } else if (newStatus === 'Rejected' && extraPayload?.rejection_reason) {
-        toast.success(`Approval revoked for ${creatorName}.`)
+        toast.success(`Application rejected & re-apply enabled for ${creatorName}.`)
       } else {
         toast.success(`Application status updated to ${newStatus}`)
       }
@@ -1542,6 +1542,8 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                 <div className="space-y-2">
                   {[
                     'Follower count / criteria mismatch',
+                    'Commercials / Quote too high for this campaign',
+                    'Details incomplete / Needs revision',
                     'Location / City not eligible for this campaign',
                     'Please update complete delivery address & pincode',
                     'Content / Niche mismatch for this brand',

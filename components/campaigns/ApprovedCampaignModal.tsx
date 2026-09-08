@@ -1076,6 +1076,29 @@ export default function ApprovedCampaignModal({
                           </button>
                         </div>
 
+                        {/* Rejection notice if previous payment request was rejected */}
+                        {application.form_data?.payment_rejection?.reason && application.status === 'Approved' && (
+                          <div className="p-4 rounded-2xl bg-red-50 border border-red-200/80 flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-bold text-red-900 uppercase tracking-wider">Previous Payment Request Rejected</p>
+                                {application.form_data.payment_rejection.rejected_at && (
+                                  <span className="text-[10px] text-red-600 font-semibold">
+                                    {new Date(application.form_data.payment_rejection.rejected_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-red-700 mt-1 whitespace-pre-line font-medium">
+                                {application.form_data.payment_rejection.reason}
+                              </p>
+                              <p className="text-[11px] text-red-600 mt-1.5 font-medium">
+                                Please review the feedback above and click below to re-submit your payout request.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Action Buttons: Payout Request / Partial Request / Appeal */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {application.status === 'Approved' ? (
@@ -1091,7 +1114,9 @@ export default function ApprovedCampaignModal({
                               className="p-4 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer group shadow-2xs"
                             >
                               <CreditCard className="h-6 w-6 text-amber-600 group-hover:scale-110 transition-transform" />
-                              <span className="text-xs font-extrabold text-amber-900">Submit Payout Request</span>
+                              <span className="text-xs font-extrabold text-amber-900">
+                                {application.form_data?.payment_rejection?.reason ? 'Re-submit Payout Request' : 'Submit Payout Request'}
+                              </span>
                               <span className="text-[10px] text-amber-700 font-medium">Request ₹{totalAmount.toLocaleString()} Payout</span>
                             </button>
                           ) : (

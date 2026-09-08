@@ -66,6 +66,8 @@ interface Campaign {
   application_status?: string
   application_id?: string
   applied_at?: string
+  rejection_reason?: string
+  form_data?: any
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -263,13 +265,16 @@ export default function CampaignDetailModal({
       })
       setInlineData(initial)
 
-      // Also init custom fields with auto-prefill from user profile
+      // Also init custom fields with auto-prefill from user profile or previous response
       if (hasCustomFields) {
         const cfInitial: Record<string, any> = {}
         campaign!.form_fields!.forEach(f => {
-          cfInitial[f.name] = getPrefillValueForField(f.name, user) || ''
+          cfInitial[f.name] = campaign?.form_data?.[f.name] ?? getPrefillValueForField(f.name, user) ?? ''
         })
         setCustomFormData(cfInitial)
+      }
+      if (campaign?.form_data?.comments && !commentText) {
+        setCommentText(campaign.form_data.comments)
       }
     }
   }, [showProfileInline, user])
@@ -285,11 +290,9 @@ export default function CampaignDetailModal({
   const missingFields = campaignMissingFields
   const needsInlineForm = true // Always show form for comments
 
-  // Check pending missing fields for Inline Profile Completion View
-  const getPendingInlineRequirements = () => {
+  // Check pending missing profile fields only (fields that belong to creator profile)
+  const getPendingProfileRequirements = () => {
     const missing: string[] = []
-    
-    // Check missing profile fields
     missingFields.forEach(field => {
       const val = inlineData[field]
       if (field === 'followers') {
@@ -302,28 +305,20 @@ export default function CampaignDetailModal({
         }
       }
     })
-
-    // Check custom campaign fields
-    if (hasCustomFields && campaign?.form_fields) {
-      campaign.form_fields
-        .filter(f => f.required)
-        .forEach(f => {
-          const val = customFormData[f.name]
-          if (!val || (typeof val === 'string' && val.trim() === '')) {
-            missing.push(f.name)
-          }
-        })
-    }
-
     return missing
   }
 
-  // Check pending requirements for Custom Form Fields View
+  // Check pending requirements for Custom Form Fields View (questions specific to this campaign)
   const getPendingCustomRequirements = () => {
-    if (!campaign?.form_fields) return []
+    if (!hasCustomFields || !campaign?.form_fields) return []
     return campaign.form_fields
       .filter(f => f.required && (!customFormData[f.name] || (typeof customFormData[f.name] === 'string' && customFormData[f.name].trim() === '')))
       .map(f => f.name)
+  }
+
+  // Combined missing requirements for form validation & submit
+  const getPendingInlineRequirements = () => {
+    return [...getPendingProfileRequirements(), ...getPendingCustomRequirements()]
   }
 
   const handleApplyClick = () => {
@@ -520,32 +515,38 @@ export default function CampaignDetailModal({
                         </button>
                       </div>
 
-                      {/* Campaign + Instagram Info Cards */}
-                      <div className="mt-4 space-y-3">
+                      {/* Campaign + Instagram Info Cards (shown on same row to save space) */}
+                      <div className={`mt-3 ${
+                        (activeSelectedProfile?.username || user?.instagram_username)
+                          ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'
+                          : ''
+                      }`}>
                         {/* Campaign Card */}
-                        <div className="flex items-center gap-3 rounded-md bg-gray-muted border border-border-subtle p-3">
-                          <div className="flex items-center justify-center h-10 w-10 rounded-md bg-primary-container text-black font-extrabold text-sm shrink-0">
+                        <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
+                          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-primary-container text-black font-extrabold text-sm shrink-0">
                             {campaign.brand_name?.charAt(0) || 'C'}
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-charcoal-surface truncate">{campaign.brand_name}</p>
-                            <p className="text-[11px] text-secondary">Campaign ID: {campaign.campaign_code}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">{campaign.brand_name}</p>
+                            <p className="text-[11px] text-secondary truncate">Campaign ID: {campaign.campaign_code}</p>
                           </div>
                         </div>
 
                         {/* Selected Instagram Profile Card */}
                         {(activeSelectedProfile?.username || user?.instagram_username) && (
-                          <div className="flex items-center gap-3 rounded-md bg-gray-muted border border-border-subtle p-3">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-md bg-pink-600 text-white shrink-0 shadow-sm">
-                              <Instagram className="h-5 w-5 text-white" />
+                          <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
+                            <div className="flex items-center justify-center h-9 w-9 rounded-md bg-pink-600 text-white shrink-0 shadow-sm">
+                              <Instagram className="h-4.5 w-4.5 text-white" />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-charcoal-surface truncate">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">
                                 {getInstagramDisplayHandle(activeSelectedProfile?.username || user?.instagram_username)}
                               </p>
-                              <p className="text-[11px] text-secondary font-semibold">
+                              <p className="text-[11px] text-secondary font-semibold truncate">
                                 {(activeSelectedProfile?.followers ?? user?.followers ?? 0).toLocaleString('en-IN')} Followers
-                                {activeSelectedProfile?.is_primary ? ' • Primary Profile' : ' • Selected Profile'}
+                                <span className="text-secondary/80">
+                                  {activeSelectedProfile?.is_primary ? ' • Primary Profile' : ' • Selected Profile'}
+                                </span>
                               </p>
                             </div>
                           </div>
@@ -553,26 +554,26 @@ export default function CampaignDetailModal({
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 no-scrollbar scrollbar-none">
-                      {/* Missing Requirements Alert Box */}
-                      {getPendingInlineRequirements().length > 0 && (
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar scrollbar-none">
+                      {/* Missing Profile Requirements Alert Box - Only shown if creator profile has incomplete fields */}
+                      {getPendingProfileRequirements().length > 0 && (
                         <motion.div 
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="p-3.5 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
+                          className="p-3 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-start gap-2.5">
                               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                               <div className="space-y-1 text-xs">
                                 <p className="font-bold text-amber-950">
-                                  Action Required: Please complete details to apply
+                                  Action Required: Please complete profile details to apply
                                 </p>
                                 <p className="text-amber-800 text-[11px] leading-relaxed">
                                   Fill in the fields below or update your profile:
                                 </p>
-                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                  {getPendingInlineRequirements().map((req, i) => (
+                                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                  {getPendingProfileRequirements().map((req, i) => (
                                     <span 
                                       key={i} 
                                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"
@@ -1310,21 +1311,29 @@ export default function CampaignDetailModal({
 
                 {/* Rejected Application Notice & Re-apply invitation */}
                 {campaign.applied && campaign.application_status === 'Rejected' && (
-                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3 shadow-2xs">
+                    <div className="h-9 w-9 rounded-lg bg-rose-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                       <RotateCcw className="h-5 w-5" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
-                          Previous Application Rejected
+                          Re-Apply Allowed / Revision Required
                         </h4>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-extrabold bg-rose-100 text-rose-800 border border-rose-200 uppercase">
-                          Status: Rejected
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-extrabold bg-rose-100 text-rose-800 border border-rose-300 uppercase">
+                          Re-Apply Enabled
                         </span>
                       </div>
-                      <p className="text-xs text-rose-700 mt-1 leading-relaxed">
-                        Your previous submission was not selected. You can update your responses and re-apply to this campaign below.
+                      {campaign.rejection_reason && (
+                        <div className="mt-2.5 p-3 rounded-lg bg-white/95 border border-rose-200/90 shadow-2xs">
+                          <p className="text-[10px] font-extrabold text-rose-950 uppercase tracking-wider flex items-center gap-1.5">
+                            <MessageSquare className="h-3 w-3 text-rose-600" /> Admin Feedback / Note
+                          </p>
+                          <p className="text-xs font-semibold text-rose-900 mt-1 leading-relaxed">{campaign.rejection_reason}</p>
+                        </div>
+                      )}
+                      <p className="text-xs text-rose-700 mt-2 leading-relaxed">
+                        Please review the feedback above, update your answers or commercials, and re-apply below.
                       </p>
                     </div>
                   </div>

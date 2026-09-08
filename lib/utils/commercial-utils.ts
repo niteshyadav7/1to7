@@ -35,6 +35,9 @@ export function getApplicationCommercialAmount(application: any): number {
   if (sumPayments > 0) return sumPayments
   
   // 8. Campaign-level standard commercial
+  if (application.campaigns?.budget_amount && Number(application.campaigns.budget_amount) > 0) {
+    return Number(application.campaigns.budget_amount)
+  }
   if (application.campaigns?.commercial_amount && Number(application.campaigns.commercial_amount) > 0) {
     return Number(application.campaigns.commercial_amount)
   }

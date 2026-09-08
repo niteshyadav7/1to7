@@ -1021,14 +1021,20 @@ export default function AllApplicationsPage() {
         body: JSON.stringify({ status: newStatus, ...extraPayload }),
       })
       if (!res.ok) throw new Error('Failed')
-      setApplications(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
+      setApplications(prev => prev.map(a => a.id === id ? {
+        ...a,
+        status: newStatus,
+        form_data: extraPayload?.rejection_reason
+          ? { ...(a.form_data || {}), rejection_reason: extraPayload.rejection_reason, revocation_note: extraPayload.rejection_reason }
+          : a.form_data
+      } : a))
 
       const target = applications.find(a => a.id === id)
       const creatorName = target?.users?.full_name || 'Creator'
 
       if (newStatus === 'Approved') {
         toast.success(`Approved ${creatorName}!`, {
-          description: 'Galti se approve hua? Click Undo.',
+          description: 'Approved by mistake? Click Undo to revert.',
           duration: 8000,
           action: {
             label: 'Undo',
@@ -1038,7 +1044,7 @@ export default function AllApplicationsPage() {
       } else if (newStatus === 'Applied' && extraPayload?.is_revert) {
         toast.success(`Approval reverted. ${creatorName} moved back to Applied.`)
       } else if (newStatus === 'Rejected' && extraPayload?.rejection_reason) {
-        toast.success(`Approval revoked for ${creatorName}.`)
+        toast.success(`Application rejected & re-apply enabled for ${creatorName}.`)
       } else {
         toast.success(`Application marked as ${newStatus}`)
       }
@@ -2072,7 +2078,13 @@ export default function AllApplicationsPage() {
                                           <Button
                                             size="sm"
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Rejected') }}
+                                            onClick={(e) => {
+                                               e.stopPropagation()
+                                               setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
+                                               setSelectedRejectReason('Commercials / Quote too high for this campaign')
+                                               setCustomRejectReason('')
+                                               setSendRejectEmail(true)
+                                             }}
                                             className="h-8 px-3 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 text-xs font-medium cursor-pointer"
                                             title="Reject this application and enable creator to re-apply"
                                           >
@@ -2542,6 +2554,8 @@ export default function AllApplicationsPage() {
                 <div className="space-y-2">
                   {[
                     'Follower count / criteria mismatch',
+                    'Commercials / Quote too high for this campaign',
+                    'Details incomplete / Needs revision',
                     'Location / City not eligible for this campaign',
                     'Please update complete delivery address & pincode',
                     'Content / Niche mismatch for this brand',

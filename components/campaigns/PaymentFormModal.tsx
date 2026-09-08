@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, CreditCard, Loader2, UploadCloud } from 'lucide-react'
+import { X, Send, CreditCard, Loader2, UploadCloud, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -42,14 +42,15 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
 
   useEffect(() => {
     if (isOpen) {
+      const prevReq = application?.form_data?.payment_request || {}
       const initial: Record<string, string> = {
-        'live_date': '',
-        'payment_reason': '',
-        'payment_amount': '',
-        'supporting_document': ''
+        'live_date': prevReq.live_date || '',
+        'payment_reason': prevReq.payment_reason || '',
+        'payment_amount': prevReq.payment_amount !== undefined && prevReq.payment_amount !== null ? String(prevReq.payment_amount) : '',
+        'supporting_document': prevReq.supporting_document || ''
       }
       dynamicCustomFields.forEach(f => {
-        initial[f.name] = ''
+        initial[f.name] = prevReq[f.name] !== undefined && prevReq[f.name] !== null ? String(prevReq[f.name]) : ''
       })
       setFormData(initial)
     }
@@ -178,6 +179,24 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
 
           <div className="flex-1 overflow-y-auto p-6 space-y-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
             
+            {/* Rejection Alert Banner if refilling after rejection */}
+            {application?.form_data?.payment_rejection?.reason && (
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-200/80 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs font-bold text-red-900 uppercase tracking-wider">
+                    Previous Request Rejected by Admin
+                  </p>
+                  <p className="text-xs text-red-700 mt-1 whitespace-pre-line font-medium">
+                    {application.form_data.payment_rejection.reason}
+                  </p>
+                  <p className="text-[11px] text-red-600 mt-1">
+                    Please correct the fields below and re-submit your payment request.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Core Field: Live Date */}
             <div className="space-y-1.5">
               <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider">Live date <span className="text-red-500">*</span></Label>

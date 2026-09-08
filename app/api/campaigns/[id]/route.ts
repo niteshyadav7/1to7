@@ -44,13 +44,15 @@ export async function GET(
     let application_status: string | null = null
     let application_id: string | null = null
     let applied_at: string | null = null
+    let rejection_reason: string | null = null
+    let app_form_data: any = null
 
     if (token) {
       const payload = await verifyToken(token)
       if (payload && payload.id && campaign.id) {
         const { data: app } = await supabase
           .from('applications')
-          .select('id, status, created_at')
+          .select('id, status, created_at, form_data')
           .eq('user_id', payload.id)
           .eq('campaign_id', campaign.id)
           .maybeSingle()
@@ -60,6 +62,8 @@ export async function GET(
           application_status = app.status
           application_id = app.id
           applied_at = app.created_at
+          rejection_reason = app.form_data?.rejection_reason || app.form_data?.revocation_note || null
+          app_form_data = app.form_data || null
         }
       }
     }
@@ -70,7 +74,9 @@ export async function GET(
         applied,
         application_status,
         application_id,
-        applied_at
+        applied_at,
+        rejection_reason,
+        form_data: app_form_data
       }
     })
   } catch (err: any) {

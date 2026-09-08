@@ -371,8 +371,8 @@ function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; on
 }
 
 // ─── EditableAmountCell (Inline Click-to-Edit) ─────────────
-function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMessage }: {
-  value: number; paymentId: string; field: string; color: string; confirmMessage?: string;
+function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMessage, textSize = 'text-lg font-bold' }: {
+  value: number; paymentId: string; field: string; color: string; confirmMessage?: string; textSize?: string;
   onSave: (id: string, field: string, value: number) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
@@ -411,8 +411,8 @@ function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMes
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-        <span className="text-slate-500 text-[10px]">₹</span>
+      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+        <span className="text-slate-400 text-sm font-bold">₹</span>
         <input
           ref={inputRef}
           type="number"
@@ -421,9 +421,9 @@ function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMes
           onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
           onBlur={handleSave}
           disabled={saving}
-          className="w-16 bg-slate-800 border border-indigo-500/50 text-white text-xs font-semibold rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-24 bg-slate-800 border border-indigo-500 text-white text-base font-bold rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
-        {saving && <Loader2 className="h-3 w-3 text-indigo-400 animate-spin" />}
+        {saving && <Loader2 className="h-4 w-4 text-indigo-400 animate-spin" />}
       </div>
     )
   }
@@ -432,11 +432,11 @@ function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMes
     <>
       <button
         onClick={handleEditClick}
-        className={`group/edit flex items-center gap-1 cursor-pointer text-xs font-semibold ${value > 0 ? color : 'text-slate-600'} hover:text-white transition-colors`}
+        className={`group/edit flex items-center gap-1.5 cursor-pointer ${textSize} ${value > 0 ? color : 'text-slate-600'} hover:text-white transition-colors`}
         title="Click to edit"
       >
         {value > 0 ? `₹${value.toLocaleString()}` : '₹0'}
-        <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/edit:opacity-60 transition-opacity" />
+        <Pencil className="h-3.5 w-3.5 opacity-40 group-hover/edit:opacity-100 group-hover/edit:text-indigo-400 transition-opacity" />
       </button>
 
       {confirmMessage && (
@@ -716,17 +716,24 @@ export default function PaymentsPage() {
         const currentFormData = payment?.form_data || {};
         
         if (formDataKey === 'total_deal') {
+          const numVal = Number(value) || 0;
           const totalPaid = (payment?.partial_payment || 0) + (payment?.final_payment || 0);
-          const newPending = Math.max(0, Number(value) - totalPaid);
+          const newPending = Math.max(0, numVal - totalPaid);
           bodyData = { 
-            form_data: { ...currentFormData, [formDataKey]: value },
+            form_data: { 
+              ...currentFormData, 
+              total_deal: numVal,
+              agreed_commercial: numVal,
+              commercial_amount: numVal
+            },
             pending_amount: newPending 
           };
         } else {
           bodyData = { form_data: { ...currentFormData, [formDataKey]: value } };
         }
       } else {
-        bodyData = { [field]: value };
+        const numVal = typeof value === 'string' && !isNaN(Number(value)) && field !== 'manager_phone' ? Number(value) : value;
+        bodyData = { [field]: numVal };
       }
 
       const res = await fetch(`/api/admin/applications/${id}`, {
@@ -739,16 +746,23 @@ export default function PaymentsPage() {
       if (isFormData) {
         const formDataKey = field.split('.')[1];
         if (formDataKey === 'total_deal') {
+          const numVal = Number(value) || 0;
           setPayments(prev => prev.map(p => p.id === id ? { 
             ...p, 
-            form_data: { ...(p.form_data || {}), total_deal: value },
-            pending_amount: Math.max(0, Number(value) - ((p.partial_payment || 0) + (p.final_payment || 0)))
+            form_data: { 
+              ...(p.form_data || {}), 
+              total_deal: numVal,
+              agreed_commercial: numVal,
+              commercial_amount: numVal
+            },
+            pending_amount: Math.max(0, numVal - ((p.partial_payment || 0) + (p.final_payment || 0)))
           } : p))
         } else {
           setPayments(prev => prev.map(p => p.id === id ? { ...p, form_data: { ...(p.form_data || {}), [formDataKey]: value } } : p))
         }
       } else {
-        setPayments(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+        const numVal = typeof value === 'string' && !isNaN(Number(value)) && field !== 'manager_phone' ? Number(value) : value;
+        setPayments(prev => prev.map(p => p.id === id ? { ...p, [field]: numVal } : p))
       }
       toast.success(`${field.replace(/_/g, ' ').replace('form data.', '')} updated to ${typeof value === 'number' ? '₹' + value.toLocaleString() : value}`)
     } catch {
@@ -1237,19 +1251,19 @@ export default function PaymentsPage() {
                                           l: 'Total Deal', 
                                           field: 'form_data.total_deal', 
                                           v: payment.form_data?.total_deal 
-                                               ? Number(payment.form_data.total_deal) 
-                                               : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0)), 
+                                                ? Number(payment.form_data.total_deal) 
+                                                : (payment.form_data?.agreed_commercial ? Number(payment.form_data.agreed_commercial) : ((payment.partial_payment || 0) + (payment.final_payment || 0) + (payment.pending_amount || 0)) || (camp?.budget_amount ? Number(camp.budget_amount) : 0)), 
                                           c: 'text-white', 
                                           border: 'border-white/20 focus-within:border-white/50',
                                           confirmMessage: "WARNING: You are about to change the Total Deal amount. This is a critical financial field. Are you sure?"
                                         },
                                         { 
                                           l: 'Pending Amount', 
-                                          field: 'pending_amount', 
-                                          v: payment.pending_amount, 
-                                          c: 'text-amber-400', 
-                                          border: 'border-amber-500/20 focus-within:border-amber-500/50', 
-                                          hideUntilRequest: true,
+                                           field: 'pending_amount', 
+                                           v: payment.pending_amount, 
+                                           c: 'text-amber-400', 
+                                           border: 'border-amber-500/20 focus-within:border-amber-500/50', 
+                                           hideUntilRequest: false,
                                           confirmMessage: "WARNING: You are about to change the Pending Amount. This directly affects how much the influencer is owed. Are you sure?"
                                         },
                                         { l: 'Total Paid', field: '', v: totalPaid, c: 'text-emerald-400', border: 'border-white/5' },
@@ -1265,18 +1279,15 @@ export default function PaymentsPage() {
                                                 {f.v > 0 ? `₹${f.v.toLocaleString()}` : '—'}
                                               </p>
                                             ) : f.field ? (
-                                              f.field === 'pending_amount' ? (
-                                                <p className={`text-lg font-bold ${f.c}`}>₹{(f.v || 0).toLocaleString()}</p>
-                                              ) : (
-                                                <EditableAmountCell 
-                                                  value={f.v || 0} 
-                                                  paymentId={payment.id} 
-                                                  field={f.field} 
-                                                  color={f.c} 
-                                                  onSave={updatePaymentField}
-                                                  confirmMessage={(f as any).confirmMessage}
-                                                />
-                                              )
+                                              <EditableAmountCell 
+                                                   value={f.v || 0} 
+                                                   paymentId={payment.id} 
+                                                   field={f.field} 
+                                                   color={f.c} 
+                                                   onSave={updatePaymentField}
+                                                   confirmMessage={(f as any).confirmMessage}
+                                                   textSize="text-lg font-bold"
+                                                 />
                                             ) : (
                                               <p className={`text-lg font-bold ${f.c}`}>{f.v > 0 ? `₹${f.v.toLocaleString()}` : '₹0'}</p>
                                             )}

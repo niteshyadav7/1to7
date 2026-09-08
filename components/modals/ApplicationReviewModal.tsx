@@ -127,15 +127,17 @@ export default function ApplicationReviewModal({
             </div>
 
             {/* Rejection / Re-Apply Feedback Banner */}
-            {application.status === 'Rejected' && formData.rejection_reason && (
+            {application.status === 'Rejected' && (
               <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-2.5 shadow-2xs">
-                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600 shrink-0 mt-0.5">
+                <div className="p-1.5 rounded-lg bg-rose-100 text-rose-600 shrink-0 mt-0.5 shadow-2xs">
                   <RotateCcw className="h-4 w-4" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-rose-900">Admin Feedback / Reason for Re-Apply</h4>
-                  <p className="text-xs text-rose-700 mt-0.5">{formData.rejection_reason}</p>
-                  <p className="text-[11px] text-rose-600 font-medium mt-1">You can update your answers or profile details and re-apply for this campaign.</p>
+                <div className="flex-1">
+                  <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wide">Admin Feedback / Reason for Re-Apply</h4>
+                  <p className="text-xs font-semibold text-rose-800 mt-1 leading-relaxed">
+                    {formData.rejection_reason || formData.revocation_note || (application as any).rejection_reason || 'Your application was not shortlisted for this phase. You are invited to review details and re-apply.'}
+                  </p>
+                  <p className="text-[11px] text-rose-600 font-medium mt-1.5">You can update your answers or profile details and re-apply for this campaign.</p>
                 </div>
               </div>
             )}

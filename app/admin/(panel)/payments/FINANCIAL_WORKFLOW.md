@@ -5,9 +5,8 @@ This document outlines the secure, audit-proof payment system implemented for th
 ## 1. Financial Controls & Safeguards
 
 ### Total Deal & Pending Balance Sync
-- **Automated Calculation**: The `Pending Amount` is automatically calculated as `Total Deal - Total Paid`.
-- **Read-Only Protection**: The `Pending Amount` field is locked (read-only) for admins to prevent manual entry errors. It only updates when the `Total Deal` budget is modified or a payment is initiated.
-- **Double-Check Security**: Any edit to the `Total Deal` requires a high-end, glassmorphism-styled `AlertDialog` confirmation before the edit mode is even entered.
+- **Automated Calculation & Manual Override**: The `Pending Amount` is automatically calculated as `Total Deal - Total Paid` when the `Total Deal` budget is modified, and can also be directly edited by admins for adjustments.
+- **Double-Check Security**: Any edit to either `Total Deal` or `Pending Amount` requires a high-end, glassmorphism-styled `AlertDialog` confirmation before the edit mode is entered to prevent accidental modifications.
 
 ### Payment Initiation Workflow
 - **Single-Initiation Lock**: Global "Initiate Payment" and "Reject" buttons are hidden once a payment is in the `Payment Initiated` state.

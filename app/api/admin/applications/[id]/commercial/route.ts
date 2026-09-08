@@ -19,11 +19,19 @@ export async function POST(
     // Fetch existing application
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('id, form_data, status, commercial_amount, pending_amount, campaigns(brand_name, campaign_code, budget_type)')
+      .select('id, form_data, status, pending_amount, campaigns(brand_name, campaign_code, budget_type, budget_amount)')
       .eq('id', id)
       .single()
 
-    if (fetchErr || !application) {
+    if (fetchErr) {
+      console.error('Fetch application error in admin commercial:', fetchErr)
+      if (fetchErr.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: fetchErr.message || 'Database query error' }, { status: 500 })
+    }
+
+    if (!application) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 

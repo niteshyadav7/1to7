@@ -27,11 +27,19 @@ export async function PUT(
     // Verify ownership
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('user_id, form_data, pending_amount, partial_payment, final_payment, commercial_amount, campaigns(commercial_amount)')
+      .select('user_id, form_data, pending_amount, partial_payment, final_payment, campaigns(budget_amount, budget_type)')
       .eq('id', id)
       .single()
 
-    if (fetchErr || !application) {
+    if (fetchErr) {
+      console.error('Fetch application error in payment-request:', fetchErr)
+      if (fetchErr.code === 'PGRST116') {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      }
+      return NextResponse.json({ error: fetchErr.message || 'Database query error' }, { status: 500 })
+    }
+
+    if (!application) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
@@ -49,6 +57,7 @@ export async function PUT(
 
     const updatedFormData = {
       ...currentFormData,
+      payment_rejection: null, // Clear any previous rejection banner upon re-submission
       total_deal: existingTotalDeal > 0 ? existingTotalDeal : resolvedTotalDeal,
       payment_request: {
         ...body,

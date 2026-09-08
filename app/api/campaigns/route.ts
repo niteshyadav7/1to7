@@ -50,7 +50,9 @@ export async function GET() {
           applied: !!app,
           application_status: app ? app.status : null,
           application_id: app ? app.id : null,
-          applied_at: app ? app.created_at : null
+          applied_at: app ? app.created_at : null,
+          rejection_reason: app ? (app.form_data?.rejection_reason || app.form_data?.revocation_note || null) : null,
+          form_data: app ? app.form_data : null
         }
       })
 

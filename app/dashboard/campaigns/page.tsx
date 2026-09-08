@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText, Eye } from 'lucide-react'
+import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText, Eye, RotateCcw } from 'lucide-react'
 import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
+import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
 import ApplicationReviewModal from '@/components/modals/ApplicationReviewModal'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useRealtime } from '@/hooks/useRealtime'
@@ -54,6 +55,7 @@ export default function AppliedCampaignsPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [reviewApp, setReviewApp] = useState<Application | null>(null)
+  const [reApplyCampaign, setReApplyCampaign] = useState<any | null>(null)
   const { user } = useAuth()
 
   const fetchApplications = useCallback(async (isBackground = false) => {
@@ -184,7 +186,7 @@ export default function AppliedCampaignsPage() {
                       ? 'Pending'
                       : app.campaigns?.order_form && app.status === 'Approved' && app.form_data?.order_details && !app.form_data?.order_details_approved
                         ? 'Order Details Pending'
-                        : app.status}
+                        : app.status === 'Rejected' ? 'Re-Apply Allowed' : app.status}
                   </span>
                 </div>
               </div>
@@ -223,14 +225,31 @@ export default function AppliedCampaignsPage() {
                 </div>
               </div>
 
-              {app.status === 'Rejected' && app.form_data?.rejection_reason && (
-                <div className="mx-5 mb-3">
-                  <div className="rounded-md bg-red-50/50 border border-red-200/60 px-4 py-3">
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                      <div>
-                        <span className="text-sm font-bold text-red-700 block mb-1">Order Rejected</span>
-                        <span className="text-xs font-semibold text-red-600">{app.form_data.rejection_reason}</span>
+              {app.status === 'Rejected' && (
+                <div className="mx-4 sm:mx-5 mb-3.5">
+                  <div className="rounded-xl bg-rose-50/80 border border-rose-200/90 p-3.5 sm:p-4 shadow-2xs">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-xl bg-rose-100 text-rose-600 border border-rose-200/80 shrink-0 mt-0.5 shadow-2xs">
+                        <RotateCcw className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                          <span className="text-xs font-bold text-rose-950 uppercase tracking-wide flex items-center gap-1.5">
+                            <MessageSquare className="h-3.5 w-3.5 text-rose-600" />
+                            Admin Feedback & Re-Apply Instructions
+                          </span>
+                          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                            Re-Apply Enabled
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-white/95 border border-rose-200/80 mt-1">
+                          <p className="text-xs font-semibold text-rose-900 leading-relaxed">
+                            {app.form_data?.rejection_reason || app.form_data?.revocation_note || 'Your previous submission was not shortlisted for this phase. You can review your details, update responses or commercials, and re-apply.'}
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-rose-700 mt-2 font-medium">
+                          💡 Tap &quot;Re-Apply to Campaign&quot; below to update details and re-submit.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -248,6 +267,27 @@ export default function AppliedCampaignsPage() {
                     <Eye className="h-3.5 w-3.5 text-slate-500" />
                     Review Submitted Details
                   </button>
+
+                  {/* Re-Apply Action for Rejected applications */}
+                  {app.status === 'Rejected' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReApplyCampaign({
+                          ...app.campaigns,
+                          applied: true,
+                          application_status: app.status,
+                          application_id: app.id,
+                          rejection_reason: app.form_data?.rejection_reason || app.form_data?.revocation_note,
+                          form_data: app.form_data,
+                        })
+                      }}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-black font-extrabold text-xs shadow-2xs transition-all cursor-pointer active:scale-95 ml-auto sm:ml-0"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Re-Apply to Campaign
+                    </button>
+                  )}
 
                   {/* Upload Order Details - only show if approved, or if rejected AFTER they already submitted order details */}
                   {((app.status === 'Approved') || (app.status === 'Rejected' && !!app.form_data?.order_details)) && app.campaigns?.order_form && (
@@ -291,6 +331,19 @@ export default function AppliedCampaignsPage() {
         onClose={() => setReviewApp(null)}
         application={reviewApp}
       />
+
+      {reApplyCampaign && (
+        <CampaignDetailModal
+          isOpen={!!reApplyCampaign}
+          onClose={() => setReApplyCampaign(null)}
+          campaign={reApplyCampaign}
+          isLoggedIn={!!user}
+          onApply={() => {
+            setReApplyCampaign(null)
+            fetchApplications()
+          }}
+        />
+      )}
     </div>
   )
 }
