@@ -178,21 +178,30 @@ export async function PUT(request: Request) {
 
         const { data: existingProfiles } = await supabase
           .from('user_instagram_profiles')
-          .select('id, is_primary')
+          .select('id, is_primary, is_verified, followers')
           .eq('user_id', payload.id)
 
         const primaryProfile = existingProfiles?.find(p => p.is_primary) || existingProfiles?.[0]
 
         if (primaryProfile) {
+          const profileFollowers = primaryProfile.is_verified
+            ? primaryProfile.followers
+            : (followers !== undefined ? followers : primaryProfile.followers)
+
           await supabase
             .from('user_instagram_profiles')
             .update({
               username: cleaned,
               normalized_username: normalized,
-              ...(followers !== undefined ? { followers } : {}),
+              followers: profileFollowers,
               updated_at: new Date().toISOString()
             })
             .eq('id', primaryProfile.id)
+
+          if (primaryProfile.is_verified) {
+            updateData.followers = primaryProfile.followers
+            updateData.instagram_followers_count = primaryProfile.followers
+          }
         } else {
           await supabase
             .from('user_instagram_profiles')

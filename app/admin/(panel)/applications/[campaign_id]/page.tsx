@@ -36,6 +36,13 @@ interface UserInfo {
   gender: string
   profile_photo?: string
   instagram_profile_pic?: string
+  is_instagram_verified?: boolean
+  instagram_followers_count?: number
+  instagram_media_count?: number
+  instagram_account_type?: string
+  instagram_biography?: string
+  instagram_website?: string
+  instagram_profiles?: any[]
 }
 
 interface Application {
@@ -687,10 +694,15 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                             <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline" />
                           </a>
                         )}
-                        {user?.followers > 0 && (
-                          <span className="flex items-center gap-0.5">
-                            <Users className="h-3 w-3" />
-                            {user.followers.toLocaleString()}
+                        {user?.is_instagram_verified && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Meta API
+                          </span>
+                        )}
+                        {(user?.instagram_followers_count || user?.followers || 0) > 0 && (
+                          <span className="flex items-center gap-0.5 font-bold text-slate-300">
+                            <Users className="h-3 w-3 text-purple-400" />
+                            {(user?.instagram_followers_count || user?.followers || 0).toLocaleString('en-IN')}
                           </span>
                         )}
 
@@ -827,6 +839,78 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                         </div>
                       </div>
                     </div>
+
+                    {/* Instagram Intelligence & Meta Verified Card */}
+                    {(user?.is_instagram_verified || user?.instagram_username) && (
+                      <div className="bg-gradient-to-r from-purple-950/40 via-pink-950/20 to-slate-900/60 border border-purple-500/20 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-xs">
+                              <Instagram className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-white">
+                                  {getInstagramDisplayHandle(user?.instagram_username)}
+                                </span>
+                                {user?.is_instagram_verified ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-xs flex items-center gap-1">
+                                    <CheckCircle2 className="h-2.5 w-2.5" /> Meta API Verified
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[9px] font-medium text-slate-400 bg-slate-800 border border-slate-700">
+                                    Self Declared
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-400">Direct Meta Graph API profile intelligence</p>
+                            </div>
+                          </div>
+
+                          {user?.instagram_username && (
+                            <a
+                              href={getInstagramUrl(user?.instagram_username)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span>Open Instagram</span>
+                              <ExternalLink className="h-3 w-3 text-pink-400" />
+                            </a>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-xs">
+                          <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2.5">
+                            <p className="text-[10px] text-slate-500 uppercase font-semibold">Verified Followers</p>
+                            <p className="text-sm font-extrabold text-white mt-0.5">
+                              {(user?.instagram_followers_count || user?.followers || 0).toLocaleString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2.5">
+                            <p className="text-[10px] text-slate-500 uppercase font-semibold">Posts Count</p>
+                            <p className="text-sm font-extrabold text-white mt-0.5">
+                              {user?.instagram_media_count !== undefined && user?.instagram_media_count !== null
+                                ? user.instagram_media_count.toLocaleString('en-IN')
+                                : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2.5">
+                            <p className="text-[10px] text-slate-500 uppercase font-semibold">Account Type</p>
+                            <p className="text-sm font-extrabold text-purple-300 mt-0.5 capitalize">
+                              {user?.instagram_account_type ? user.instagram_account_type.toLowerCase() : 'Creator'}
+                            </p>
+                          </div>
+                          <div className="bg-slate-900/80 border border-white/5 rounded-xl p-2.5">
+                            <p className="text-[10px] text-slate-500 uppercase font-semibold">Profile Bio</p>
+                            <p className="text-xs text-slate-300 mt-0.5 truncate" title={user?.instagram_biography || ''}>
+                              {user?.instagram_biography || 'No bio available'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Influencer Active & Past Campaigns Intelligence Card */}
                     <InfluencerCampaignHistoryCard

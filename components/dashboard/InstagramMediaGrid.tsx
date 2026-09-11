@@ -67,9 +67,13 @@ export default function InstagramMediaGrid() {
     }
   }
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true)
-    fetchInstagramMedia()
+    try {
+      await fetch('/api/dashboard/instagram-sync', { method: 'POST' }).catch(() => {})
+    } finally {
+      await fetchInstagramMedia()
+    }
   }
 
   if (loading) {

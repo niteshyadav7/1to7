@@ -148,3 +148,56 @@ export async function checkInstagramHandleAvailability(
     normalized
   }
 }
+
+/**
+ * Synchronizes public.user_instagram_profiles rows into public.users.instagram_profiles JSONB
+ * and sets primary handle and verified follower count on public.users.
+ */
+export async function syncUserInstagramState(userId: string) {
+  const { supabase } = await import('@/lib/supabase')
+  const { data: profiles, error } = await supabase
+    .from('user_instagram_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  if (error || !profiles) return []
+
+  const primaryProfile = profiles.find(p => p.is_primary) || profiles[0]
+
+  const updates: Record<string, any> = {
+    instagram_profiles: profiles.map(p => ({
+      id: p.id,
+      username: p.username,
+      normalized_username: p.normalized_username,
+      followers: p.followers,
+      category: p.category,
+      profile_pic: p.profile_pic,
+      is_primary: p.is_primary,
+      is_verified: p.is_verified,
+      created_at: p.created_at
+    }))
+  }
+
+  if (primaryProfile) {
+    updates.instagram_username = primaryProfile.username
+    if (primaryProfile.followers !== undefined && primaryProfile.followers !== null) {
+      updates.followers = primaryProfile.followers
+      updates.instagram_followers_count = primaryProfile.followers
+    }
+    if (primaryProfile.profile_pic) {
+      updates.instagram_profile_pic = primaryProfile.profile_pic
+    }
+    if (primaryProfile.is_verified !== undefined) {
+      updates.is_instagram_verified = primaryProfile.is_verified
+    }
+  }
+
+  await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+
+  return profiles
+}

@@ -42,6 +42,13 @@ interface UserInfo {
   gender: string
   profile_photo?: string
   instagram_profile_pic?: string
+  is_instagram_verified?: boolean
+  instagram_followers_count?: number
+  instagram_media_count?: number
+  instagram_account_type?: string
+  instagram_biography?: string
+  instagram_website?: string
+  instagram_profiles?: any[]
 }
 
 interface CampaignInfo {
@@ -1710,20 +1717,27 @@ export default function AllApplicationsPage() {
                           <td className={`px-4 ${densityPadding[density]}`}>
                             {user?.instagram_username ? (
                               <div className="min-w-0">
-                                <a 
-                                  href={getInstagramUrl(user.instagram_username)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-[12px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1.5 max-w-[180px] transition-colors group/link"
-                                  title={getInstagramDisplayHandle(user.instagram_username)}
-                                >
-                                  <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
-                                  <span className="truncate">{getInstagramDisplayHandle(user.instagram_username)}</span>
-                                  <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
-                                </a>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <a 
+                                    href={getInstagramUrl(user.instagram_username)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[12px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1.5 max-w-[180px] transition-colors group/link"
+                                    title={getInstagramDisplayHandle(user.instagram_username)}
+                                  >
+                                    <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
+                                    <span className="truncate">{getInstagramDisplayHandle(user.instagram_username)}</span>
+                                    <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
+                                  </a>
+                                  {user?.is_instagram_verified && (
+                                    <span className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs">
+                                      <CheckCircle2 className="h-2 w-2" /> Meta API
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {formatFollowers(user.followers)} followers
+                                  {formatFollowers(user.instagram_followers_count || user.followers)} followers
                                 </p>
                               </div>
                             ) : (

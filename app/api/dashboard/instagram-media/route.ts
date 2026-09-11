@@ -20,7 +20,7 @@ export async function GET() {
     // Fetch user's stored Instagram access token & followers count from Supabase
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, instagram_access_token, instagram_followers_count, followers, instagram_username')
+      .select('id, instagram_access_token, instagram_followers_count, followers, instagram_username, instagram_profile_pic')
       .eq('id', payload.id)
       .single()
 
@@ -37,7 +37,20 @@ export async function GET() {
       })
     }
 
-    // Fetch user's recent media (Posts & Reels) via Instagram Graph API
+    // Also query primary profile handle from user_instagram_profiles to avoid displaying raw insta_ ID
+    let displayUsername = user.instagram_username
+    const { data: primaryProfile } = await supabase
+      .from('user_instagram_profiles')
+      .select('username, followers, profile_pic')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .maybeSingle()
+
+    if (primaryProfile?.username && (!displayUsername || displayUsername.startsWith('insta_'))) {
+      displayUsername = primaryProfile.username
+    }
+
+    // Fetch user's recent media (Posts & Reels) and fresh followers via Instagram Graph API
     const fields = [
       'id',
       'caption',
@@ -54,8 +67,38 @@ export async function GET() {
     let validPostCount = 0
     let totalLikes = 0
     let totalComments = 0
+    let liveFollowers = user.instagram_followers_count || user.followers || 0
 
     try {
+      // 1. Concurrently fetch fresh follower count from Meta Graph API
+      try {
+        const profileRes = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username,followers_count,media_count,profile_picture_url&access_token=${user.instagram_access_token}`)
+        const profileData = await profileRes.json()
+        if (profileData && !profileData.error) {
+          if (profileData.username && !profileData.username.startsWith('insta_')) {
+            displayUsername = profileData.username
+          }
+          if (typeof profileData.followers_count === 'number') {
+            liveFollowers = profileData.followers_count
+            // Update in database in background
+            await supabase
+              .from('users')
+              .update({
+                instagram_followers_count: liveFollowers,
+                followers: liveFollowers,
+                instagram_username: displayUsername,
+                instagram_profile_pic: profileData.profile_picture_url || user.instagram_profile_pic,
+                is_instagram_verified: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', user.id)
+          }
+        }
+      } catch (profErr) {
+        console.warn('[InstagramMedia API] Profile refresh warning:', profErr)
+      }
+
+      // 2. Fetch media items
       let mediaUrl = `https://graph.instagram.com/v21.0/me/media?fields=${fields}&limit=12&access_token=${user.instagram_access_token}`
       let mediaRes = await fetch(mediaUrl)
       let mediaData = await mediaRes.json()
@@ -74,10 +117,9 @@ export async function GET() {
       console.warn('[InstagramMedia API] Media fetch warning:', mediaErr)
     }
 
-    const followers = user.instagram_followers_count || user.followers || 0
+    const followers = liveFollowers || primaryProfile?.followers || 0
 
     // Calculate Engagement Statistics
-
     mediaItems.forEach((item: any) => {
       const likes = typeof item.like_count === 'number' ? item.like_count : 0
       const comments = typeof item.comments_count === 'number' ? item.comments_count : 0
@@ -98,7 +140,7 @@ export async function GET() {
 
     return NextResponse.json({
       connected: true,
-      username: user.instagram_username,
+      username: displayUsername,
       followers,
       media: mediaItems,
       stats: {

@@ -53,7 +53,14 @@ export async function GET(request: Request) {
           city,
           gender,
           instagram_profile_pic,
-          shipping_addresses
+          shipping_addresses,
+          is_instagram_verified,
+          instagram_followers_count,
+          instagram_media_count,
+          instagram_account_type,
+          instagram_biography,
+          instagram_website,
+          instagram_profiles
         ),
         campaigns (
           id,

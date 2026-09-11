@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { generateSequentialInfluencerId } from '@/lib/user-utils'
+import { extractInstagramUsername, normalizeInstagramUsername, syncUserInstagramState } from '@/lib/instagram-utils'
 
 export interface UserLinkInput {
   currentUserId?: string | null
@@ -117,7 +118,6 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
       )
     }
 
-    // If existingUser wasn't set yet, assign the mobile user
     if (!existingUser) {
       existingUser = userByMobile
     }
@@ -175,6 +175,51 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
       await supabase.from('users').update(updates).eq('id', existingUser.id)
     }
 
+    // Synchronize user_instagram_profiles table to eliminate split-brain
+    if (input.instagramUsername) {
+      try {
+        const cleanHandle = extractInstagramUsername(input.instagramUsername)
+        const normHandle = normalizeInstagramUsername(cleanHandle)
+        if (cleanHandle && !cleanHandle.startsWith('insta_')) {
+          const { data: existingProfiles } = await supabase
+            .from('user_instagram_profiles')
+            .select('*')
+            .eq('user_id', existingUser.id)
+
+          const match = existingProfiles?.find(p => p.normalized_username === normHandle) || existingProfiles?.find(p => p.is_primary)
+          if (match) {
+            await supabase
+              .from('user_instagram_profiles')
+              .update({
+                username: cleanHandle,
+                normalized_username: normHandle,
+                followers: typeof input.instagramFollowersCount === 'number' && input.instagramFollowersCount > 0 ? input.instagramFollowersCount : match.followers,
+                profile_pic: input.instagramProfilePic || match.profile_pic,
+                is_verified: true,
+                is_primary: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', match.id)
+          } else {
+            await supabase
+              .from('user_instagram_profiles')
+              .insert([{
+                user_id: existingUser.id,
+                username: cleanHandle,
+                normalized_username: normHandle,
+                followers: typeof input.instagramFollowersCount === 'number' ? input.instagramFollowersCount : 0,
+                profile_pic: input.instagramProfilePic || '',
+                is_primary: true,
+                is_verified: true
+              }])
+          }
+          await syncUserInstagramState(existingUser.id)
+        }
+      } catch (igSyncErr) {
+        console.warn('[auth-linker] Failed to sync user_instagram_profiles:', igSyncErr)
+      }
+    }
+
     const { data: updatedUser } = await supabase
       .from('users')
       .select('*')
@@ -219,5 +264,30 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
     throw insertError
   }
 
+  // Synchronize user_instagram_profiles table for new user
+  if (input.instagramUsername && newUser) {
+    try {
+      const cleanHandle = extractInstagramUsername(input.instagramUsername)
+      const normHandle = normalizeInstagramUsername(cleanHandle)
+      if (cleanHandle && !cleanHandle.startsWith('insta_')) {
+        await supabase
+          .from('user_instagram_profiles')
+          .insert([{
+            user_id: newUser.id,
+            username: cleanHandle,
+            normalized_username: normHandle,
+            followers: typeof input.instagramFollowersCount === 'number' ? input.instagramFollowersCount : 0,
+            profile_pic: input.instagramProfilePic || '',
+            is_primary: true,
+            is_verified: true
+          }])
+        await syncUserInstagramState(newUser.id)
+      }
+    } catch (igSyncErr) {
+      console.warn('[auth-linker] Failed to insert initial user_instagram_profiles:', igSyncErr)
+    }
+  }
+
   return { user: newUser, isNewUser: true }
 }
+

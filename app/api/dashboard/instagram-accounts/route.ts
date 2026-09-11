@@ -5,50 +5,9 @@ import { cookies } from 'next/headers'
 import {
   extractInstagramUsername,
   normalizeInstagramUsername,
-  checkInstagramHandleAvailability
+  checkInstagramHandleAvailability,
+  syncUserInstagramState
 } from '@/lib/instagram-utils'
-
-// Helper to sync public.users.instagram_profiles and primary handle
-async function syncUserInstagramState(userId: string) {
-  const { data: profiles, error } = await supabase
-    .from('user_instagram_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .order('is_primary', { ascending: false })
-    .order('created_at', { ascending: true })
-
-  if (error || !profiles) return
-
-  const primaryProfile = profiles.find(p => p.is_primary) || profiles[0]
-
-  const updates: Record<string, any> = {
-    instagram_profiles: profiles.map(p => ({
-      id: p.id,
-      username: p.username,
-      normalized_username: p.normalized_username,
-      followers: p.followers,
-      category: p.category,
-      profile_pic: p.profile_pic,
-      is_primary: p.is_primary,
-      is_verified: p.is_verified,
-      created_at: p.created_at
-    }))
-  }
-
-  if (primaryProfile) {
-    updates.instagram_username = primaryProfile.username
-    if (primaryProfile.followers) {
-      updates.followers = primaryProfile.followers
-    }
-  }
-
-  await supabase
-    .from('users')
-    .update(updates)
-    .eq('id', userId)
-
-  return profiles
-}
 
 // ─── GET: Fetch all linked Instagram profiles ───────────────
 export async function GET() {
@@ -208,7 +167,12 @@ export async function PUT(request: Request) {
     // If updating followers or category
     const updates: Record<string, any> = { updated_at: new Date().toISOString() }
     if (body.followers !== undefined) {
-      updates.followers = typeof body.followers === 'number' ? body.followers : parseInt(body.followers || '0', 10) || 0
+      if (targetProfile.is_verified) {
+        // Retain verified follower count; do not allow manual overwrite
+        updates.followers = targetProfile.followers
+      } else {
+        updates.followers = typeof body.followers === 'number' ? body.followers : parseInt(body.followers || '0', 10) || 0
+      }
     }
     if (body.category !== undefined) {
       updates.category = body.category?.trim() || null

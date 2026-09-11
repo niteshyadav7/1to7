@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1371798394383152'
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1569291041247830'
     const appSecret = process.env.META_APP_SECRET || 'f4dfcefc05f4174cba89a792d2251541'
     const redirectUri = `${protocol}://${host}/api/auth/instagram/callback`
 
@@ -77,38 +77,70 @@ export async function GET(request: Request) {
     // 3. Fetch Instagram profile
     let profileData: any = {}
 
-    // Query 1: Basic display fields (guaranteed to work on graph.instagram.com/me)
+    // Query 1: v21.0 Extended fields (guaranteed to work for Creator / Business Instagram accounts)
     try {
-      const res = await fetch(`https://graph.instagram.com/me?fields=id,username,account_type,media_count&access_token=${accessToken}`)
+      const res = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
       const data = await res.json()
-      console.log('[STEP 3a] Basic fields response:', JSON.stringify(data))
-      if (data.username || data.id) {
+      console.log('[STEP 3a] v21.0 extended fields response:', JSON.stringify(data))
+      if (data && !data.error && (data.username || data.id)) {
         profileData = { ...profileData, ...data }
       }
     } catch (e) {
-      console.warn('[STEP 3a] Basic query failed:', e)
+      console.warn('[STEP 3a] v21.0 query failed:', e)
     }
 
-    // Query 2: Extended fields (name, profile_picture_url, followers_count, biography, website)
-    try {
-      const res = await fetch(`https://graph.instagram.com/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
-      const data = await res.json()
-      console.log('[STEP 3b] Extended fields response:', JSON.stringify(data))
-      if (data.username || data.id) {
-        profileData = { ...profileData, ...data }
+    // Query 2: Fallback query without version prefix
+    if (!profileData.username || !profileData.followers_count) {
+      try {
+        const res = await fetch(`https://graph.instagram.com/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
+        const data = await res.json()
+        console.log('[STEP 3b] Fallback /me fields response:', JSON.stringify(data))
+        if (data && !data.error && (data.username || data.id)) {
+          profileData = { ...profileData, ...data }
+        }
+      } catch (e) {
+        console.warn('[STEP 3b] Fallback query failed:', e)
       }
-    } catch (e) {
-      console.warn('[STEP 3b] Extended query failed:', e)
+    }
+
+    // Query 3: By user ID if /me didn't yield full fields
+    if (userId && (!profileData.username || !profileData.followers_count)) {
+      try {
+        const res = await fetch(`https://graph.instagram.com/v21.0/${userId}?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
+        const data = await res.json()
+        console.log('[STEP 3c] By userId response:', JSON.stringify(data))
+        if (data && !data.error && (data.username || data.id)) {
+          profileData = { ...profileData, ...data }
+        }
+      } catch (e) {
+        console.warn('[STEP 3c] Query by userId failed:', e)
+      }
     }
 
     console.log('[STEP 3 FINAL] Resolved profileData:', JSON.stringify(profileData))
 
     const instaId = profileData.user_id || profileData.id || userId
-    const instaUsername = profileData.username || `insta_${instaId}`
+
+    // If Meta didn't return username, check if user already has an established Instagram handle
+    let instaUsername = profileData.username
+    if (!instaUsername && currentUserId) {
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('instagram_username')
+        .eq('id', currentUserId)
+        .maybeSingle()
+      if (existingUser?.instagram_username && !existingUser.instagram_username.startsWith('insta_')) {
+        instaUsername = existingUser.instagram_username
+      }
+    }
+    if (!instaUsername) {
+      instaUsername = `insta_${instaId}`
+    }
+
     const metaName = profileData.name || instaUsername
     const instaPic = profileData.profile_picture_url || ''
-    const instaFollowers = profileData.followers_count || 0
-    const instaMediaCount = profileData.media_count || 0
+    const instaFollowers = typeof profileData.followers_count === 'number' ? profileData.followers_count : 0
+    const instaMediaCount = typeof profileData.media_count === 'number' ? profileData.media_count : 0
     const instaBio = profileData.biography || ''
     const instaWebsite = profileData.website || ''
     const instaAccountType = profileData.account_type || ''
