@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1569291041247830'
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1371798394383152'
     const appSecret = process.env.META_APP_SECRET || 'f4dfcefc05f4174cba89a792d2251541'
     const redirectUri = `${protocol}://${host}/api/auth/instagram/callback`
 
