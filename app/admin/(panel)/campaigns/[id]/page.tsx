@@ -503,26 +503,8 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Followers Label / Display</Label>
-              <Input
-                value={formData.followers}
-                onChange={(e) => {
-                  const val = e.target.value
-                  const parsed = parseMinFollowers(val)
-                  setFormData({
-                    ...formData,
-                    followers: val,
-                    min_followers: parsed > 0 ? String(parsed) : formData.min_followers,
-                  })
-                }}
-                placeholder="e.g. 10k+, Above 2k, Any"
-                className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-              />
-            </div>
-
             {/* Followers Minimum Threshold & Strict Control Card */}
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-white/10 space-y-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/60 border border-white/10 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -530,7 +512,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     <h4 className="text-sm font-bold text-white">Minimum Follower Eligibility</h4>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Set the exact minimum follower count and choose whether to enforce strictly or allow bypass.
+                    Set the public badge, database count threshold, and enforcement policy.
                   </p>
                 </div>
 
@@ -568,11 +550,42 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-white/5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-white/5">
+                {/* 1. Public Display Label */}
                 <div className="space-y-1.5">
-                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                    Minimum Followers (Exact Number)
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      Followers Label (Display)
+                    </Label>
+                    <span className="text-[10px] text-slate-500 font-mono">Public Badge</span>
+                  </div>
+                  <Input
+                    value={formData.followers}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      const parsed = parseMinFollowers(val)
+                      setFormData({
+                        ...formData,
+                        followers: val,
+                        min_followers: parsed > 0 ? String(parsed) : formData.min_followers,
+                      })
+                    }}
+                    placeholder="e.g. 10k+, Above 2k, Any"
+                    className="bg-slate-950 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+                  />
+                  <span className="text-[11px] text-slate-500 block">
+                    Text badge displayed to creators on card.
+                  </span>
+                </div>
+
+                {/* 2. Numeric Exact Follower Requirement */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      Minimum Followers (Exact)
+                    </Label>
+                    <span className="text-[10px] text-indigo-400 font-mono">System Filter</span>
+                  </div>
                   <Input
                     type="number"
                     value={formData.min_followers}
@@ -580,18 +593,22 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     placeholder="e.g. 10000"
                     className="bg-slate-950 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
                   />
-                  {Number(formData.min_followers) > 0 && (
-                    <span className="text-[11px] text-indigo-400 font-medium block">
+                  {Number(formData.min_followers) > 0 ? (
+                    <span className="text-[11px] text-indigo-400 font-medium block truncate">
                       Targeting: {formatFollowerCount(Number(formData.min_followers))} ({Number(formData.min_followers).toLocaleString('en-IN')} followers)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500 block">
+                      0 or blank = Any follower count allowed.
                     </span>
                   )}
                 </div>
 
-                {/* Strict Mode Toggle Box */}
-                <div className="flex items-center">
+                {/* 3. Strict Mode Toggle Box */}
+                <div className="flex items-start">
                   <div 
                     onClick={() => setFormData({ ...formData, enforce_followers: !formData.enforce_followers })}
-                    className={`w-full p-3.5 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
+                    className={`w-full p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 select-none ${
                       formData.enforce_followers
                         ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
                         : 'bg-slate-900/60 border-white/10 text-slate-400 hover:border-white/20'
@@ -602,21 +619,21 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                     }`}>
                       {formData.enforce_followers ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">
-                          {formData.enforce_followers ? '🔒 Strict Mode (Enforced)' : '🔓 Flexible / Bypass Allowed'}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-white truncate">
+                          {formData.enforce_followers ? '🔒 Strict Mode' : '🔓 Flexible Mode'}
                         </span>
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase ${
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0 ${
                           formData.enforce_followers ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'
                         }`}>
-                          {formData.enforce_followers ? 'Active' : 'Disabled'}
+                          {formData.enforce_followers ? 'Enforced' : 'Bypass'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                      <p className="text-[10px] text-slate-400 mt-1 leading-tight">
                         {formData.enforce_followers
-                          ? 'Creators below this minimum follower count will be strictly blocked from applying.'
-                          : 'Creators with any follower count can apply. Requirement is purely informative.'}
+                          ? 'Creators below min count are blocked from applying.'
+                          : 'Any creator can apply; requirement is informative.'}
                       </p>
                     </div>
                   </div>
