@@ -38,7 +38,7 @@ export default function AdminCreateCampaignPage() {
     brand_name: '',
     category: '',
     platform: 'Instagram',
-    budget_type: 'Paid',
+    budget_type: 'Paid Fixed',
     budget_amount: '',
     partial_payment_enabled: false,
     partial_payment_config: { type: 'percentage' as 'percentage' | 'fixed', value: '' as string },
@@ -94,7 +94,7 @@ export default function AdminCreateCampaignPage() {
       brand_name: source.brand_name ? `${source.brand_name} (Copy)` : '',
       category: source.category || '',
       platform: source.platform || 'Instagram',
-      budget_type: source.budget_type || 'Paid',
+      budget_type: (source.budget_type === 'Paid' ? 'Paid Fixed' : source.budget_type) || 'Paid Fixed',
       budget_amount: source.budget_amount ? String(source.budget_amount) : '',
       partial_payment_enabled: Boolean(source.partial_payment_enabled),
       partial_payment_config: source.partial_payment_config || { type: 'percentage', value: '' },
@@ -223,6 +223,9 @@ export default function AdminCreateCampaignPage() {
       if (savedDraft) {
         const parsed = JSON.parse(savedDraft)
         if (parsed.formData && (parsed.formData.brand_name || parsed.formData.campaign_code || parsed.formData.deliverables)) {
+          if (parsed.formData.budget_type === 'Paid') {
+            parsed.formData.budget_type = 'Paid Fixed'
+          }
           setFormData(parsed.formData)
           if (parsed.customFields) setCustomFields(parsed.customFields)
           if (parsed.orderFormFields) setOrderFormFields(parsed.orderFormFields)
@@ -263,7 +266,7 @@ export default function AdminCreateCampaignPage() {
       brand_name: '',
       category: '',
       platform: 'Instagram',
-      budget_type: 'Paid',
+      budget_type: 'Paid Fixed',
       budget_amount: '',
       partial_payment_enabled: false,
       partial_payment_config: { type: 'percentage', value: '' },
@@ -605,9 +608,9 @@ export default function AdminCreateCampaignPage() {
 
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Budget Type</Label>
-              <Select value={formData.budget_type} onValueChange={(v) => setFormData({ ...formData, budget_type: v || 'Paid' })}>
+              <Select value={formData.budget_type === 'Paid' ? 'Paid Fixed' : (formData.budget_type || 'Paid Fixed')} onValueChange={(v) => setFormData({ ...formData, budget_type: v || 'Paid Fixed' })}>
                 <SelectTrigger className="bg-slate-950/70 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
-                  <SelectValue />
+                  <SelectValue placeholder="Paid Fixed (Standard Deal)" />
                 </SelectTrigger>
                 <SelectContent side="bottom" align="start" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 min-w-[290px]">
                   <SelectItem value="Paid Fixed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Fixed (Standard Deal)</SelectItem>
