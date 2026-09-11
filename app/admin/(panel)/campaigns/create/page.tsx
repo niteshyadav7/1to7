@@ -8,7 +8,7 @@ import {
   FileSliders, ClipboardList, Wallet, CreditCard, Sparkles,
   Percent, IndianRupee, Layers, CheckCircle2, AlertCircle,
   RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock, FileText,
-  Copy, CopyPlus, ClipboardPaste, Sparkle
+  Copy, CopyPlus, ClipboardPaste, Sparkle, Calendar
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -660,12 +660,27 @@ export default function AdminCreateCampaignPage() {
           {/* Timeline & Looking For */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Collab Date / Timeline</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  Collab Date / Timeline
+                </Label>
+                {formData.collab_date && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, collab_date: '' })}
+                    className="text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                  >
+                    Clear date
+                  </button>
+                )}
+              </div>
               <Input
                 type="date"
                 value={formData.collab_date}
                 onChange={(e) => setFormData({ ...formData, collab_date: e.target.value })}
-                className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl [color-scheme:dark]"
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl [color-scheme:dark] cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:p-1.5 [&::-webkit-calendar-picker-indicator]:rounded-lg [&::-webkit-calendar-picker-indicator]:bg-white/10 hover:[&::-webkit-calendar-picker-indicator]:bg-white/20 transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -1121,12 +1136,27 @@ export default function AdminCreateCampaignPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Fixed End Deadline Date (Optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  Fixed End Deadline Date (Optional)
+                </Label>
+                {formData.completion_deadline && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, completion_deadline: '' })}
+                    className="text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors"
+                  >
+                    Clear date
+                  </button>
+                )}
+              </div>
               <Input
                 type="date"
                 value={formData.completion_deadline}
                 onChange={(e) => setFormData({ ...formData, completion_deadline: e.target.value })}
-                className="bg-slate-950/70 border-white/10 !text-white h-11 text-sm rounded-xl"
+                onClick={(e) => e.currentTarget.showPicker?.()}
+                className="bg-slate-950/70 border-white/10 !text-white h-11 text-sm rounded-xl [color-scheme:dark] cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:p-1.5 [&::-webkit-calendar-picker-indicator]:rounded-lg [&::-webkit-calendar-picker-indicator]:bg-white/10 hover:[&::-webkit-calendar-picker-indicator]:bg-white/20 transition-all"
               />
               <p className="text-xs text-slate-500">Overrides rolling window if set (hard cut-off date).</p>
             </div>

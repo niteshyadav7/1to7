@@ -1600,7 +1600,8 @@ export default function CompletionDetailsPage() {
                         type="date"
                         value={editLiveDate}
                         onChange={(e) => setEditLiveDate(e.target.value)}
-                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500"
+                        onClick={(e) => e.currentTarget.showPicker?.()}
+                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 [color-scheme:dark] cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-90 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                       />
                     </div>
                     <div>
