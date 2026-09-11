@@ -679,34 +679,23 @@ export default function AdminCreateCampaignPage() {
             </div>
           </div>
 
-          {/* Target Audience & Followers */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Looking For</Label>
-              <Input
-                value={formData.looking_for}
-                onChange={(e) => setFormData({ ...formData, looking_for: e.target.value })}
-                placeholder="e.g. Fashion & Lifestyle Creators"
-                className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Followers Label / Display</Label>
-              <Input
-                value={formData.followers}
-                onChange={(e) => {
-                  const val = e.target.value
-                  const parsed = parseMinFollowers(val)
-                  setFormData({
-                    ...formData,
-                    followers: val,
-                    min_followers: parsed > 0 ? String(parsed) : formData.min_followers,
-                  })
-                }}
-                placeholder="e.g. 10k+, Above 2k, Any"
-                className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
-              />
-            </div>
+          {/* Followers Display Label */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Followers Label / Display</Label>
+            <Input
+              value={formData.followers}
+              onChange={(e) => {
+                const val = e.target.value
+                const parsed = parseMinFollowers(val)
+                setFormData({
+                  ...formData,
+                  followers: val,
+                  min_followers: parsed > 0 ? String(parsed) : formData.min_followers,
+                })
+              }}
+              placeholder="e.g. 10k+, Above 2k, Any"
+              className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
+            />
           </div>
 
           {/* Followers Minimum Threshold & Strict Control Card */}
