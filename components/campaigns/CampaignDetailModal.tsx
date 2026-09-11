@@ -68,6 +68,8 @@ interface Campaign {
   applied_at?: string
   rejection_reason?: string
   form_data?: any
+  is_test_mode?: boolean
+  test_user_ids?: string[]
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -1071,6 +1073,21 @@ export default function CampaignDetailModal({
                   </div>
                 </div>
               </div>
+
+              {/* Pilot Mode Test Banner */}
+              {campaign.is_test_mode && (
+                <div className="mx-4 sm:mx-8 mb-2 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3 shadow-xs">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200 text-amber-900 font-bold shrink-0 text-sm">
+                    🧪
+                  </span>
+                  <div className="space-y-0.5 text-xs">
+                    <p className="font-bold text-amber-950">Pre-Launch Pilot Mode Active</p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      You are viewing this campaign as a designated pilot tester. You can test form submissions, order details, and payouts end-to-end before public release.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Scrollable Body - Grid Layout */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-4 space-y-6 no-scrollbar scrollbar-none">

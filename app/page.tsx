@@ -34,6 +34,8 @@ interface Campaign {
   collab_date?: string
   form_link?: string
   form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
+  is_test_mode?: boolean
+  test_user_ids?: string[]
 }
 
 export default function Home() {

@@ -50,6 +50,8 @@ interface Campaign {
   application_status?: string
   application_id?: string
   applied_at?: string
+  is_test_mode?: boolean
+  test_user_ids?: string[]
 }
 
 const platformConfig: Record<string, { icon: React.ReactNode; bg: string; text: string }> = {

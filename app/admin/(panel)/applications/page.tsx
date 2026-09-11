@@ -12,9 +12,10 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
-  Pencil, Save
+  Pencil, Save, Upload, Share2
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
@@ -23,6 +24,9 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
 import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
+import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
+import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -144,6 +148,7 @@ const defaultColumns: Record<string, boolean> = {
   campaign: true,
   location: true,
   status: true,
+  brand_sent: true,
   date: true,
   actions: true,
 }
@@ -377,6 +382,7 @@ function ColumnToggle({
     campaign: 'Campaign',
     location: 'Location',
     status: 'Status',
+    brand_sent: 'Brand Shared',
     date: 'Applied On',
     actions: 'Actions',
   }
@@ -541,6 +547,7 @@ function ActionsDropdown({
   onRevokeApproval,
   onRejectWithReason,
   onDeleteApp,
+  onOpenNegotiate,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -548,12 +555,25 @@ function ActionsDropdown({
   onRevokeApproval?: (app: Application) => void
   onRejectWithReason?: (app: Application) => void
   onDeleteApp: (id: string, name?: string) => void
+  onOpenNegotiate?: (app: Application) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
+  const isPaidVariable = String(app.campaigns?.budget_type || '').toLowerCase().includes('variable')
+  const isPendingDeal = app.form_data?.negotiation?.status === 'pending_peer_approval'
+  const isApprovedDeal = app.form_data?.negotiation?.status === 'approved'
+  const proposedAmount = app.form_data?.negotiation?.proposed_amount
+
   const actions = [
     { label: 'Under Process', status: 'Under Process', icon: Clock, color: 'text-amber-400 hover:bg-amber-500/10' },
-    { label: 'Approve', status: 'Approved', icon: UserCheck, color: 'text-emerald-400 hover:bg-emerald-500/10' },
+    {
+      label: isPaidVariable && !isApprovedDeal
+        ? (isPendingDeal ? `Review Deal (₹${Number(proposedAmount).toLocaleString()})` : 'Negotiate & Approve')
+        : 'Approve',
+      status: 'Approved',
+      icon: isPaidVariable && !isApprovedDeal ? IndianRupee : UserCheck,
+      color: isPaidVariable && !isApprovedDeal ? 'text-amber-400 hover:bg-amber-500/10' : 'text-emerald-400 hover:bg-emerald-500/10'
+    },
     { label: 'Allow Re-Apply (Reject)', status: 'Rejected', icon: RotateCcw, color: 'text-rose-400 hover:bg-rose-500/10' },
     { label: 'Mark Completed', status: 'Completed', icon: CheckCircle2, color: 'text-purple-400 hover:bg-purple-500/10' },
     { label: 'Initiate Payment', status: 'Payment Initiated', icon: IndianRupee, color: 'text-amber-400 hover:bg-amber-500/10' },
@@ -579,6 +599,25 @@ function ActionsDropdown({
             className="absolute top-full right-0 mt-1 z-50 min-w-[210px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
           >
             <div className="p-1 space-y-0.5">
+              {/* If Paid Variable, show prominent Negotiate Deal action */}
+              {isPaidVariable && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onOpenNegotiate?.(app)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
+                >
+                  <IndianRupee className="h-3.5 w-3.5 text-amber-400" />
+                  {isPendingDeal
+                    ? `Review Colleague Deal (₹${Number(proposedAmount).toLocaleString()})`
+                    : isApprovedDeal
+                    ? `View Approved Deal (₹${Number(proposedAmount || app.form_data?.negotiation?.approved_amount).toLocaleString()})`
+                    : 'Negotiate Deal (Maker-Checker)'}
+                </button>
+              )}
+
               {app.status === 'Approved' && (
                 <>
                   <button
@@ -613,6 +652,11 @@ function ActionsDropdown({
                   onClick={(e) => {
                     e.stopPropagation()
                     setOpen(false)
+                    if (a.status === 'Approved' && isPaidVariable && !isApprovedDeal) {
+                      onOpenNegotiate?.(app)
+                      toast.info('Paid Variable campaigns require colleague approval on negotiated commercial before approving.')
+                      return
+                    }
                     if (a.status === 'Rejected') {
                       if (onRejectWithReason) {
                         onRejectWithReason(app)
@@ -707,9 +751,11 @@ function SkeletonRow() {
 
 // ─── Main Component ────────────────────────────────────────
 export default function AllApplicationsPage() {
+  const { admin } = useAdminPermissions()
   // Core data
   const [loading, setLoading] = useState(true)
   const [applications, setApplications] = useState<Application[]>([])
+  const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('Applied')
@@ -748,6 +794,44 @@ export default function AllApplicationsPage() {
   const [selectedRejectReason, setSelectedRejectReason] = useState('Follower count / criteria mismatch')
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [sendRejectEmail, setSendRejectEmail] = useState(true)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [brandSentFilter, setBrandSentFilter] = useState<'all' | 'sent' | 'not_sent'>('all')
+  const [showSentToBrandModal, setShowSentToBrandModal] = useState(false)
+  const [sentToBrandBatchLabel, setSentToBrandBatchLabel] = useState('')
+  const [sentToBrandNotes, setSentToBrandNotes] = useState('')
+  const [sentToBrandSubmitting, setSentToBrandSubmitting] = useState(false)
+
+  const sentCount = useMemo(() => applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length, [applications])
+  const unsharedCount = useMemo(() => applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length, [applications])
+
+  const handleBulkSentToBrand = async () => {
+    if (selectedIds.size === 0) return
+    setSentToBrandSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/applications/sent-to-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: Array.from(selectedIds),
+          batch_label: sentToBrandBatchLabel.trim() || undefined,
+          notes: sentToBrandNotes.trim() || undefined,
+          action: 'mark_sent',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update Sent to Brand status')
+      toast.success(data.message)
+      setShowSentToBrandModal(false)
+      setSelectedIds(new Set())
+      setSentToBrandBatchLabel('')
+      setSentToBrandNotes('')
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed')
+    } finally {
+      setSentToBrandSubmitting(false)
+    }
+  }
 
   // Edit Application Form Responses Modal
   const [editingResponsesApp, setEditingResponsesApp] = useState<Application | null>(null)
@@ -878,6 +962,13 @@ export default function AllApplicationsPage() {
       result = result.filter(a => a.status === activeStatus)
     }
 
+    // Brand Shared filter
+    if (brandSentFilter === 'sent') {
+      result = result.filter(a => a.form_data?.sent_to_brand?.is_sent)
+    } else if (brandSentFilter === 'not_sent') {
+      result = result.filter(a => !a.form_data?.sent_to_brand?.is_sent)
+    }
+
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -930,7 +1021,7 @@ export default function AllApplicationsPage() {
     }
 
     return result
-  }, [applications, activeStatus, searchQuery, filters, sortConfig])
+  }, [applications, activeStatus, brandSentFilter, searchQuery, filters, sortConfig])
 
   const totalFiltered = processedData.length
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
@@ -939,7 +1030,7 @@ export default function AllApplicationsPage() {
   const endIndex = Math.min(page * pageSize, totalFiltered)
 
   // Reset page on filter change
-  useEffect(() => { setPage(1) }, [activeStatus, searchQuery, filters, pageSize])
+  useEffect(() => { setPage(1) }, [activeStatus, brandSentFilter, searchQuery, filters, pageSize])
 
   // ─── Sort handler ──────────────────────────────────────
   const handleSort = useCallback((column: string) => {
@@ -998,12 +1089,17 @@ export default function AllApplicationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ applicationIds: Array.from(selectedIds), status: newStatus }),
       })
-      if (!res.ok) throw new Error('Failed')
-      setApplications(prev => prev.map(a => selectedIds.has(a.id) ? { ...a, status: newStatus } : a))
-      toast.success(`${selectedIds.size} applications ${newStatus.toLowerCase()}`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      if (data.message) {
+        toast.info(data.message)
+      } else {
+        toast.success(`${data.updatedCount || selectedIds.size} applications updated`)
+      }
+      fetchApplications()
       setSelectedIds(new Set())
-    } catch {
-      toast.error('Failed to perform bulk action')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to perform bulk action')
     } finally {
       setBulkUpdating(false)
     }
@@ -1014,13 +1110,30 @@ export default function AllApplicationsPage() {
     newStatus: string,
     extraPayload?: { rejection_reason?: string; send_email?: boolean; is_revert?: boolean }
   ) => {
+    if (newStatus === 'Approved') {
+      const targetApp = applications.find(a => a.id === id)
+      const isPaidVar = String(targetApp?.campaigns?.budget_type || '').toLowerCase().includes('variable')
+      if (isPaidVar && targetApp?.form_data?.negotiation?.status !== 'approved') {
+        if (targetApp) setNegotiationModalApp(targetApp)
+        toast.error('Paid Variable campaigns require a negotiated deal approved by a colleague.')
+        return
+      }
+    }
+
     try {
       const res = await fetch(`/api/admin/applications/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, ...extraPayload }),
       })
-      if (!res.ok) throw new Error('Failed')
+      const resData = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (resData.requires_peer_approval) {
+          const targetApp = applications.find(a => a.id === id)
+          if (targetApp) setNegotiationModalApp(targetApp)
+        }
+        throw new Error(resData.error || 'Failed')
+      }
       setApplications(prev => prev.map(a => a.id === id ? {
         ...a,
         status: newStatus,
@@ -1126,6 +1239,9 @@ export default function AllApplicationsPage() {
         campaign_code: a.campaigns?.campaign_code || '',
         platform: a.campaigns?.platform || '',
         status: a.status,
+        brand_shared_status: a.form_data?.sent_to_brand?.is_sent ? 'Sent' : 'Not Sent',
+        brand_shared_batch: a.form_data?.sent_to_brand?.batch_label || '',
+        brand_shared_date: a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
         partial_payment: a.partial_payment,
         final_payment: a.final_payment,
         pending_amount: a.pending_amount,
@@ -1207,31 +1323,76 @@ export default function AllApplicationsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 hover:text-white transition-all cursor-pointer shadow-sm"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import (Google Form / CSV)</span>
+            </button>
             <ExportDropdown onExport={handleExport} />
           </div>
         </div>
       </SetAdminHeader>
 
-      {/* ─── Status Tabs ────────────────────────────────── */}
-      <div className="flex overflow-x-auto hide-scrollbar gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5">
-        {statusFilters.map(f => (
+      {/* ─── Status Tabs & Brand Shared Filter ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex overflow-x-auto hide-scrollbar gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5">
+          {statusFilters.map(f => (
+            <button
+              key={f}
+              onClick={() => { setActiveStatus(f); setSelectedIds(new Set()); setExpandedId(null) }}
+              className={`px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                activeStatus === f
+                  ? 'bg-white/[0.08] text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+              }`}
+            >
+              {f}
+              {f !== 'All' && (
+                <span className={`ml-1.5 text-[10px] ${activeStatus === f ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {statusCounts[f] || 0}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Brand Shared Toggle Pills */}
+        <div className="flex items-center gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5 shrink-0 self-start sm:self-auto">
           <button
-            key={f}
-            onClick={() => { setActiveStatus(f); setSelectedIds(new Set()); setExpandedId(null) }}
-            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-              activeStatus === f
-                ? 'bg-white/[0.08] text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+            onClick={() => setBrandSentFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              brandSentFilter === 'all'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            {f}
-            {f !== 'All' && (
-              <span className={`ml-1.5 text-[10px] ${activeStatus === f ? 'text-slate-400' : 'text-slate-600'}`}>
-                {statusCounts[f] || 0}
-              </span>
-            )}
+            All
           </button>
-        ))}
+          <button
+            onClick={() => setBrandSentFilter('not_sent')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              brandSentFilter === 'not_sent'
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 shadow-sm'
+                : 'text-amber-400/80 hover:text-amber-300'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            Not Sent ({unsharedCount})
+          </button>
+          <button
+            onClick={() => setBrandSentFilter('sent')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              brandSentFilter === 'sent'
+                ? 'bg-purple-600/20 text-purple-200 border border-purple-500/40 shadow-sm'
+                : 'text-purple-400/80 hover:text-purple-300'
+            }`}
+          >
+            <Share2 className="h-3 w-3" />
+            Sent ({sentCount})
+          </button>
+        </div>
       </div>
 
       {/* ─── Toolbar ────────────────────────────────────── */}
@@ -1425,6 +1586,14 @@ export default function AllApplicationsPage() {
                     <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
+                {visibleCols.brand_sent && (
+                  <th className="px-4 py-3 text-left">
+                    <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                      <Share2 className="h-3 w-3 text-purple-400" />
+                      Brand Shared
+                    </span>
+                  </th>
+                )}
                 {visibleCols.date && (
                   <th className="px-4 py-3 text-left">
                     <SortableHeader label="Applied" column="date" sortConfig={sortConfig} onSort={handleSort} />
@@ -1442,7 +1611,7 @@ export default function AllApplicationsPage() {
             <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-20">
+                  <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="text-center py-20">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-white/5">
                         <Filter className="h-7 w-7 text-slate-600" />
@@ -1596,12 +1765,65 @@ export default function AllApplicationsPage() {
                                 <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
                                 {app.status}
                               </span>
+                              {String(app.campaigns?.budget_type || '').toLowerCase().includes('variable') && (
+                                app.form_data?.negotiation?.status === 'pending_peer_approval' ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
+                                    className="text-[10px] font-extrabold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/25 transition cursor-pointer"
+                                    title="Awaiting colleague approval for commercial deal"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Pending Colleague)
+                                  </button>
+                                ) : app.form_data?.negotiation?.status === 'approved' ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
+                                    className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-emerald-500/20 transition cursor-pointer"
+                                    title="Commercial deal approved by colleague"
+                                  >
+                                    <CheckCircle2 className="h-2.5 w-2.5" />
+                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount || app.form_data.negotiation.approved_amount || 0).toLocaleString()} (Approved)
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
+                                    className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-dashed border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/20 transition cursor-pointer"
+                                    title="Negotiate commercial deal"
+                                  >
+                                    <IndianRupee className="h-2.5 w-2.5" />
+                                    Negotiate Deal
+                                  </button>
+                                )
+                              )}
                               {app.status === 'Rejected' && app.form_data?.rejection_reason && (
                                 <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md max-w-[170px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
                                   💬 {app.form_data.rejection_reason}
                                 </span>
                               )}
                             </div>
+                          </td>
+                        )}
+
+                        {/* Brand Shared */}
+                        {visibleCols.brand_sent && (
+                          <td className={`px-4 ${densityPadding[density]}`}>
+                            {app.form_data?.sent_to_brand?.is_sent ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap"
+                                title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'}`}
+                              >
+                                <Share2 className="h-2.5 w-2.5 text-purple-400" />
+                                <span>Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                <span>Not Sent</span>
+                              </span>
+                            )}
                           </td>
                         )}
 
@@ -1622,6 +1844,7 @@ export default function AllApplicationsPage() {
                               onStatusChange={updateSingleStatus}
                               onRevertApproval={handleRevertApproval}
                               onRevokeApproval={(app) => setRevokeModalApp(app)}
+                              onOpenNegotiate={(app) => setNegotiationModalApp(app)}
                               onRejectWithReason={(app) => {
                                 setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
                                 setSelectedRejectReason('Follower count / criteria mismatch')
@@ -2063,16 +2286,31 @@ export default function AllApplicationsPage() {
                                         )}
 
                                         {app.status !== 'Approved' && (
-                                          <Button
-                                            size="sm"
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Approved') }}
-                                            className="h-8 px-3 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/25 text-xs font-medium cursor-pointer"
-                                          >
-                                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                                            Approve
-                                          </Button>
-                                        )}
+                                           String(app.campaigns?.budget_type || '').toLowerCase().includes('variable') && app.form_data?.negotiation?.status !== 'approved' ? (
+                                             <Button
+                                               size="sm"
+                                               type="button"
+                                               onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
+                                               className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 text-xs font-semibold cursor-pointer"
+                                               title="Paid Variable campaigns require commercial negotiation and colleague approval"
+                                             >
+                                               <IndianRupee className="mr-1 h-3.5 w-3.5 text-amber-400" />
+                                               {app.form_data?.negotiation?.status === 'pending_peer_approval'
+                                                 ? `Deal: ₹${Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Review Deal)`
+                                                 : 'Negotiate Deal First'}
+                                             </Button>
+                                           ) : (
+                                             <Button
+                                               size="sm"
+                                               type="button"
+                                               onClick={(e) => { e.stopPropagation(); updateSingleStatus(app.id, 'Approved') }}
+                                               className="h-8 px-3 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 hover:bg-emerald-500/25 text-xs font-medium cursor-pointer"
+                                             >
+                                               <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                               Approve
+                                             </Button>
+                                           )
+                                         )}
 
                                         {app.status !== 'Rejected' ? (
                                           <Button
@@ -2269,7 +2507,22 @@ export default function AllApplicationsPage() {
                 <span>UNDER PROCESS</span>
               </Button>
 
-              {/* 3. ALLOW RE-APPLY (Rose) */}
+              {/* 3. SENT TO BRAND (Purple) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSentToBrandBatchLabel(`Batch (${selectedIds.size} Profiles) - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
+                  setShowSentToBrandModal(true)
+                }}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-purple-500/30 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                <span>SENT TO BRAND</span>
+              </Button>
+
+              {/* 4. ALLOW RE-APPLY (Rose) */}
               <Button
                 variant="outline"
                 size="sm"
@@ -2792,6 +3045,112 @@ export default function AllApplicationsPage() {
                 >
                   {savingResponsesEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                   Save Changes
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Commercial Deal Negotiation Modal */}
+      <CommercialNegotiationModal
+        isOpen={Boolean(negotiationModalApp)}
+        onClose={() => setNegotiationModalApp(null)}
+        application={negotiationModalApp}
+        currentAdminEmail={admin?.email}
+        onSuccess={fetchApplications}
+      />
+
+      <ApplicationImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={fetchApplications}
+      />
+
+      {/* Sent to Brand Modal */}
+      <AnimatePresence>
+        {showSentToBrandModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    <Share2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Mark as Sent to Brand</h3>
+                    <p className="text-[11px] text-slate-400">
+                      Batch tagging <strong className="text-white">{selectedIds.size} creator profiles</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSentToBrandModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3.5 text-xs">
+                <p className="text-slate-300 leading-relaxed">
+                  Tag selected creators as submitted to the client brand so you can easily track future incoming profiles.
+                </p>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Batch Label / Shortlist Name</Label>
+                  <Input
+                    value={sentToBrandBatchLabel}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSentToBrandBatchLabel(e.target.value)}
+                    placeholder="e.g. Batch #1 - Morning Shortlist"
+                    className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Notes (Optional)</Label>
+                  <Input
+                    value={sentToBrandNotes}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSentToBrandNotes(e.target.value)}
+                    placeholder="e.g. Emailed to Brand Manager"
+                    className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSentToBrandModal(false)}
+                  className="border-white/10 text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleBulkSentToBrand}
+                  disabled={sentToBrandSubmitting}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold cursor-pointer shadow-md shadow-purple-500/20"
+                >
+                  {sentToBrandSubmitting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Tagging Batch...
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      Confirm & Tag Batch
+                    </>
+                  )}
                 </Button>
               </div>
             </motion.div>

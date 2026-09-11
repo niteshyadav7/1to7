@@ -189,7 +189,7 @@ export async function POST(request: Request) {
         .single(),
       supabase
         .from('campaigns')
-        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location, form_fields')
+        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location, form_fields, is_test_mode, test_user_ids')
         .eq('id', campaignId)
         .single(),
       supabase
@@ -238,6 +238,17 @@ export async function POST(request: Request) {
         { error: 'This campaign is no longer accepting applications' },
         { status: 400 }
       )
+    }
+
+    // Pre-Launch Pilot Mode: Only designated pilot creators may apply
+    if (campaign.is_test_mode) {
+      const allowedUsers: string[] = Array.isArray(campaign.test_user_ids) ? campaign.test_user_ids : []
+      if (!allowedUsers.includes(userId)) {
+        return NextResponse.json(
+          { error: 'This campaign is currently in private pilot mode and is only accessible to designated test creators.' },
+          { status: 403 }
+        )
+      }
     }
 
     // Check if creator is blocked due to overdue completion submissions

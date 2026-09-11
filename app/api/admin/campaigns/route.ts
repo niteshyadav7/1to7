@@ -98,6 +98,9 @@ export async function POST(request: Request) {
       completion_deadline,
       enforce_completion_deadline,
       display_order,
+      is_test_mode,
+      test_user_ids,
+      test_creators,
     } = body
 
     if (!brand_name || !platform) {
@@ -124,14 +127,15 @@ export async function POST(request: Request) {
       targetOrder = parseInt(orderRes.rows[0]?.next_order) || 1
     }
 
-    // Super Admin campaigns are immediately approved and go live; Regular admin campaigns require second-admin approval
-    const approvalStatus = isSuperAdmin ? 'Approved' : 'Pending Approval'
-    const isLive = isSuperAdmin ? true : false
-    const campaignStatus = isSuperAdmin ? 'Active' : 'Review'
-    const approvedAt = isSuperAdmin ? new Date().toISOString() : null
-    const approvedById = isSuperAdmin ? admin.id : null
-    const approvedByName = isSuperAdmin ? adminName : null
-    const approvedByEmail = isSuperAdmin ? adminEmail : null
+    // In pilot test mode, campaign is active & live for designated test creators immediately
+    const isPilot = Boolean(is_test_mode)
+    const approvalStatus = isSuperAdmin ? 'Approved' : isPilot ? 'Approved' : 'Pending Approval'
+    const isLive = isSuperAdmin || isPilot ? true : false
+    const campaignStatus = isSuperAdmin || isPilot ? 'Active' : 'Review'
+    const approvedAt = isSuperAdmin || isPilot ? new Date().toISOString() : null
+    const approvedById = isSuperAdmin || isPilot ? admin.id : null
+    const approvedByName = isSuperAdmin || isPilot ? adminName : null
+    const approvedByEmail = isSuperAdmin || isPilot ? adminEmail : null
 
     const query = `
       INSERT INTO public.campaigns (
@@ -145,9 +149,10 @@ export async function POST(request: Request) {
         completion_days, completion_deadline, enforce_completion_deadline, display_order, brief_document_url,
         approval_status, created_by_admin_id, created_by_admin_name, created_by_admin_email,
         last_edited_by_admin_id, last_edited_by_admin_name, last_edited_by_admin_email, last_edited_at,
-        approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at
+        approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at,
+        is_test_mode, test_user_ids, test_creators
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52
       ) RETURNING *
     `
     const values = [
@@ -200,6 +205,9 @@ export async function POST(request: Request) {
       approvedByName,
       approvedByEmail,
       approvedAt,
+      isPilot,
+      Array.isArray(test_user_ids) ? test_user_ids : [],
+      JSON.stringify(Array.isArray(test_creators) ? test_creators : []),
     ]
 
     const res = await client.query(query, values)

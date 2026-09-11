@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
+import { sendApplicationApprovedEmail } from '@/lib/mailer'
 
 export async function POST(
   request: Request,
@@ -38,7 +39,8 @@ export async function POST(
     const currentFormData = application.form_data || {}
     const currentNegotiation = currentFormData.negotiation || {}
     const adminIdentifier = admin.id || admin.email || 'admin'
-    const adminName = admin.full_name || admin.email || 'Admin'
+    const adminName = admin.full_name || admin.name || admin.email || 'Admin'
+    const adminEmail = admin.email || ''
 
     // ──────────────────────────────────────────────
     // 1. PROPOSE / UPDATE NEGOTIATED COMMERCIAL
@@ -53,6 +55,7 @@ export async function POST(
         proposed_amount: numericAmount,
         proposed_by_id: adminIdentifier,
         proposed_by_name: adminName,
+        proposed_by_email: adminEmail,
         proposed_at: new Date().toISOString(),
         notes: notes || '',
         status: 'pending_peer_approval',
@@ -62,6 +65,7 @@ export async function POST(
             amount: numericAmount,
             by_id: adminIdentifier,
             by_name: adminName,
+            by_email: adminEmail,
             at: new Date().toISOString(),
             notes: notes || '',
             action: 'proposed',
@@ -99,9 +103,22 @@ export async function POST(
       }
 
       // Enforce Dual-Approval Guardrail (Maker cannot approve their own quote)
-      if (currentNegotiation.proposed_by_id === adminIdentifier) {
+      const currentProposerId = currentNegotiation.proposed_by_id
+      const currentProposerEmail = currentNegotiation.proposed_by_email || currentNegotiation.proposed_by_name
+      const normalizedAdminEmail = adminEmail.toLowerCase()
+      const adminId = admin.id || ''
+
+      const isSameProposer =
+        (currentProposerId && (currentProposerId === adminId || currentProposerId === admin.email)) ||
+        (currentProposerEmail && (
+          currentProposerEmail.toLowerCase() === normalizedAdminEmail ||
+          (admin.name && currentProposerEmail.toLowerCase() === admin.name.toLowerCase()) ||
+          (admin.full_name && currentProposerEmail.toLowerCase() === admin.full_name.toLowerCase())
+        ))
+
+      if (isSameProposer) {
         return NextResponse.json({
-          error: 'Maker-Checker Guardrail: You proposed this commercial quote. Another colleague/admin must approve it.',
+          error: 'Maker-Checker Guardrail: You proposed this commercial quote. Another colleague/admin must review and approve it.',
         }, { status: 403 })
       }
 
@@ -112,6 +129,7 @@ export async function POST(
         status: 'approved',
         approved_by_id: adminIdentifier,
         approved_by_name: adminName,
+        approved_by_email: adminEmail,
         approved_at: new Date().toISOString(),
         approval_notes: notes || '',
         history: [
@@ -120,6 +138,7 @@ export async function POST(
             amount: finalAmount,
             by_id: adminIdentifier,
             by_name: adminName,
+            by_email: adminEmail,
             at: new Date().toISOString(),
             notes: notes || '',
             action: 'approved',
@@ -146,6 +165,24 @@ export async function POST(
         .eq('id', id)
 
       if (updateErr) throw updateErr
+
+      // Send approval notification email
+      const { data: appWithUser } = await supabase
+        .from('applications')
+        .select('users ( email, full_name ), campaigns ( brand_name, campaign_code )')
+        .eq('id', id)
+        .single()
+
+      if (appWithUser) {
+        const userEmail = (appWithUser as any)?.users?.email
+        const userName = (appWithUser as any)?.users?.full_name || 'Creator'
+        const brandName = (appWithUser as any)?.campaigns?.brand_name || 'Campaign'
+        const campaignCode = (appWithUser as any)?.campaigns?.campaign_code || ''
+
+        if (userEmail) {
+          sendApplicationApprovedEmail(userEmail, userName, brandName, campaignCode)
+        }
+      }
 
       return NextResponse.json({
         success: true,

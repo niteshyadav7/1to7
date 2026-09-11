@@ -21,6 +21,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'status is required' }, { status: 400 })
     }
 
+    let targetApplicationIds = applicationIds
+    let skippedCount = 0
+
+    if (status === 'Approved') {
+      const { data: appsToCheck, error: checkErr } = await supabase
+        .from('applications')
+        .select('id, form_data, campaigns ( budget_type )')
+        .in('id', applicationIds)
+
+      if (!checkErr && appsToCheck) {
+        const eligibleIds: string[] = []
+        for (const app of appsToCheck) {
+          const isPaidVar = String((app as any).campaigns?.budget_type || '').toLowerCase().includes('variable')
+          const negotiation = (app.form_data as any)?.negotiation
+          if (isPaidVar && negotiation?.status !== 'approved') {
+            skippedCount++
+          } else {
+            eligibleIds.push(app.id)
+          }
+        }
+        targetApplicationIds = eligibleIds
+      }
+
+      if (targetApplicationIds.length === 0) {
+        return NextResponse.json({
+          error: 'None of the selected applications could be approved. Paid Variable campaigns require a negotiated deal approved by a colleague.',
+          updatedCount: 0,
+          skippedCount
+        }, { status: 400 })
+      }
+    }
+
     let data: any[] = []
 
     if (status === 'Rejected' && rejection_reason) {
@@ -62,7 +94,7 @@ export async function POST(request: Request) {
       const { data: bulkData, error } = await supabase
         .from('applications')
         .update({ status, updated_at: new Date().toISOString() })
-        .in('id', applicationIds)
+        .in('id', targetApplicationIds)
         .select('id, status, form_data, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
 
       if (error) {
@@ -93,6 +125,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       updatedCount: data ? data.length : 0,
+      skippedCount,
+      message: skippedCount > 0
+        ? `Successfully updated ${data ? data.length : 0} applications. ${skippedCount} application(s) skipped because Paid Variable campaigns require colleague approval on negotiated commercial.`
+        : undefined,
       data
     })
   } catch (error) {

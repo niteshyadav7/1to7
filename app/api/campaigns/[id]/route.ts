@@ -37,9 +37,10 @@ export async function GET(
       )
     }
 
-    // Check if current logged in user has applied
+    // Check if current logged in user has applied and verify pilot access
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
+    let loggedInUserId: string | null = null
     let applied = false
     let application_status: string | null = null
     let application_id: string | null = null
@@ -49,22 +50,37 @@ export async function GET(
 
     if (token) {
       const payload = await verifyToken(token)
-      if (payload && payload.id && campaign.id) {
-        const { data: app } = await supabase
-          .from('applications')
-          .select('id, status, created_at, form_data')
-          .eq('user_id', payload.id)
-          .eq('campaign_id', campaign.id)
-          .maybeSingle()
+      if (payload && payload.id) {
+        loggedInUserId = payload.id
+      }
+    }
 
-        if (app) {
-          applied = true
-          application_status = app.status
-          application_id = app.id
-          applied_at = app.created_at
-          rejection_reason = app.form_data?.rejection_reason || app.form_data?.revocation_note || null
-          app_form_data = app.form_data || null
-        }
+    // Access control check for Pre-Launch Pilot Mode
+    if (campaign.is_test_mode) {
+      const allowedUsers: string[] = Array.isArray(campaign.test_user_ids) ? campaign.test_user_ids : []
+      if (!loggedInUserId || !allowedUsers.includes(loggedInUserId)) {
+        return NextResponse.json(
+          { error: 'This campaign is in private pilot testing mode and is only accessible to designated test creators.' },
+          { status: 403 }
+        )
+      }
+    }
+
+    if (loggedInUserId && campaign.id) {
+      const { data: app } = await supabase
+        .from('applications')
+        .select('id, status, created_at, form_data')
+        .eq('user_id', loggedInUserId)
+        .eq('campaign_id', campaign.id)
+        .maybeSingle()
+
+      if (app) {
+        applied = true
+        application_status = app.status
+        application_id = app.id
+        applied_at = app.created_at
+        rejection_reason = app.form_data?.rejection_reason || app.form_data?.revocation_note || null
+        app_form_data = app.form_data || null
       }
     }
 

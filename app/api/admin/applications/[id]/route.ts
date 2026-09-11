@@ -27,6 +27,31 @@ export async function PUT(
         updates[field] = body[field]
       }
     }
+
+    // Guardrail: Paid Variable campaigns require colleague approval on negotiated commercial
+    if (body.status === 'Approved') {
+      const { data: appRecord, error: checkErr } = await supabase
+        .from('applications')
+        .select('form_data, campaigns ( budget_type )')
+        .eq('id', id)
+        .single()
+
+      if (!checkErr && appRecord) {
+        const campaignData: any = Array.isArray(appRecord.campaigns) ? appRecord.campaigns[0] : appRecord.campaigns
+        const budgetType = String(campaignData?.budget_type || '').toLowerCase()
+        if (budgetType.includes('variable')) {
+          const formData: any = appRecord.form_data || {}
+          const negotiation = formData.negotiation
+          if (!negotiation || negotiation.status !== 'approved') {
+            return NextResponse.json({
+              error: 'Paid Variable campaigns require a negotiated commercial deal approved by a colleague before profile approval.',
+              requires_peer_approval: true,
+              negotiation_status: negotiation?.status || 'none'
+            }, { status: 400 })
+          }
+        }
+      }
+    }
     // Fetch current form_data to safely merge rejection/revocation reason if provided
     if (body.rejection_reason) {
       const { data: curr } = await supabase.from('applications').select('form_data').eq('id', id).single()

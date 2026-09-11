@@ -57,7 +57,8 @@ export async function PUT(
       'collab_date', 'form_link', 'form_fields',
       'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
-      'display_order', 'brief_document_url'
+      'display_order', 'brief_document_url',
+      'is_test_mode', 'test_user_ids', 'test_creators'
     ]
 
     const updates: Record<string, any> = {}
@@ -78,19 +79,27 @@ export async function PUT(
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
     }
 
-    // Strict Maker-Checker Rule:
-    // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live
+    // Strict Maker-Checker Rule for Public Campaigns:
+    // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live.
+    // In Pilot Test Mode, campaign stays active so test creators can continue end-to-end verification.
     const adminName = admin.full_name || admin.name || 'Admin'
     const adminEmail = admin.email || ''
 
-    updates.approval_status = 'Pending Approval'
-    updates.status = 'Review'
-    updates.is_live = false
-    updates.approved_by_admin_id = null
-    updates.approved_by_admin_name = null
-    updates.approved_by_admin_email = null
-    updates.approved_at = null
-    updates.rejection_reason = null
+    const isPilot = updates.is_test_mode !== undefined ? Boolean(updates.is_test_mode) : Boolean(existingCampaign.is_test_mode)
+    if (isPilot) {
+      updates.approval_status = 'Approved'
+      updates.status = 'Active'
+      updates.is_live = true
+    } else {
+      updates.approval_status = 'Pending Approval'
+      updates.status = 'Review'
+      updates.is_live = false
+      updates.approved_by_admin_id = null
+      updates.approved_by_admin_name = null
+      updates.approved_by_admin_email = null
+      updates.approved_at = null
+      updates.rejection_reason = null
+    }
 
     // Track the latest editor
     updates.last_edited_by_admin_id = admin.id

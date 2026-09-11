@@ -27,9 +27,22 @@ export async function GET() {
 
     if (error) throw error
 
+    // Filter by Pre-Launch Pilot Mode:
+    // If a campaign has is_test_mode === true:
+    // - If visitor is not logged in (userId is null): exclude campaign
+    // - If visitor is logged in: include ONLY if userId is in campaign.test_user_ids
+    const visibleCampaigns = (campaigns || []).filter((c: any) => {
+      if (c.is_test_mode) {
+        if (!userId) return false
+        const allowedUsers: string[] = Array.isArray(c.test_user_ids) ? c.test_user_ids : []
+        return allowedUsers.includes(userId)
+      }
+      return true
+    })
+
     // If user is logged in, attach their applied status for each campaign
-    if (userId && campaigns && campaigns.length > 0) {
-      const campaignIds = campaigns.map((c: any) => c.id)
+    if (userId && visibleCampaigns.length > 0) {
+      const campaignIds = visibleCampaigns.map((c: any) => c.id)
       const { data: userApplications } = await supabase
         .from('applications')
         .select('id, campaign_id, status, created_at')
@@ -43,7 +56,7 @@ export async function GET() {
         })
       }
 
-      const enrichedCampaigns = campaigns.map((c: any) => {
+      const enrichedCampaigns = visibleCampaigns.map((c: any) => {
         const app = appMap.get(c.id)
         return {
           ...c,
@@ -59,7 +72,7 @@ export async function GET() {
       return NextResponse.json({ campaigns: enrichedCampaigns })
     }
 
-    return NextResponse.json({ campaigns: campaigns || [] })
+    return NextResponse.json({ campaigns: visibleCampaigns })
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Failed to fetch campaigns' },

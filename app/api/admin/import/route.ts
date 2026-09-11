@@ -31,7 +31,7 @@ interface ImportRow {
 export async function POST(request: Request) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || !hasActionPermission(admin, 'import', 'create')) {
+    if (!admin || (!hasActionPermission(admin, 'import', 'create') && !hasActionPermission(admin, 'applications', 'create'))) {
       return NextResponse.json({ error: 'Unauthorized: Permission to import is denied' }, { status: 403 })
     }
 
@@ -80,7 +80,12 @@ export async function POST(request: Request) {
 
     rows.forEach((row, idx) => {
       const rowIndex = idx + 1
-      const mobile = row.mobile ? String(row.mobile).replace(/[\s\-\+]/g, '').trim() : ''
+      let mobile = row.mobile ? String(row.mobile).replace(/[\s\-\+\(\)]/g, '').trim() : ''
+      if (mobile.startsWith('91') && mobile.length === 12) {
+        mobile = mobile.slice(2)
+      } else if (mobile.startsWith('0') && mobile.length === 11) {
+        mobile = mobile.slice(1)
+      }
       const influencerId = row.influencer_id ? String(row.influencer_id).trim() : undefined
 
       if (!mobile && !influencerId) {
@@ -333,6 +338,9 @@ export async function POST(request: Request) {
             formData.order_details = formData.order_details || {}
             formData.order_details.orderId = row.order_id
             formData.order_details_approved = true
+          }
+          if (row.final_payment !== undefined && !formData.agreed_commercial) {
+            formData.agreed_commercial = row.final_payment
           }
 
           if (existingApp) {

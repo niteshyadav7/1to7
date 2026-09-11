@@ -10,7 +10,8 @@ import {
   ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   Info, UserCheck, AlertTriangle, FileText, CheckCheck, X,
-  Download, FileSpreadsheet, ChevronDown, Loader2, History
+  Download, FileSpreadsheet, ChevronDown, Loader2, History,
+  FlaskConical, Rocket
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -55,6 +56,9 @@ interface Campaign {
   location?: string
   location_type?: string
   edit_history?: CampaignEditLogEntry[]
+  is_test_mode?: boolean
+  test_user_ids?: string[]
+  test_creators?: any[]
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -71,7 +75,7 @@ const statusColors: Record<string, string> = {
   'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
 }
 
-const filters = ['All', 'Pending Approvals', 'Active', 'Draft', 'Review', 'Closed', 'Completed']
+const filters = ['All', 'Pending Approvals', 'Pilot Campaigns', 'Active', 'Draft', 'Review', 'Closed', 'Completed']
 
 export default function AdminCampaignsPage() {
   const { admin, isSuperAdmin } = useAdminPermissions()
@@ -83,6 +87,11 @@ export default function AdminCampaignsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
+
+  // Launch from Pilot Modal States
+  const [launchModalCampaign, setLaunchModalCampaign] = useState<Campaign | null>(null)
+  const [clearTestData, setClearTestData] = useState<boolean>(true)
+  const [isLaunching, setIsLaunching] = useState<boolean>(false)
 
   // Approval & Governance States
   const [approvingId, setApprovingId] = useState<string | null>(null)
@@ -317,6 +326,29 @@ export default function AdminCampaignsPage() {
     }
   }
 
+  // Launch campaign from pilot testing to public live
+  const handleLaunchToPublic = async () => {
+    if (!launchModalCampaign) return
+    setIsLaunching(true)
+    try {
+      const res = await fetch(`/api/admin/campaigns/${launchModalCampaign.id}/launch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear_test_data: clearTestData }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to launch campaign')
+
+      toast.success(data.message || `Campaign "${launchModalCampaign.brand_name}" is now live for all creators!`)
+      setLaunchModalCampaign(null)
+      fetchCampaigns()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to launch campaign')
+    } finally {
+      setIsLaunching(false)
+    }
+  }
+
   // Persist updated campaign sequence to server
   const saveCampaignSequence = async (updatedList: Campaign[], notify = true) => {
     setIsSavingOrder(true)
@@ -510,11 +542,14 @@ export default function AdminCampaignsPage() {
   }
 
   const pendingCount = campaigns.filter(c => c.approval_status === 'Pending Approval').length
+  const pilotCount = campaigns.filter(c => Boolean(c.is_test_mode)).length
 
   const filtered = campaigns.filter(c => {
     let matchesFilter = true
     if (activeFilter === 'Pending Approvals') {
       matchesFilter = c.approval_status === 'Pending Approval'
+    } else if (activeFilter === 'Pilot Campaigns') {
+      matchesFilter = Boolean(c.is_test_mode)
     } else if (activeFilter !== 'All') {
       matchesFilter = c.status === activeFilter
     }
@@ -708,24 +743,34 @@ export default function AdminCampaignsPage() {
         <div className="flex flex-wrap gap-2">
           {filters.map(f => {
             const isPendingTab = f === 'Pending Approvals'
+            const isPilotTab = f === 'Pilot Campaigns'
             return (
               <button
                 key={f}
                 onClick={() => setActiveFilter(f)}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-1.5 ${
                   activeFilter === f
-                    ? isPendingTab
+                    ? isPendingTab || isPilotTab
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/10 font-bold'
                       : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
                     : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
                 }`}
               >
                 {isPendingTab && <Clock className="h-3 w-3 text-amber-400" />}
+                {isPilotTab && <FlaskConical className="h-3 w-3 text-amber-400" />}
                 <span>{f}</span>
                 {isPendingTab ? (
                   pendingCount > 0 ? (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 animate-pulse">
                       {pendingCount}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] opacity-60">(0)</span>
+                  )
+                ) : isPilotTab ? (
+                  pilotCount > 0 ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950">
+                      {pilotCount}
                     </span>
                   ) : (
                     <span className="text-[10px] opacity-60">(0)</span>
@@ -885,6 +930,14 @@ export default function AdminCampaignsPage() {
                           {copiedId === campaign.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-indigo-400" />}
                           <span className="hidden sm:inline">{copiedId === campaign.id ? 'Copied' : 'Link'}</span>
                         </button>
+
+                        {/* Pilot Mode Badge */}
+                        {campaign.is_test_mode && (
+                          <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold border bg-amber-500/20 text-amber-300 border-amber-500/40 flex items-center gap-1 shadow-sm">
+                            <FlaskConical className="h-3 w-3 text-amber-400" />
+                            Pilot ({campaign.test_creators?.length || campaign.test_user_ids?.length || 0} Testers)
+                          </span>
+                        )}
 
                         {/* Approval or Status Badge */}
                         {campaign.approval_status === 'Pending Approval' ? (
@@ -1046,19 +1099,33 @@ export default function AdminCampaignsPage() {
                       </div>
                     ) : (
                       <>
-                        {/* Live Toggle */}
-                        <button
-                          onClick={() => toggleLive(campaign)}
-                          disabled={togglingId === campaign.id}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-                            campaign.is_live
-                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
-                              : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                          }`}
-                        >
-                          {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                          {campaign.is_live ? 'Live' : 'Offline'}
-                        </button>
+                        {/* Live Toggle or Pilot Launch Action */}
+                        {campaign.is_test_mode ? (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setLaunchModalCampaign(campaign)
+                              setClearTestData(true)
+                            }}
+                            className="h-8 px-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <Rocket className="h-3.5 w-3.5" />
+                            Launch to Public
+                          </Button>
+                        ) : (
+                          <button
+                            onClick={() => toggleLive(campaign)}
+                            disabled={togglingId === campaign.id}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                              campaign.is_live
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                                : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            {campaign.is_live ? 'Live' : 'Offline'}
+                          </button>
+                        )}
                       </>
                     )}
 
@@ -1140,6 +1207,103 @@ export default function AdminCampaignsPage() {
         onClose={() => setShowBulkModal(false)}
         onSuccess={fetchCampaigns}
       />
+
+      {/* Launch to Public Confirmation Modal */}
+      {launchModalCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5">
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30">
+                  <Rocket className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    Launch to Public Creators
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Make {launchModalCampaign.brand_name} ({launchModalCampaign.campaign_code}) visible to all creators
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setLaunchModalCampaign(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Campaign Pilot Stats Box */}
+            <div className="p-4 rounded-xl bg-slate-950/70 border border-white/5 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Current Mode:</span>
+                <span className="font-bold text-amber-300 flex items-center gap-1">
+                  <FlaskConical className="h-3.5 w-3.5" /> Pre-Launch Pilot
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Designated Pilot Testers:</span>
+                <span className="font-semibold text-white">
+                  {launchModalCampaign.test_creators?.length || launchModalCampaign.test_user_ids?.length || 0} creators
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Test Applications Submitted:</span>
+                <span className="font-semibold text-white">
+                  {launchModalCampaign.application_count} applications
+                </span>
+              </div>
+            </div>
+
+            {/* Reset Test Data Checkbox Option */}
+            <label className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 cursor-pointer hover:bg-amber-500/10 transition-colors">
+              <input
+                type="checkbox"
+                checked={clearTestData}
+                onChange={(e) => setClearTestData(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-amber-500/40 text-amber-500 focus:ring-amber-500 bg-slate-900 cursor-pointer"
+              />
+              <div className="space-y-0.5 text-xs">
+                <span className="font-bold text-amber-200">
+                  Clear test applications before public launch (Recommended)
+                </span>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Deletes all test submissions submitted during the pilot test so application counts, orders, and review analytics start completely clean for real creators.
+                </p>
+              </div>
+            </label>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setLaunchModalCampaign(null)}
+                className="h-9 px-4 rounded-xl border-white/10 bg-slate-800/80 hover:bg-slate-700 text-xs text-slate-200 cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleLaunchToPublic}
+                disabled={isLaunching}
+                className="h-9 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5"
+              >
+                {isLaunching ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Launching...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-3.5 w-3.5" />
+                    Confirm & Launch Live
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Campaign Details Review Modal (Before Approval) */}
       {reviewModalCampaign && (

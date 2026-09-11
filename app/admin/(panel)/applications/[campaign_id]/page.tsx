@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, useMemo, use } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Papa from 'papaparse'
@@ -9,7 +9,7 @@ import {
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
   IndianRupee, Phone, Save, Search, Clock, RotateCcw, Trash2,
   History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle,
-  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X
+  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X, Upload
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +20,8 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
 import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
 import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
+import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 
 interface UserInfo {
   id: string
@@ -57,9 +59,12 @@ interface Application {
 }
 
 interface CampaignInfo {
+  id?: string
   brand_name: string
   campaign_code: string
   platform: string
+  budget_type?: string
+  budget_amount?: number
   completion_days?: number | null
   completion_deadline?: string | null
   enforce_completion_deadline?: boolean | null
@@ -79,6 +84,7 @@ const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Com
 
 export default function AdminApplicationsPage({ params }: { params: Promise<{ campaign_id: string }> }) {
   const { campaign_id } = use(params)
+  const { admin } = useAdminPermissions()
   const [loading, setLoading] = useState(true)
   const [campaign, setCampaign] = useState<CampaignInfo | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
@@ -110,10 +116,13 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
 
   // ─── Sprint 5: Sent to Brand Batch Tracker States ─────────
   const [brandSentFilter, setBrandSentFilter] = useState<'all' | 'sent' | 'not_sent'>('all')
+  const [selectedBatch, setSelectedBatch] = useState<string>('all')
   const [selectedAppIds, setSelectedAppIds] = useState<string[]>([])
   const [showSentModal, setShowSentModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [batchLabel, setBatchLabel] = useState('')
   const [batchNotes, setBatchNotes] = useState('')
+  const [autoExportBrandCSV, setAutoExportBrandCSV] = useState(true)
   const [markingSent, setMarkingSent] = useState(false)
 
   const handleBatchSentToBrand = async (action: 'mark_sent' | 'unmark_sent' = 'mark_sent', targetIds?: string[]) => {
@@ -140,6 +149,12 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
 
       toast.success(data.message)
       setShowSentModal(false)
+      if (action === 'mark_sent' && autoExportBrandCSV) {
+        const appsForExport = applications.filter(a => ids.includes(a.id))
+        if (appsForExport.length > 0) {
+          handleExportBrandCSV(appsForExport)
+        }
+      }
       setSelectedAppIds([])
       setBatchLabel('')
       setBatchNotes('')
@@ -256,7 +271,16 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, ...extraPayload }),
       })
-      if (!res.ok) throw new Error('Failed to update')
+      const resData = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        if (resData.requires_peer_approval) {
+          const targetApp = applications.find(a => a.id === appId)
+          if (targetApp) {
+            setNegotiationModalApp(targetApp)
+          }
+        }
+        throw new Error(resData.error || 'Failed to update')
+      }
 
       setApplications(prev =>
         prev.map(a => a.id === appId ? { ...a, status: newStatus } : a)
@@ -281,8 +305,8 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
       } else {
         toast.success(`Application status updated to ${newStatus}`)
       }
-    } catch {
-      toast.error('Failed to update status')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status')
     } finally {
       setUpdatingId(null)
     }
@@ -346,6 +370,26 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
     return <GlobalLoader text="Loading Applications..." />
   }
 
+  const uniqueBatches = useMemo(() => {
+    const batchMap = new Map<string, { label: string; count: number; date?: string }>()
+    applications.forEach(app => {
+      const stb = app.form_data?.sent_to_brand
+      if (stb?.is_sent && stb?.batch_label) {
+        const existing = batchMap.get(stb.batch_label)
+        if (existing) {
+          existing.count++
+        } else {
+          batchMap.set(stb.batch_label, {
+            label: stb.batch_label,
+            count: 1,
+            date: stb.sent_at,
+          })
+        }
+      }
+    })
+    return Array.from(batchMap.values())
+  }, [applications])
+
   const sentCount = applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length
   const unsharedCount = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length
 
@@ -353,7 +397,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
     const matchesFilter = activeFilter === 'All' || a.status === activeFilter
     const matchesBrandSent =
       brandSentFilter === 'all' ? true :
-      brandSentFilter === 'sent' ? Boolean(a.form_data?.sent_to_brand?.is_sent) :
+      brandSentFilter === 'sent' ? Boolean(a.form_data?.sent_to_brand?.is_sent) && (selectedBatch === 'all' || a.form_data?.sent_to_brand?.batch_label === selectedBatch) :
       !a.form_data?.sent_to_brand?.is_sent
 
     const user = a.users
@@ -382,6 +426,14 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 hover:text-white transition-all cursor-pointer shadow-sm"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import (Google Form / CSV)</span>
+            </button>
+
             <a
               href={`/api/admin/campaigns/export?type=applications&campaign_id=${campaign_id}`}
               download
@@ -431,47 +483,82 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         </div>
       </div>
 
-      {/* ─── Sprint 5: Sent to Brand Batch Tracker Bar & Bulk Action Hub ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/70 border border-white/10 backdrop-blur-xl shadow-lg">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-1">
+      {/* ─── Brand Shared Tracker & Batch Hub ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mr-1.5">
             <Share2 className="h-3.5 w-3.5 text-purple-400" />
-            Brand Shared Tracker:
+            Brand Dispatch:
           </span>
+
           <button
-            onClick={() => setBrandSentFilter('all')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => { setBrandSentFilter('all'); setSelectedBatch('all') }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               brandSentFilter === 'all'
-                ? 'bg-slate-800 text-white border border-white/15'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-white/10 text-white shadow-sm border border-white/15'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
             }`}
           >
             All ({applications.length})
           </button>
+
+          <button
+            onClick={() => { setBrandSentFilter('not_sent'); setSelectedBatch('all') }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              brandSentFilter === 'not_sent'
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 shadow-sm'
+                : 'text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/10'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            🆕 Not Sent ({unsharedCount})
+          </button>
+
           <button
             onClick={() => setBrandSentFilter('sent')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
               brandSentFilter === 'sent'
-                ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm'
-                : 'text-purple-400/80 hover:text-purple-300'
+                ? 'bg-purple-600/25 text-purple-200 border border-purple-500/40 shadow-sm'
+                : 'text-purple-400/80 hover:text-purple-300 hover:bg-purple-500/10'
             }`}
           >
-            📤 Sent to Brand ({sentCount})
+            <Share2 className="h-3 w-3 text-purple-400" />
+            Sent to Brand ({sentCount})
           </button>
-          <button
-            onClick={() => setBrandSentFilter('not_sent')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              brandSentFilter === 'not_sent'
-                ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40 shadow-sm'
-                : 'text-amber-400/80 hover:text-amber-300'
-            }`}
-          >
-            🆕 Unshared Profiles ({unsharedCount})
-          </button>
+
+          {/* Batch Selector if batches exist */}
+          {uniqueBatches.length > 0 && brandSentFilter === 'sent' && (
+            <select
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
+              className="bg-slate-800/90 border border-purple-500/30 text-purple-200 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-purple-400 cursor-pointer ml-1"
+            >
+              <option value="all">All Batches ({sentCount} creators)</option>
+              {uniqueBatches.map(b => (
+                <option key={b.label} value={b.label}>
+                  {b.label} ({b.count})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {/* Selection & Export Actions */}
+        {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
+          {brandSentFilter === 'not_sent' && unsharedCount > 0 && (
+            <button
+              onClick={() => {
+                const unsharedIds = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).map(a => a.id)
+                setSelectedAppIds(unsharedIds)
+                setBatchLabel(`Batch #${uniqueBatches.length + 1} (${unsharedIds.length} Profiles) - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 cursor-pointer transition-all"
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              <span>Select All Unshared ({unsharedCount})</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               if (selectedAppIds.length === filtered.length && filtered.length > 0) {
@@ -487,19 +574,19 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
             ) : (
               <Square className="h-3.5 w-3.5 text-slate-400" />
             )}
-            {selectedAppIds.length === filtered.length && filtered.length > 0 ? 'Deselect All' : `Select All (${filtered.length})`}
+            <span>{selectedAppIds.length === filtered.length && filtered.length > 0 ? 'Deselect All' : `Select (${selectedAppIds.length}/${filtered.length})`}</span>
           </button>
 
           {selectedAppIds.length > 0 && (
             <button
               onClick={() => {
-                setBatchLabel(`Batch #${Math.floor(Date.now() / 100000) % 100} - ${selectedAppIds.length} Profiles`)
+                setBatchLabel(`Batch #${uniqueBatches.length + 1} (${selectedAppIds.length} Profiles) - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
                 setShowSentModal(true)
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/20 cursor-pointer transition-all animate-pulse"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 cursor-pointer transition-all"
             >
               <Share2 className="h-3.5 w-3.5" />
-              Mark {selectedAppIds.length} as Sent to Brand
+              <span>Mark {selectedAppIds.length} as Sent</span>
             </button>
           )}
 
@@ -508,7 +595,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 cursor-pointer transition-all"
           >
             <Download className="h-3.5 w-3.5" />
-            Export Brand Sheet ({selectedAppIds.length > 0 ? selectedAppIds.length : filtered.length})
+            <span>Export Brand Sheet ({selectedAppIds.length > 0 ? selectedAppIds.length : filtered.length})</span>
           </button>
         </div>
       </div>
@@ -528,6 +615,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
             {filtered.map((app, i) => {
               const isExpanded = expandedId === app.id
               const user = app.users
+              const isSent = Boolean(app.form_data?.sent_to_brand?.is_sent)
 
               return (
                 <motion.div
@@ -538,6 +626,8 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.2, delay: i * 0.03 }}
                   className={`rounded-2xl border bg-slate-900/60 backdrop-blur-lg overflow-hidden transition-all ${
+                    isSent ? 'border-l-4 border-l-purple-500/70' : 'border-l-4 border-l-amber-500/80'
+                  } ${
                     isExpanded ? 'border-white/20 shadow-xl shadow-indigo-500/5' : 'border-white/5 hover:border-white/10'
                   }`}
                 >
@@ -638,13 +728,17 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
                     {/* Sent to Brand Badge */}
                     {app.form_data?.sent_to_brand?.is_sent ? (
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 flex items-center gap-1.5"
+                        title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'}`}
+                      >
                         <Share2 className="h-3 w-3 text-purple-400" />
-                        Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})
+                        <span>Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})</span>
                       </span>
                     ) : (
-                      <span className="rounded-full px-2.5 py-1 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                        🆕 Unshared
+                      <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span>Not Sent to Brand</span>
                       </span>
                     )}
 
@@ -916,35 +1010,134 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     )}
 
                     {/* Negotiation Status Card */}
-                    {app.form_data?.negotiation?.status === 'pending_peer_approval' && (
-                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                            Negotiated Deal: ₹{Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Awaiting Colleague Approval)
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            By <strong className="text-white">{app.form_data.negotiation.proposed_by_name}</strong>
-                          </span>
-                        </div>
-                        {app.form_data.negotiation.notes && (
-                          <p className="text-xs text-slate-300 italic">
-                            "{app.form_data.negotiation.notes}"
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 pt-1">
-                          <Button
-                            size="sm"
-                            type="button"
-                            onClick={() => setNegotiationModalApp(app)}
-                            className="h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs cursor-pointer shadow-sm"
-                          >
-                            <IndianRupee className="mr-1 h-3.5 w-3.5" />
-                            Review / Approve Deal
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    {(() => {
+                      const isPaidVariable = String(campaign?.budget_type || '').toLowerCase().includes('variable')
+                      const appNegotiation = app.form_data?.negotiation || {}
+                      const isPendingDeal = appNegotiation.status === 'pending_peer_approval'
+                      const isApprovedDeal = appNegotiation.status === 'approved'
+                      const proposedAmount = appNegotiation.proposed_amount
+                      const proposedByName = appNegotiation.proposed_by_name || 'Colleague'
+
+                      const currentAdminId = admin?.id || ''
+                      const currentAdminEmail = (admin?.email || '').toLowerCase()
+                      const currentAdminName = (admin?.name || '').toLowerCase()
+
+                      const isProposer = isPendingDeal && (
+                        Boolean(currentAdminId && appNegotiation.proposed_by_id === currentAdminId) ||
+                        Boolean(currentAdminEmail && (
+                          (appNegotiation.proposed_by_email && appNegotiation.proposed_by_email.toLowerCase() === currentAdminEmail) ||
+                          (appNegotiation.proposed_by_name && appNegotiation.proposed_by_name.toLowerCase() === currentAdminEmail) ||
+                          (currentAdminName && appNegotiation.proposed_by_name?.toLowerCase() === currentAdminName)
+                        ))
+                      )
+
+                      if (isPendingDeal) {
+                        return (
+                          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Negotiated Deal: ₹{Number(proposedAmount).toLocaleString()} (Awaiting Colleague Approval)
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                Proposed by <strong className="text-white">{proposedByName}</strong>
+                              </span>
+                            </div>
+                            {appNegotiation.notes && (
+                              <p className="text-xs text-slate-300 italic">
+                                "{appNegotiation.notes}"
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                              {isProposer ? (
+                                <p className="text-[11px] text-amber-300 italic">
+                                  ⚠️ You proposed this deal. Waiting for a colleague to approve before profile can be approved.
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-emerald-300 font-semibold flex items-center gap-1">
+                                  <ShieldCheck className="h-3.5 w-3.5" />
+                                  Colleague action required: Please review and approve this deal.
+                                </p>
+                              )}
+                              <Button
+                                size="sm"
+                                type="button"
+                                onClick={() => setNegotiationModalApp(app)}
+                                className={`h-8 rounded-lg font-extrabold text-xs cursor-pointer shadow-sm ${
+                                  isProposer
+                                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                                }`}
+                              >
+                                {isProposer ? (
+                                  <>
+                                    <IndianRupee className="mr-1 h-3.5 w-3.5" />
+                                    Update Quote
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                                    Review & Approve Deal
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      if (isApprovedDeal) {
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-emerald-300">
+                                  Deal Approved: ₹{Number(proposedAmount || appNegotiation.approved_amount || 0).toLocaleString()}
+                                </p>
+                                <p className="text-[11px] text-slate-400">
+                                  Approved by <strong className="text-slate-300">{appNegotiation.approved_by_name || 'Colleague'}</strong>
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              type="button"
+                              onClick={() => setNegotiationModalApp(app)}
+                              className="h-7 text-xs border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
+                            >
+                              View Deal
+                            </Button>
+                          </div>
+                        )
+                      }
+
+                      if (isPaidVariable && app.status !== 'Approved') {
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <IndianRupee className="h-4 w-4 text-amber-400 shrink-0" />
+                              <span className="text-xs text-amber-200">
+                                <strong>Paid Variable:</strong> Commercial negotiation with creator and colleague approval required before approval.
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              type="button"
+                              onClick={() => setNegotiationModalApp(app)}
+                              className="h-7 text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer shrink-0"
+                            >
+                              Negotiate Deal
+                            </Button>
+                          </div>
+                        )
+                      }
+
+                      return null
+                    })()}
 
                     {/* Sprint 5: Sent to Brand Quick Tracker Box */}
                     <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/10 flex items-center justify-between gap-3 flex-wrap">
@@ -1077,15 +1270,83 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                       ) : (
                         <>
                           {app.status !== 'Approved' && (
-                            <Button
-                              size="sm"
-                              onClick={() => updateStatus(app.id, 'Approved')}
-                              disabled={updatingId === app.id}
-                              className="h-9 px-4 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 text-xs font-medium cursor-pointer"
-                            >
-                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                              Approve
-                            </Button>
+                            (() => {
+                              const isPaidVariable = String(campaign?.budget_type || '').toLowerCase().includes('variable')
+                              const appNegotiation = app.form_data?.negotiation || {}
+                              const isPendingDeal = appNegotiation.status === 'pending_peer_approval'
+                              const isApprovedDeal = appNegotiation.status === 'approved'
+                              const proposedAmount = appNegotiation.proposed_amount
+
+                              const currentAdminId = admin?.id || ''
+                              const currentAdminEmail = (admin?.email || '').toLowerCase()
+                              const currentAdminName = (admin?.name || '').toLowerCase()
+
+                              const isProposer = isPendingDeal && (
+                                Boolean(currentAdminId && appNegotiation.proposed_by_id === currentAdminId) ||
+                                Boolean(currentAdminEmail && (
+                                  (appNegotiation.proposed_by_email && appNegotiation.proposed_by_email.toLowerCase() === currentAdminEmail) ||
+                                  (appNegotiation.proposed_by_name && appNegotiation.proposed_by_name.toLowerCase() === currentAdminEmail) ||
+                                  (currentAdminName && appNegotiation.proposed_by_name?.toLowerCase() === currentAdminName)
+                                ))
+                              )
+
+                              if (isPaidVariable && !isApprovedDeal) {
+                                if (isPendingDeal) {
+                                  if (isProposer) {
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        type="button"
+                                        disabled
+                                        className="h-9 px-3 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/30 opacity-70 text-xs font-semibold cursor-not-allowed"
+                                        title="You proposed this deal. Another colleague must approve it to satisfy maker-checker policy."
+                                      >
+                                        <Clock className="mr-1.5 h-3.5 w-3.5 text-amber-400" />
+                                        Awaiting Colleague (₹{Number(proposedAmount).toLocaleString()})
+                                      </Button>
+                                    )
+                                  } else {
+                                    return (
+                                      <Button
+                                        size="sm"
+                                        type="button"
+                                        onClick={() => setNegotiationModalApp(app)}
+                                        className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 cursor-pointer"
+                                        title="Colleague proposed this deal. Click to review and approve."
+                                      >
+                                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                        Approve Deal (Colleague)
+                                      </Button>
+                                    )
+                                  }
+                                } else {
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      type="button"
+                                      onClick={() => setNegotiationModalApp(app)}
+                                      className="h-9 px-3.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 text-xs font-semibold cursor-pointer"
+                                      title="Negotiate commercial deal and get colleague approval first"
+                                    >
+                                      <IndianRupee className="mr-1.5 h-3.5 w-3.5 text-amber-400" />
+                                      Negotiate Deal to Approve
+                                    </Button>
+                                  )
+                                }
+                              }
+
+                              return (
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateStatus(app.id, 'Approved')}
+                                  disabled={updatingId === app.id}
+                                  className="h-9 px-4 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 text-xs font-medium cursor-pointer"
+                                >
+                                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                  Approve
+                                </Button>
+                              )
+                            })()
                           )}
 
                           {app.status !== 'Rejected' ? (
@@ -1468,6 +1729,16 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
                   />
                 </div>
+
+                <label className="flex items-center gap-2 cursor-pointer pt-1 text-slate-300 select-none">
+                  <input
+                    type="checkbox"
+                    checked={autoExportBrandCSV}
+                    onChange={(e) => setAutoExportBrandCSV(e.target.checked)}
+                    className="h-4 w-4 rounded border-white/20 bg-slate-950 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-xs">Immediately download clean Brand Presentation CSV</span>
+                </label>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
@@ -1638,7 +1909,17 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         isOpen={Boolean(negotiationModalApp)}
         onClose={() => setNegotiationModalApp(null)}
         application={negotiationModalApp}
+        currentAdminEmail={admin?.email}
         onSuccess={fetchApplications}
+      />
+
+      <ApplicationImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={fetchApplications}
+        campaignId={campaign_id}
+        campaignBrand={campaign?.brand_name}
+        campaignCode={campaign?.campaign_code}
       />
     </div>
   )

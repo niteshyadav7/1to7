@@ -38,6 +38,8 @@ interface Campaign {
   application_status?: string
   application_id?: string
   applied_at?: string
+  is_test_mode?: boolean
+  test_user_ids?: string[]
 }
 
 const platformConfig: Record<string, { icon: React.ReactNode; bg: string; badge: string }> = {
@@ -122,12 +124,17 @@ export default function CampaignCard({
         <div className="absolute -right-8 -bottom-8 w-28 h-28 rounded-full bg-white/10 blur-xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
         <div className="absolute -left-6 -top-6 w-20 h-20 rounded-full bg-black/20 blur-lg pointer-events-none" />
 
-        {/* Platform Pill */}
-        <div className="relative z-10 flex items-center gap-1.5">
+        {/* Platform Pill & Pilot Tag */}
+        <div className="relative z-10 flex items-center gap-1.5 flex-wrap">
           <span className="inline-flex items-center gap-1.5 bg-slate-950/50 backdrop-blur-md text-white rounded-full px-3 py-1 text-[11px] font-semibold border border-white/20 shadow-md">
             {platform.icon}
             <span>{campaign.platform}</span>
           </span>
+          {campaign.is_test_mode && (
+            <span className="inline-flex items-center gap-1 bg-amber-400 text-slate-950 rounded-full px-2 py-0.5 text-[9px] font-extrabold shadow-md border border-amber-300 uppercase tracking-wider">
+              🧪 Pilot Preview
+            </span>
+          )}
         </div>
 
         {/* Budget Badge & Share Copy Link Icon */}

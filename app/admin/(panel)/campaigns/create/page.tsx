@@ -15,6 +15,7 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
+import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
 import { StoreLocation } from '@/lib/utils/location-utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -64,6 +65,9 @@ export default function AdminCreateCampaignPage() {
     completion_deadline: '',
     enforce_completion_deadline: true,
     brief_document_url: '',
+    is_test_mode: false,
+    test_user_ids: [] as string[],
+    test_creators: [] as PilotCreator[],
   })
 
   const [customFields, setCustomFields] = useState<FormField[]>([])
@@ -117,6 +121,9 @@ export default function AdminCreateCampaignPage() {
       completion_deadline: source.completion_deadline || '',
       enforce_completion_deadline: source.enforce_completion_deadline !== false,
       brief_document_url: source.brief_document_url || '',
+      is_test_mode: Boolean(source.is_test_mode),
+      test_user_ids: Array.isArray(source.test_user_ids) ? source.test_user_ids : [],
+      test_creators: Array.isArray(source.test_creators) ? source.test_creators : [],
     })
 
     if (Array.isArray(source.form_fields) && source.form_fields.length > 0) {
@@ -283,6 +290,9 @@ export default function AdminCreateCampaignPage() {
       completion_deadline: '',
       enforce_completion_deadline: true,
       brief_document_url: '',
+      is_test_mode: false,
+      test_user_ids: [],
+      test_creators: [],
     })
     setLastSavedTime(null)
     toast.success('Draft cleared. Starting fresh!')
@@ -295,6 +305,11 @@ export default function AdminCreateCampaignPage() {
       toast.error('Brand name is required')
       const brandInput = document.getElementById('brand_name_input')
       if (brandInput) brandInput.focus()
+      return
+    }
+
+    if (formData.is_test_mode && formData.test_user_ids.length === 0) {
+      toast.error('Please select at least one pilot creator for testing before saving in Pilot Mode')
       return
     }
 
@@ -352,7 +367,12 @@ export default function AdminCreateCampaignPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-extrabold text-white tracking-tight">Create Campaign</h1>
                 <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
-                {isSuperAdmin ? (
+                {formData.is_test_mode ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-bold text-amber-400">
+                    <Sparkles className="h-3 w-3" />
+                    Pre-Launch Pilot Mode
+                  </span>
+                ) : isSuperAdmin ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-bold text-emerald-400">
                     <ShieldCheck className="h-3 w-3" />
                     Super Admin: Direct Live Publish
@@ -371,7 +391,9 @@ export default function AdminCreateCampaignPage() {
                 )}
               </div>
               <p className="text-[11px] text-slate-400">
-                {isSuperAdmin
+                {formData.is_test_mode
+                  ? 'Campaign will be published in Private Pilot Mode for designated testers.'
+                  : isSuperAdmin
                   ? 'Campaign will be published immediately upon creation.'
                   : 'Campaign will enter Pending Approval state until reviewed by another admin.'}
               </p>
@@ -397,7 +419,9 @@ export default function AdminCreateCampaignPage() {
               onClick={handleSubmit}
               disabled={saving}
               className={`h-10 px-5 rounded-xl text-white font-bold text-xs shadow-lg cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
-                isSuperAdmin
+                formData.is_test_mode
+                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20'
+                  : isSuperAdmin
                   ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
                   : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/25'
               }`}
@@ -410,7 +434,7 @@ export default function AdminCreateCampaignPage() {
               ) : (
                 <>
                   <Save className="h-3.5 w-3.5" />
-                  <span>{isSuperAdmin ? 'Publish Campaign Live' : 'Submit for Approval'}</span>
+                  <span>{formData.is_test_mode ? 'Publish to Pilot Testers' : isSuperAdmin ? 'Publish Campaign Live' : 'Submit for Approval'}</span>
                 </>
               )}
             </Button>
@@ -492,6 +516,21 @@ export default function AdminCreateCampaignPage() {
             </Button>
           </div>
         </div>
+
+        {/* ─── AUDIENCE & VISIBILITY (PUBLIC VS PRE-LAUNCH PILOT) ─── */}
+        <CampaignAudiencePicker
+          isTestMode={formData.is_test_mode}
+          testUserIds={formData.test_user_ids}
+          testCreators={formData.test_creators}
+          onChange={(updates) => {
+            setFormData(prev => ({
+              ...prev,
+              is_test_mode: updates.is_test_mode,
+              test_user_ids: updates.test_user_ids,
+              test_creators: updates.test_creators,
+            }))
+          }}
+        />
 
         {/* ─── SECTION 1: Essentials & Core Identity ─── */}
         <div className="rounded-2xl border border-white/10 bg-slate-900/80 backdrop-blur-xl p-6 sm:p-7 shadow-xl space-y-5">

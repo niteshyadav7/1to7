@@ -18,6 +18,7 @@ import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
+import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
 import { StoreLocation } from '@/lib/utils/location-utils'
 import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
 import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
@@ -73,6 +74,9 @@ interface CampaignData {
   completion_days?: number
   completion_deadline?: string
   enforce_completion_deadline?: boolean
+  is_test_mode?: boolean
+  test_user_ids?: string[]
+  test_creators?: PilotCreator[]
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -114,6 +118,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     completion_deadline: '',
     enforce_completion_deadline: true,
     brief_document_url: '',
+    is_test_mode: false,
+    test_user_ids: [] as string[],
+    test_creators: [] as PilotCreator[],
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
@@ -169,6 +176,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         completion_deadline: data.campaign.completion_deadline ? data.campaign.completion_deadline.split('T')[0] : '',
         enforce_completion_deadline: data.campaign.enforce_completion_deadline !== false,
         brief_document_url: data.campaign.brief_document_url || '',
+        is_test_mode: Boolean(data.campaign.is_test_mode),
+        test_user_ids: Array.isArray(data.campaign.test_user_ids) ? data.campaign.test_user_ids : [],
+        test_creators: Array.isArray(data.campaign.test_creators) ? data.campaign.test_creators : [],
       })
       setCustomFields(data.campaign.form_fields || [])
       setOrderFormFields(data.campaign.order_form_fields || [])
@@ -184,6 +194,11 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     e.preventDefault()
     if (!formData.brand_name.trim()) {
       toast.error('Brand name is required')
+      return
+    }
+
+    if (formData.is_test_mode && formData.test_user_ids.length === 0) {
+      toast.error('Please select at least one pilot creator for testing before saving in Pilot Mode')
       return
     }
 
@@ -362,6 +377,21 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             onViewAllHistory={() => setHistoryModalOpen(true)}
           />
         )}
+
+        {/* ─── AUDIENCE & VISIBILITY (PUBLIC VS PRE-LAUNCH PILOT) ─── */}
+        <CampaignAudiencePicker
+          isTestMode={formData.is_test_mode}
+          testUserIds={formData.test_user_ids}
+          testCreators={formData.test_creators}
+          onChange={(updates) => {
+            setFormData(prev => ({
+              ...prev,
+              is_test_mode: updates.is_test_mode,
+              test_user_ids: updates.test_user_ids,
+              test_creators: updates.test_creators,
+            }))
+          }}
+        />
 
         {/* Campaign Details */}
         <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
