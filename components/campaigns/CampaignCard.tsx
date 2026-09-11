@@ -15,6 +15,7 @@ interface Campaign {
   category: string
   platform: string
   budget_type: string
+  budget_amount?: number | string
   deliverables: string
   product_links: string[]
   requirements: string
@@ -146,14 +147,25 @@ export default function CampaignCard({
           >
             {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3 text-white" />}
           </button>
-          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-md ${
-            campaign.budget_type === 'Paid' 
-              ? 'bg-amber-400 text-slate-950 shadow-amber-400/30' 
-              : 'bg-emerald-500 text-white shadow-emerald-500/30'
-          }`}>
-            <Tag className="h-2.5 w-2.5" />
-            {campaign.budget_type === 'Paid' ? 'PAID COLLAB' : 'BARTER'}
-          </span>
+          {(() => {
+            const bt = (campaign.budget_type || '').toLowerCase()
+            const amt = campaign.budget_amount ? Number(campaign.budget_amount) : 0
+            const isPaid = bt.includes('paid') || bt.includes('commercial') || amt > 0
+            const isHybrid = bt.includes('hybrid')
+
+            return (
+              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider shadow-md ${
+                isPaid 
+                  ? 'bg-amber-400 text-slate-950 shadow-amber-400/30' 
+                  : isHybrid
+                  ? 'bg-blue-500 text-white shadow-blue-500/30'
+                  : 'bg-emerald-500 text-white shadow-emerald-500/30'
+              }`}>
+                <Tag className="h-2.5 w-2.5" />
+                {isPaid ? (amt > 0 ? `₹${amt.toLocaleString('en-IN')} PAID` : 'PAID COLLAB') : isHybrid ? 'HYBRID' : 'BARTER'}
+              </span>
+            )
+          })()}
         </div>
       </div>
 

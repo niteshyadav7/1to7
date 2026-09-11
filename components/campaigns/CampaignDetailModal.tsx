@@ -38,6 +38,9 @@ interface Campaign {
   category: string
   platform: string
   budget_type: string
+  budget_amount?: number | string
+  partial_payment_enabled?: boolean
+  partial_payment_config?: any
   deliverables: string
   product_links: string[]
   requirements: string
@@ -1254,7 +1257,24 @@ export default function CampaignDetailModal({
                       )}
                       <DetailCard 
                         label="Budget" 
-                        value={campaign.budget_type === 'Paid' ? '💰 Paid Collaboration' : '🤝 Barter Collaboration'} 
+                        value={(() => {
+                          const bt = (campaign.budget_type || '').toLowerCase()
+                          const amt = campaign.budget_amount ? Number(campaign.budget_amount) : 0
+                          const isPaid = bt.includes('paid') || bt.includes('commercial') || amt > 0
+                          const isHybrid = bt.includes('hybrid')
+
+                          if (isPaid) {
+                            return amt > 0 
+                              ? `💰 ₹${amt.toLocaleString('en-IN')} (${campaign.budget_type || 'Paid'})`
+                              : `💰 ${campaign.budget_type || 'Paid Collaboration'}`
+                          }
+                          if (isHybrid) {
+                            return amt > 0 
+                              ? `🔄 Hybrid (₹${amt.toLocaleString('en-IN')} + Barter)`
+                              : '🔄 Hybrid Collaboration'
+                          }
+                          return '🤝 Barter Collaboration'
+                        })()} 
                         icon={CreditCard} 
                         color="text-emerald-400"
                       />
