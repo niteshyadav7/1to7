@@ -24,7 +24,10 @@ import {
   Tag,
   Users,
   Eye,
-  X
+  X,
+  Copy,
+  Clipboard,
+  Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -633,15 +636,51 @@ export default function FinancePayoutPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Bank UTR / Transaction Reference Number <span className="text-red-500">*</span>
-                  </label>
-                  <Input
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      Bank UTR / Transaction Reference Number <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const clip = await navigator.clipboard.readText()
+                            if (clip) setUtrNumber(clip.trim())
+                          } catch {
+                            // clipboard API fallback if permissions blocked
+                          }
+                        }}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <Clipboard className="h-3 w-3" /> Paste
+                      </button>
+                      <span className="text-slate-600">·</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const randomRef = `UTR${Date.now().toString().slice(-8)}${Math.floor(1000 + Math.random() * 9000)}`
+                          setUtrNumber(randomRef)
+                        }}
+                        className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <Zap className="h-3 w-3" /> Auto-Fill Test UTR
+                      </button>
+                    </div>
+                  </div>
+                  <input
                     type="text"
                     value={utrNumber}
                     onChange={(e) => setUtrNumber(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData?.getData('text')
+                      if (text) {
+                        e.preventDefault()
+                        setUtrNumber(text.trim())
+                      }
+                    }}
                     placeholder="e.g. HDFCN26082300129"
-                    className="bg-slate-950/60 border-white/10 text-white font-mono h-11 text-xs rounded-xl focus:ring-emerald-500"
+                    className="w-full bg-slate-950/60 border border-white/10 text-white font-mono h-11 text-xs rounded-xl px-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
                     required
                   />
                 </div>
@@ -650,12 +689,19 @@ export default function FinancePayoutPage() {
                   <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                     Batch / Run ID (Optional)
                   </label>
-                  <Input
+                  <input
                     type="text"
                     value={batchId}
                     onChange={(e) => setBatchId(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData?.getData('text')
+                      if (text) {
+                        e.preventDefault()
+                        setBatchId(text.trim())
+                      }
+                    }}
                     placeholder={`BATCH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-01`}
-                    className="bg-slate-950/60 border-white/10 text-white font-mono h-11 text-xs rounded-xl focus:ring-emerald-500"
+                    className="w-full bg-slate-950/60 border border-white/10 text-white font-mono h-11 text-xs rounded-xl px-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
                   />
                 </div>
 
@@ -688,6 +734,13 @@ export default function FinancePayoutPage() {
                   <textarea
                     value={batchNotes}
                     onChange={(e) => setBatchNotes(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData?.getData('text')
+                      if (text) {
+                        e.preventDefault()
+                        setBatchNotes(text)
+                      }
+                    }}
                     placeholder="Batch cleared via corporate banking portal..."
                     rows={2}
                     className="w-full bg-slate-950/60 border border-white/10 text-white text-xs rounded-xl p-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none placeholder:text-slate-500"
