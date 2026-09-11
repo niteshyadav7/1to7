@@ -1875,10 +1875,10 @@ export default function PaymentsPage() {
                      }
                     const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData })
+                      body: JSON.stringify({ status: 'Payment Initiated', form_data: updatedFormData })
                     })
                     if (!res.ok) throw new Error('Failed')
-                    setPayments(prev => prev.map(p => p.id === initiatePaymentApp.id ? { ...p, status: 'Payment Initiated', partial_payment: newPartial, pending_amount: newPending, form_data: updatedFormData } : p))
+                    setPayments(prev => prev.map(p => p.id === initiatePaymentApp.id ? { ...p, status: 'Payment Initiated', form_data: updatedFormData } : p))
                     toast.success(`Payment of ₹${amt.toLocaleString()} initiated successfully`)
                     setInitiatePaymentApp(null)
                     setActivePartialReqId(null)

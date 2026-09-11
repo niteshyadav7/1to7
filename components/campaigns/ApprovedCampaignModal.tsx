@@ -147,9 +147,10 @@ export default function ApprovedCampaignModal({
 
   const totalAmount = useMemo(() => getApplicationCommercialAmount(application), [application])
   const isPaid = useMemo(() => isPaidCollaboration(application), [application])
-  const received = (application?.partial_payment || 0) + (application?.final_payment || 0)
+  const isCompleted = application?.status === 'Completed' || Boolean(application?.form_data?.finance_payout_completed)
+  const received = isCompleted ? ((application?.partial_payment || 0) + (application?.final_payment || 0)) : (application?.form_data?.finance_payout_completed?.amount_paid || 0)
   const hasRequested = Boolean(application?.form_data?.payment_request)
-  const balance = hasRequested ? (application?.pending_amount || 0) : totalAmount - received
+  const balance = hasRequested ? (isCompleted ? (application?.pending_amount || 0) : totalAmount - received) : totalAmount - received
 
   // 7-day maturation check
   const maturation = useMemo(() => {

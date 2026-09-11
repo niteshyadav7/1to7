@@ -125,10 +125,12 @@ export default function ApprovedCampaignsPage() {
             const hasRequested = !!app?.form_data?.payment_request
             const pending = hasRequested ? (app.pending_amount || 0) : Math.max(0, totalDeal - received)
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
-            const statusDisplay = progress >= 100 ? 'FULLY PAID' :
+            const isCompleted = app.status === 'Completed' || Boolean(app.form_data?.finance_payout_completed)
+            const statusDisplay = (progress >= 100 && isCompleted) ? 'FULLY PAID' :
               app.status === 'Approved' ? 'APPROVED - ACTIVE' :
                 app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' :
-                  app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
+                  app.status === 'Payment Approved' ? 'APPROVED FOR FINANCE PAYOUT' :
+                    app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
 
             return (
               <motion.div
