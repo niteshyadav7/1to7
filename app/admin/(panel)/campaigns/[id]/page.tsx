@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList,
+  ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Sparkle,
   Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock,
   FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle, History
 } from 'lucide-react'
@@ -643,44 +643,103 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
 
 
 
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Deliverables</Label>
-              <textarea
-                value={formData.deliverables}
-                onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
-                rows={3}
-                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
-              />
+            {/* Row 1: Deliverables & Requirements (Side-by-side 2-column grid) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Deliverables */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkle className="h-3.5 w-3.5 text-indigo-400" />
+                    Deliverables
+                  </Label>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {['1 Reel', '2 Stories', '1 Post', 'YouTube Short'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          deliverables: prev.deliverables ? `${prev.deliverables} + ${tag}` : tag
+                        }))}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 transition-colors cursor-pointer"
+                      >
+                        +{tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={formData.deliverables}
+                  onChange={(e) => setFormData({ ...formData, deliverables: e.target.value })}
+                  placeholder="e.g. 1 Reel (minimum 30 seconds) + 2 Instagram Stories with swipe-up link"
+                  rows={4}
+                  className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600 leading-relaxed"
+                />
+              </div>
+
+              {/* Requirements & Guidelines */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                    <ClipboardList className="h-3.5 w-3.5 text-purple-400" />
+                    Requirements & Guidelines
+                  </Label>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {['Tag @brand', '#Collab', 'High Res', 'Clear Audio'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          requirements: prev.requirements ? `${prev.requirements}; ${tag}` : tag
+                        }))}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 transition-colors cursor-pointer"
+                      >
+                        +{tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={formData.requirements}
+                  onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                  placeholder="e.g. Must feature product clearly in high resolution; Tag @brandname in caption; Include call-to-action link"
+                  rows={4}
+                  className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600 leading-relaxed"
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Requirements</Label>
-              <textarea
-                value={formData.requirements}
-                onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                rows={3}
-                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
-              />
-            </div>
+            {/* Row 2: Additional Info & Product Links (Side-by-side 2-column grid) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  Additional Information / Notes
+                </Label>
+                <textarea
+                  value={formData.additional_info}
+                  onChange={(e) => setFormData({ ...formData, additional_info: e.target.value })}
+                  placeholder="e.g. Product reimbursement will be processed within 48 hours of order verification."
+                  rows={3}
+                  className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600 leading-relaxed"
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Additional Info</Label>
-              <textarea
-                value={formData.additional_info}
-                onChange={(e) => setFormData({ ...formData, additional_info: e.target.value })}
-                rows={3}
-                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Product Links (one per line)</Label>
-              <textarea
-                value={formData.product_links}
-                onChange={(e) => setFormData({ ...formData, product_links: e.target.value })}
-                rows={3}
-                className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600"
-              />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Product Links (One link per line)
+                  </Label>
+                  <span className="text-[10px] text-slate-500 font-mono">Store / E-com URL</span>
+                </div>
+                <textarea
+                  value={formData.product_links}
+                  onChange={(e) => setFormData({ ...formData, product_links: e.target.value })}
+                  placeholder="https://brand.com/product-1&#10;https://brand.com/product-2"
+                  rows={3}
+                  className="w-full bg-slate-950/50 border border-white/10 text-white text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder:text-slate-600 font-mono text-xs leading-relaxed"
+                />
+              </div>
             </div>
 
             {/* Campaign Brief Document Upload (Gated) */}
