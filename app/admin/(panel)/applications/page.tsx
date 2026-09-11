@@ -768,22 +768,23 @@ function SortableHeader({
 function SkeletonRow() {
   return (
     <tr className="border-b border-white/[0.03]">
-      <td className="px-4 py-4"><div className="w-5 h-5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
+      <td className="w-10 px-2 py-3 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-slate-800 animate-pulse shrink-0" />
           <div className="space-y-1.5">
-            <div className="w-28 h-3.5 rounded bg-slate-800 animate-pulse" />
-            <div className="w-20 h-2.5 rounded bg-slate-800/60 animate-pulse" />
+            <div className="w-24 h-3 rounded bg-slate-800 animate-pulse" />
+            <div className="w-16 h-2 rounded bg-slate-800/60 animate-pulse" />
           </div>
         </div>
       </td>
-      <td className="px-4 py-4"><div className="w-24 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-20 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-20 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-16 h-6 rounded-full bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-14 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-8 h-8 rounded-lg bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-18 h-3 rounded bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-12 h-3 rounded bg-slate-800 animate-pulse" /></td>
+      <td className="w-10 px-2 py-3 text-right"><div className="w-6 h-6 rounded-lg bg-slate-800 animate-pulse ml-auto" /></td>
     </tr>
   )
 }
@@ -1605,16 +1606,16 @@ export default function AllApplicationsPage() {
 
       {/* ─── Table ──────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/[0.06] bg-slate-900/30 overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full min-w-[900px]">
+        <div className="w-full overflow-x-auto no-scrollbar hide-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <table className="w-full text-left border-collapse table-auto">
             {/* Header */}
             <thead>
               <tr className="border-b border-white/[0.06] bg-slate-900/60">
                 {/* Checkbox */}
-                <th className="w-[52px] px-4 py-3 text-left">
+                <th className="w-10 px-2 py-3 text-center">
                   <div
                     onClick={handleSelectAll}
-                    className={`w-[18px] h-[18px] rounded flex items-center justify-center border transition-colors cursor-pointer ${
+                    className={`w-[18px] h-[18px] mx-auto rounded flex items-center justify-center border transition-colors cursor-pointer ${
                       selectedIds.size === paginatedData.length && paginatedData.length > 0
                         ? 'bg-indigo-500 border-indigo-500 text-white'
                         : selectedIds.size > 0
@@ -1628,45 +1629,45 @@ export default function AllApplicationsPage() {
                 </th>
 
                 {visibleCols.influencer && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Influencer" column="name" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.instagram && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Instagram" column="followers" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.campaign && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Campaign" column="brand" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.location && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Location" column="location" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.status && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.brand_sent && (
-                  <th className="px-4 py-3 text-left">
-                    <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                  <th className="px-3 py-3 text-left">
+                    <span className="text-[10.5px] text-slate-400 uppercase tracking-wider font-bold flex items-center gap-1 whitespace-nowrap">
                       <Share2 className="h-3 w-3 text-purple-400" />
                       Brand Shared
                     </span>
                   </th>
                 )}
                 {visibleCols.date && (
-                  <th className="px-4 py-3 text-left">
+                  <th className="px-3 py-3 text-left">
                     <SortableHeader label="Applied" column="date" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
                 {visibleCols.actions && (
-                  <th className="w-[60px] px-4 py-3">
+                  <th className="w-10 px-2 py-3 text-right">
                     <span className="text-[11px] text-slate-600 uppercase tracking-wider font-bold" />
                   </th>
                 )}
@@ -1713,10 +1714,10 @@ export default function AllApplicationsPage() {
                         onClick={() => setExpandedId(isExpanded ? null : app.id)}
                       >
                         {/* Checkbox */}
-                        <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
+                        <td className={`w-10 px-2 text-center ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                           <div
                             onClick={() => toggleSelection(app.id)}
-                            className={`w-[18px] h-[18px] rounded flex items-center justify-center border transition-colors cursor-pointer ${
+                            className={`w-[18px] h-[18px] mx-auto rounded flex items-center justify-center border transition-colors cursor-pointer ${
                               isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'
                             }`}
                           >
@@ -1726,27 +1727,27 @@ export default function AllApplicationsPage() {
 
                         {/* Influencer */}
                         {visibleCols.influencer && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
-                            <div className="flex items-center gap-3">
+                          <td className={`px-3 ${densityPadding[density]}`}>
+                            <div className="flex items-center gap-2.5">
                               {user?.profile_photo || user?.instagram_profile_pic ? (
                                 <img
                                   src={user.profile_photo || user.instagram_profile_pic}
                                   alt={user?.full_name || 'Influencer'}
-                                  className="h-9 w-9 rounded-full object-cover shrink-0 border border-white/15 shadow-md"
+                                  className="h-8 w-8 rounded-full object-cover shrink-0 border border-white/15 shadow-md"
                                   onError={(e) => {
                                     (e.target as HTMLElement).style.display = 'none'
                                   }}
                                 />
                               ) : (
-                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-purple-500/80 text-xs font-bold text-white shrink-0 shadow-lg shadow-indigo-500/10">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/80 to-purple-500/80 text-xs font-bold text-white shrink-0 shadow-lg shadow-indigo-500/10">
                                   {user?.full_name?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <p className="text-[13px] font-semibold text-white truncate max-w-[180px]">
+                                <p className="text-[12.5px] font-semibold text-white truncate max-w-[130px] xl:max-w-[160px]" title={user?.full_name}>
                                   {user?.full_name || 'Unknown'}
                                 </p>
-                                <p className="text-[11px] text-slate-500 font-mono truncate">
+                                <p className="text-[10.5px] text-slate-500 font-mono truncate">
                                   {user?.influencer_id}
                                 </p>
                                 <div className="flex items-center gap-1 flex-wrap mt-0.5">
@@ -1773,31 +1774,33 @@ export default function AllApplicationsPage() {
 
                         {/* Instagram */}
                         {visibleCols.instagram && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
+                          <td className={`px-3 ${densityPadding[density]}`}>
                             {user?.instagram_username ? (
                               <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="flex items-center gap-1">
                                   <a 
                                     href={getInstagramUrl(user.instagram_username)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="text-[12px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1.5 max-w-[180px] transition-colors group/link"
+                                    className="text-[11.5px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1 max-w-[120px] xl:max-w-[150px] transition-colors group/link"
                                     title={getInstagramDisplayHandle(user.instagram_username)}
                                   >
-                                    <Instagram className="h-3.5 w-3.5 text-pink-400 shrink-0" />
+                                    <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
                                     <span className="truncate">{getInstagramDisplayHandle(user.instagram_username)}</span>
-                                    <ExternalLink className="h-3 w-3 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
+                                    <ExternalLink className="h-2.5 w-2.5 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
                                   </a>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10.5px] text-slate-500 whitespace-nowrap">
+                                    {formatFollowers(user.instagram_followers_count || user.followers)} followers
+                                  </span>
                                   {user?.is_instagram_verified && (
-                                    <span className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs">
-                                      <CheckCircle2 className="h-2 w-2" /> Meta API
+                                    <span className="px-1 py-0.2 rounded text-[7.5px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs whitespace-nowrap">
+                                      <CheckCircle2 className="h-2 w-2" /> META API
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {formatFollowers(user.instagram_followers_count || user.followers)} followers
-                                </p>
                               </div>
                             ) : (
                               <span className="text-[12px] text-slate-600">—</span>
@@ -1807,14 +1810,14 @@ export default function AllApplicationsPage() {
 
                         {/* Campaign */}
                         {visibleCols.campaign && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
+                          <td className={`px-3 ${densityPadding[density]}`}>
                             <div className="min-w-0">
-                              <p className="text-[12px] font-medium text-slate-300 flex items-center gap-1.5 truncate">
+                              <p className="text-[11.5px] font-medium text-slate-300 flex items-center gap-1.5 truncate max-w-[120px] xl:max-w-[160px]" title={camp?.brand_name}>
                                 <Megaphone className="h-3 w-3 text-slate-500 shrink-0" />
                                 <span className="truncate">{camp?.brand_name || '—'}</span>
                               </p>
                               {camp?.campaign_code && (
-                                <p className="text-[10px] text-slate-600 font-mono mt-0.5 truncate">{camp.campaign_code}</p>
+                                <p className="text-[10px] text-slate-600 font-mono mt-0.5 truncate max-w-[110px] xl:max-w-[140px]">{camp.campaign_code}</p>
                               )}
                             </div>
                           </td>
@@ -1822,19 +1825,24 @@ export default function AllApplicationsPage() {
 
                         {/* Location */}
                         {visibleCols.location && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
-                            <p className="text-[12px] text-slate-400 flex items-center gap-1 truncate">
-                              <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
-                              <span className="truncate">{[user?.city, user?.state].filter(Boolean).join(', ') || '—'}</span>
-                            </p>
+                          <td className={`px-3 ${densityPadding[density]}`}>
+                            <div className="min-w-0 max-w-[110px] xl:max-w-[140px]" title={[user?.city, user?.state].filter(Boolean).join(', ')}>
+                              <p className="text-[11.5px] text-slate-400 flex items-center gap-1 truncate">
+                                <MapPin className="h-3 w-3 text-slate-600 shrink-0" />
+                                <span className="truncate">{user?.city || (user?.state ? '' : '—')}</span>
+                              </p>
+                              {user?.state && (
+                                <p className="text-[10px] text-slate-500 truncate pl-4">{user.state}</p>
+                              )}
+                            </div>
                           </td>
                         )}
 
                         {/* Status */}
                         {visibleCols.status && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
+                          <td className={`px-3 ${densityPadding[density]}`}>
                             <div className="flex flex-col gap-1 items-start">
-                              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-medium border whitespace-nowrap ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
                                 {app.status}
                               </span>
@@ -1843,27 +1851,27 @@ export default function AllApplicationsPage() {
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
-                                    className="text-[10px] font-extrabold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/25 transition cursor-pointer"
+                                    className="text-[9.5px] font-extrabold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/25 transition cursor-pointer whitespace-nowrap"
                                     title="Awaiting colleague approval for commercial deal"
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Pending Colleague)
+                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount).toLocaleString()} (Pending)
                                   </button>
                                 ) : app.form_data?.negotiation?.status === 'approved' ? (
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
-                                    className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-emerald-500/20 transition cursor-pointer"
+                                    className="text-[9.5px] font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md flex items-center gap-1 hover:bg-emerald-500/20 transition cursor-pointer whitespace-nowrap"
                                     title="Commercial deal approved by colleague"
                                   >
                                     <CheckCircle2 className="h-2.5 w-2.5" />
-                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount || app.form_data.negotiation.approved_amount || 0).toLocaleString()} (Approved)
+                                    Deal: ₹{Number(app.form_data.negotiation.proposed_amount || app.form_data.negotiation.approved_amount || 0).toLocaleString()}
                                   </button>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setNegotiationModalApp(app) }}
-                                    className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-dashed border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/20 transition cursor-pointer"
+                                    className="text-[9.5px] font-semibold text-amber-400 bg-amber-500/10 border border-dashed border-amber-500/30 px-1.5 py-0.5 rounded-md flex items-center gap-1 hover:bg-amber-500/20 transition cursor-pointer whitespace-nowrap"
                                     title="Negotiate commercial deal"
                                   >
                                     <IndianRupee className="h-2.5 w-2.5" />
@@ -1872,7 +1880,7 @@ export default function AllApplicationsPage() {
                                 )
                               )}
                               {app.status === 'Rejected' && app.form_data?.rejection_reason && (
-                                <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md max-w-[170px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
+                                <span className="text-[9.5px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md max-w-[140px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
                                   💬 {app.form_data.rejection_reason}
                                 </span>
                               )}
@@ -1882,13 +1890,13 @@ export default function AllApplicationsPage() {
 
                         {/* Brand Shared */}
                         {visibleCols.brand_sent && (
-                          <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
+                          <td className={`px-3 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                             {app.form_data?.sent_to_brand?.is_sent ? (
                               <button
                                 type="button"
                                 onClick={() => handleSingleSentToBrand('unmark_sent', app.id)}
                                 disabled={sentToBrandSubmitting}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap hover:bg-purple-500/25 cursor-pointer transition-all active:scale-95"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap hover:bg-purple-500/25 cursor-pointer transition-all active:scale-95"
                                 title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'} (Click to Reset)`}
                               >
                                 <Share2 className="h-2.5 w-2.5 text-purple-400" />
@@ -1899,7 +1907,7 @@ export default function AllApplicationsPage() {
                                 type="button"
                                 onClick={() => handleSingleSentToBrand('mark_sent', app.id)}
                                 disabled={sentToBrandSubmitting}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap hover:bg-amber-500/25 hover:border-amber-500/40 cursor-pointer transition-all active:scale-95"
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9.5px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap hover:bg-amber-500/25 hover:border-amber-500/40 cursor-pointer transition-all active:scale-95"
                                 title="Click to Mark as Sent to Brand"
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -1911,8 +1919,8 @@ export default function AllApplicationsPage() {
 
                         {/* Date */}
                         {visibleCols.date && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
-                            <p className="text-[12px] text-slate-400" title={new Date(app.created_at).toLocaleString('en-IN')}>
+                          <td className={`px-3 ${densityPadding[density]}`}>
+                            <p className="text-[11.5px] text-slate-400 whitespace-nowrap" title={new Date(app.created_at).toLocaleString('en-IN')}>
                               {timeAgo(app.created_at)}
                             </p>
                           </td>
@@ -1920,7 +1928,7 @@ export default function AllApplicationsPage() {
 
                         {/* Actions */}
                         {visibleCols.actions && (
-                          <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
+                          <td className={`w-10 px-2 text-right ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                             <ActionsDropdown
                               app={app}
                               onStatusChange={updateSingleStatus}
