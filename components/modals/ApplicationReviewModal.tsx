@@ -24,7 +24,8 @@ export default function ApplicationReviewModal({
   const camp = application.campaigns || {}
   const formData = application.form_data || {}
   const selectedStore = application.selected_store
-  const isPaid = (camp.budget_type || '').toLowerCase().includes('paid') || (camp.budget_amount && camp.budget_amount > 0) || (application.commercial_amount && application.commercial_amount > 0)
+  const budgetTypeLower = (camp.budget_type || '').toLowerCase()
+  const isPaid = budgetTypeLower.includes('paid') || budgetTypeLower.includes('hybrid') || (camp.budget_amount && camp.budget_amount > 0) || (application.commercial_amount && application.commercial_amount > 0)
   const dealValue = application.commercial_amount || camp.budget_amount || 0
 
   // Filter out internal metadata keys

@@ -54,7 +54,7 @@ export function isPaidCollaboration(application: any): boolean {
 
   const budgetType = (application.campaigns?.budget_type || application.budget_type || '').toLowerCase()
   if (budgetType === 'barter' || budgetType === 'unpaid') return false
-  if (budgetType.includes('paid') || budgetType.includes('commercial')) return true
+  if (budgetType.includes('paid') || budgetType.includes('commercial') || budgetType.includes('hybrid')) return true
 
   return false
 }

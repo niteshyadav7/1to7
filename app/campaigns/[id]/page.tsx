@@ -245,8 +245,10 @@ export default function StandaloneCampaignPage({
                         {/* Budget Badge */}
                         {campaign.budget_type && (
                           <span className={`px-2.5 py-0.5 rounded-lg border font-extrabold uppercase tracking-wider text-[9px] sm:text-[10px] ${
-                            campaign.budget_type === 'Paid'
+                            campaign.budget_type.toLowerCase().includes('paid')
                               ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : campaign.budget_type.toLowerCase().includes('hybrid')
+                              ? 'bg-purple-50 text-purple-800 border-purple-200'
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           }`}>
                             {campaign.budget_type} {campaign.budget_amount ? `(₹${campaign.budget_amount})` : ''}
