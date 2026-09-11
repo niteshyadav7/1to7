@@ -180,7 +180,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
       try {
         const cleanHandle = extractInstagramUsername(input.instagramUsername)
         const normHandle = normalizeInstagramUsername(cleanHandle)
-        if (cleanHandle && !cleanHandle.startsWith('insta_')) {
+        if (cleanHandle) {
           const { data: existingProfiles } = await supabase
             .from('user_instagram_profiles')
             .select('*')

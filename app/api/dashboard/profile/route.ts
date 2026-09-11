@@ -56,6 +56,17 @@ export async function GET() {
       }, { status: 404 })
     }
 
+    // Self-heal followers count if 0 or null but primary Instagram profile has followers
+    if ((!user.followers || user.followers === 0) && Array.isArray(user.instagram_profiles) && user.instagram_profiles.length > 0) {
+      const primary = user.instagram_profiles.find((p: any) => p.is_primary) || user.instagram_profiles[0]
+      if (primary && typeof primary.followers === 'number' && primary.followers > 0) {
+        user.followers = primary.followers
+        user.instagram_followers_count = primary.followers
+        // Persist to database in background
+        supabase.from('users').update({ followers: primary.followers, instagram_followers_count: primary.followers }).eq('id', user.id).then(() => {})
+      }
+    }
+
     return NextResponse.json({ user })
   } catch (err: any) {
     return NextResponse.json(

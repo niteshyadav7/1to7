@@ -354,7 +354,12 @@ export default function ProfilePage() {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to update profile')
-        setInstagramProfiles(data.profiles || [])
+        const updatedProfiles = data.profiles || []
+        setInstagramProfiles(updatedProfiles)
+        const primary = updatedProfiles.find((p: any) => p.is_primary) || updatedProfiles[0]
+        if (primary && primary.followers) {
+          setFormData(prev => ({ ...prev, followers: primary.followers }))
+        }
         toast.success('Instagram profile updated successfully')
       } else {
         // Link new profile
@@ -370,7 +375,12 @@ export default function ProfilePage() {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to link profile')
-        setInstagramProfiles(data.profiles || [])
+        const updatedProfiles = data.profiles || []
+        setInstagramProfiles(updatedProfiles)
+        const primary = updatedProfiles.find((p: any) => p.is_primary) || updatedProfiles[0]
+        if (primary && primary.followers) {
+          setFormData(prev => ({ ...prev, followers: primary.followers }))
+        }
         toast.success('Instagram profile linked successfully!')
       }
 
@@ -739,6 +749,15 @@ export default function ProfilePage() {
           ]
         }
 
+        // Extract effective followers from user.followers or primary linked Instagram profile
+        let effectiveFollowers = typeof data.user.followers === 'number' && data.user.followers > 0 ? data.user.followers : 0
+        if (!effectiveFollowers && Array.isArray(data.user.instagram_profiles) && data.user.instagram_profiles.length > 0) {
+          const primary = data.user.instagram_profiles.find((p: any) => p.is_primary) || data.user.instagram_profiles[0]
+          if (primary && typeof primary.followers === 'number' && primary.followers > 0) {
+            effectiveFollowers = primary.followers
+          }
+        }
+
         const initialForm = {
           full_name: data.user.full_name || '',
           instagram_username: data.user.instagram_username || '',
@@ -749,7 +768,7 @@ export default function ProfilePage() {
           state: data.user.state || '',
           city: data.user.city || '',
           pincode: data.user.pincode || (loadedAddresses[0]?.pincode || ''),
-          followers: data.user.followers || 0,
+          followers: effectiveFollowers,
           dob: data.user.dob || '',
           alt_mobile: data.user.alt_mobile || '',
           tshirt_size: data.user.tshirt_size || '',
@@ -1483,7 +1502,14 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Followers Count */}
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Followers Count</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Followers Count</Label>
+                        {formData.followers > 0 && (
+                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            Synced with Instagram
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
