@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -565,6 +566,8 @@ export default function PaymentsPage() {
   const [resolveAppealNote, setResolveAppealNote] = useState('')
   const [resolvePaymentAmount, setResolvePaymentAmount] = useState('')
   const [resolvingAppeal, setResolvingAppeal] = useState(false)
+  const { admin } = useAdminPermissions()
+  const [dualApprovingId, setDualApprovingId] = useState<string | null>(null)
 
   const uniqueBrands = useMemo(() => [...new Set(payments.map(p => p.campaigns?.brand_name).filter(Boolean))].sort(), [payments])
   const uniquePlatforms = useMemo(() => [...new Set(payments.map(p => p.campaigns?.platform).filter(Boolean))].sort(), [payments])
@@ -601,6 +604,69 @@ export default function PaymentsPage() {
     } catch { toast.error('Failed to load payments') }
     finally { setLoading(false) }
   }, [])
+
+    const handleDualApprove = async (appId: string) => {
+    setDualApprovingId(appId)
+    try {
+      const res = await fetch('/api/admin/payments/dual-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_id: appId,
+          action: 'approve',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Dual approval failed')
+
+      toast.success(data.message || 'Payment approved by 2nd admin and moved to Finance Payout Queue!')
+      setPayments(prev => prev.map(p => {
+        if (p.id !== appId) return p
+        const currentInit = p.form_data?.payment_initiation || {}
+        return {
+          ...p,
+          status: 'Payment Approved',
+          form_data: {
+            ...p.form_data,
+            payment_initiation: {
+              ...currentInit,
+              status: 'approved_for_finance',
+              second_approved_by_id: admin?.id || admin?.email,
+              second_approved_by_name: admin?.name || 'Second Admin',
+              second_approved_at: new Date().toISOString(),
+            }
+          }
+        }
+      }))
+    } catch (err: any) {
+      toast.error(err.message || 'Approval failed')
+    } finally {
+      setDualApprovingId(null)
+    }
+  }
+
+  const handleRejectDualApproval = async (appId: string) => {
+    setDualApprovingId(appId)
+    try {
+      const res = await fetch('/api/admin/payments/dual-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_id: appId,
+          action: 'reject',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Rejection failed')
+
+      toast.success(data.message || 'Payment initiation rejected')
+      fetchPayments()
+    } catch (err: any) {
+      toast.error(err.message || 'Rejection failed')
+    } finally {
+      setDualApprovingId(null)
+    }
+  }
 
   useEffect(() => { fetchPayments() }, [fetchPayments])
 
@@ -1176,10 +1242,22 @@ export default function PaymentsPage() {
                         {/* Status */}
                         {visibleCols.status && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[payment.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusDots[payment.status] || 'bg-slate-400'}`} />
-                              {payment.status}
-                            </span>
+                            {payment.form_data?.payment_initiation?.status === 'approved_for_finance' || payment.status === 'Payment Approved' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-emerald-500/15 text-emerald-300 border-emerald-500/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                Approved by 2 Admins
+                              </span>
+                            ) : payment.status === 'Payment Initiated' || payment.form_data?.payment_initiation?.status === 'pending_second_approval' ? (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/25">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                Awaiting 2nd Approval
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[payment.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusDots[payment.status] || 'bg-slate-400'}`} />
+                                {payment.status}
+                              </span>
+                            )}
                           </td>
                         )}
                         {/* Date */}
@@ -1561,30 +1639,88 @@ export default function PaymentsPage() {
                                    )}
 
                                    {/* Action Buttons */}
-                                   <div className="flex flex-wrap items-center gap-3 pt-2">
-                                     {payment.status === 'Payment Initiated' ? (
-                                       <div className="flex items-center gap-2 text-amber-400 text-sm font-bold bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl">
-                                         <Clock className="h-4 w-4" />
-                                         Payment Process Started
-                                       </div>
-                                     ) : (payment.pending_amount !== undefined && payment.pending_amount <= 0) ? (
-                                      <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        Fully Paid
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
-                                          className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
-                                          <IndianRupee className="mr-1.5 h-4 w-4" /> Initiate Payment
-                                        </Button>
-                                        <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
-                                          className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
-                                          <X className="mr-1.5 h-4 w-4" /> Reject Payment
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
+                                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                                      {payment.status === 'Payment Approved' || payment.form_data?.payment_initiation?.status === 'approved_for_finance' ? (
+                                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl">
+                                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                          <span>
+                                            Approved by 2 Admins ({payment.form_data?.payment_initiation?.prepared_by_name || 'Admin 1'} &amp; {payment.form_data?.payment_initiation?.second_approved_by_name || 'Admin 2'}) · Ready for Finance Payout
+                                          </span>
+                                        </div>
+                                      ) : (payment.status === 'Payment Initiated' || payment.form_data?.payment_initiation?.status === 'pending_second_approval') ? (
+                                        (() => {
+                                          const init = payment.form_data?.payment_initiation
+                                          const initiated = payment.form_data?.payment_initiated
+                                          const makerId = init?.prepared_by_id || initiated?.initiated_by_id
+                                          const makerName = init?.prepared_by_name || initiated?.initiated_by_name || 'Vishakha'
+                                          const currentAdminId = admin?.id || admin?.email
+                                          const isMaker = Boolean(currentAdminId && makerId && (currentAdminId === makerId || (admin?.name && makerName && admin.name.toLowerCase() === makerName.toLowerCase())))
+                                          const amt = Number(init?.prepared_amount || initiated?.amount || payment.partial_payment || 500)
+
+                                          if (isMaker) {
+                                            return (
+                                              <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 rounded-xl">
+                                                <Clock className="h-4 w-4 animate-pulse text-amber-400" />
+                                                <span>
+                                                  Payment of <strong>₹{amt.toLocaleString()}</strong> Initiated by You ({admin?.name || 'Maker'}) · <strong>Awaiting 2nd Admin Approval</strong>
+                                                </span>
+                                              </div>
+                                            )
+                                          }
+
+                                          // Logged in as 2nd Admin (Checker, e.g. Annu)
+                                          return (
+                                            <div className="flex flex-wrap items-center gap-3">
+                                              <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold bg-amber-500/10 border border-amber-500/25 px-4 py-2 rounded-xl">
+                                                <Clock className="h-4 w-4 animate-pulse text-amber-400" />
+                                                <span>
+                                                  Initiated by <strong>{makerName}</strong> for <strong>₹{amt.toLocaleString()}</strong> · Awaiting Your 2nd Approval
+                                                </span>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                onClick={() => handleDualApprove(payment.id)}
+                                                disabled={dualApprovingId === payment.id}
+                                                className="h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 cursor-pointer border-none"
+                                              >
+                                                {dualApprovingId === payment.id ? (
+                                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                  <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                                                )}
+                                                Approve 2nd Approval
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleRejectDualApproval(payment.id)}
+                                                disabled={dualApprovingId === payment.id}
+                                                className="h-9 px-3.5 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-bold cursor-pointer"
+                                              >
+                                                <X className="mr-1.5 h-4 w-4" />
+                                                Reject
+                                              </Button>
+                                            </div>
+                                          )
+                                        })()
+                                      ) : (payment.pending_amount !== undefined && payment.pending_amount <= 0 && payment.status === 'Completed') ? (
+                                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl">
+                                          <CheckCircle2 className="h-4 w-4" />
+                                          Fully Paid
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
+                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
+                                            <IndianRupee className="mr-1.5 h-4 w-4" /> Initiate Payment
+                                          </Button>
+                                          <Button size="sm" onClick={() => { setRejectPaymentApp(payment); setRejectReason('') }}
+                                            className="h-9 px-4 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white shadow-lg shadow-red-500/20 font-bold border-none cursor-pointer">
+                                            <X className="mr-1.5 h-4 w-4" /> Reject Payment
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
                                 </div>
                               </motion.div>
                             </td>
@@ -1713,10 +1849,29 @@ export default function PaymentsPage() {
                        return r
                      })
 
+                     const adminId = admin?.id || admin?.email || 'admin'
+                     const adminName = admin?.name || 'Operations Admin'
+
+                     const updatedInit = {
+                       prepared_amount: amt,
+                       prepared_by_id: adminId,
+                       prepared_by_name: adminName,
+                       prepared_at: new Date().toISOString(),
+                       bank_code: updatedBankCode,
+                       status: 'pending_second_approval',
+                     }
+
                      const updatedFormData = { 
                        ...currentFormData, 
                        requests: updatedRequests,
-                       payment_initiated: { amount: amt, bank_code: updatedBankCode, initiated_at: new Date().toISOString() } 
+                       payment_initiation: updatedInit,
+                       payment_initiated: { 
+                         amount: amt, 
+                         bank_code: updatedBankCode, 
+                         initiated_at: new Date().toISOString(),
+                         initiated_by_id: adminId,
+                         initiated_by_name: adminName,
+                       } 
                      }
                     const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },

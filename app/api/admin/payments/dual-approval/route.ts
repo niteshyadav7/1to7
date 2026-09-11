@@ -27,9 +27,18 @@ export async function POST(request: Request) {
     }
 
     const currentFormData = application.form_data || {}
-    const currentInit = currentFormData.payment_initiation || {}
+    let currentInit = currentFormData.payment_initiation
+    if (!currentInit && currentFormData.payment_initiated) {
+      currentInit = {
+        prepared_amount: currentFormData.payment_initiated.amount,
+        prepared_by_id: currentFormData.payment_initiated.initiated_by_id || 'ec23f059-2369-4360-8ab2-e86faf60a3a7',
+        prepared_by_name: currentFormData.payment_initiated.initiated_by_name || 'Vishakha',
+        prepared_at: currentFormData.payment_initiated.initiated_at,
+        status: 'pending_second_approval',
+      }
+    }
     const adminIdentifier = admin.id || admin.email || 'admin'
-    const adminName = admin.full_name || admin.email || 'Admin'
+    const adminName = admin.name || admin.full_name || admin.email || 'Admin'
 
     // ──────────────────────────────────────────────
     // 1. PREPARE / INITIATE PAYMENT DUAL APPROVAL
@@ -123,6 +132,10 @@ export async function POST(request: Request) {
     // 3. REJECT PAYMENT PREPARATION
     // ──────────────────────────────────────────────
     if (action === 'reject') {
+      const initAmt = Number(currentInit?.prepared_amount || currentFormData.payment_initiated?.amount || 0)
+      const revertedPartial = Math.max(0, (Number(application.partial_payment) || 0) - initAmt)
+      const revertedPending = (Number(application.pending_amount) || 0) + initAmt
+
       const updatedInit = {
         ...currentInit,
         status: 'rejected',
@@ -135,8 +148,10 @@ export async function POST(request: Request) {
       const { error: updateErr } = await supabase
         .from('applications')
         .update({
-          form_data: { ...currentFormData, payment_initiation: updatedInit },
-          status: 'Approved',
+          form_data: { ...currentFormData, payment_initiation: updatedInit, payment_initiated: null },
+          status: 'Payment Requested',
+          partial_payment: revertedPartial,
+          pending_amount: revertedPending,
           updated_at: new Date().toISOString(),
         })
         .eq('id', application_id)
