@@ -439,7 +439,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                   <SelectTrigger className="bg-slate-950/50 border-white/10 text-white h-11 text-sm focus:ring-indigo-500 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent side="bottom" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50">
+                  <SelectContent side="bottom" align="start" className="bg-slate-950 border-white/20 text-white shadow-2xl shadow-black/50 min-w-[290px]">
                     <SelectItem value="Paid Fixed" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Fixed (Standard Deal)</SelectItem>
                     <SelectItem value="Paid Variable" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Paid Variable (Negotiable Deal)</SelectItem>
                     <SelectItem value="Barter" className="text-slate-100 hover:text-white focus:text-white focus:bg-indigo-500/30 cursor-pointer py-2.5 font-medium">Barter (Product/Service)</SelectItem>
