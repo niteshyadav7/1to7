@@ -34,7 +34,11 @@ export async function POST(request: Request) {
 
     for (const app of applications) {
       const currentFormData = app.form_data || {}
-      const payoutAmount = Number(app.pending_amount) || 0
+      const payoutAmount = Number(
+        currentFormData.payment_initiation?.prepared_amount ||
+        currentFormData.payment_initiated?.amount ||
+        (Number(app.pending_amount) > 0 ? app.pending_amount : (app.partial_payment || 0))
+      )
       totalAmountDisbursed += payoutAmount
 
       const newTransaction = {
@@ -61,14 +65,17 @@ export async function POST(request: Request) {
         },
       }
 
-      const newPartial = (app.partial_payment || 0) + payoutAmount
+      const pendingAmt = Number(app.pending_amount) || 0
+      const newPartial = pendingAmt > 0 ? (Number(app.partial_payment) || 0) + payoutAmount : (Number(app.partial_payment) || payoutAmount)
+      const newPending = Math.max(0, pendingAmt - (pendingAmt > 0 ? payoutAmount : 0))
+
       const { error: updateErr } = await supabase
         .from('applications')
         .update({
           form_data: updatedFormData,
           partial_payment: newPartial,
-          pending_amount: 0,
-          status: 'Payment Initiated',
+          pending_amount: newPending,
+          status: 'Completed',
           updated_at: executedAt,
         })
         .eq('id', app.id)

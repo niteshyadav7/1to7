@@ -80,11 +80,22 @@ export default function FinancePayoutPage() {
   // Dual Approval Modal State
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
+  // Helper to compute payable amount for an application in finance
+  const getPayableAmount = (app: Application) => {
+    const init = app.form_data?.payment_initiation
+    const initiated = app.form_data?.payment_initiated
+    return Number(
+      init?.prepared_amount ||
+      initiated?.amount ||
+      (Number(app.pending_amount) > 0 ? app.pending_amount : (app.partial_payment || 0))
+    )
+  }
+
   const fetchApplications = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
-      setApplications(data.applications || [])
+      setApplications(data.payments || data.applications || [])
     } catch {
       toast.error('Failed to load payment queue')
     } finally {
@@ -102,17 +113,26 @@ export default function FinancePayoutPage() {
   const financeQueueApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
+      // If already disbursed, do not show in pending queue
+      const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
+      if (isCompleted) return false
+
       const isApprovedForFinance =
         app.status === 'Payment Approved' ||
+        app.status === 'Payment Initiated' ||
         (init && init.status === 'approved_for_finance') ||
         app.status === 'Payment Requested'
-      return isApprovedForFinance && (app.pending_amount || 0) > 0
+
+      const payableAmt = getPayableAmount(app)
+      return isApprovedForFinance && payableAmt > 0
     })
   }, [applications])
 
   const pendingDualApprovalApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
+      const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
+      if (isCompleted) return false
       return init && init.status === 'pending_second_approval'
     })
   }, [applications])
@@ -151,7 +171,7 @@ export default function FinancePayoutPage() {
   const selectedTotalAmount = useMemo(() => {
     return applications
       .filter((app) => selectedIds.includes(app.id))
-      .reduce((sum, app) => sum + (Number(app.pending_amount) || 0), 0)
+      .reduce((sum, app) => sum + getPayableAmount(app), 0)
   }, [applications, selectedIds])
 
   // Export Bank NEFT / Excel CSV
@@ -182,7 +202,7 @@ export default function FinancePayoutPage() {
       `"${app.users?.account_name || app.users?.full_name || ''}"`,
       `"${app.users?.account_number || ''}"`,
       `"${app.users?.ifsc_code || ''}"`,
-      app.pending_amount || 0,
+      getPayableAmount(app),
       `"${app.campaigns?.campaign_code || ''}"`,
       `"${app.campaigns?.brand_name || ''}"`,
       `"${app.users?.influencer_id || ''}"`,
@@ -273,8 +293,8 @@ export default function FinancePayoutPage() {
     )
   }
 
-  const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + (Number(a.pending_amount) || 0), 0)
-  const totalDualApprovalAmount = pendingDualApprovalApps.reduce((acc, a) => acc + (Number(a.form_data?.payment_initiation?.prepared_amount || a.pending_amount) || 0), 0)
+  const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
+  const totalDualApprovalAmount = pendingDualApprovalApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
 
   return (
     <div className="space-y-6">
@@ -493,10 +513,10 @@ export default function FinancePayoutPage() {
 
                       <td className="p-4 text-right">
                         <div className="text-base font-extrabold text-emerald-400">
-                          ₹{Number(app.pending_amount || 0).toLocaleString()}
+                          ₹{getPayableAmount(app).toLocaleString()}
                         </div>
                         <div className="text-[10px] text-slate-500">
-                          Total: ₹{((app.partial_payment || 0) + (app.pending_amount || 0)).toLocaleString()}
+                          Total: ₹{((Number(app.partial_payment) || 0) + (Number(app.pending_amount) || 0)).toLocaleString()}
                         </div>
                       </td>
 
@@ -510,6 +530,11 @@ export default function FinancePayoutPage() {
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
                             <Clock className="h-3 w-3 animate-pulse" />
                             Awaiting 2nd Admin
+                          </span>
+                        ) : app.status === 'Payment Initiated' ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Payment Initiated
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25">

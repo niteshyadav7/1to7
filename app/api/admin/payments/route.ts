@@ -56,7 +56,7 @@ export async function GET() {
     const payments = (applications || []).filter((app: any) => {
       const hasPaymentRequest = app.form_data?.payment_request && Object.keys(app.form_data.payment_request).length > 0
       const hasPartialRequests = Array.isArray(app.form_data?.requests) && app.form_data.requests.length > 0
-      const isPaymentStatus = ['Payment Requested', 'Payment Initiated', 'Completed'].includes(app.status)
+      const isPaymentStatus = ['Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed'].includes(app.status)
       
       return hasPaymentRequest || hasPartialRequests || isPaymentStatus
     })
