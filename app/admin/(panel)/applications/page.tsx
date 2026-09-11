@@ -1397,22 +1397,22 @@ export default function AllApplicationsPage() {
         </div>
       </SetAdminHeader>
 
-      {/* ─── Status Tabs & Brand Shared Filter ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex overflow-x-auto hide-scrollbar gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5">
+      {/* ─── Status Tabs & Brand Shared Filter (Wrap without Horizontal Scrollbar) ─── */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/40 p-1.5 rounded-2xl border border-white/5">
+        <div className="flex flex-wrap items-center gap-1">
           {statusFilters.map(f => (
             <button
               key={f}
               onClick={() => { setActiveStatus(f); setSelectedIds(new Set()); setExpandedId(null) }}
-              className={`px-4 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeStatus === f
-                  ? 'bg-white/[0.08] text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'
+                  ? 'bg-white/[0.12] text-white shadow-sm border border-white/10'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
               }`}
             >
-              {f}
+              <span>{f}</span>
               {f !== 'All' && (
-                <span className={`ml-1.5 text-[10px] ${activeStatus === f ? 'text-slate-400' : 'text-slate-600'}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeStatus === f ? 'bg-indigo-500/30 text-indigo-200' : 'bg-white/5 text-slate-500'}`}>
                   {statusCounts[f] || 0}
                 </span>
               )}
@@ -1421,10 +1421,14 @@ export default function AllApplicationsPage() {
         </div>
 
         {/* Brand Shared Toggle Pills */}
-        <div className="flex items-center gap-1 bg-slate-900/40 p-1 rounded-xl border border-white/5 shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-white/10 shrink-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 px-2 flex items-center gap-1">
+            <Share2 className="h-3 w-3 text-purple-400" />
+            Brand:
+          </span>
           <button
             onClick={() => setBrandSentFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               brandSentFilter === 'all'
                 ? 'bg-white/10 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -1434,7 +1438,7 @@ export default function AllApplicationsPage() {
           </button>
           <button
             onClick={() => setBrandSentFilter('not_sent')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
               brandSentFilter === 'not_sent'
                 ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 shadow-sm'
                 : 'text-amber-400/80 hover:text-amber-300'
@@ -1445,7 +1449,7 @@ export default function AllApplicationsPage() {
           </button>
           <button
             onClick={() => setBrandSentFilter('sent')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
               brandSentFilter === 'sent'
                 ? 'bg-purple-600/20 text-purple-200 border border-purple-500/40 shadow-sm'
                 : 'text-purple-400/80 hover:text-purple-300'
