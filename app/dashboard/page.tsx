@@ -42,6 +42,7 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-50 text-red-700 border-red-200',
   'Completed': 'bg-purple-50 text-purple-700 border-purple-200',
   'Payment Initiated': 'bg-amber-50 text-amber-700 border-amber-200',
+  'Payment Approved': 'bg-blue-50 text-blue-700 border-blue-200',
 }
 
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'

@@ -117,6 +117,7 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  'Payment Approved': 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   'Payment Requested': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 
@@ -128,10 +129,11 @@ const statusDots: Record<string, string> = {
   'Rejected': 'bg-red-400',
   'Completed': 'bg-purple-400',
   'Payment Initiated': 'bg-amber-400',
+  'Payment Approved': 'bg-blue-400',
   'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated']
+const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved']
 
 const followerRanges = [
   { label: '< 1K', min: 0, max: 999 },
@@ -2019,7 +2021,7 @@ export default function AllApplicationsPage() {
                                 )}
 
                                  {/* Deliverable Completion Timeline & Admin Delay Exemption Controls */}
-                                {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Completed') && (() => {
+                                {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Payment Approved' || app.status === 'Completed') && (() => {
                                   const baseDate = app.updated_at ? new Date(app.updated_at) : new Date(app.created_at)
                                   const defaultDays = app.campaigns?.completion_days || 7
                                   const effectiveDeadline = app.completion_deadline 

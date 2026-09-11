@@ -102,7 +102,7 @@ export function isApplicationCompletionSubmitted(application: ApplicationTimelin
   if (application.completion_submitted_at) return true
 
   // Completed / Submitted application statuses
-  const submittedStatuses = ['Payment Requested', 'Payment Initiated', 'Completed', 'Paid']
+  const submittedStatuses = ['Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed', 'Paid']
   if (submittedStatuses.includes(application.status)) return true
 
   // Check if payment_request / live_date has been filled in form_data

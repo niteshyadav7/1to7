@@ -45,7 +45,7 @@ export default function ApprovedCampaignsPage() {
     try {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
-      const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
+      const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
       const filtered = (data.applications || []).filter((app: Application) => {
         if (!validStatuses.includes(app.status)) return false
         if (app.campaigns?.order_form && app.status === 'Approved') {
@@ -129,7 +129,7 @@ export default function ApprovedCampaignsPage() {
             const statusDisplay = (progress >= 100 && isCompleted) ? 'FULLY PAID' :
               app.status === 'Approved' ? 'APPROVED - ACTIVE' :
                 app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' :
-                  app.status === 'Payment Approved' ? 'APPROVED FOR FINANCE PAYOUT' :
+                  (app.status === 'Payment Initiated' || app.status === 'Payment Approved') ? 'PAYMENT INITIATED - PROCESSING' :
                     app.status === 'Completed' ? 'COMPLETED' : 'PAYMENT INITIATED - PROCESSING'
 
             return (
@@ -147,7 +147,7 @@ export default function ApprovedCampaignsPage() {
                     <span className="text-sm font-bold text-charcoal-surface truncate w-full sm:max-w-[50%] flex items-center gap-1.5">
                       <span className="opacity-50 text-primary">#</span> {campCode}
                     </span>
-                    <span className={`text-[9px] font-bold px-2 py-1 flex items-center shrink-0 uppercase tracking-wider rounded-sm border ${progress >= 100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-primary-container/20 text-black border-primary-container/30'}`}>
+                    <span className={`text-[9px] font-bold px-2 py-1 flex items-center shrink-0 uppercase tracking-wider rounded-sm border ${progress >= 100 && isCompleted ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : (app.status === 'Payment Initiated' || app.status === 'Payment Approved') ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-primary-container/20 text-black border-primary-container/30'}`}>
                       {statusDisplay}
                     </span>
                   </div>

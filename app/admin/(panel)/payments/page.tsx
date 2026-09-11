@@ -87,13 +87,14 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  'Payment Approved': 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   'Payment Requested': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
 }
 const statusDots: Record<string, string> = {
   'Applied': 'bg-blue-400', 'Approved': 'bg-emerald-400', 'Rejected': 'bg-red-400',
-  'Completed': 'bg-purple-400', 'Payment Initiated': 'bg-amber-400', 'Payment Requested': 'bg-cyan-400',
+  'Completed': 'bg-purple-400', 'Payment Initiated': 'bg-amber-400', 'Payment Approved': 'bg-blue-400', 'Payment Requested': 'bg-cyan-400',
 }
-const statusFilters = ['All', 'Active Appeals', 'Payment Requested', 'Payment Initiated', 'Completed', 'Approved']
+const statusFilters = ['All', 'Active Appeals', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed', 'Approved']
 const dateRanges = [
   { label: 'All Time', value: 'all' }, { label: 'Today', value: 'today' },
   { label: 'Last 7 days', value: '7d' }, { label: 'Last 30 days', value: '30d' },

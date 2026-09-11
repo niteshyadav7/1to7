@@ -357,6 +357,7 @@ export default function ApprovedCampaignModal({
       case 'Payment Requested':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-600" /> Payment Requested</span>
       case 'Payment Initiated':
+      case 'Payment Approved':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5 text-blue-600" /> Payment In Progress</span>
       case 'Completed':
         return <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-purple-600" /> Completed</span>
@@ -1158,7 +1159,7 @@ export default function ApprovedCampaignModal({
                         </div>
 
                         {/* Partial Payment Release option if already in payment process */}
-                        {application.status === 'Payment Initiated' && balance > 0 && (
+                        {(application.status === 'Payment Initiated' || application.status === 'Payment Approved') && balance > 0 && (
                           <div className="pt-2">
                             <Button
                               type="button"

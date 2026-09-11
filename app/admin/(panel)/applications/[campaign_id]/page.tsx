@@ -85,9 +85,10 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-500/15 text-red-300 border-red-500/20',
   'Completed': 'bg-purple-500/15 text-purple-300 border-purple-500/20',
   'Payment Initiated': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
+  'Payment Approved': 'bg-blue-500/15 text-blue-300 border-blue-500/20',
 }
 
-const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Completed', 'Payment Initiated']
+const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved']
 
 export default function AdminApplicationsPage({ params }: { params: Promise<{ campaign_id: string }> }) {
   const { campaign_id } = use(params)
@@ -961,7 +962,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     )}
 
                     {/* Completion Timeline & Delay Exemption Controls for Active Collabs */}
-                    {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Completed') && (() => {
+                    {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Payment Approved' || app.status === 'Completed') && (() => {
                       const baseDate = app.updated_at ? new Date(app.updated_at) : new Date(app.created_at)
                       const defaultDays = campaign?.completion_days || 7
                       const effectiveDeadline = app.completion_deadline 
@@ -1471,7 +1472,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                     </div>
 
                     {/* Payment Section */}
-                    {(app.status === 'Approved' || app.status === 'Completed' || app.status === 'Payment Initiated') && paymentEdits[app.id] && (
+                    {(app.status === 'Approved' || app.status === 'Completed' || app.status === 'Payment Initiated' || app.status === 'Payment Approved') && paymentEdits[app.id] && (
                       <div className="rounded-xl border border-white/5 bg-slate-950/40 p-4 space-y-4">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                           <IndianRupee className="h-3.5 w-3.5" />

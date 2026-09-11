@@ -42,6 +42,7 @@ const statusColors: Record<string, string> = {
   'Rejected': 'bg-red-50 text-red-700 border border-red-200',
   'Completed': 'bg-purple-50 text-purple-700 border border-purple-200',
   'Payment Initiated': 'bg-blue-50 text-blue-700 border border-blue-200',
+  'Payment Approved': 'bg-blue-50 text-blue-700 border border-blue-200',
   'Order Details Pending': 'bg-cyan-50 text-cyan-700 border border-cyan-200',
 }
 
@@ -92,7 +93,7 @@ export default function AppliedCampaignsPage() {
   // Only show Applied & Rejected here — Approved and beyond are on the Approved page
   // BUT: if the campaign requires an order form and order_details haven't been approved yet,
   // keep it visible on the Applied page so the influencer can fill the order form
-  const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Completed']
+  const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
   const appliedPageApps = applications.filter(app => {
     // Always show Applied & Rejected
     if (!approvedStatuses.includes(app.status)) return true
