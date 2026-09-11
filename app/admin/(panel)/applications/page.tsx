@@ -557,6 +557,7 @@ function ActionsDropdown({
   onRejectWithReason,
   onDeleteApp,
   onOpenNegotiate,
+  onSentToBrandToggle,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -565,6 +566,7 @@ function ActionsDropdown({
   onRejectWithReason?: (app: Application) => void
   onDeleteApp: (id: string, name?: string) => void
   onOpenNegotiate?: (app: Application) => void
+  onSentToBrandToggle?: (action: 'mark_sent' | 'unmark_sent', appId: string) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -682,6 +684,34 @@ function ActionsDropdown({
                   {a.label}
                 </button>
               ))}
+
+              <div className="border-t border-white/10 my-1" />
+
+              {app.form_data?.sent_to_brand?.is_sent ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onSentToBrandToggle?.('unmark_sent', app.id)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                  Reset Sent to Brand
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onSentToBrandToggle?.('mark_sent', app.id)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-purple-300 hover:bg-purple-500/15"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-purple-400" />
+                  Mark as Sent to Brand
+                </button>
+              )}
 
               <div className="border-t border-white/10 my-1" />
 
@@ -834,6 +864,29 @@ export default function AllApplicationsPage() {
       setSelectedIds(new Set())
       setSentToBrandBatchLabel('')
       setSentToBrandNotes('')
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed')
+    } finally {
+      setSentToBrandSubmitting(false)
+    }
+  }
+
+  const handleSingleSentToBrand = async (action: 'mark_sent' | 'unmark_sent', appId: string) => {
+    setSentToBrandSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/applications/sent-to-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: [appId],
+          batch_label: action === 'mark_sent' ? `Batch - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : undefined,
+          action,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update Sent to Brand status')
+      toast.success(data.message)
       fetchApplications()
     } catch (err: any) {
       toast.error(err.message || 'Failed')
@@ -1825,20 +1878,29 @@ export default function AllApplicationsPage() {
 
                         {/* Brand Shared */}
                         {visibleCols.brand_sent && (
-                          <td className={`px-4 ${densityPadding[density]}`}>
+                          <td className={`px-4 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                             {app.form_data?.sent_to_brand?.is_sent ? (
-                              <span
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap"
-                                title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'}`}
+                              <button
+                                type="button"
+                                onClick={() => handleSingleSentToBrand('unmark_sent', app.id)}
+                                disabled={sentToBrandSubmitting}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap hover:bg-purple-500/25 cursor-pointer transition-all active:scale-95"
+                                title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'} (Click to Reset)`}
                               >
                                 <Share2 className="h-2.5 w-2.5 text-purple-400" />
                                 <span>Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})</span>
-                              </span>
+                              </button>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleSingleSentToBrand('mark_sent', app.id)}
+                                disabled={sentToBrandSubmitting}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap hover:bg-amber-500/25 hover:border-amber-500/40 cursor-pointer transition-all active:scale-95"
+                                title="Click to Mark as Sent to Brand"
+                              >
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                                 <span>Not Sent</span>
-                              </span>
+                              </button>
                             )}
                           </td>
                         )}
@@ -1861,6 +1923,7 @@ export default function AllApplicationsPage() {
                               onRevertApproval={handleRevertApproval}
                               onRevokeApproval={(app) => setRevokeModalApp(app)}
                               onOpenNegotiate={(app) => setNegotiationModalApp(app)}
+                              onSentToBrandToggle={handleSingleSentToBrand}
                               onRejectWithReason={(app) => {
                                 setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
                                 setSelectedRejectReason('Follower count / criteria mismatch')
@@ -2019,6 +2082,64 @@ export default function AllApplicationsPage() {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Sent to Brand Quick Tracker Box */}
+                                <div className="p-4 rounded-2xl bg-slate-950/70 border border-white/10 flex items-center justify-between gap-3 flex-wrap shadow-lg">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2.5 rounded-xl ${app.form_data?.sent_to_brand?.is_sent ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'}`}>
+                                      <Share2 className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-bold text-white flex items-center gap-2">
+                                        {app.form_data?.sent_to_brand?.is_sent
+                                          ? `📤 Sent to Brand: ${app.form_data.sent_to_brand.batch_label || 'Batch'}`
+                                          : '🆕 Profile Not Shared with Brand Yet'}
+                                        {app.form_data?.sent_to_brand?.is_sent && (
+                                          <span className="text-[10px] font-semibold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+                                            Logged by {app.form_data.sent_to_brand.sent_by || 'Admin'}
+                                          </span>
+                                        )}
+                                      </p>
+                                      <p className="text-[11px] text-slate-400 mt-0.5">
+                                        {app.form_data?.sent_to_brand?.is_sent
+                                          ? `Dispatched to brand on ${new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                          : 'Mark when you have shared this influencer profile with the brand.'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {app.form_data?.sent_to_brand?.is_sent ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleSingleSentToBrand('unmark_sent', app.id)
+                                        }}
+                                        disabled={sentToBrandSubmitting}
+                                        className="h-9 text-xs border-white/10 text-slate-400 hover:text-white cursor-pointer rounded-xl"
+                                      >
+                                        <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                                        Reset Sent Status
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleSingleSentToBrand('mark_sent', app.id)
+                                        }}
+                                        disabled={sentToBrandSubmitting}
+                                        className="h-9 text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold cursor-pointer shadow-md shadow-purple-600/25 rounded-xl px-4"
+                                      >
+                                        <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                                        Mark as Sent to Brand
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
 
                                  {/* Deliverable Completion Timeline & Admin Delay Exemption Controls */}
                                 {(app.status === 'Approved' || app.status === 'Payment Requested' || app.status === 'Payment Initiated' || app.status === 'Payment Approved' || app.status === 'Completed') && (() => {
