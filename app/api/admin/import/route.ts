@@ -142,13 +142,35 @@ export async function POST(request: Request) {
     )
 
     if (needsNewSequentialId) {
+      // 1. Fetch counter from influencer_id_counter
       const { data: counter } = await supabase
         .from('influencer_id_counter')
         .select('last_number')
         .eq('id', 1)
         .single()
       
-      currentSequence = counter?.last_number || 10000
+      const counterNum = counter?.last_number || 10000
+
+      // 2. Fetch the latest registered users to ensure counter is NEVER behind actual database max
+      const { data: latestUsers } = await supabase
+        .from('users')
+        .select('influencer_id')
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      let latestUserMaxNum = 0
+      if (latestUsers && latestUsers.length > 0) {
+        for (const u of latestUsers) {
+          if (u.influencer_id && u.influencer_id.startsWith('HY')) {
+            const parsed = parseInt(u.influencer_id.replace('HY', ''), 10)
+            if (!isNaN(parsed) && parsed > latestUserMaxNum) {
+              latestUserMaxNum = parsed
+            }
+          }
+        }
+      }
+
+      currentSequence = Math.max(counterNum, latestUserMaxNum, 10000)
     }
 
     for (const item of validRows) {
@@ -266,6 +288,18 @@ export async function POST(request: Request) {
               singleError = null
               results.existing_users++
             }
+          }
+
+          // If influencer_id conflict, dynamically generate a fresh verified unique ID and retry
+          if (singleError && (singleError.message?.toLowerCase().includes('influencer_id') || singleError.message?.includes('users_influencer_id_key'))) {
+            const freshInfluencerId = await generateSequentialInfluencerId()
+            const retryRes = await supabase
+              .from('users')
+              .insert([{ ...item.userData, influencer_id: freshInfluencerId }])
+              .select('id')
+              .single()
+            singleUser = retryRes.data
+            singleError = retryRes.error
           }
 
           if (singleError) {

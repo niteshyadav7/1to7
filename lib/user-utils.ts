@@ -10,27 +10,34 @@ export async function generateSequentialInfluencerId(): Promise<string> {
   let nextId = ''
 
   while (!isUnique && attempts < 5) {
-    // 1. Fetch the absolute latest user to find the "max" sequence
-    const { data: latestUser } = await supabase
-      .from('users')
-      .select('influencer_id')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    // 1. Fetch both latest user and counter to find the true max sequence
+    const [{ data: latestUser }, { data: counter }] = await Promise.all([
+      supabase
+        .from('users')
+        .select('influencer_id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single(),
+      supabase
+        .from('influencer_id_counter')
+        .select('last_number')
+        .eq('id', 1)
+        .single()
+    ])
 
-    let nextNum = 10000 + Math.floor(Math.random() * 90000) // Fallback generator
-    
+    let maxNum = counter?.last_number || 10000
     if (latestUser && latestUser.influencer_id && latestUser.influencer_id.startsWith('HY')) {
-       const parsed = parseInt(latestUser.influencer_id.replace('HY', ''), 10)
-       if (!isNaN(parsed)) {
-         // Add 1 to the max. If we are retrying (due to race condition), add `attempts` so we skip the exact duplicate!
-         nextNum = parsed + 1 + attempts 
-       }
+      const parsed = parseInt(latestUser.influencer_id.replace('HY', ''), 10)
+      if (!isNaN(parsed) && parsed > maxNum) {
+        maxNum = parsed
+      }
     }
 
+    // Add 1 to max. If retrying due to race condition, add attempts to jump ahead
+    const nextNum = maxNum + 1 + attempts
     nextId = `HY${nextNum}`
 
-    // 2. Verify that this specific ID hasn't been taken in the last millisecond
+    // 2. Verify that this specific ID hasn't been taken
     const { data: checkData } = await supabase
       .from('users')
       .select('id')
@@ -38,14 +45,28 @@ export async function generateSequentialInfluencerId(): Promise<string> {
       .single()
 
     if (!checkData) {
-       isUnique = true
+      isUnique = true
     }
     attempts++
   }
 
   // 3. Absolute failsafe for massive unhandled traffic spikes
   if (!isUnique) {
-     nextId = `HY${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 99)}`
+    nextId = `HY${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 99)}`
+  }
+
+  // 4. Fire-and-forget sync to influencer_id_counter
+  if (nextId.startsWith('HY')) {
+    const num = parseInt(nextId.replace('HY', ''), 10)
+    if (!isNaN(num)) {
+      ;(async () => {
+        try {
+          await supabase
+            .from('influencer_id_counter')
+            .upsert({ id: 1, last_number: num }, { onConflict: 'id' })
+        } catch {}
+      })()
+    }
   }
 
   return nextId
