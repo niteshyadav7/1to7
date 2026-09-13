@@ -54,6 +54,9 @@ export const CAMPAIGN_FIELD_METADATA: Record<string, { label: string; category: 
   payment_form_fields: { label: 'Payment Form Fields', category: 'form' },
   additional_info: { label: 'Additional Information', category: 'general' },
   display_order: { label: 'Display Order Priority', category: 'general' },
+  is_test_mode: { label: 'Campaign Mode', category: 'targeting' },
+  test_user_ids: { label: 'Pilot Tester IDs', category: 'targeting' },
+  test_creators: { label: 'Pilot Test Creators', category: 'targeting' },
 }
 
 /**
@@ -62,6 +65,10 @@ export const CAMPAIGN_FIELD_METADATA: Record<string, { label: string; category: 
 export function formatValueForDisplay(field: string, val: any): string {
   if (val === null || val === undefined || val === '') {
     return 'None / Not Set'
+  }
+
+  if (field === 'is_test_mode') {
+    return Boolean(val) ? 'Pre-Launch Pilot Mode (Private)' : 'Public Live (All Creators)'
   }
 
   if (field === 'budget_amount') {
@@ -81,13 +88,19 @@ export function formatValueForDisplay(field: string, val: any): string {
 
   if (Array.isArray(val)) {
     if (val.length === 0) return 'None'
+    if (field === 'test_creators') {
+      return `${val.length} Creators: ${val.map((c: any) => typeof c === 'object' ? (c.name || c.full_name || c.email || 'Creator') : String(c)).slice(0, 3).join(', ')}${val.length > 3 ? ` +${val.length - 3} more` : ''}`
+    }
+    if (field === 'test_user_ids') {
+      return `${val.length} Tester Account${val.length === 1 ? '' : 's'}`
+    }
     if (field === 'store_locations') {
       return `${val.length} Outlets: ${val.map((s: any) => typeof s === 'string' ? s : `${s.name || 'Store'} (${s.city || ''})`).slice(0, 3).join(', ')}${val.length > 3 ? ` +${val.length - 3} more` : ''}`
     }
     if (field === 'form_fields' || field === 'order_form_fields') {
       return `${val.length} Questions: ${val.map((f: any) => f.name || f.label || 'Field').slice(0, 3).join(', ')}${val.length > 3 ? ` +${val.length - 3} more` : ''}`
     }
-    return val.join(', ')
+    return val.map((item: any) => typeof item === 'object' ? (item.name || item.title || JSON.stringify(item)) : String(item)).join(', ')
   }
 
   if (typeof val === 'object') {
