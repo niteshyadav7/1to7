@@ -1031,9 +1031,9 @@ export default function ProfilePage() {
         </div>
 
         {/* Right Group: Auto-Save Status, Profile Strength & Save Button */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
           {/* Live Auto-Save Status Indicator */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0">
             {saveStatus === 'saving' ? (
               <span className="flex items-center gap-1.5 text-pink-600">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
@@ -1052,19 +1052,20 @@ export default function ProfilePage() {
             ) : (
               <span className="flex items-center gap-1.5 text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                <span>All changes saved</span>
+                <span>All saved</span>
               </span>
             )}
           </div>
 
           {/* Profile Strength Bar */}
-          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/60 px-3.5 py-1.5 rounded-lg shrink-0">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+          <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 border border-slate-200/60 px-2.5 sm:px-3.5 py-1.5 rounded-lg shrink-0">
+            <div className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-800">
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span>Profile Strength:</span>
+              <span className="hidden sm:inline">Profile Strength:</span>
+              <span className="sm:hidden">Strength:</span>
               <span className="text-emerald-600 font-extrabold">{strength}%</span>
             </div>
-            <div className="w-24 sm:w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div className="w-16 sm:w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
               <div
                 className={`h-full rounded-full bg-gradient-to-r ${strengthColor} transition-all duration-500`}
                 style={{ width: `${strength}%` }}
@@ -1077,7 +1078,7 @@ export default function ProfilePage() {
             type="button"
             onClick={handleManualSave}
             disabled={saving}
-            className="h-9 px-4 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
+            className="h-8 sm:h-9 px-3 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
           >
             {saving ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1130,9 +1131,9 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                <div className="mt-2 text-center">
+                <div className="mt-1.5 sm:mt-2 text-center max-w-[70px] sm:max-w-none mx-auto">
                   <p
-                    className={`text-xs font-bold transition-colors ${
+                    className={`text-[10px] sm:text-xs font-bold transition-colors line-clamp-1 sm:line-clamp-none ${
                       isActive
                         ? 'text-[#f50057]'
                         : isDone
@@ -1140,7 +1141,8 @@ export default function ProfilePage() {
                         : 'text-slate-400 group-hover:text-slate-600'
                     }`}
                   >
-                    {step.title}
+                    <span className="sm:hidden">{step.shortTitle.replace(/^\d+\.\s*/, '')}</span>
+                    <span className="hidden sm:inline">{step.title}</span>
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium hidden md:block">{step.subtitle}</p>
                 </div>
@@ -1153,31 +1155,31 @@ export default function ProfilePage() {
       {/* ─── Multi-Step Form Container ─── */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col min-h-[460px]">
         {/* Step Title Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/70">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#f50057]/10 text-[#f50057] font-extrabold text-xs">
+        <div className="flex items-center justify-between px-3.5 sm:px-5 py-2.5 sm:py-3.5 border-b border-slate-100 bg-slate-50/70 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-[#f50057]/10 text-[#f50057] font-extrabold text-xs shrink-0">
               {currentStep}
             </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900">
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
                 {STEPS[currentStep - 1].title}
               </h3>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate">
                 {STEPS[currentStep - 1].subtitle}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-extrabold text-slate-400">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className="text-[11px] sm:text-xs font-extrabold text-slate-400 hidden sm:inline">
               Step {currentStep} of {STEPS.length}
             </span>
             {isStepComplete(currentStep) ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Complete
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                 In Progress
               </span>
             )}
@@ -1185,7 +1187,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Step Body Content with Slide Animations */}
-        <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between overflow-x-hidden">
+        <div className="p-3 sm:p-6 flex-1 flex flex-col justify-between overflow-x-hidden">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentStep}
@@ -1232,12 +1234,12 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Connected Instagram Profiles Manager */}
-                  <div className="p-4 sm:p-5 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50/30 via-white to-rose-50/20 space-y-3.5 shadow-sm">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div>
-                        <Label className="text-slate-900 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                          <Instagram className="h-4 w-4 text-pink-600" />
-                          Connected Instagram Profiles
+                  <div className="p-3 sm:p-5 rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50/30 via-white to-rose-50/20 space-y-3.5 shadow-sm">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-2">
+                      <div className="min-w-0">
+                        <Label className="text-slate-900 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 flex-wrap">
+                          <Instagram className="h-4 w-4 text-pink-600 shrink-0" />
+                          <span>Connected Instagram Profiles</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100/70 text-pink-800 border border-pink-200">
                             {instagramProfiles.length} Linked
                           </span>
@@ -1247,27 +1249,28 @@ export default function ProfilePage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           onClick={handleSyncInstagram}
                           disabled={syncingIg}
-                          className="h-8 px-3 rounded-lg border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-900 font-bold text-xs cursor-pointer shadow-xs transition-all"
+                          className="flex-1 sm:flex-initial h-8 px-2.5 sm:px-3 rounded-lg border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-900 font-bold text-xs cursor-pointer shadow-xs transition-all justify-center"
                         >
                           <RefreshCw className={`h-3.5 w-3.5 mr-1 text-purple-600 ${syncingIg ? 'animate-spin' : ''}`} />
-                          {syncingIg ? 'Syncing...' : 'Sync Meta API'}
+                          <span className="truncate">Sync Meta API</span>
                         </Button>
 
                         <Button
                           type="button"
                           size="sm"
                           onClick={openAddIgModal}
-                          className="h-8 px-3 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-bold text-xs cursor-pointer shadow-sm shadow-pink-500/20"
+                          className="flex-1 sm:flex-initial h-8 px-2.5 sm:px-3 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-bold text-xs cursor-pointer shadow-sm shadow-pink-500/20 justify-center"
                         >
-                          <Plus className="h-3.5 w-3.5 mr-1" />
-                          Link Another Profile
+                          <Plus className="h-3.5 w-3.5 mr-1 shrink-0" />
+                          <span className="truncate">Link Another</span>
+                          <span className="hidden sm:inline ml-1">Profile</span>
                         </Button>
                       </div>
                     </div>
@@ -2068,15 +2071,15 @@ export default function ProfilePage() {
         </div>
 
           {/* Stepper Navigation Footer */}
-          <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between">
+          <div className="px-3.5 sm:px-6 py-3 sm:py-4 bg-slate-50/80 border-t border-slate-200 flex items-center justify-between gap-2">
             <Button
               type="button"
               onClick={handlePrevStep}
               disabled={currentStep === 1}
               variant="outline"
-              className="h-9 px-4 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs rounded-lg transition-all disabled:opacity-30 cursor-pointer"
+              className="h-9 px-3 sm:px-4 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs rounded-lg transition-all disabled:opacity-30 cursor-pointer shrink-0"
             >
-              <ChevronLeft className="mr-1.5 h-4 w-4" />
+              <ChevronLeft className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
               Previous
             </Button>
 
@@ -2084,24 +2087,25 @@ export default function ProfilePage() {
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="h-9 px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer"
+                className="h-9 px-4 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
               >
                 Next Step
-                <ChevronRight className="ml-1.5 h-4 w-4" />
+                <ChevronRight className="ml-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             ) : (
               <Button
                 type="button"
                 onClick={handleManualSave}
                 disabled={saving}
-                className="h-9 px-6 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs uppercase tracking-wider rounded-lg shadow-sm transition-all cursor-pointer"
+                className="h-9 px-3.5 sm:px-6 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs uppercase tracking-wide rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save & Finish Profile
+                    <Save className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="sm:hidden">Save & Finish</span>
+                    <span className="hidden sm:inline">Save & Finish Profile</span>
                   </>
                 )}
               </Button>

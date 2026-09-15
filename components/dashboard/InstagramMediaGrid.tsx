@@ -87,20 +87,20 @@ export default function InstagramMediaGrid() {
 
   if (!connected) {
     return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-pink-50 text-pink-600 border border-pink-100">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 rounded-xl bg-pink-50 text-pink-600 border border-pink-100 shrink-0">
               <Instagram className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-extrabold text-slate-900">Instagram Media & Engagement</h3>
               <p className="text-xs text-slate-500 font-medium">Connect Instagram to view recent Posts, Reels & Engagement Rate</p>
             </div>
           </div>
           <a
             href="/api/auth/instagram/login"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition-all active:scale-95"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 w-full sm:w-auto rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white text-xs font-extrabold shadow-sm transition-all active:scale-95 shrink-0"
           >
             <Instagram className="h-3.5 w-3.5" />
             Connect Instagram
@@ -118,31 +118,31 @@ export default function InstagramMediaGrid() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs space-y-5">
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-6 shadow-xs space-y-4 sm:space-y-5">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white shadow-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 sm:pb-4 border-b border-slate-100">
+        <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 w-full sm:w-auto">
+          <div className="p-2 rounded-xl bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white shadow-xs shrink-0 mt-0.5 sm:mt-0">
             <Instagram className="h-5 w-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-extrabold text-slate-900">Instagram Feed & Engagement</h3>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900">Instagram Feed & Engagement</h3>
               {username && (
-                <span className="text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200/60 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] sm:text-xs font-bold text-pink-600 bg-pink-50 border border-pink-200/60 px-2 py-0.5 rounded-md max-w-[170px] truncate shrink-0">
                   @{username.replace('@', '')}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 font-medium">Real-time media analytics & performance stats</p>
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate sm:whitespace-normal">Real-time media analytics & performance stats</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-1 sm:pt-0">
           {stats && stats.engagementRate > 0 && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-xs font-extrabold shadow-2xs">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 text-[11px] sm:text-xs font-extrabold shadow-2xs">
               <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
-              <span>{stats.engagementRate}% Engagement Rate</span>
+              <span>{stats.engagementRate}% Rate</span>
             </div>
           )}
           <Button
@@ -150,7 +150,7 @@ export default function InstagramMediaGrid() {
             disabled={refreshing}
             variant="outline"
             size="sm"
-            className="h-8 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
+            className="h-8 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl cursor-pointer ml-auto sm:ml-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
