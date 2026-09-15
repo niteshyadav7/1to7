@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     if (mobiles.length > 0) {
       const { data: byMobiles } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers')
         .in('mobile', mobiles)
       
       byMobiles?.forEach(u => {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     if (influencerIds.length > 0) {
       const { data: byIds } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers')
         .in('influencer_id', influencerIds)
       
       byIds?.forEach(u => {
@@ -137,9 +137,7 @@ export async function POST(request: Request) {
 
     // Helper for generating sequential IDs for new users without a specified ID
     let currentSequence = 0
-    const needsNewSequentialId = validRows.some(
-      item => !item.influencerId && !existingUsersMap.get(`m:${item.mobile}`)
-    )
+    const needsNewSequentialId = validRows.length > 0
 
     if (needsNewSequentialId) {
       // 1. Fetch counter from influencer_id_counter
@@ -163,33 +161,66 @@ export async function POST(request: Request) {
         for (const u of latestUsers) {
           if (u.influencer_id && u.influencer_id.startsWith('HY')) {
             const parsed = parseInt(u.influencer_id.replace('HY', ''), 10)
-            if (!isNaN(parsed) && parsed > latestUserMaxNum) {
+            // Filter out timestamp-based outliers (> 1,000,000)
+            if (!isNaN(parsed) && parsed > latestUserMaxNum && parsed < 1000000) {
               latestUserMaxNum = parsed
             }
           }
         }
       }
 
-      currentSequence = Math.max(counterNum, latestUserMaxNum, 10000)
+      const safeCounter = (counterNum > 0 && counterNum < 1000000) ? counterNum : 24642
+      currentSequence = Math.max(safeCounter, latestUserMaxNum, 10000)
     }
 
     for (const item of validRows) {
       const { row, mobile, influencerId } = item
-      const existing = (mobile && existingUsersMap.get(`m:${mobile}`)) || (influencerId && existingUsersMap.get(`id:${influencerId}`))
+      const existingByMobile = mobile ? existingUsersMap.get(`m:${mobile}`) : null
+      const existingById = influencerId ? existingUsersMap.get(`id:${influencerId}`) : null
+
+      let existing: any = null
+
+      if (existingByMobile) {
+        // Matched by verified mobile - legitimate existing creator
+        existing = existingByMobile
+      } else if (existingById) {
+        // Matched only by influencer_id (e.g. HY24611 from CSV)
+        // Check for conflicts: if phone or name is completely different, this is NOT the same person!
+        const isPhoneConflict = mobile && existingById.mobile && mobile !== existingById.mobile
+        const isNameConflict = existingById.full_name && 
+                               existingById.full_name !== 'Imported Creator' && 
+                               row.full_name?.trim() && 
+                               row.full_name.trim().toLowerCase() !== existingById.full_name.toLowerCase()
+
+        if (isPhoneConflict || isNameConflict) {
+          // Conflict detected! Do NOT overwrite existing user! Instead, generate a fresh unique sequential ID.
+          existing = null
+          item.influencerId = undefined
+        } else {
+          existing = existingById
+        }
+      }
 
       if (existing) {
-        // User already exists in DB
+        // User already exists in DB - safely update missing fields only (never overwrite existing real data)
         const updates: Record<string, any> = {}
         if (!existing.account_name && row.account_name) updates.account_name = row.account_name
         if (!existing.account_number && row.account_number) updates.account_number = row.account_number
         if (!existing.ifsc_code && row.ifsc_code) updates.ifsc_code = row.ifsc_code
         if (!existing.category && row.category) updates.category = row.category
-        if (row.full_name?.trim()) updates.full_name = row.full_name.trim()
-        if (row.instagram_username?.trim()) updates.instagram_username = row.instagram_username.trim()
-        if (row.gender?.trim()) updates.gender = row.gender.trim()
-        if (row.state?.trim()) updates.state = row.state.trim()
-        if (row.city?.trim()) updates.city = row.city.trim()
-        if (row.followers) {
+        
+        // Only update full_name if existing is blank or placeholder
+        if ((!existing.full_name || existing.full_name === 'Imported Creator') && row.full_name?.trim()) {
+          updates.full_name = row.full_name.trim()
+        }
+        // Only update instagram_username if existing is blank
+        if (!existing.instagram_username && row.instagram_username?.trim()) {
+          updates.instagram_username = row.instagram_username.trim()
+        }
+        if (!existing.gender && row.gender?.trim()) updates.gender = row.gender.trim()
+        if (!existing.state && row.state?.trim()) updates.state = row.state.trim()
+        if (!existing.city && row.city?.trim()) updates.city = row.city.trim()
+        if (!existing.followers && row.followers) {
           const parsed = parseInt(String(row.followers), 10)
           if (!isNaN(parsed)) updates.followers = parsed
         }

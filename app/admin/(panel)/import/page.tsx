@@ -499,11 +499,17 @@ export default function ImportPage() {
         const seenUserIds = new Set<string>()
         let maxIdNum = 25000
 
+        const extractValidInfluencerId = (val?: any): string => {
+          if (!val) return ''
+          const trimmed = String(val).trim()
+          return /^HY\d+$/i.test(trimmed) ? trimmed.toUpperCase() : ''
+        }
+
         // Find initial max user ID from rows
         rawRows.forEach(r => {
-          const rawId = (r['User ID'] || r['User Id'] || r['user_id'] || r['influencer_id'] || r['ID'] || '').trim()
+          const rawId = extractValidInfluencerId(r['User ID'] || r['User Id'] || r['user_id'] || r['influencer_id'] || r['Influencer ID'])
           const num = parseInt(rawId.replace(/\D/g, ''), 10)
-          if (!isNaN(num) && num > maxIdNum) maxIdNum = num
+          if (!isNaN(num) && num > maxIdNum && num < 1000000) maxIdNum = num
         })
 
         let validPhones = 0
@@ -512,7 +518,7 @@ export default function ImportPage() {
         let withBank = 0
 
         const cleanedList: CleanedUploadRow[] = rawRows.map((row, idx) => {
-          let uid = (row['User ID'] || row['User Id'] || row['user_id'] || row['influencer_id'] || row['ID'] || '').trim()
+          let uid = extractValidInfluencerId(row['User ID'] || row['User Id'] || row['user_id'] || row['influencer_id'] || row['Influencer ID'])
           const name = (row['Name'] || row['Full Name'] || row['full_name'] || row['Creator Name'] || row['Influencer Name'] || '').trim()
           const rawPhone = row['Phone'] || row['Phone Number'] || row['Mobile'] || row['Mobile Number'] || row['Contact'] || row['Whatsapp'] || ''
           const phone = cleanPhoneNumber(rawPhone)

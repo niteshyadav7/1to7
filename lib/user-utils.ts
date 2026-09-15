@@ -25,10 +25,10 @@ export async function generateSequentialInfluencerId(): Promise<string> {
         .single()
     ])
 
-    let maxNum = counter?.last_number || 10000
+    let maxNum = (counter?.last_number && counter.last_number < 1000000) ? counter.last_number : 24642
     if (latestUser && latestUser.influencer_id && latestUser.influencer_id.startsWith('HY')) {
       const parsed = parseInt(latestUser.influencer_id.replace('HY', ''), 10)
-      if (!isNaN(parsed) && parsed > maxNum) {
+      if (!isNaN(parsed) && parsed > maxNum && parsed < 1000000) {
         maxNum = parsed
       }
     }
@@ -52,13 +52,27 @@ export async function generateSequentialInfluencerId(): Promise<string> {
 
   // 3. Absolute failsafe for massive unhandled traffic spikes
   if (!isUnique) {
-    nextId = `HY${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 99)}`
+    const { data: highest } = await supabase
+      .from('users')
+      .select('influencer_id')
+      .like('influencer_id', 'HY%')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    let trueMax = 24642
+    if (highest) {
+      for (const u of highest) {
+        const p = parseInt(u.influencer_id.replace('HY', ''), 10)
+        if (!isNaN(p) && p > trueMax && p < 1000000) trueMax = p
+      }
+    }
+    nextId = `HY${trueMax + 1 + Math.floor(Math.random() * 5)}`
   }
 
-  // 4. Fire-and-forget sync to influencer_id_counter
+  // 4. Fire-and-forget sync to influencer_id_counter (only for numbers < 1M)
   if (nextId.startsWith('HY')) {
     const num = parseInt(nextId.replace('HY', ''), 10)
-    if (!isNaN(num)) {
+    if (!isNaN(num) && num < 1000000) {
       ;(async () => {
         try {
           await supabase
