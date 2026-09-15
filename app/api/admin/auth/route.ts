@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
@@ -12,36 +12,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    if (!process.env.POSTGRES_URL) {
-      console.error('Missing POSTGRES_URL environment variable')
-      return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
-    }
-
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Fetch admin details
-    const res = await client.query('SELECT * FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
+    const res = await pool.query('SELECT * FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
     const admin = res.rows[0]
 
     if (!admin) {
-      await client.end()
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
     // Check if account is active
     if (admin.is_active === false) {
-      await client.end()
       return NextResponse.json({ error: 'Account has been deactivated. Please contact an administrator.' }, { status: 403 })
+    }
+
+    // Check if password exists (for Google-only accounts)
+    if (!admin.password_hash) {
+      return NextResponse.json({ error: 'This account signs in with Google. Please use the "Sign in with Google" button.' }, { status: 400 })
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, admin.password_hash)
     if (!isPasswordValid) {
-      await client.end()
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
@@ -50,7 +41,7 @@ export async function POST(request: Request) {
     let roleDisplayName = admin.role
 
     // Fetch role permissions if custom permissions are empty or to merge
-    const roleRes = await client.query('SELECT * FROM public.roles WHERE name = $1', [admin.role])
+    const roleRes = await pool.query('SELECT * FROM public.roles WHERE name = $1', [admin.role])
     if (roleRes.rows.length > 0) {
       const roleRow = roleRes.rows[0]
       roleDisplayName = roleRow.display_name
@@ -60,8 +51,7 @@ export async function POST(request: Request) {
     }
 
     // Update last_login
-    await client.query('UPDATE public.admins SET last_login = NOW() WHERE id = $1', [admin.id])
-    await client.end()
+    await pool.query('UPDATE public.admins SET last_login = NOW() WHERE id = $1', [admin.id])
 
     const isSuperAdmin = admin.role === 'super_admin'
 

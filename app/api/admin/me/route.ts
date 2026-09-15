@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminFromRequest } from '@/lib/admin-auth'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 
 export async function GET() {
   try {
@@ -9,24 +9,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!process.env.POSTGRES_URL) {
-      return NextResponse.json({ error: 'Database configuration missing' }, { status: 500 })
-    }
-
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const res = await client.query(
-      `SELECT a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, r.display_name as role_display_name, r.permissions as role_permissions 
+    const res = await pool.query(
+      `SELECT a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.avatar_url, a.approval_status,
+              r.display_name as role_display_name, r.permissions as role_permissions 
        FROM public.admins a 
        LEFT JOIN public.roles r ON a.role = r.name 
        WHERE a.id = $1`,
       [admin.id]
     )
-    await client.end()
 
     const row = res.rows[0]
     if (!row || row.is_active === false) {
@@ -48,6 +38,8 @@ export async function GET() {
         role: row.role,
         roleDisplayName: row.role_display_name || row.role,
         is_active: row.is_active,
+        avatar_url: row.avatar_url || null,
+        approval_status: row.approval_status || 'approved',
         permissions: effectivePermissions,
         is_super_admin: isSuperAdmin,
         last_login: row.last_login,

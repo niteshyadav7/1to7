@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 // GET /api/admin/staff - List all staff accounts
@@ -11,17 +11,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized: Access to Staff Management is restricted' }, { status: 403 })
     }
 
-    if (!process.env.POSTGRES_URL) {
-      return NextResponse.json({ error: 'Database configuration missing' }, { status: 500 })
-    }
-
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const res = await client.query(
+    const res = await pool.query(
       `SELECT 
         a.id, 
         a.email, 
@@ -32,13 +22,21 @@ export async function GET() {
         a.last_login, 
         a.created_at,
         a.plain_password,
+        a.auth_provider,
+        a.avatar_url,
+        a.approval_status,
+        a.approved_at,
+        a.approved_by,
+        approver.name as approved_by_name,
         r.display_name as role_display_name,
         r.permissions as role_permissions
        FROM public.admins a
        LEFT JOIN public.roles r ON a.role = r.name
-       ORDER BY a.created_at DESC`
+       LEFT JOIN public.admins approver ON a.approved_by = approver.id
+       ORDER BY 
+         CASE WHEN a.approval_status = 'pending' THEN 0 ELSE 1 END,
+         a.created_at DESC`
     )
-    await client.end()
 
     const staffList = res.rows.map((row) => {
       let effectivePerms = row.permissions || {}
@@ -57,6 +55,12 @@ export async function GET() {
         last_login: row.last_login,
         created_at: row.created_at,
         password: row.role === 'super_admin' ? null : (row.plain_password || null),
+        auth_provider: row.auth_provider || 'credentials',
+        avatar_url: row.avatar_url || null,
+        approval_status: row.approval_status || 'approved',
+        approved_at: row.approved_at,
+        approved_by: row.approved_by,
+        approved_by_name: row.approved_by_name,
       }
     })
 
@@ -86,16 +90,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
     }
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Check if email already exists
-    const existing = await client.query('SELECT id FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
+    const existing = await pool.query('SELECT id FROM public.admins WHERE email = $1', [email.toLowerCase().trim()])
     if (existing.rows.length > 0) {
-      await client.end()
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
     }
 
@@ -105,13 +102,22 @@ export async function POST(request: Request) {
     const plainPassToStore = role === 'super_admin' ? null : password
 
     // Insert staff
-    const insertRes = await client.query(
-      `INSERT INTO public.admins (name, email, password_hash, plain_password, role, permissions, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, name, email, role, permissions, is_active, created_at, plain_password`,
-      [name?.trim() || 'Employee', email.toLowerCase().trim(), passwordHash, plainPassToStore, role, JSON.stringify(permissions), is_active]
+    const insertRes = await pool.query(
+      `INSERT INTO public.admins 
+        (name, email, password_hash, plain_password, role, permissions, is_active, approval_status, auth_provider, approved_by, approved_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', 'credentials', $8, NOW())
+       RETURNING id, name, email, role, permissions, is_active, created_at, plain_password, auth_provider, avatar_url, approval_status`,
+      [
+        name?.trim() || 'Employee',
+        email.toLowerCase().trim(),
+        passwordHash,
+        plainPassToStore,
+        role,
+        JSON.stringify(permissions),
+        is_active,
+        currentAdmin.id,
+      ]
     )
-    await client.end()
 
     const createdStaff = insertRes.rows[0]
     return NextResponse.json({

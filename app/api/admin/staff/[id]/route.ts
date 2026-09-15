@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminFromRequest, hasActionPermission, hasModuleAccess } from '@/lib/admin-auth'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -16,22 +16,16 @@ export async function GET(request: Request, { params }: Params) {
 
     const { id } = await params
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const res = await client.query(
+    const res = await pool.query(
       `SELECT 
         a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
+        a.auth_provider, a.avatar_url, a.approval_status, a.approved_at, a.approved_by,
         r.display_name as role_display_name, r.permissions as role_permissions
        FROM public.admins a
        LEFT JOIN public.roles r ON a.role = r.name
        WHERE a.id = $1`,
       [id]
     )
-    await client.end()
 
     if (res.rows.length === 0) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
@@ -62,39 +56,33 @@ export async function PUT(request: Request, { params }: Params) {
     const body = await request.json()
     const { name, email, role, permissions, is_active } = body
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Verify staff exists
-    const existing = await client.query('SELECT * FROM public.admins WHERE id = $1', [id])
+    const existing = await pool.query('SELECT * FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
-      await client.end()
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
     const targetStaff = existing.rows[0]
 
-    // Safeguard: Cannot demote or deactivate the last Super Admin
-    if (targetStaff.role === 'super_admin' && (role !== 'super_admin' || is_active === false)) {
-      const countRes = await client.query("SELECT COUNT(*) FROM public.admins WHERE role = 'super_admin' AND is_active = true")
+    // Safeguard: Cannot demote or deactivate the last active Super Admin
+    const isDemotingSuperAdmin = role !== undefined && role !== 'super_admin' && targetStaff.role === 'super_admin'
+    const isDeactivatingSuperAdmin = is_active === false && targetStaff.role === 'super_admin' && targetStaff.is_active === true
+
+    if (isDemotingSuperAdmin || isDeactivatingSuperAdmin) {
+      const countRes = await pool.query("SELECT COUNT(*) FROM public.admins WHERE role = 'super_admin' AND is_active = true")
       const superAdminCount = parseInt(countRes.rows[0].count, 10)
       if (superAdminCount <= 1) {
-        await client.end()
         return NextResponse.json({ error: 'Cannot deactivate or change the role of the last active Super Admin' }, { status: 400 })
       }
     }
 
     // Check email uniqueness if email is changed
     if (email && email.toLowerCase().trim() !== targetStaff.email) {
-      const emailCheck = await client.query('SELECT id FROM public.admins WHERE email = $1 AND id != $2', [
+      const emailCheck = await pool.query('SELECT id FROM public.admins WHERE email = $1 AND id != $2', [
         email.toLowerCase().trim(),
         id,
       ])
       if (emailCheck.rows.length > 0) {
-        await client.end()
         return NextResponse.json({ error: 'This email is already in use by another admin' }, { status: 409 })
       }
     }
@@ -103,7 +91,7 @@ export async function PUT(request: Request, { params }: Params) {
     const finalRole = role ?? targetStaff.role
     const shouldClearPlainPass = finalRole === 'super_admin'
 
-    const updatedRes = await client.query(
+    const updatedRes = await pool.query(
       `UPDATE public.admins 
        SET 
          name = COALESCE($1, name),
@@ -112,9 +100,10 @@ export async function PUT(request: Request, { params }: Params) {
          permissions = COALESCE($4, permissions),
          is_active = COALESCE($5, is_active),
          plain_password = CASE WHEN $6 = true THEN NULL ELSE plain_password END,
+         approval_status = COALESCE($7, approval_status),
          updated_at = NOW()
-       WHERE id = $7
-       RETURNING id, name, email, role, permissions, is_active, plain_password, updated_at`,
+       WHERE id = $8
+       RETURNING id, name, email, role, permissions, is_active, plain_password, auth_provider, avatar_url, approval_status, updated_at`,
       [
         name?.trim() ?? null,
         email ? email.toLowerCase().trim() : null,
@@ -122,10 +111,10 @@ export async function PUT(request: Request, { params }: Params) {
         permissions !== undefined ? JSON.stringify(permissions) : null,
         is_active !== undefined ? is_active : null,
         shouldClearPlainPass,
+        body.approval_status ?? null,
         id,
       ]
     )
-    await client.end()
 
     const updatedStaff = updatedRes.rows[0]
     return NextResponse.json({
@@ -157,16 +146,9 @@ export async function DELETE(request: Request, { params }: Params) {
       return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
     }
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Verify staff exists
-    const existing = await client.query('SELECT * FROM public.admins WHERE id = $1', [id])
+    const existing = await pool.query('SELECT * FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
-      await client.end()
       return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
     }
 
@@ -174,16 +156,14 @@ export async function DELETE(request: Request, { params }: Params) {
 
     // Safeguard: Cannot delete the last Super Admin
     if (targetStaff.role === 'super_admin') {
-      const countRes = await client.query("SELECT COUNT(*) FROM public.admins WHERE role = 'super_admin'")
+      const countRes = await pool.query("SELECT COUNT(*) FROM public.admins WHERE role = 'super_admin'")
       const superAdminCount = parseInt(countRes.rows[0].count, 10)
       if (superAdminCount <= 1) {
-        await client.end()
         return NextResponse.json({ error: 'Cannot delete the only Super Admin account' }, { status: 400 })
       }
     }
 
-    await client.query('DELETE FROM public.admins WHERE id = $1', [id])
-    await client.end()
+    await pool.query('DELETE FROM public.admins WHERE id = $1', [id])
 
     return NextResponse.json({
       success: true,

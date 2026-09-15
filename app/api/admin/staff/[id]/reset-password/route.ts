@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 interface Params {
@@ -28,16 +28,9 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: 'New password must be at least 6 characters long' }, { status: 400 })
     }
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Verify staff exists
-    const existing = await client.query('SELECT id, email, name, role FROM public.admins WHERE id = $1', [id])
+    const existing = await pool.query('SELECT id, email, name, role FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
-      await client.end()
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
@@ -49,11 +42,10 @@ export async function POST(request: Request, { params }: Params) {
     const passwordHash = await bcrypt.hash(newPassword, salt)
 
     // Update password
-    await client.query(
+    await pool.query(
       'UPDATE public.admins SET password_hash = $1, plain_password = $2, updated_at = NOW() WHERE id = $3',
       [passwordHash, plainPassToStore, id]
     )
-    await client.end()
 
     return NextResponse.json({
       success: true,
@@ -61,7 +53,7 @@ export async function POST(request: Request, { params }: Params) {
       password: plainPassToStore,
     })
   } catch (error) {
-    console.error('API /admin/staff/[id]/reset-password POST Error:', error)
+    console.error('API /admin/staff/[id]/reset-password Error:', error)
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }

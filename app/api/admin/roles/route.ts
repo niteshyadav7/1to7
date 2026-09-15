@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 
 // GET /api/admin/roles - List all roles
 export async function GET() {
@@ -10,19 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    if (!process.env.POSTGRES_URL) {
-      return NextResponse.json({ error: 'Database configuration missing' }, { status: 500 })
-    }
-
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const res = await client.query('SELECT * FROM public.roles ORDER BY is_system DESC, created_at ASC')
-    await client.end()
-
+    const res = await pool.query('SELECT * FROM public.roles ORDER BY is_system DESC, created_at ASC')
     return NextResponse.json({ roles: res.rows })
   } catch (error) {
     console.error('API /admin/roles GET Error:', error)
@@ -47,26 +35,18 @@ export async function POST(request: Request) {
 
     const roleName = name.toLowerCase().trim().replace(/[^a-z0-9_]/g, '_')
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
     // Check duplicate
-    const existing = await client.query('SELECT id FROM public.roles WHERE name = $1', [roleName])
+    const existing = await pool.query('SELECT id FROM public.roles WHERE name = $1', [roleName])
     if (existing.rows.length > 0) {
-      await client.end()
       return NextResponse.json({ error: 'A role with this identifier already exists' }, { status: 409 })
     }
 
-    const insertRes = await client.query(
+    const insertRes = await pool.query(
       `INSERT INTO public.roles (name, display_name, description, permissions, is_system)
        VALUES ($1, $2, $3, $4, false)
        RETURNING *`,
       [roleName, display_name.trim(), description?.trim() || null, JSON.stringify(permissions)]
     )
-    await client.end()
 
     return NextResponse.json({
       success: true,
@@ -94,25 +74,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Role ID is required' }, { status: 400 })
     }
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const check = await client.query('SELECT * FROM public.roles WHERE id = $1', [id])
+    const check = await pool.query('SELECT * FROM public.roles WHERE id = $1', [id])
     if (check.rows.length === 0) {
-      await client.end()
       return NextResponse.json({ error: 'Role not found' }, { status: 404 })
     }
 
     const role = check.rows[0]
     if (role.name === 'super_admin') {
-      await client.end()
       return NextResponse.json({ error: 'The Super Admin system role permissions cannot be modified' }, { status: 400 })
     }
 
-    const updateRes = await client.query(
+    const updateRes = await pool.query(
       `UPDATE public.roles 
        SET 
          display_name = COALESCE($1, display_name),
@@ -128,7 +100,6 @@ export async function PUT(request: Request) {
         id,
       ]
     )
-    await client.end()
 
     return NextResponse.json({
       success: true,
@@ -156,33 +127,23 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Role ID is required' }, { status: 400 })
     }
 
-    const client = new Client({
-      connectionString: process.env.POSTGRES_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-    })
-    await client.connect()
-
-    const check = await client.query('SELECT * FROM public.roles WHERE id = $1', [id])
+    const check = await pool.query('SELECT * FROM public.roles WHERE id = $1', [id])
     if (check.rows.length === 0) {
-      await client.end()
       return NextResponse.json({ error: 'Role not found' }, { status: 404 })
     }
 
     const role = check.rows[0]
     if (role.is_system) {
-      await client.end()
       return NextResponse.json({ error: 'System roles cannot be deleted' }, { status: 400 })
     }
 
     // Check if any admin currently uses this role
-    const adminCount = await client.query('SELECT COUNT(*) FROM public.admins WHERE role = $1', [role.name])
+    const adminCount = await pool.query('SELECT COUNT(*) FROM public.admins WHERE role = $1', [role.name])
     if (parseInt(adminCount.rows[0].count, 10) > 0) {
-      await client.end()
       return NextResponse.json({ error: `Cannot delete role '${role.display_name}' because ${adminCount.rows[0].count} staff member(s) are assigned to it.` }, { status: 400 })
     }
 
-    await client.query('DELETE FROM public.roles WHERE id = $1', [id])
-    await client.end()
+    await pool.query('DELETE FROM public.roles WHERE id = $1', [id])
 
     return NextResponse.json({
       success: true,
