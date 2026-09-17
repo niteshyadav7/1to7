@@ -271,9 +271,13 @@ export default function VerifyMobilePage() {
 
                 <div className="text-center">
                   {countdown > 0 ? (
-                    <p className="text-xs text-secondary">
+                    <button
+                      type="button"
+                      onClick={() => toast.info(`Please wait ${countdown}s before requesting a new OTP.`)}
+                      className="text-xs text-secondary hover:text-primary transition-colors cursor-pointer"
+                    >
                       Resend OTP in <span className="text-primary font-medium">{countdown}s</span>
-                    </p>
+                    </button>
                   ) : (
                     <button
                       onClick={() => { setStep('input'); setOtp(''); setError(''); confirmationRef.current = null }}

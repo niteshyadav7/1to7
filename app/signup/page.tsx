@@ -39,6 +39,8 @@ export default function SignupPage() {
   const [emailOtp, setEmailOtp] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [emailCountdown, setEmailCountdown] = useState(0)
+  const [isResendingMobile, setIsResendingMobile] = useState(false)
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
@@ -59,34 +61,49 @@ export default function SignupPage() {
     }
   }, [emailCountdown])
 
-  // Initialize invisible reCAPTCHA when needed
-  const needsRecaptcha = view === 'verify-all' || view === 'details'
-  useEffect(() => {
-    if (needsRecaptcha && !window.recaptchaVerifierSignup) {
-      try {
-        window.recaptchaVerifierSignup = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
-          size: 'invisible',
-          callback: () => { },
-          'expired-callback': () => {
-            toast.error('reCAPTCHA expired. Please try again.')
-            if (window.recaptchaVerifierSignup) {
-              window.recaptchaVerifierSignup.clear()
-              window.recaptchaVerifierSignup = null
-            }
-          }
-        })
-      } catch (e) {
-        console.error('reCAPTCHA init error:', e)
+  // Helper to get or re-initialize a fresh RecaptchaVerifier
+  const getFreshRecaptchaVerifierSignup = () => {
+    try {
+      if (window.recaptchaVerifierSignup) {
+        window.recaptchaVerifierSignup.clear()
+        window.recaptchaVerifierSignup = null
       }
+    } catch (e) {
+      console.warn('reCAPTCHA clear warning:', e)
     }
 
+    const container = document.getElementById('recaptcha-container-signup')
+    if (container) {
+      container.innerHTML = ''
+    }
+
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
+      size: 'invisible',
+      callback: () => { },
+      'expired-callback': () => {
+        toast.error('Security verification expired. Please try again.')
+        try {
+          if (window.recaptchaVerifierSignup) {
+            window.recaptchaVerifierSignup.clear()
+            window.recaptchaVerifierSignup = null
+          }
+        } catch (e) { }
+      }
+    })
+
+    window.recaptchaVerifierSignup = verifier
+    return verifier
+  }
+
+  // Cleanup reCAPTCHA on unmount
+  useEffect(() => {
     return () => {
-      if (!needsRecaptcha && window.recaptchaVerifierSignup) {
+      if (window.recaptchaVerifierSignup) {
         try { window.recaptchaVerifierSignup.clear() } catch (e) { }
         window.recaptchaVerifierSignup = null
       }
     }
-  }, [needsRecaptcha])
+  }, [])
 
   // ─── Step 1: Submit Details & Send OTPs ───
   const handleDetailsSubmit = async (e: React.FormEvent) => {
@@ -158,19 +175,11 @@ export default function SignupPage() {
   }
 
   const sendFirebaseOTP = async (mobileNum: string) => {
-    if (!window.recaptchaVerifierSignup) {
-      try {
-        window.recaptchaVerifierSignup = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
-          size: 'invisible',
-          callback: () => { },
-        })
-      } catch (e) {
-        throw new Error('Verification service not ready. Please refresh the page.')
-      }
-    }
-    const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, window.recaptchaVerifierSignup)
+    const verifier = getFreshRecaptchaVerifierSignup()
+    const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
     confirmationRef.current = confirmation
-    setCountdown(30)
+    setCountdown(45)
+    return confirmation
   }
 
   const sendEmailOTP = async (emailAddr: string) => {
@@ -186,20 +195,81 @@ export default function SignupPage() {
   }
 
   const handleResendMobile = async () => {
+    if (isResendingMobile) {
+      toast.info('Sending mobile OTP, please wait...')
+      return
+    }
+
+    if (countdown > 0) {
+      toast.info(`Please wait ${countdown}s before requesting a new mobile OTP.`)
+      return
+    }
+
+    const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      toast.error('Invalid mobile number. Please check the number.')
+      return
+    }
+
+    setIsResendingMobile(true)
+    const toastId = toast.loading('Resending Mobile OTP...')
     try {
-      await sendFirebaseOTP(mobile.replace(/\D/g, ''))
-      toast.success(`OTP sent to +91 ${mobile}`)
+      await sendFirebaseOTP(cleanMobile)
+      toast.success(`New OTP sent to +91 ${cleanMobile}`, { id: toastId })
     } catch (err: any) {
-      toast.error(err.message || 'Failed to resend Mobile OTP.')
+      console.error('Firebase OTP error:', err)
+      try {
+        if (window.recaptchaVerifierSignup) {
+          window.recaptchaVerifierSignup.clear()
+          window.recaptchaVerifierSignup = null
+        }
+      } catch (e) {}
+
+      if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
+        toast.error(
+          'Too many OTP attempts on this number. Firebase has temporarily paused requests for security. Please wait a few minutes before trying again.',
+          { id: toastId, duration: 7000 }
+        )
+      } else if (err?.code === 'auth/quota-exceeded' || err?.message?.includes('quota-exceeded')) {
+        toast.error('Daily SMS quota reached. Please contact support or try again later.', { id: toastId, duration: 6000 })
+      } else if (err?.code === 'auth/invalid-phone-number') {
+        toast.error('Invalid mobile number format. Please ensure it is a 10-digit number.', { id: toastId })
+      } else if (err?.code === 'auth/captcha-check-failed') {
+        toast.error('Security verification failed. Please refresh the page.', { id: toastId })
+      } else {
+        toast.error(err.message || 'Failed to resend Mobile OTP.', { id: toastId })
+      }
+    } finally {
+      setIsResendingMobile(false)
     }
   }
 
   const handleResendEmail = async () => {
+    if (isResendingEmail) {
+      toast.info('Sending email code, please wait...')
+      return
+    }
+
+    if (emailCountdown > 0) {
+      toast.info(`Please wait ${emailCountdown}s before requesting a new email code.`)
+      return
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Invalid email address.')
+      return
+    }
+
+    setIsResendingEmail(true)
+    const toastId = toast.loading('Resending Email OTP...')
     try {
-      await sendEmailOTP(email)
-      toast.success(`Verification code sent to ${email}`)
+      await sendEmailOTP(cleanEmail)
+      toast.success(`Verification code sent to ${cleanEmail}`, { id: toastId })
     } catch (err: any) {
-      toast.error(err.message || 'Failed to resend Email OTP.')
+      toast.error(err.message || 'Failed to resend Email OTP.', { id: toastId })
+    } finally {
+      setIsResendingEmail(false)
     }
   }
 
@@ -516,9 +586,23 @@ export default function SignupPage() {
                         <Phone className="h-3 w-3" /> Mobile OTP
                       </label>
                       {countdown > 0 ? (
-                        <span className="text-[10px] text-secondary">Resend in <span className="text-primary font-medium">{countdown}s</span></span>
+                        <button
+                          type="button"
+                          onClick={handleResendMobile}
+                          className="text-[10px] text-secondary hover:text-primary transition-colors cursor-pointer"
+                        >
+                          Resend in <span className="text-primary font-medium">{countdown}s</span>
+                        </button>
                       ) : (
-                        <button onClick={handleResendMobile} className="text-[10px] text-primary hover:underline font-bold transition-colors">Resend SMS</button>
+                        <button
+                          type="button"
+                          onClick={handleResendMobile}
+                          disabled={isResendingMobile}
+                          className="text-[10px] text-primary hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                        >
+                          {isResendingMobile && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                          {isResendingMobile ? 'Sending...' : 'Resend SMS'}
+                        </button>
                       )}
                     </div>
                     <Input
@@ -539,9 +623,23 @@ export default function SignupPage() {
                         <Mail className="h-3 w-3" /> Email OTP
                       </label>
                       {emailCountdown > 0 ? (
-                        <span className="text-[10px] text-secondary">Resend in <span className="text-primary font-medium">{emailCountdown}s</span></span>
+                        <button
+                          type="button"
+                          onClick={handleResendEmail}
+                          className="text-[10px] text-secondary hover:text-primary transition-colors cursor-pointer"
+                        >
+                          Resend in <span className="text-primary font-medium">{emailCountdown}s</span>
+                        </button>
                       ) : (
-                        <button onClick={handleResendEmail} className="text-[10px] text-primary hover:underline font-bold transition-colors">Resend Email</button>
+                        <button
+                          type="button"
+                          onClick={handleResendEmail}
+                          disabled={isResendingEmail}
+                          className="text-[10px] text-primary hover:underline font-bold transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                        >
+                          {isResendingEmail && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+                          {isResendingEmail ? 'Sending...' : 'Resend Email'}
+                        </button>
                       )}
                     </div>
                     <Input

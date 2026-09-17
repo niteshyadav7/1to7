@@ -52,6 +52,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('')
   const [countdown, setCountdown] = useState(0)
   const [maskedEmail, setMaskedEmail] = useState('')
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
@@ -73,52 +74,125 @@ export default function LoginPage() {
     }
   }, [emailCountdown])
 
-  // Initialize invisible reCAPTCHA when we need OTP
-  const needsRecaptcha = (view === 'verify-otp' || view === 'verify-mobile' || (view === 'main' && activeTab === 'otp'))
-  useEffect(() => {
-    if (needsRecaptcha && !window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-          'expired-callback': () => {
-            toast.error('reCAPTCHA expired. Please try again.')
-            if (window.recaptchaVerifier) {
-              window.recaptchaVerifier.clear()
-              window.recaptchaVerifier = null
-            }
-          }
-        })
-      } catch (e) {
-        console.error('reCAPTCHA init error:', e)
+  // Helper to get or re-initialize a fresh RecaptchaVerifier
+  const getFreshRecaptchaVerifier = () => {
+    try {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear()
+        window.recaptchaVerifier = null
       }
+    } catch (e) {
+      console.warn('reCAPTCHA clear warning:', e)
     }
 
+    const container = document.getElementById('recaptcha-container')
+    if (container) {
+      container.innerHTML = ''
+    }
+
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {},
+      'expired-callback': () => {
+        toast.error('Security check expired. Please try again.')
+        try {
+          if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear()
+            window.recaptchaVerifier = null
+          }
+        } catch (e) {}
+      },
+    })
+
+    window.recaptchaVerifier = verifier
+    return verifier
+  }
+
+  // Cleanup reCAPTCHA on unmount
+  useEffect(() => {
     return () => {
-      if (!needsRecaptcha && window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear() } catch (e) {}
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear()
+        } catch (e) {}
         window.recaptchaVerifier = null
       }
     }
-  }, [needsRecaptcha])
+  }, [])
 
   // ─── Helper: send Firebase OTP ───
-  const sendFirebaseOTP = async (mobileNum: string) => {
-    if (!window.recaptchaVerifier) {
-      // Try to re-initialize
+  const sendFirebaseOTP = async (mobileNum: string, isResend = false): Promise<boolean> => {
+    setIsSendingOtp(true)
+    const toastId = toast.loading(isResend ? 'Resending OTP...' : 'Sending OTP...')
+    try {
+      const verifier = getFreshRecaptchaVerifier()
+      const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
+      confirmationRef.current = confirmation
+      setCountdown(45)
+      toast.success(
+        isResend ? `New OTP sent to +91 ${mobileNum}` : `OTP sent to +91 ${mobileNum}`,
+        { id: toastId }
+      )
+      return true
+    } catch (err: any) {
+      console.error('Firebase OTP error:', err)
       try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-        })
-      } catch (e) {
-        throw new Error('Verification service not ready. Please refresh the page.')
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear()
+          window.recaptchaVerifier = null
+        }
+      } catch (e) {}
+
+      if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
+        toast.error(
+          'Too many OTP attempts on this number. Firebase has temporarily paused requests for security. Please wait a few minutes before trying again.',
+          { id: toastId, duration: 7000 }
+        )
+      } else if (err?.code === 'auth/quota-exceeded' || err?.message?.includes('quota-exceeded')) {
+        toast.error(
+          'Daily SMS limit reached for this project. Please contact support or try again later.',
+          { id: toastId, duration: 6000 }
+        )
+      } else if (err?.code === 'auth/invalid-phone-number') {
+        toast.error(
+          'Invalid mobile number format. Please ensure it is a 10-digit Indian number.',
+          { id: toastId }
+        )
+      } else if (err?.code === 'auth/captcha-check-failed') {
+        toast.error(
+          'Security verification failed. Please refresh the page and try again.',
+          { id: toastId }
+        )
+      } else {
+        toast.error(err?.message || 'Failed to send OTP. Please try again.', { id: toastId })
       }
+      return false
+    } finally {
+      setIsSendingOtp(false)
     }
-    const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, window.recaptchaVerifier)
-    confirmationRef.current = confirmation
-    setCountdown(30)
-    toast.success(`OTP sent to +91 ${mobileNum}`)
+  }
+
+  // ─── Helper: handle resend OTP with cooldown check & feedback ───
+  const handleResendOTP = async () => {
+    if (isSendingOtp) {
+      toast.info('Sending OTP, please wait...')
+      return
+    }
+
+    if (countdown > 0) {
+      toast.info(`Please wait ${countdown}s before requesting a new OTP.`, {
+        duration: 3000,
+      })
+      return
+    }
+
+    const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      toast.error('Invalid mobile number. Please click "Change Number" to re-enter.')
+      return
+    }
+
+    await sendFirebaseOTP(cleanMobile, true)
   }
 
   // ─── Helper: mark mobile verified in DB ───
@@ -250,13 +324,11 @@ export default function LoginPage() {
         setPendingFlow('password')
         // Send OTP immediately to the mobile on file
         if (data.mobile) {
-          try {
-            await sendFirebaseOTP(data.mobile)
-          } catch (otpErr: any) {
-            toast.error(otpErr.message || 'Failed to send OTP')
+          const sent = await sendFirebaseOTP(data.mobile)
+          if (sent) {
+            setView('verify-otp')
           }
         }
-        setView('verify-otp')
         return
       }
 
@@ -326,8 +398,10 @@ export default function LoginPage() {
         }
       } else {
         // Not verified — send OTP first
-        await sendFirebaseOTP(cleanMobile)
-        setView('verify-otp')
+        const sent = await sendFirebaseOTP(cleanMobile)
+        if (sent) {
+          setView('verify-otp')
+        }
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to check mobile. Please try again.')
@@ -419,15 +493,13 @@ export default function LoginPage() {
         return
       }
 
-      await sendFirebaseOTP(cleanMobile)
-      setPendingFlow('otp-login')
-      setView('verify-otp')
-    } catch (err: any) {
-      if (err.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.')
-      } else {
-        toast.error(err.message || 'Failed to send OTP.')
+      const sent = await sendFirebaseOTP(cleanMobile)
+      if (sent) {
+        setPendingFlow('otp-login')
+        setView('verify-otp')
       }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate mobile OTP.')
     } finally {
       setLoading(false)
     }
@@ -732,7 +804,13 @@ export default function LoginPage() {
                         <div className="flex items-center justify-between text-xs text-slate-500 px-1">
                           <span>Didn&apos;t receive code?</span>
                           {emailCountdown > 0 ? (
-                            <span className="font-semibold text-slate-400">Resend in {emailCountdown}s</span>
+                            <button
+                              type="button"
+                              onClick={() => toast.info(`Please wait ${emailCountdown}s before requesting a new email code.`)}
+                              className="font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            >
+                              Resend in {emailCountdown}s
+                            </button>
                           ) : (
                             <button
                               type="button"
@@ -870,11 +948,32 @@ export default function LoginPage() {
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Verify & Continue</>}
                 </Button>
                 <div className="text-center pt-2">
-                  <button onClick={goBack} className="text-xs text-secondary hover:text-charcoal-surface mr-4 transition-colors">Change Number</button>
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="text-xs text-secondary hover:text-charcoal-surface mr-4 transition-colors cursor-pointer"
+                  >
+                    Change Number
+                  </button>
                   {countdown > 0 ? (
-                    <span className="text-xs text-secondary">Resend in <span className="text-primary font-medium">{countdown}s</span></span>
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      className="text-xs text-secondary hover:text-primary transition-colors cursor-pointer"
+                      title={`Wait ${countdown}s remaining`}
+                    >
+                      Resend in <span className="text-primary font-medium">{countdown}s</span>
+                    </button>
                   ) : (
-                    <button onClick={() => sendFirebaseOTP(mobile.replace(/\D/g, ''))} className="text-xs text-primary hover:text-surface-tint font-medium transition-colors">Resend OTP</button>
+                    <button
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={isSendingOtp}
+                      className="text-xs text-primary hover:text-surface-tint font-semibold transition-colors disabled:opacity-50 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      {isSendingOtp && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {isSendingOtp ? 'Sending...' : 'Resend OTP'}
+                    </button>
                   )}
                 </div>
               </motion.div>
