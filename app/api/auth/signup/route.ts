@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       .from('users')
       .select('id')
       .or(`mobile.eq.${mobile},email.eq.${email}`)
-      .single()
+      .maybeSingle()
 
     if (existingUser) {
       return NextResponse.json({ error: 'Mobile or Email already registered' }, { status: 409 })

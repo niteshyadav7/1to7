@@ -186,7 +186,7 @@ export default function SignupPage() {
     const res = await fetch('/api/auth/send-email-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailAddr }),
+      body: JSON.stringify({ email: emailAddr, type: 'signup' }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to send email OTP')
@@ -302,7 +302,7 @@ export default function SignupPage() {
       const verifyRes = await fetch('/api/auth/verify-email-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp: emailOtp }),
+        body: JSON.stringify({ email, otp: emailOtp, type: 'signup' }),
       })
       const verifyData = await verifyRes.json()
       if (!verifyRes.ok) throw new Error(verifyData.error || 'Invalid Email OTP')

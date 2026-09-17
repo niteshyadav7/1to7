@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
-    const { email, otp } = await request.json()
+    const { email, otp, type = 'login' } = await request.json()
 
     if (!email || !otp) {
       return NextResponse.json({ error: 'Email and OTP are required' }, { status: 400 })
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const cleanEmail = email.trim().toLowerCase()
     const cleanOtp = String(otp).trim()
 
-    // 1. Verify OTP
+    // 1. Verify OTP from otps table
     const { data: otpData, error: otpError } = await supabase
       .from('otps')
       .select('*')
@@ -36,7 +36,16 @@ export async function POST(request: Request) {
       .update({ is_used: true })
       .eq('id', otpData.id)
 
-    // 3. Fetch user by email
+    // 3. For signup: OTP is verified, return success without creating session yet
+    // (the signup route will create the user and issue the auth session)
+    if (type === 'signup') {
+      return NextResponse.json({
+        success: true,
+        message: 'Email verified successfully',
+      })
+    }
+
+    // 4. For login: Fetch user by email and create session
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
@@ -47,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User account not found' }, { status: 404 })
     }
 
-    // 4. Mark user's email as verified
+    // Mark user's email as verified
     if (!user.is_email_verified) {
       await supabase
         .from('users')
@@ -55,7 +64,7 @@ export async function POST(request: Request) {
         .eq('id', user.id)
     }
 
-    // 5. Create JWT session token
+    // Create JWT session token
     const token = await encrypt({
       id: user.id,
       mobile: user.mobile,
@@ -63,7 +72,7 @@ export async function POST(request: Request) {
       email: user.email,
     })
 
-    // 6. Set httpOnly cookie
+    // Set httpOnly cookie
     const cookieStore = await cookies()
     cookieStore.set('auth_token', token, {
       httpOnly: true,

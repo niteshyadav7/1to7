@@ -239,7 +239,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/send-email-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: clean }),
+        body: JSON.stringify({ email: clean, type: 'login' }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -275,6 +275,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           email: clean,
           otp: cleanCode,
+          type: 'login',
         }),
       })
       const data = await res.json()
