@@ -15,8 +15,14 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const gender = searchParams.get('gender') || ''
     const category = searchParams.get('category') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
+    const rawSort = searchParams.get('sort') || 'influencer_seq_num'
     const sortOrder = searchParams.get('order') || 'desc'
+
+    // Route influencer_id or empty default to the indexed numerical column influencer_seq_num for true numerical sorting
+    let sortBy = rawSort
+    if (rawSort === 'influencer_id' || !rawSort) {
+      sortBy = 'influencer_seq_num'
+    }
 
     // Calculate pagination range (0-indexed)
     const from = (page - 1) * limit
@@ -40,10 +46,13 @@ export async function GET(request: Request) {
       query = query.ilike('category', `%${category}%`)
     }
 
-    // Apply sorting and pagination
-    const { data: influencers, count, error } = await query
-      .order(sortBy as string, { ascending: sortOrder === 'asc' })
-      .range(from, to)
+    // Apply primary sorting and tie-breaker
+    let orderedQuery = query.order(sortBy as string, { ascending: sortOrder === 'asc' })
+    if (sortBy !== 'influencer_seq_num') {
+      orderedQuery = orderedQuery.order('influencer_seq_num', { ascending: false })
+    }
+
+    const { data: influencers, count, error } = await orderedQuery.range(from, to)
 
     if (error) {
       console.error('Supabase query error:', error)

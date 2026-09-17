@@ -26,8 +26,14 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const gender = searchParams.get('gender') || ''
     const category = searchParams.get('category') || ''
-    const sortBy = searchParams.get('sort') || 'created_at'
+    const rawSort = searchParams.get('sort') || 'influencer_seq_num'
     const sortOrder = searchParams.get('order') || 'desc'
+
+    // Route influencer_id or empty default to the indexed numerical column influencer_seq_num
+    let sortBy = rawSort
+    if (rawSort === 'influencer_id' || !rawSort) {
+      sortBy = 'influencer_seq_num'
+    }
 
     // Build base query
     let baseQuery = supabase.from('users').select('*')
@@ -47,8 +53,11 @@ export async function GET(request: Request) {
       }
     }
 
-    // Apply sorting
+    // Apply sorting with deterministic secondary tie breaker
     baseQuery = baseQuery.order(sortBy as string, { ascending: sortOrder === 'asc' })
+    if (sortBy !== 'influencer_seq_num') {
+      baseQuery = baseQuery.order('influencer_seq_num', { ascending: false })
+    }
 
     // Fetch all records in batches of 1000 to avoid PostgREST row limits
     const BATCH_SIZE = 1000

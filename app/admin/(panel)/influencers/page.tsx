@@ -36,6 +36,7 @@ interface Influencer {
   id: string
   full_name: string
   influencer_id: string
+  influencer_seq_num?: number
   email: string
   mobile: string
   instagram_username: string
@@ -446,7 +447,7 @@ export default function InfluencersDirectoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'created_at', direction: 'desc' })
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'influencer_seq_num', direction: 'desc' })
 
   // Modal
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
@@ -786,11 +787,17 @@ export default function InfluencersDirectoryPage() {
             <table className="w-full">
                <thead>
                  <tr className="border-b border-white/[0.06] bg-slate-950/40">
-                   <th className={thClass}>
-                     <button onClick={() => handleSort('full_name')} className="flex items-center gap-1.5 group cursor-pointer">
-                       Creator <SortIcon column="full_name" />
-                     </button>
-                   </th>
+                    <th className={thClass}>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleSort('influencer_seq_num')} className="flex items-center gap-1 group cursor-pointer hover:text-indigo-400 transition-colors">
+                          <span>HY ID</span> <SortIcon column="influencer_seq_num" />
+                        </button>
+                        <span className="text-slate-600 font-normal">/</span>
+                        <button onClick={() => handleSort('full_name')} className="flex items-center gap-1 group cursor-pointer hover:text-slate-300 transition-colors">
+                          <span>Name</span> <SortIcon column="full_name" />
+                        </button>
+                      </div>
+                    </th>
                    <th className={thClass}>Contact</th>
                    <th className={thClass}>
                      <button onClick={() => handleSort('followers')} className="flex items-center gap-1.5 group cursor-pointer">
@@ -846,7 +853,11 @@ export default function InfluencersDirectoryPage() {
                                  {user.profile_strength}%
                                </span>
                              </p>
-                             <p className="text-[11px] text-slate-500 font-mono mt-0.5">{user.influencer_id}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                  {user.influencer_id}
+                                </span>
+                              </div>
                              {user.category && (
                                <div className="flex flex-wrap gap-1 mt-1">
                                  {user.category.split(',').map(c => c.trim()).filter(Boolean).slice(0, 2).map(cat => (
