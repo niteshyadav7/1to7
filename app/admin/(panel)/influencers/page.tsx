@@ -447,7 +447,7 @@ export default function InfluencersDirectoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'influencer_seq_num', direction: 'desc' })
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'influencer_seq_num', direction: 'asc' })
 
   // Modal
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
@@ -504,10 +504,13 @@ export default function InfluencersDirectoryPage() {
   }, [debouncedSearch, genderFilter, categoryFilter, pageSize])
 
   const handleSort = (column: string) => {
-    setSortConfig(prev => ({
-      column,
-      direction: prev.column === column && prev.direction === 'desc' ? 'asc' : 'desc'
-    }))
+    setSortConfig(prev => {
+      if (prev.column === column) {
+        return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      const initialDirection = (column === 'followers' || column === 'created_at') ? 'desc' : 'asc'
+      return { column, direction: initialDirection }
+    })
   }
 
   // Export all matching or all creators with complete details

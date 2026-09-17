@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const gender = searchParams.get('gender') || ''
     const category = searchParams.get('category') || ''
     const rawSort = searchParams.get('sort') || 'influencer_seq_num'
-    const sortOrder = searchParams.get('order') || 'desc'
+    const sortOrder = searchParams.get('order') || 'asc'
 
     // Route influencer_id or empty default to the indexed numerical column influencer_seq_num
     let sortBy = rawSort
