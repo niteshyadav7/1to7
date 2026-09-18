@@ -162,20 +162,16 @@ function ReportIssueContent() {
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#f50057] via-rose-500 to-amber-500 p-0.5 shadow-sm group-hover:scale-105 transition-transform">
-              <div className="h-full w-full bg-white rounded-[10px] flex items-center justify-center">
-                <span className="font-extrabold text-[11px] text-[#f50057] tracking-wider">1to7</span>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-sm tracking-tight text-slate-900 group-hover:text-[#f50057] transition-colors">
-                1TO7 MEDIA
-              </span>
-              <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
-                Creator Support Desk
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-3 group cursor-pointer">
+            <img
+              src="/logo.svg"
+              alt="1to7 Media"
+              className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105"
+            />
+            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+            <span className="text-xs text-slate-500 font-semibold tracking-wide hidden sm:inline">
+              Creator Support Desk
+            </span>
           </Link>
 
           <div className="flex items-center gap-2.5">
