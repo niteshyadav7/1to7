@@ -33,12 +33,18 @@ const ISSUE_CATEGORIES = [
 
 function ReportIssueContent() {
   const searchParams = useSearchParams()
-  const defaultSource = searchParams.get('source') === 'signup' ? 'signup' : 'login'
-
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mobile, setMobile] = useState('')
-  const [sourcePage, setSourcePage] = useState<'login' | 'signup'>(defaultSource)
+  const [sourcePage, setSourcePage] = useState<'login' | 'signup'>('login')
+
+  React.useEffect(() => {
+    if (searchParams) {
+      const s = searchParams.get('source')
+      if (s === 'signup') setSourcePage('signup')
+      else if (s === 'login') setSourcePage('login')
+    }
+  }, [searchParams])
   const [issueType, setIssueType] = useState('otp_not_received')
   const [description, setDescription] = useState('')
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null)
