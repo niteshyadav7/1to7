@@ -215,6 +215,8 @@ export async function GET(request: Request) {
         'Bank Account Holder Name',
         'Bank Account Number',
         'Bank IFSC Code',
+        'PAN Card Number',
+        'PAN Card Image URL',
         'Bank Status'
       ]
     } else {
@@ -252,6 +254,8 @@ export async function GET(request: Request) {
         'Bank Account Holder Name',
         'Bank Account Number',
         'Bank IFSC Code',
+        'PAN Card Number',
+        'PAN Card Image URL',
         'Bank Details Added',
         'Primary Delivery Address - Title',
         'Primary Delivery Address - Recipient Name',
@@ -416,6 +420,8 @@ export async function GET(request: Request) {
           escapeCSV(u.account_name || ''),
           escapeCSV(formattedAccNum),
           escapeCSV(u.ifsc_code || ''),
+          escapeCSV(u.pan_card || ''),
+          escapeCSV(u.pan_card_image || ''),
           escapeCSV((u.account_name || u.account_number) ? 'Bank Added' : 'No Bank')
         ]
       } else {
@@ -453,6 +459,8 @@ export async function GET(request: Request) {
           escapeCSV(u.account_name || ''),
           escapeCSV(formattedAccNum),
           escapeCSV(u.ifsc_code || ''),
+          escapeCSV(u.pan_card || ''),
+          escapeCSV(u.pan_card_image || ''),
           escapeCSV((u.account_name || u.account_number) ? 'Bank Added' : 'No Bank'),
           escapeCSV(defaultAddr?.title || (shippingAddresses.length > 0 ? 'Primary Address' : '')),
           escapeCSV(defaultAddr?.recipient_name || ''),

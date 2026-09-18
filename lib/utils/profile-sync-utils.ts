@@ -112,6 +112,22 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
       /^(languages?|languages?\s*(spoken|known|they\s*speak|you\s*speak)|spoken\s*languages?|known\s*languages?|mother\s*tongue|language\s*preference)$/i,
       /\b(languages?\s*(spoken|known|they\s*speak|you\s*speak)|mother\s*tongue)\b/i
     ]
+  },
+  {
+    key: 'pan_card',
+    label: 'PAN Card Number',
+    patterns: [
+      /^(pan|pan\s*card|pan\s*number|pan\s*no\.?|pancard|pan_card|pan_number)$/i,
+      /\b(pan\s*card|pan\s*number|pancard)\b/i
+    ]
+  },
+  {
+    key: 'pan_card_image',
+    label: 'PAN Card Document / Image',
+    patterns: [
+      /^(pan\s*(card)?\s*(image|photo|doc|document|proof|upload|copy|file)|pancard\s*(image|photo|doc|document))$/i,
+      /\b(pan\s*card\s*(image|photo|proof|document))\b/i
+    ]
   }
 ]
 
@@ -128,6 +144,28 @@ export interface ProfileFieldPreset {
 }
 
 export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
+  {
+    id: 'pan_card',
+    label: 'PAN Card Number',
+    icon: '💳',
+    name: 'PAN Card Number',
+    type: 'text',
+    required: false,
+    options: [],
+    description: 'Auto-saves to creator payout tax & bank records',
+    canonicalKey: 'pan_card'
+  },
+  {
+    id: 'pan_card_image',
+    label: 'PAN Card Photo / Document',
+    icon: '📄',
+    name: 'Upload PAN Card',
+    type: 'image',
+    required: false,
+    options: [],
+    description: 'Auto-saves uploaded PAN card document',
+    canonicalKey: 'pan_card_image'
+  },
   {
     id: 'dob',
     label: 'Date of Birth',
@@ -561,7 +599,8 @@ export function isStandardProfileField(keyOrLabel: string): boolean {
     'tshirtsize', 'tshirt', 'clothsize', 'shoesize', 'shoe', 'footwearsize',
     'youtube', 'youtubelink', 'youtubechannel',
     'bio', 'about', 'languages', 'language',
-    'accountname', 'accountnumber', 'ifsccode', 'ifsc', 'bankname'
+    'accountname', 'accountnumber', 'ifsccode', 'ifsc', 'bankname',
+    'pancard', 'pan', 'panno', 'pannumber', 'pancardnumber', 'pancardimage', 'pancardphoto', 'pancarddoc'
   ]
   return standardKeys.includes(norm)
 }

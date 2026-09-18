@@ -53,6 +53,8 @@ export interface User {
   account_name?: string
   account_number?: string
   ifsc_code?: string
+  pan_card?: string
+  pan_card_image?: string
   role?: string
   is_mobile_verified?: boolean
 }

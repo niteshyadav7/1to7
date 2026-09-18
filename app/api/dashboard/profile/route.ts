@@ -109,7 +109,7 @@ export async function PUT(request: Request) {
       'state', 'city', 'pincode', 'followers',
       'dob', 'alt_mobile', 'tshirt_size', 'shoe_size', 'bio', 'youtube',
       'custom_attributes',
-      'account_name', 'account_number', 'ifsc_code',
+      'account_name', 'account_number', 'ifsc_code', 'pan_card', 'pan_card_image',
       'shipping_addresses', 'address_remarks'
     ]
 
@@ -118,6 +118,18 @@ export async function PUT(request: Request) {
       if (body[key] !== undefined) {
         updateData[key] = body[key]
       }
+    }
+
+    // Sanitize PAN Card and PAN Card image
+    if (body.pan_card !== undefined) {
+      if (body.pan_card === null || String(body.pan_card).trim() === '') {
+        updateData.pan_card = null
+      } else {
+        updateData.pan_card = String(body.pan_card).trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)
+      }
+    }
+    if (body.pan_card_image !== undefined) {
+      updateData.pan_card_image = body.pan_card_image ? String(body.pan_card_image).trim() : null
     }
 
     // Cleanse custom_attributes of standard profile fields to prevent duplication

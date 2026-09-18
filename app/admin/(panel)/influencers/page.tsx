@@ -59,6 +59,8 @@ interface Influencer {
   account_name?: string
   account_number?: string
   ifsc_code?: string
+  pan_card?: string
+  pan_card_image?: string
   shipping_addresses?: ShippingAddress[]
   address_remarks?: string
   dob?: string
@@ -343,20 +345,39 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
                       <h3 className="text-sm font-bold text-slate-200">Banking Information</h3>
                    </div>
                    
-                   {user.account_name || user.account_number ? (
+                   {user.account_name || user.account_number || user.pan_card || user.pan_card_image ? (
                      <div className="space-y-2 text-sm bg-slate-800/40 p-4 rounded-xl border border-white/5">
                         <div className="flex items-center justify-between">
                           <span className="text-slate-500 text-xs">A/C Name</span>
-                          <span className="text-slate-300 font-medium truncate ml-4">{user.account_name}</span>
+                          <span className="text-slate-300 font-medium truncate ml-4">{user.account_name || '—'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-slate-500 text-xs">A/C Number</span>
-                          <span className="text-slate-300 font-mono tracking-wide">{user.account_number}</span>
+                          <span className="text-slate-300 font-mono tracking-wide">{user.account_number || '—'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-slate-500 text-xs">IFSC Code</span>
-                          <span className="text-slate-300 font-mono">{user.ifsc_code}</span>
+                          <span className="text-slate-300 font-mono uppercase">{user.ifsc_code || '—'}</span>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 text-xs">PAN Card</span>
+                          <span className="text-slate-300 font-mono uppercase font-semibold tracking-wider">{user.pan_card || '—'}</span>
+                        </div>
+                        {user.pan_card_image && (
+                          <div className="pt-2 mt-2 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-slate-500 text-xs">PAN Document</span>
+                            <a
+                              href={user.pan_card_image}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-semibold border border-emerald-500/20 transition-colors"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                              <span>View Uploaded PAN</span>
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
                      </div>
                    ) : (
                      <div className="bg-slate-800/40 border border-white/5 border-dashed rounded-xl p-4 text-center">

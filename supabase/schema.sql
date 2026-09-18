@@ -17,6 +17,8 @@ CREATE TABLE public.users (
   account_name TEXT,
   account_number TEXT,
   ifsc_code TEXT,
+  pan_card TEXT,
+  pan_card_image TEXT,
   -- Location & Reach
   state TEXT,
   city TEXT,
