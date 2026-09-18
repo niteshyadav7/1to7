@@ -457,7 +457,7 @@ function CustomExportModal({
   const [emailVerified, setEmailVerified] = useState<'all' | 'true' | 'false'>('all')
   const [hasBank, setHasBank] = useState<'all' | 'true' | 'false'>('all')
   const [sort, setSort] = useState('influencer_seq_num')
-  const [order, setOrder] = useState<'asc' | 'desc'>('asc')
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc')
   const [maxRecords, setMaxRecords] = useState('')
 
   const [matchCount, setMatchCount] = useState<number | null>(null)
@@ -1048,7 +1048,7 @@ export default function InfluencersDirectoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'influencer_seq_num', direction: 'asc' })
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'influencer_seq_num', direction: 'desc' })
 
   // Modal
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
@@ -1110,7 +1110,7 @@ export default function InfluencersDirectoryPage() {
       if (prev.column === column) {
         return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
       }
-      const initialDirection = (column === 'followers' || column === 'created_at') ? 'desc' : 'asc'
+      const initialDirection = (column === 'followers' || column === 'created_at' || column === 'influencer_seq_num') ? 'desc' : 'asc'
       return { column, direction: initialDirection }
     })
   }

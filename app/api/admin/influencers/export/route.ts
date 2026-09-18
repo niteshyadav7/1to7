@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     const category = searchParams.get('category') || ''
     const stateFilter = searchParams.get('state') || ''
     const rawSort = searchParams.get('sort') || 'influencer_seq_num'
-    const sortOrder = searchParams.get('order') || 'asc'
+    const sortOrder = searchParams.get('order') || 'desc'
     const preset = searchParams.get('preset') || 'all' // 'all', 'contact', 'shipping', 'finance'
     const countOnly = searchParams.get('count_only') === 'true'
 
