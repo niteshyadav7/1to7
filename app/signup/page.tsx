@@ -11,7 +11,6 @@ import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User 
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
-import ReportIssueModal from '@/components/modals/ReportIssueModal'
 
 declare global {
   interface Window {
@@ -45,7 +44,6 @@ export default function SignupPage() {
   const [mobileResendAttempts, setMobileResendAttempts] = useState(0)
 
   const [loading, setLoading] = useState(false)
-  const [reportIssueOpen, setReportIssueOpen] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
   const { login } = useAuth()
 
@@ -684,20 +682,15 @@ export default function SignupPage() {
               Privacy Policy & Data Terms
             </Link>
             <span className="text-secondary/40 select-none">•</span>
-            <button
-              type="button"
-              onClick={() => setReportIssueOpen(true)}
+            <Link
+              href="/report-issue?source=signup"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-xs text-secondary hover:text-charcoal-surface font-medium underline transition-colors cursor-pointer"
             >
               Facing Issues? Report Here
-            </button>
+            </Link>
           </div>
-
-          <ReportIssueModal
-            isOpen={reportIssueOpen}
-            onClose={() => setReportIssueOpen(false)}
-            sourcePage="signup"
-          />
         </div>
       </div>
     </div>
