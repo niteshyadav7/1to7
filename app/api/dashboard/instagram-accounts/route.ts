@@ -167,12 +167,8 @@ export async function PUT(request: Request) {
     // If updating followers or category
     const updates: Record<string, any> = { updated_at: new Date().toISOString() }
     if (body.followers !== undefined) {
-      if (targetProfile.is_verified) {
-        // Retain verified follower count; do not allow manual overwrite
-        updates.followers = targetProfile.followers
-      } else {
-        updates.followers = typeof body.followers === 'number' ? body.followers : parseInt(body.followers || '0', 10) || 0
-      }
+      const parsedFollowers = typeof body.followers === 'number' ? body.followers : parseInt(body.followers || '0', 10) || 0
+      updates.followers = Math.max(0, parsedFollowers)
     }
     if (body.category !== undefined) {
       updates.category = body.category?.trim() || null

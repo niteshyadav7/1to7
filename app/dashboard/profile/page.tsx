@@ -2581,30 +2581,21 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold text-slate-700">Followers Count *</Label>
                   {instagramProfiles.find(p => p.id === editingIgId)?.is_verified && (
-                    <span className="text-[10px] font-bold text-purple-700 flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Meta API Verified
+                    <span className="text-[10px] font-bold text-purple-700 flex items-center gap-1 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200/60">
+                      <CheckCircle2 className="h-3 w-3 text-purple-600" /> Meta API Verified
                     </span>
                   )}
                 </div>
-                {instagramProfiles.find(p => p.id === editingIgId)?.is_verified && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-[11px] font-medium">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                    <span>Follower count is verified directly from Meta Instagram API and cannot be manually altered.</span>
-                  </div>
-                )}
                 <div className="relative">
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     required
                     type="number"
                     min="0"
-                    disabled={Boolean(instagramProfiles.find(p => p.id === editingIgId)?.is_verified)}
                     value={igFormFollowers}
                     onChange={(e) => setIgFormFollowers(e.target.value)}
                     placeholder="e.g. 25000"
-                    className={`pl-9 h-10 text-xs border-slate-200 rounded-xl focus-visible:ring-pink-500 ${
-                      instagramProfiles.find(p => p.id === editingIgId)?.is_verified ? 'bg-slate-100 text-slate-600 cursor-not-allowed font-bold' : ''
-                    }`}
+                    className="pl-9 h-10 text-xs border-slate-200 rounded-xl focus-visible:ring-pink-500 bg-white"
                   />
                 </div>
               </div>
