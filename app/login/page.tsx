@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram, Mail, Clock } from 'lucide-react'
 import { auth, googleProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
+import ReportIssueModal from '@/components/modals/ReportIssueModal'
 
 declare global {
   interface Window {
@@ -56,6 +57,7 @@ export default function LoginPage() {
   const [resendAttempts, setResendAttempts] = useState(0)
 
   const [loading, setLoading] = useState(false)
+  const [reportIssueOpen, setReportIssueOpen] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
   const { login } = useAuth()
 
@@ -1061,12 +1063,26 @@ export default function LoginPage() {
 
           <div id="recaptcha-container"></div>
 
-          {/* Footer Privacy Link */}
-          <div className="mt-8 text-center">
+          {/* Footer Privacy Link & Report Issue */}
+          <div className="mt-8 text-center flex items-center justify-center gap-2.5 text-xs text-secondary">
             <Link href="/privacy" className="text-xs text-secondary hover:text-charcoal-surface font-medium underline transition-colors">
               Privacy Policy & Data Terms
             </Link>
+            <span className="text-secondary/40 select-none">•</span>
+            <button
+              type="button"
+              onClick={() => setReportIssueOpen(true)}
+              className="text-xs text-secondary hover:text-charcoal-surface font-medium underline transition-colors cursor-pointer"
+            >
+              Facing Issues? Report Here
+            </button>
           </div>
+
+          <ReportIssueModal
+            isOpen={reportIssueOpen}
+            onClose={() => setReportIssueOpen(false)}
+            sourcePage="login"
+          />
         </div>
       </div>
     </div>

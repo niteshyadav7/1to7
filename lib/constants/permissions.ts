@@ -74,6 +74,17 @@ export const ADMIN_MODULES: ModuleDefinition[] = [
     ],
   },
   {
+    key: 'user_issues',
+    name: 'User Issues',
+    href: '/admin/user-issues',
+    description: 'Authentication and login/signup issues reported by creators and visitors.',
+    actions: [
+      { key: 'view', name: 'View Issues', description: 'Can view reported user authentication issues' },
+      { key: 'edit', name: 'Resolve Issues', description: 'Can update ticket status and add resolution remarks' },
+      { key: 'delete', name: 'Delete Issues', description: 'Can remove spam or resolved tickets' },
+    ],
+  },
+  {
     key: 'analytics',
     name: 'Analytics',
     href: '/admin/analytics',

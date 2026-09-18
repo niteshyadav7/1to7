@@ -13,6 +13,7 @@ export type ModuleKey =
   | 'influencers'
   | 'staff'
   | 'roles'
+  | 'user_issues'
 
 export type ActionKey = 'view' | 'create' | 'edit' | 'delete' | 'export' | 'reset_password'
 
