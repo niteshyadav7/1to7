@@ -86,6 +86,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
   const [saving, setSaving] = useState(false)
   const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [formData, setFormData] = useState({
+    campaign_code: '',
     brand_name: '',
     category: '',
     platform: 'Instagram',
@@ -141,6 +142,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
       setCampaign(data.campaign)
       const ppConfig = data.campaign.partial_payment_config || {}
       setFormData({
+        campaign_code: data.campaign.campaign_code || '',
         brand_name: data.campaign.brand_name || '',
         category: data.campaign.category || '',
         platform: data.campaign.platform || 'Instagram',
@@ -192,6 +194,10 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.campaign_code.trim()) {
+      toast.error('Campaign ID / Code is required')
+      return
+    }
     if (!formData.brand_name.trim()) {
       toast.error('Brand name is required')
       return
@@ -271,7 +277,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           </Link>
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Edit Campaign</h1>
-            <p className="text-xs text-slate-400">{campaign.campaign_code} — {campaign.brand_name}</p>
+            <p className="text-xs text-slate-400">{formData.campaign_code || campaign.campaign_code} — {formData.brand_name || campaign.brand_name}</p>
           </div>
         </div>
       </SetAdminHeader>
@@ -400,6 +406,30 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             <h3 className="text-sm font-semibold text-white">Campaign Details</h3>
           </div>
           <div className="p-6 space-y-5">
+            {/* Campaign ID / Code */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Campaign ID / Code *</Label>
+                <span className="text-[11px] text-slate-500 font-mono">Unique Identifier for Links & Tracking</span>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  required
+                  value={formData.campaign_code}
+                  onChange={(e) => setFormData({ ...formData, campaign_code: e.target.value.toUpperCase() })}
+                  placeholder="e.g. IMAGICAA or CAM-SUMMER24"
+                  className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl font-mono uppercase tracking-wider"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, campaign_code: `CAM-${Date.now().toString(36).toUpperCase()}` })}
+                  className="h-11 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-white/10 shrink-0 font-medium text-xs cursor-pointer"
+                >
+                  Auto Generate
+                </Button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Brand Name *</Label>

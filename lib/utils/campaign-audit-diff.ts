@@ -20,6 +20,7 @@ export interface CampaignEditLogEntry {
 }
 
 export const CAMPAIGN_FIELD_METADATA: Record<string, { label: string; category: CampaignEditChange['category'] }> = {
+  campaign_code: { label: 'Campaign ID / Code', category: 'general' },
   brand_name: { label: 'Brand Name', category: 'general' },
   category: { label: 'Category', category: 'general' },
   platform: { label: 'Platform', category: 'general' },

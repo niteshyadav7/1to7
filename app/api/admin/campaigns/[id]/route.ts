@@ -48,7 +48,7 @@ export async function PUT(
     // Only allow updating campaign content/configuration fields
     // is_live and status are strictly managed through the dual-approval workflow
     const allowedFields = [
-      'brand_name', 'category', 'platform', 'budget_type',
+      'campaign_code', 'brand_name', 'category', 'platform', 'budget_type',
       'budget_amount', 'partial_payment_enabled', 'partial_payment_config',
       'deliverables', 'product_links', 'requirements',
       'gender_required',
@@ -77,6 +77,27 @@ export async function PUT(
 
     if (fetchError || !existingCampaign) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    }
+
+    // Sanitize and validate campaign_code if provided
+    if (body.campaign_code !== undefined) {
+      const cleanCode = String(body.campaign_code).trim().toUpperCase()
+      if (!cleanCode) {
+        return NextResponse.json({ error: 'Campaign ID / Code cannot be empty' }, { status: 400 })
+      }
+      if (cleanCode !== existingCampaign.campaign_code) {
+        const { data: codeConflict } = await supabase
+          .from('campaigns')
+          .select('id')
+          .eq('campaign_code', cleanCode)
+          .neq('id', id)
+          .maybeSingle()
+
+        if (codeConflict) {
+          return NextResponse.json({ error: `Campaign Code "${cleanCode}" is already in use by another campaign.` }, { status: 400 })
+        }
+        updates.campaign_code = cleanCode
+      }
     }
 
     // Strict Maker-Checker Rule for Public Campaigns:
@@ -126,6 +147,14 @@ export async function PUT(
       .single()
 
     if (error) throw error
+
+    // If campaign_code changed, cascade update to apply_form_config
+    if (updates.campaign_code && existingCampaign.campaign_code && updates.campaign_code !== existingCampaign.campaign_code) {
+      await supabase
+        .from('apply_form_config')
+        .update({ campaign_code: updates.campaign_code })
+        .eq('campaign_code', existingCampaign.campaign_code)
+    }
 
     return NextResponse.json({
       success: true,
