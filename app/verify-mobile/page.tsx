@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Phone, Shield, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react'
+import { Phone, Shield, Loader2, CheckCircle2, AlertCircle, Sparkles, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -23,6 +23,8 @@ export default function VerifyMobilePage() {
   const [otp, setOtp] = useState('')
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const [isResending, setIsResending] = useState(false)
+  const [resendAttempts, setResendAttempts] = useState(0)
   const [error, setError] = useState('')
   const [countdown, setCountdown] = useState(0)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
@@ -87,7 +89,7 @@ export default function VerifyMobilePage() {
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier)
       confirmationRef.current = confirmation
       setStep('otp')
-      setCountdown(30)
+      setCountdown(45)
       toast.success('OTP sent to your mobile number')
     } catch (err: any) {
       console.error('Send OTP Error:', err)
@@ -100,6 +102,43 @@ export default function VerifyMobilePage() {
       }
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleResendOTP = async () => {
+    if (isResending || countdown > 0) return
+    const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number')
+      return
+    }
+
+    setIsResending(true)
+    const nextAttempts = resendAttempts + 1
+    setResendAttempts(nextAttempts)
+    const cooldownDuration = nextAttempts === 1 ? 45 : nextAttempts === 2 ? 60 : 90
+    setCountdown(cooldownDuration)
+
+    const toastId = toast.loading('Resending OTP...')
+    try {
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {},
+        })
+      }
+      const confirmation = await signInWithPhoneNumber(auth, `+91${cleanMobile}`, window.recaptchaVerifier)
+      confirmationRef.current = confirmation
+      toast.success('New OTP sent to your mobile', { id: toastId })
+    } catch (err: any) {
+      console.error('Resend OTP Error:', err)
+      if (err.code === 'auth/too-many-requests') {
+        toast.error('Too many attempts. Please try again later.', { id: toastId })
+      } else {
+        toast.error(err.message || 'Failed to resend OTP', { id: toastId })
+      }
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -273,17 +312,21 @@ export default function VerifyMobilePage() {
                   {countdown > 0 ? (
                     <button
                       type="button"
-                      onClick={() => toast.info(`Please wait ${countdown}s before requesting a new OTP.`)}
-                      className="text-xs text-secondary hover:text-primary transition-colors cursor-pointer"
+                      disabled
+                      className="text-xs text-slate-400 bg-slate-100/90 px-2.5 py-1 rounded-md cursor-not-allowed select-none font-medium inline-flex items-center gap-1.5 border border-slate-200"
                     >
-                      Resend OTP in <span className="text-primary font-medium">{countdown}s</span>
+                      <Clock className="h-3 w-3 text-slate-400" />
+                      Resend in <span className="text-primary font-bold">{countdown}s</span>
                     </button>
                   ) : (
                     <button
-                      onClick={() => { setStep('input'); setOtp(''); setError(''); confirmationRef.current = null }}
-                      className="text-xs text-primary font-bold hover:underline cursor-pointer transition-colors"
+                      type="button"
+                      onClick={handleResendOTP}
+                      disabled={isResending}
+                      className="text-xs text-primary font-bold hover:underline cursor-pointer transition-colors disabled:opacity-50 inline-flex items-center gap-1"
                     >
-                      Resend OTP
+                      {isResending && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {isResending ? 'Sending...' : 'Resend OTP'}
                     </button>
                   )}
                 </div>

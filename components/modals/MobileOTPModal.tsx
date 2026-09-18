@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Phone, Shield, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Phone, Shield, Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -90,12 +90,13 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
         throw new Error('Verification service not ready. Please refresh the page.')
       }
 
-      const phoneNumber = `+91${mobile}`
+      const cleanMobile = mobile.replace(/\D/g, '')
+      const phoneNumber = `+91${cleanMobile}`
       const confirmation = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier)
       confirmationRef.current = confirmation
 
       setStep('verify')
-      setCountdown(30)
+      setCountdown(45)
       toast.success('OTP sent to your mobile number')
     } catch (err: any) {
       console.error('Send OTP Error:', err)
@@ -283,11 +284,17 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
 
                     <div className="text-center">
                       {countdown > 0 ? (
-                        <p className="text-xs text-slate-500">
-                          Resend OTP in <span className="text-amber-600 font-bold">{countdown}s</span>
-                        </p>
+                        <button
+                          type="button"
+                          disabled
+                          className="text-xs text-slate-400 bg-slate-100/90 px-2.5 py-1 rounded-md cursor-not-allowed select-none font-medium inline-flex items-center gap-1.5 border border-slate-200"
+                        >
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          Resend in <span className="text-amber-600 font-bold">{countdown}s</span>
+                        </button>
                       ) : (
                         <button
+                          type="button"
                           onClick={handleResend}
                           className="text-xs text-amber-600 hover:text-amber-700 font-bold cursor-pointer transition-colors"
                         >

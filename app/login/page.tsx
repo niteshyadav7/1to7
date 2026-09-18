@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
-import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram, Mail } from 'lucide-react'
+import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram, Mail, Clock } from 'lucide-react'
 import { auth, googleProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
 
@@ -53,6 +53,7 @@ export default function LoginPage() {
   const [countdown, setCountdown] = useState(0)
   const [maskedEmail, setMaskedEmail] = useState('')
   const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const [resendAttempts, setResendAttempts] = useState(0)
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
@@ -74,38 +75,44 @@ export default function LoginPage() {
     }
   }, [emailCountdown])
 
-  // Helper to get or re-initialize a fresh RecaptchaVerifier
-  const getFreshRecaptchaVerifier = () => {
-    try {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear()
-        window.recaptchaVerifier = null
-      }
-    } catch (e) {
-      console.warn('reCAPTCHA clear warning:', e)
+  // Helper to get or re-initialize a safe RecaptchaVerifier
+  const getOrCreateRecaptchaVerifier = () => {
+    if (window.recaptchaVerifier) {
+      return window.recaptchaVerifier
     }
 
     const container = document.getElementById('recaptcha-container')
-    if (container) {
-      container.innerHTML = ''
+    if (container && container.parentNode && container.childNodes.length > 0) {
+      const freshContainer = document.createElement('div')
+      freshContainer.id = 'recaptcha-container'
+      container.parentNode.replaceChild(freshContainer, container)
     }
 
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
       size: 'invisible',
       callback: () => {},
       'expired-callback': () => {
-        toast.error('Security check expired. Please try again.')
-        try {
-          if (window.recaptchaVerifier) {
-            window.recaptchaVerifier.clear()
-            window.recaptchaVerifier = null
-          }
-        } catch (e) {}
+        toast.error('Security verification expired. Please try again.')
       },
     })
 
     window.recaptchaVerifier = verifier
     return verifier
+  }
+
+  const resetRecaptchaLogin = () => {
+    try {
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear()
+        window.recaptchaVerifier = null
+      }
+    } catch (e) {}
+    const container = document.getElementById('recaptcha-container')
+    if (container && container.parentNode) {
+      const freshContainer = document.createElement('div')
+      freshContainer.id = 'recaptcha-container'
+      container.parentNode.replaceChild(freshContainer, container)
+    }
   }
 
   // Cleanup reCAPTCHA on unmount
@@ -125,10 +132,12 @@ export default function LoginPage() {
     setIsSendingOtp(true)
     const toastId = toast.loading(isResend ? 'Resending OTP...' : 'Sending OTP...')
     try {
-      const verifier = getFreshRecaptchaVerifier()
+      const verifier = getOrCreateRecaptchaVerifier()
       const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
       confirmationRef.current = confirmation
-      setCountdown(45)
+      if (!isResend) {
+        setCountdown(45)
+      }
       toast.success(
         isResend ? `New OTP sent to +91 ${mobileNum}` : `OTP sent to +91 ${mobileNum}`,
         { id: toastId }
@@ -136,12 +145,7 @@ export default function LoginPage() {
       return true
     } catch (err: any) {
       console.error('Firebase OTP error:', err)
-      try {
-        if (window.recaptchaVerifier) {
-          window.recaptchaVerifier.clear()
-          window.recaptchaVerifier = null
-        }
-      } catch (e) {}
+      resetRecaptchaLogin()
 
       if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
         toast.error(
@@ -175,14 +179,11 @@ export default function LoginPage() {
   // ─── Helper: handle resend OTP with cooldown check & feedback ───
   const handleResendOTP = async () => {
     if (isSendingOtp) {
-      toast.info('Sending OTP, please wait...')
       return
     }
 
     if (countdown > 0) {
-      toast.info(`Please wait ${countdown}s before requesting a new OTP.`, {
-        duration: 3000,
-      })
+      toast.info(`Please wait ${countdown}s before requesting a new OTP.`)
       return
     }
 
@@ -191,6 +192,11 @@ export default function LoginPage() {
       toast.error('Invalid mobile number. Please click "Change Number" to re-enter.')
       return
     }
+
+    const nextAttempts = resendAttempts + 1
+    setResendAttempts(nextAttempts)
+    const cooldownDuration = nextAttempts === 1 ? 45 : nextAttempts === 2 ? 60 : 90
+    setCountdown(cooldownDuration)
 
     await sendFirebaseOTP(cleanMobile, true)
   }
@@ -959,11 +965,11 @@ export default function LoginPage() {
                   {countdown > 0 ? (
                     <button
                       type="button"
-                      onClick={handleResendOTP}
-                      className="text-xs text-secondary hover:text-primary transition-colors cursor-pointer"
-                      title={`Wait ${countdown}s remaining`}
+                      disabled
+                      className="text-xs text-slate-400 bg-slate-100/90 px-2.5 py-1 rounded-md cursor-not-allowed select-none font-medium inline-flex items-center gap-1.5 border border-slate-200"
                     >
-                      Resend in <span className="text-primary font-medium">{countdown}s</span>
+                      <Clock className="h-3 w-3 text-slate-400" />
+                      Resend in <span className="text-primary font-bold">{countdown}s</span>
                     </button>
                   ) : (
                     <button

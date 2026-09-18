@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
-import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Mail, Instagram } from 'lucide-react'
+import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Mail, Instagram, Clock } from 'lucide-react'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
 import type { ConfirmationResult } from '@/lib/firebase'
@@ -41,6 +41,7 @@ export default function SignupPage() {
   const [emailCountdown, setEmailCountdown] = useState(0)
   const [isResendingMobile, setIsResendingMobile] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState(false)
+  const [mobileResendAttempts, setMobileResendAttempts] = useState(0)
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<ConfirmationResult | null>(null)
@@ -61,20 +62,17 @@ export default function SignupPage() {
     }
   }, [emailCountdown])
 
-  // Helper to get or re-initialize a fresh RecaptchaVerifier
-  const getFreshRecaptchaVerifierSignup = () => {
-    try {
-      if (window.recaptchaVerifierSignup) {
-        window.recaptchaVerifierSignup.clear()
-        window.recaptchaVerifierSignup = null
-      }
-    } catch (e) {
-      console.warn('reCAPTCHA clear warning:', e)
+  // Helper to get or re-initialize a safe RecaptchaVerifier
+  const getOrCreateRecaptchaVerifierSignup = () => {
+    if (window.recaptchaVerifierSignup) {
+      return window.recaptchaVerifierSignup
     }
 
     const container = document.getElementById('recaptcha-container-signup')
-    if (container) {
-      container.innerHTML = ''
+    if (container && container.parentNode && container.childNodes.length > 0) {
+      const freshContainer = document.createElement('div')
+      freshContainer.id = 'recaptcha-container-signup'
+      container.parentNode.replaceChild(freshContainer, container)
     }
 
     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
@@ -82,17 +80,26 @@ export default function SignupPage() {
       callback: () => { },
       'expired-callback': () => {
         toast.error('Security verification expired. Please try again.')
-        try {
-          if (window.recaptchaVerifierSignup) {
-            window.recaptchaVerifierSignup.clear()
-            window.recaptchaVerifierSignup = null
-          }
-        } catch (e) { }
       }
     })
 
     window.recaptchaVerifierSignup = verifier
     return verifier
+  }
+
+  const resetRecaptchaSignup = () => {
+    try {
+      if (window.recaptchaVerifierSignup) {
+        window.recaptchaVerifierSignup.clear()
+        window.recaptchaVerifierSignup = null
+      }
+    } catch (e) {}
+    const container = document.getElementById('recaptcha-container-signup')
+    if (container && container.parentNode) {
+      const freshContainer = document.createElement('div')
+      freshContainer.id = 'recaptcha-container-signup'
+      container.parentNode.replaceChild(freshContainer, container)
+    }
   }
 
   // Cleanup reCAPTCHA on unmount
@@ -174,11 +181,13 @@ export default function SignupPage() {
     }
   }
 
-  const sendFirebaseOTP = async (mobileNum: string) => {
-    const verifier = getFreshRecaptchaVerifierSignup()
+  const sendFirebaseOTP = async (mobileNum: string, isResend = false) => {
+    const verifier = getOrCreateRecaptchaVerifierSignup()
     const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
     confirmationRef.current = confirmation
-    setCountdown(45)
+    if (!isResend) {
+      setCountdown(45)
+    }
     return confirmation
   }
 
@@ -196,7 +205,6 @@ export default function SignupPage() {
 
   const handleResendMobile = async () => {
     if (isResendingMobile) {
-      toast.info('Sending mobile OTP, please wait...')
       return
     }
 
@@ -212,18 +220,18 @@ export default function SignupPage() {
     }
 
     setIsResendingMobile(true)
+    const nextAttempts = mobileResendAttempts + 1
+    setMobileResendAttempts(nextAttempts)
+    const cooldownDuration = nextAttempts === 1 ? 45 : nextAttempts === 2 ? 60 : 90
+    setCountdown(cooldownDuration)
+
     const toastId = toast.loading('Resending Mobile OTP...')
     try {
-      await sendFirebaseOTP(cleanMobile)
+      await sendFirebaseOTP(cleanMobile, true)
       toast.success(`New OTP sent to +91 ${cleanMobile}`, { id: toastId })
     } catch (err: any) {
       console.error('Firebase OTP error:', err)
-      try {
-        if (window.recaptchaVerifierSignup) {
-          window.recaptchaVerifierSignup.clear()
-          window.recaptchaVerifierSignup = null
-        }
-      } catch (e) {}
+      resetRecaptchaSignup()
 
       if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
         toast.error(
@@ -588,10 +596,11 @@ export default function SignupPage() {
                       {countdown > 0 ? (
                         <button
                           type="button"
-                          onClick={handleResendMobile}
-                          className="text-[10px] text-secondary hover:text-primary transition-colors cursor-pointer"
+                          disabled
+                          className="text-[10px] text-slate-400 bg-slate-100/90 px-2 py-0.5 rounded cursor-not-allowed select-none font-medium flex items-center gap-1 border border-slate-200"
                         >
-                          Resend in <span className="text-primary font-medium">{countdown}s</span>
+                          <Clock className="h-2.5 w-2.5 text-slate-400" />
+                          Resend in <span className="text-primary font-bold">{countdown}s</span>
                         </button>
                       ) : (
                         <button
