@@ -550,16 +550,23 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                {/* Continue with Instagram Button */}
+                {/* Continue with Instagram Button (In Process) */}
                 <Button
                   type="button"
-                  onClick={() => { window.location.href = '/api/auth/instagram/login' }}
-                  disabled={loading}
-                  className="w-full h-13 rounded-md bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md"
+                  onClick={() => {
+                    toast.info('Instagram Sign-Up is currently in process. Please sign up using Email & Mobile.', {
+                      duration: 5000,
+                      icon: <Instagram className="h-4 w-4 text-pink-500" />
+                    })
+                  }}
+                  className="w-full h-13 rounded-md bg-gradient-to-r from-purple-600/75 via-pink-600/75 to-amber-500/75 hover:from-purple-600/85 hover:via-pink-600/85 hover:to-amber-500/85 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm relative overflow-hidden group"
                 >
-                  <div className="flex items-center justify-center gap-3">
-                    <Instagram className="h-5 w-5 text-white" />
-                    Sign up with Instagram
+                  <div className="flex items-center justify-center gap-2.5">
+                    <Instagram className="h-5 w-5 text-white/90" />
+                    <span>Sign up with Instagram</span>
+                    <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-black/25 text-white/95 border border-white/20 tracking-normal">
+                      In Process
+                    </span>
                   </div>
                 </Button>
 

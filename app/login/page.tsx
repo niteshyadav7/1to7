@@ -363,9 +363,10 @@ export default function LoginPage() {
   //  FLOW 3: INSTAGRAM LOGIN
   // ═══════════════════════════════════════════
   const handleInstagramStart = () => {
-    setPendingFlow('instagram')
-    setMobile('')
-    setView('verify-mobile')
+    toast.info('Instagram Sign-In is currently in process. Please sign in using Password, Email OTP, or Google.', {
+      duration: 5000,
+      icon: <Instagram className="h-4 w-4 text-pink-500" />
+    })
   }
 
   // ─── Shared Mobile Submit for Social Logins (Google & Instagram) ───
@@ -464,11 +465,10 @@ export default function LoginPage() {
   }
 
   const handleInstagramRedirect = () => {
-    const cleanMobile = mobile.replace(/\D/g, '')
-    if (cleanMobile) {
-      document.cookie = `pending_mobile=${cleanMobile}; path=/; max-age=600`
-    }
-    window.location.href = '/api/auth/instagram/login'
+    toast.info('Instagram Sign-In is currently in process. Please sign in using Password, Email OTP, or Google.', {
+      duration: 5000,
+      icon: <Instagram className="h-4 w-4 text-pink-500" />
+    })
   }
 
   // ═══════════════════════════════════════════
@@ -870,16 +870,18 @@ export default function LoginPage() {
                   </div>
                 </Button>
 
-                {/* Continue with Instagram Button */}
+                {/* Continue with Instagram Button (In Process) */}
                 <Button
                   type="button"
                   onClick={handleInstagramStart}
-                  disabled={loading}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md mt-3 uppercase tracking-wider"
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600/75 via-pink-600/75 to-amber-500/75 hover:from-purple-600/85 hover:via-pink-600/85 hover:to-amber-500/85 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm mt-3 uppercase tracking-wider relative overflow-hidden group"
                 >
-                  <div className="flex items-center justify-center gap-3">
-                    <Instagram className="h-5 w-5 text-white" />
-                    CONTINUE WITH INSTAGRAM
+                  <div className="flex items-center justify-center gap-2.5">
+                    <Instagram className="h-5 w-5 text-white/90" />
+                    <span>CONTINUE WITH INSTAGRAM</span>
+                    <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-black/25 text-white/95 border border-white/20 tracking-normal">
+                      In Process
+                    </span>
                   </div>
                 </Button>
 
@@ -1046,12 +1048,14 @@ export default function LoginPage() {
                 </div>
                 <Button
                   onClick={handleInstagramRedirect}
-                  disabled={loading}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-md uppercase tracking-wider"
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600/75 via-pink-600/75 to-amber-500/75 hover:from-purple-600/85 hover:via-pink-600/85 hover:to-amber-500/85 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm uppercase tracking-wider relative overflow-hidden group"
                 >
-                  <div className="flex items-center justify-center gap-3">
-                    <Instagram className="h-5 w-5 text-white" />
-                    CONTINUE WITH INSTAGRAM
+                  <div className="flex items-center justify-center gap-2.5">
+                    <Instagram className="h-5 w-5 text-white/90" />
+                    <span>CONTINUE WITH INSTAGRAM</span>
+                    <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-black/25 text-white/95 border border-white/20 tracking-normal">
+                      In Process
+                    </span>
                   </div>
                 </Button>
               </motion.div>
