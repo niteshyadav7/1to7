@@ -143,19 +143,12 @@ export default function Home() {
               {isLoading ? (
                 <div className="h-12 w-44 rounded-xl bg-amber-100/60 animate-pulse" />
               ) : !user ? (
-                <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-                  <Link href="/login" className="flex-1 sm:flex-initial">
-                    <Button size="lg" className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-extrabold text-sm shadow-md active:scale-[0.98] group cursor-pointer bg-gradient-to-r from-amber-400 via-[#febd1c] to-amber-500 hover:opacity-95 text-slate-950 border border-amber-300/60">
-                      Sign In
-                      <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
-                  <Link href="/signup" className="flex-1 sm:flex-initial">
-                    <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-5 sm:px-6 rounded-xl font-bold text-sm border-slate-300 bg-white hover:bg-slate-100 text-slate-800 shadow-xs cursor-pointer">
-                      Join as Creator
-                    </Button>
-                  </Link>
-                </div>
+                <Link href="/login" className="flex-1 sm:flex-initial">
+                  <Button size="lg" className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-extrabold text-sm shadow-md active:scale-[0.98] group cursor-pointer bg-gradient-to-r from-amber-400 via-[#febd1c] to-amber-500 hover:opacity-95 text-slate-950 border border-amber-300/60">
+                    Get Started
+                    <ArrowRight className="ml-1.5 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </Link>
               ) : (
                 <Link href="/dashboard" className="flex-1 sm:flex-initial">
                   <Button size="lg" className="w-full sm:w-auto h-12 px-6 sm:px-8 rounded-xl font-extrabold text-sm shadow-md active:scale-[0.98] group cursor-pointer bg-gradient-to-r from-amber-400 via-[#febd1c] to-amber-500 hover:opacity-95 text-slate-950 border border-amber-300/60">
