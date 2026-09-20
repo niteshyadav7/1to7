@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
-  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check
+  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -110,9 +111,18 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
         {/* Header (Cover & Avatar) */}
         <div className="relative h-32 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border-b border-white/5 shrink-0">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mixed-blend-overlay"></div>
-          <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-md transition-colors cursor-pointer z-10">
-            <XCircle className="h-5 w-5" />
-          </button>
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+            <Link
+              href={`/admin/virtual-profile/${user.id}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-pink-500/20 transition-all cursor-pointer"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>Launch Virtual Profile</span>
+            </Link>
+            <button onClick={onClose} className="p-2 bg-black/20 hover:bg-black/40 rounded-full text-white backdrop-blur-md transition-colors cursor-pointer">
+              <XCircle className="h-5 w-5" />
+            </button>
+          </div>
           
           <div className="absolute -bottom-12 left-6 flex items-end gap-4 overflow-visible">
             <div className="h-24 w-24 rounded-2xl bg-slate-900 border-4 border-slate-900 flex items-center justify-center shadow-xl overflow-hidden relative">
@@ -1475,12 +1485,13 @@ export default function InfluencersDirectoryPage() {
                        Joined <SortIcon column="created_at" />
                      </button>
                    </th>
+                   <th className={`${thClass} text-right pr-4`}>Virtual Profile</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-white/[0.03]">
                  {influencers.length === 0 && !loading ? (
                    <tr>
-                     <td colSpan={5} className="py-16 text-center">
+                     <td colSpan={6} className="py-16 text-center">
                         <User className="h-10 w-10 text-slate-700 mx-auto mb-3" />
                         <h3 className="text-base font-semibold text-slate-400">No influencers found</h3>
                         <p className="text-xs text-slate-500 mt-1">Try adjusting your filters or search term</p>
@@ -1610,6 +1621,18 @@ export default function InfluencersDirectoryPage() {
                          <p className="text-[11px] text-slate-500 mt-1">
                            {new Date(user.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                          </p>
+                       </td>
+
+                       {/* Action: Virtual Profile */}
+                       <td className="px-4 py-3 text-right pr-4" onClick={(e) => e.stopPropagation()}>
+                         <Link
+                           href={`/admin/virtual-profile/${user.id}`}
+                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-600/20 hover:from-purple-600/35 hover:to-pink-600/35 text-pink-300 hover:text-white border border-pink-500/30 hover:border-pink-500/60 text-xs font-bold transition-all shadow-sm group/btn"
+                           title={`Open Virtual Profile for ${user.full_name}`}
+                         >
+                           <Eye className="h-3.5 w-3.5 text-pink-400 group-hover/btn:scale-110 transition-transform" />
+                           <span>Virtual Profile</span>
+                         </Link>
                        </td>
                      </motion.tr>
                    ))
