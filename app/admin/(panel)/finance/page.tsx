@@ -34,7 +34,7 @@ import { Input } from '@/components/ui/input'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
-import BrandLoader from '@/components/ui/BrandLoader'
+import { GlobalLoader } from '@/components/ui/global-loader'
 
 interface UserInfo {
   id: string
@@ -289,11 +289,7 @@ export default function FinancePayoutPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <BrandLoader />
-      </div>
-    )
+    return <GlobalLoader text="Loading Finance Payouts..." />
   }
 
   const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + getPayableAmount(a), 0)

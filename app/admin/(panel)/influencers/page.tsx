@@ -1211,6 +1211,10 @@ export default function InfluencersDirectoryPage() {
 
   const thClass = "px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500"
 
+  if (loading && !pagination) {
+    return <GlobalLoader text="Loading Influencers Directory..." />
+  }
+
   return (
     <div className="space-y-5 pb-24 relative">
       <AnimatePresence>
@@ -1453,8 +1457,8 @@ export default function InfluencersDirectoryPage() {
       {/* Table */}
       <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-lg overflow-hidden shadow-xl shadow-black/10 relative">
          {loading && (
-            <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px] z-10 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 text-indigo-500 animate-spin" />
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+              <GlobalLoader text="Updating Directory..." />
             </div>
          )}
          
