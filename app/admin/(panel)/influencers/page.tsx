@@ -1485,13 +1485,12 @@ export default function InfluencersDirectoryPage() {
                        Joined <SortIcon column="created_at" />
                      </button>
                    </th>
-                   <th className={`${thClass} text-right pr-4`}>Virtual Profile</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-white/[0.03]">
                  {influencers.length === 0 && !loading ? (
                    <tr>
-                     <td colSpan={6} className="py-16 text-center">
+                     <td colSpan={5} className="py-16 text-center">
                         <User className="h-10 w-10 text-slate-700 mx-auto mb-3" />
                         <h3 className="text-base font-semibold text-slate-400">No influencers found</h3>
                         <p className="text-xs text-slate-500 mt-1">Try adjusting your filters or search term</p>
@@ -1621,18 +1620,6 @@ export default function InfluencersDirectoryPage() {
                          <p className="text-[11px] text-slate-500 mt-1">
                            {new Date(user.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                          </p>
-                       </td>
-
-                       {/* Action: Virtual Profile */}
-                       <td className="px-4 py-3 text-right pr-4" onClick={(e) => e.stopPropagation()}>
-                         <Link
-                           href={`/admin/virtual-profile/${user.id}`}
-                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-600/20 hover:from-purple-600/35 hover:to-pink-600/35 text-pink-300 hover:text-white border border-pink-500/30 hover:border-pink-500/60 text-xs font-bold transition-all shadow-sm group/btn"
-                           title={`Open Virtual Profile for ${user.full_name}`}
-                         >
-                           <Eye className="h-3.5 w-3.5 text-pink-400 group-hover/btn:scale-110 transition-transform" />
-                           <span>Virtual Profile</span>
-                         </Link>
                        </td>
                      </motion.tr>
                    ))
