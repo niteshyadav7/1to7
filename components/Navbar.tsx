@@ -55,7 +55,7 @@ export function Navbar() {
         ) : (
           <div className="flex items-center space-x-2">
             <Button size="sm" className="px-3 sm:px-4 text-xs sm:text-sm h-8 sm:h-9 bg-[#febd1c] hover:bg-amber-400 text-slate-950 font-bold" onClick={() => router.push('/login')}>
-              Get Started
+              Sign In
             </Button>
           </div>
         )}

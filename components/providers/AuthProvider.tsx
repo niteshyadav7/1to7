@@ -123,14 +123,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthProvider] refreshUserProfile() called')
       const res = await fetch('/api/dashboard/profile')
       console.log('[AuthProvider] /api/dashboard/profile status:', res.status)
-      const data = await res.json()
-      if (data.user) {
-        console.log('📸 FULL USER DATABASE OBJECT:', data.user)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.user) {
+          console.log('📸 FULL USER DATABASE OBJECT:', data.user)
+          setUser(data.user)
+          localStorage.setItem('user_cache', JSON.stringify(data.user))
+          return
+        }
+      }
 
-        setUser(data.user)
-        localStorage.setItem('user_cache', JSON.stringify(data.user))
-      } else {
-        console.warn('[AuthProvider] No user in response - auth cookie might be missing')
+      // If unauthorized (401/403) or server indicates invalid session:
+      if (res.status === 401 || res.status === 403 || !res.ok) {
+        console.warn('[AuthProvider] Session expired or invalid on server - clearing stale user_cache')
+        setUser(null)
+        localStorage.removeItem('user_cache')
       }
     } catch (e) {
       console.error('[AuthProvider] Failed to refresh profile', e)
