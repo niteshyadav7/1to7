@@ -40,8 +40,13 @@ export async function POST(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || !hasActionPermission(admin, 'influencers', 'edit')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!admin.is_super_admin) {
+      return NextResponse.json({
+        error: 'Access Denied: Only Super Administrators have permission to link Instagram profiles.'
+      }, { status: 403 })
     }
 
     const { userId } = await params
@@ -121,8 +126,13 @@ export async function PUT(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || !hasActionPermission(admin, 'influencers', 'edit')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!admin.is_super_admin) {
+      return NextResponse.json({
+        error: 'Access Denied: Only Super Administrators have permission to modify Instagram profiles.'
+      }, { status: 403 })
     }
 
     const { userId } = await params
@@ -190,8 +200,13 @@ export async function DELETE(
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || !hasActionPermission(admin, 'influencers', 'edit')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (!admin.is_super_admin) {
+      return NextResponse.json({
+        error: 'Access Denied: Only Super Administrators have permission to unlink Instagram profiles.'
+      }, { status: 403 })
     }
 
     const { userId } = await params

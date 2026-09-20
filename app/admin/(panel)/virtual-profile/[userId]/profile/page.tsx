@@ -7,7 +7,7 @@ import {
   Sparkles, Shield, CheckCircle2, AtSign, Building, Hash, Globe,
   BadgeCheck, ExternalLink, Tag, X, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Check,
   RefreshCw, Plus, Home, Briefcase, Package, Pencil, Trash2, FileText, Star, Copy, Phone,
-  Calendar, Youtube, Shirt, Footprints, MessageSquare, Info, Languages, UploadCloud, Eye, AlertTriangle
+  Calendar, Youtube, Shirt, Footprints, MessageSquare, Info, Languages, UploadCloud, Eye, AlertTriangle, ShieldCheck
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
@@ -183,6 +183,7 @@ export default function AdminVirtualProfileEditPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'unsaved' | 'error'>('idle')
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [availableNiches, setAvailableNiches] = useState<string[]>(INFLUENCER_CATEGORIES)
   const [availableLanguages, setAvailableLanguages] = useState<string[]>(CREATOR_LANGUAGES)
   const [suggestModalOpen, setSuggestModalOpen] = useState(false)
@@ -284,6 +285,9 @@ export default function AdminVirtualProfileEditPage() {
       setLoading(true)
       const res = await fetch(`/api/admin/virtual-profile/${userId}?action=profile`)
       const data = await res.json()
+      if (data.is_super_admin !== undefined) {
+        setIsSuperAdmin(Boolean(data.is_super_admin))
+      }
       if (data.user) {
         setProfile(data.user)
         const savedCategory = data.user.category || ''
@@ -385,9 +389,16 @@ export default function AdminVirtualProfileEditPage() {
     fetchProfile()
   }, [userId])
 
-  // Core save handler via Admin Gateway PUT
+  // Core save handler via Admin Gateway PUT (Super Admin only)
   const performSave = async (dataToSave = formData, isAutoSave = false) => {
     if (!userId) return
+
+    if (!isSuperAdmin) {
+      if (!isAutoSave) {
+        toast.error('Read-Only mode: Only Super Administrators can modify creator profiles.')
+      }
+      return
+    }
 
     const payload = {
       ...dataToSave,
@@ -439,9 +450,9 @@ export default function AdminVirtualProfileEditPage() {
     await performSave(formData, false)
   }
 
-  // Auto-Save Effect: 1500ms debounce
+  // Auto-Save Effect: 1500ms debounce (Super Admin only)
   useEffect(() => {
-    if (!isInitialLoaded.current) return
+    if (!isInitialLoaded.current || !isSuperAdmin) return
 
     const currentPayload = {
       ...formData,
@@ -468,6 +479,10 @@ export default function AdminVirtualProfileEditPage() {
 
   // PAN Image Upload via standard /api/upload
   const handlePanImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isSuperAdmin) {
+      toast.error('Read-Only mode: Only Super Administrators can upload documents')
+      return
+    }
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -539,6 +554,7 @@ export default function AdminVirtualProfileEditPage() {
   }, [igFormHandle, igModalOpen, editingIgId, userId])
 
   const openAddIgModal = () => {
+    if (!isSuperAdmin) return
     setEditingIgId(null)
     setIgFormHandle('')
     setIgFormFollowers('')
@@ -549,6 +565,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const openEditIgModal = (p: LinkedInstagramProfile) => {
+    if (!isSuperAdmin) return
     setEditingIgId(p.id)
     setIgFormHandle(p.username)
     setIgFormFollowers(String(p.followers || '0'))
@@ -560,6 +577,7 @@ export default function AdminVirtualProfileEditPage() {
 
   const handleSaveInstagramProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isSuperAdmin) return
     if (!igFormHandle.trim()) {
       toast.error('Instagram username is required')
       return
@@ -619,6 +637,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const handleSetPrimaryProfile = async (profileId: string) => {
+    if (!isSuperAdmin) return
     try {
       const res = await fetch(`/api/admin/virtual-profile/${userId}/instagram`, {
         method: 'PUT',
@@ -636,6 +655,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const handleDeleteInstagramProfile = async (profileId: string) => {
+    if (!isSuperAdmin) return
     if (!confirm('Are you sure you want to unlink this Instagram profile for this creator?')) return
     try {
       const res = await fetch(`/api/admin/virtual-profile/${userId}/instagram?id=${profileId}`, {
@@ -653,6 +673,7 @@ export default function AdminVirtualProfileEditPage() {
 
   // Suggest Modal
   const handleOpenSuggestModal = (type: 'niche' | 'language') => {
+    if (!isSuperAdmin) return
     setSuggestType(type)
     setSuggestInput('')
     setSuggestModalOpen(true)
@@ -660,6 +681,7 @@ export default function AdminVirtualProfileEditPage() {
 
   const handleSubmitSuggestion = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isSuperAdmin) return
     const trimmed = suggestInput.trim()
     if (!trimmed) return
 
@@ -704,6 +726,7 @@ export default function AdminVirtualProfileEditPage() {
     .filter(Boolean)
 
   const toggleCategory = (cat: string) => {
+    if (!isSuperAdmin) return
     const trimmed = cat.trim()
     if (!trimmed) return
     let next: string[]
@@ -717,6 +740,7 @@ export default function AdminVirtualProfileEditPage() {
 
   const handleAddCustomCategory = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    if (!isSuperAdmin) return
     const trimmed = customNicheInput.trim()
     if (!trimmed) return
     if (!selectedCategories.includes(trimmed)) {
@@ -732,6 +756,7 @@ export default function AdminVirtualProfileEditPage() {
     .filter(Boolean)
 
   const toggleLanguage = (lang: string) => {
+    if (!isSuperAdmin) return
     const trimmed = lang.trim()
     if (!trimmed) return
     let next: string[]
@@ -745,6 +770,7 @@ export default function AdminVirtualProfileEditPage() {
 
   const handleAddCustomLanguage = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    if (!isSuperAdmin) return
     const trimmed = customLanguageInput.trim()
     if (!trimmed) return
     if (!selectedLanguages.includes(trimmed)) {
@@ -758,6 +784,7 @@ export default function AdminVirtualProfileEditPage() {
   const MAX_ADDRESSES = 6
 
   const openAddAddressModal = () => {
+    if (!isSuperAdmin) return
     if ((formData.shipping_addresses || []).length >= MAX_ADDRESSES) {
       toast.error(`Maximum limit of ${MAX_ADDRESSES} delivery addresses reached.`)
       return
@@ -781,6 +808,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const openEditAddressModal = (addr: ShippingAddress) => {
+    if (!isSuperAdmin) return
     setEditingAddressId(addr.id)
     setAddressForm({ ...addr })
     setAddressModalOpen(true)
@@ -788,6 +816,7 @@ export default function AdminVirtualProfileEditPage() {
 
   const handleSaveAddress = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isSuperAdmin) return
     if (!addressForm.recipient_name.trim()) {
       toast.error('Recipient name is required')
       return
@@ -877,6 +906,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const handleSetDefaultAddress = (addrId: string) => {
+    if (!isSuperAdmin) return
     const updatedAddrs = (formData.shipping_addresses || []).map((a) => ({
       ...a,
       is_default: a.id === addrId,
@@ -894,6 +924,7 @@ export default function AdminVirtualProfileEditPage() {
   }
 
   const handleDeleteAddress = (addrId: string) => {
+    if (!isSuperAdmin) return
     const filtered = (formData.shipping_addresses || []).filter((a) => a.id !== addrId)
     if (filtered.length > 0 && !filtered.some((a) => a.is_default)) {
       filtered[0].is_default = true
@@ -1011,10 +1042,17 @@ export default function AdminVirtualProfileEditPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-extrabold text-slate-900 truncate">{profile?.full_name || 'Creator Profile'}</h2>
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.2 text-[10px] font-bold text-amber-700 border border-amber-200 shrink-0">
-                <Shield className="h-2.5 w-2.5 text-amber-600" />
-                Admin Direct Edit
-              </span>
+              {isSuperAdmin ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-extrabold text-purple-700 border border-purple-200 shrink-0">
+                  <ShieldCheck className="h-2.5 w-2.5 text-purple-600" />
+                  Super Admin (Full Edit)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-700 border border-slate-200 shrink-0">
+                  <Eye className="h-2.5 w-2.5 text-slate-500" />
+                  Admin (Read-Only)
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
               <span className="font-semibold text-slate-700">{profile?.influencer_id || 'HY ID'}</span>
@@ -1031,29 +1069,36 @@ export default function AdminVirtualProfileEditPage() {
         {/* Right Group: Auto-Save Status, Profile Strength & Save Button */}
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
           {/* Live Auto-Save Status Indicator */}
-          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0">
-            {saveStatus === 'saving' ? (
-              <span className="flex items-center gap-1.5 text-pink-600">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
-                <span>Saving to database...</span>
-              </span>
-            ) : saveStatus === 'unsaved' ? (
-              <span className="flex items-center gap-1.5 text-amber-700">
-                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Unsaved changes...</span>
-              </span>
-            ) : saveStatus === 'error' ? (
-              <span className="flex items-center gap-1.5 text-rose-700">
-                <X className="h-3.5 w-3.5 text-rose-600" />
-                <span>Save failed</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                <span>All saved to DB</span>
-              </span>
-            )}
-          </div>
+          {isSuperAdmin ? (
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0">
+              {saveStatus === 'saving' ? (
+                <span className="flex items-center gap-1.5 text-pink-600">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
+                  <span>Saving to database...</span>
+                </span>
+              ) : saveStatus === 'unsaved' ? (
+                <span className="flex items-center gap-1.5 text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Unsaved changes...</span>
+                </span>
+              ) : saveStatus === 'error' ? (
+                <span className="flex items-center gap-1.5 text-rose-700">
+                  <X className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Save failed</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>All saved to DB</span>
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0 bg-slate-50 text-slate-600 border-slate-200">
+              <Eye className="h-3.5 w-3.5 text-slate-400" />
+              <span>View-Only Mode</span>
+            </div>
+          )}
 
           {/* Profile Strength Bar */}
           <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 border border-slate-200/60 px-2.5 sm:px-3.5 py-1.5 rounded-lg shrink-0">
@@ -1071,24 +1116,56 @@ export default function AdminVirtualProfileEditPage() {
             </div>
           </div>
 
-          {/* Quick Manual Save Button */}
-          <Button
-            type="button"
-            onClick={handleManualSave}
-            disabled={saving}
-            className="h-8 sm:h-9 px-3 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
-          >
-            {saving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <>
-                <Save className="mr-1.5 h-3.5 w-3.5" />
-                Save Changes
-              </>
-            )}
-          </Button>
+          {/* Quick Save / Read-Only Button */}
+          {isSuperAdmin ? (
+            <Button
+              type="button"
+              onClick={handleManualSave}
+              disabled={saving}
+              className="h-8 sm:h-9 px-3 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0 ml-auto sm:ml-0"
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled
+              className="h-8 sm:h-9 px-3 sm:px-5 bg-slate-100 text-slate-400 font-extrabold text-xs rounded-lg border border-slate-200 cursor-not-allowed shrink-0 ml-auto sm:ml-0 shadow-none"
+              title="Only Super Administrators can modify influencer profiles"
+            >
+              <Lock className="mr-1.5 h-3.5 w-3.5 text-slate-400" />
+              Read-Only
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* ─── Read-Only Administrator Notice Banner ─── */}
+      {!isSuperAdmin && (
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-xl p-3.5 sm:p-4 flex items-start gap-3 shadow-2xs">
+          <div className="p-2 rounded-lg bg-amber-100 text-amber-800 shrink-0 mt-0.5">
+            <Shield className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-xs sm:text-sm font-black text-amber-950 flex items-center gap-1.5">
+              <span>Read-Only Administrator View</span>
+              <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-amber-200/60 text-amber-900 border border-amber-300">
+                Restricted
+              </span>
+            </h4>
+            <p className="text-[11px] sm:text-xs text-amber-800 mt-0.5 leading-relaxed">
+              You are currently viewing this creator&apos;s profile in view-only mode. Only <strong>Super Administrators</strong> have full authority to modify creator details—including login credentials (<strong>Email</strong>, <strong>Mobile</strong>), personal information, addresses, payout details, and connected Instagram accounts.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ─── Multi-Step Visual Stepper Header ─── */}
       <div className="bg-white rounded-xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs">
@@ -1208,8 +1285,13 @@ export default function AdminVirtualProfileEditPage() {
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           value={formData.full_name}
+                          disabled={!isSuperAdmin}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, full_name: e.target.value })}
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
+                          className={`pl-9 h-10 text-xs rounded-lg transition-all ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                           placeholder="Enter creator full name"
                         />
                       </div>
@@ -1218,8 +1300,16 @@ export default function AdminVirtualProfileEditPage() {
                     {/* Gender */}
                     <div className="space-y-1.5">
                       <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Gender</Label>
-                      <Select value={formData.gender || ""} onValueChange={(v) => setFormData({ ...formData, gender: v || '' })}>
-                        <SelectTrigger className="bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus:ring-[#f50057] rounded-lg focus:bg-white transition-all">
+                      <Select
+                        disabled={!isSuperAdmin}
+                        value={formData.gender || ""}
+                        onValueChange={(v) => setFormData({ ...formData, gender: v || '' })}
+                      >
+                        <SelectTrigger className={`h-10 text-xs rounded-lg transition-all ${
+                          isSuperAdmin
+                            ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus:ring-[#f50057] focus:bg-white'
+                            : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                        }`}>
                           <SelectValue placeholder="Select Gender" />
                         </SelectTrigger>
                         <SelectContent side="bottom" className="bg-white border border-slate-200 text-slate-900 shadow-xl max-h-[200px]">
@@ -1232,29 +1322,60 @@ export default function AdminVirtualProfileEditPage() {
 
                     {/* Email */}
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Email Address</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Email Address</Label>
+                        {isSuperAdmin && (
+                          <span className="text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                            Super Admin Editable
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
                         <Input
                           value={formData.email}
+                          disabled={!isSuperAdmin}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
-                          className="bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg focus:bg-white transition-all"
+                          className={`h-10 text-xs rounded-lg transition-all ${
+                            isSuperAdmin
+                              ? 'bg-purple-50/20 border border-purple-200 text-slate-900 focus-visible:ring-purple-500 focus:bg-white font-medium'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                           placeholder="creator@example.com"
                         />
                       </div>
+                      {isSuperAdmin && (
+                        <p className="text-[10px] text-slate-400">Direct account email. Updates creator login credentials.</p>
+                      )}
                     </div>
 
                     {/* Mobile */}
                     <div className="space-y-1.5">
-                      <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Mobile Number</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Mobile Number</Label>
+                        {isSuperAdmin && (
+                          <span className="text-[10px] font-extrabold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                            Super Admin Editable
+                          </span>
+                        )}
+                      </div>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Phone className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isSuperAdmin ? 'text-purple-500' : 'text-slate-400'}`} />
                         <Input
                           value={formData.mobile}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, mobile: e.target.value })}
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg focus:bg-white transition-all"
+                          disabled={!isSuperAdmin}
+                          maxLength={10}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })}
+                          className={`pl-9 h-10 text-xs rounded-lg transition-all ${
+                            isSuperAdmin
+                              ? 'bg-purple-50/20 border border-purple-200 text-slate-900 focus-visible:ring-purple-500 focus:bg-white font-medium'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                           placeholder="10-digit mobile"
                         />
                       </div>
+                      {isSuperAdmin && (
+                        <p className="text-[10px] text-slate-400">Direct account mobile. Must be exactly 10 digits.</p>
+                      )}
                     </div>
                   </div>
 
@@ -1274,17 +1395,19 @@ export default function AdminVirtualProfileEditPage() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={openAddIgModal}
-                          className="flex-1 sm:flex-initial h-8 px-2.5 sm:px-3 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-bold text-xs cursor-pointer shadow-sm shadow-pink-500/20 justify-center"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1 shrink-0" />
-                          <span className="truncate">Add / Link Profile</span>
-                        </Button>
-                      </div>
+                      {isSuperAdmin && (
+                        <div className="flex items-center gap-2 w-full sm:w-auto pt-1 sm:pt-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openAddIgModal}
+                            className="flex-1 sm:flex-initial h-8 px-2.5 sm:px-3 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-bold text-xs cursor-pointer shadow-sm shadow-pink-500/20 justify-center"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1 shrink-0" />
+                            <span className="truncate">Add / Link Profile</span>
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Profiles Grid */}
@@ -1293,14 +1416,16 @@ export default function AdminVirtualProfileEditPage() {
                         <Instagram className="h-8 w-8 text-slate-300 mb-1.5" />
                         <p className="text-xs font-bold text-slate-800">No Instagram Profiles Linked</p>
                         <p className="text-[11px] text-slate-500 max-w-xs mt-0.5">Link an Instagram profile for this creator to participate in campaigns.</p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={openAddIgModal}
-                          className="mt-3 h-8 px-3.5 rounded-lg bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Link Instagram
-                        </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openAddIgModal}
+                            className="mt-3 h-8 px-3.5 rounded-lg bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-sm"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Link Instagram
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1364,41 +1489,43 @@ export default function AdminVirtualProfileEditPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-1.5 mt-3 pt-2.5 border-t border-slate-100">
-                              {!p.is_primary && (
+                            {isSuperAdmin && (
+                              <div className="flex items-center justify-end gap-1.5 mt-3 pt-2.5 border-t border-slate-100">
+                                {!p.is_primary && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleSetPrimaryProfile(p.id)}
+                                    className="h-7 px-2 text-[11px] font-bold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                                  >
+                                    <Star className="h-3 w-3 mr-1" />
+                                    Make Primary
+                                  </Button>
+                                )}
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleSetPrimaryProfile(p.id)}
-                                  className="h-7 px-2 text-[11px] font-bold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                                  onClick={() => openEditIgModal(p)}
+                                  className="h-7 px-2 text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
                                 >
-                                  <Star className="h-3 w-3 mr-1" />
-                                  Make Primary
+                                  <Pencil className="h-3 w-3 mr-1" />
+                                  Edit
                                 </Button>
-                              )}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openEditIgModal(p)}
-                                className="h-7 px-2 text-[11px] font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer"
-                              >
-                                <Pencil className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                              {instagramProfiles.length > 1 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteInstagramProfile(p.id)}
-                                  className="h-7 px-2 text-[11px] font-bold text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
+                                {instagramProfiles.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteInstagramProfile(p.id)}
+                                    className="h-7 px-2 text-[11px] font-bold text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1414,9 +1541,14 @@ export default function AdminVirtualProfileEditPage() {
                         <Input
                           type="number"
                           min="0"
+                          disabled={!isSuperAdmin}
                           value={formData.followers}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, followers: parseInt(e.target.value || '0', 10) || 0 })}
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg focus:bg-white transition-all"
+                          className={`pl-9 h-10 text-xs rounded-lg transition-all ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                           placeholder="e.g. 15000"
                         />
                       </div>
@@ -1428,9 +1560,14 @@ export default function AdminVirtualProfileEditPage() {
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           type="date"
+                          disabled={!isSuperAdmin}
                           value={formData.dob || ''}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dob: e.target.value })}
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg focus:bg-white transition-all"
+                          className={`pl-9 h-10 text-xs rounded-lg transition-all ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1449,7 +1586,7 @@ export default function AdminVirtualProfileEditPage() {
                     </div>
 
                     {/* Selected Niches Pills */}
-                    {selectedCategories.length > 0 && (
+                    {selectedCategories.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-200 rounded-lg">
                         {selectedCategories.map((cat) => (
                           <span
@@ -1457,39 +1594,45 @@ export default function AdminVirtualProfileEditPage() {
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200"
                           >
                             {cat}
-                            <button
-                              type="button"
-                              onClick={() => toggleCategory(cat)}
-                              className="text-pink-400 hover:text-pink-700 cursor-pointer"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                            {isSuperAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => toggleCategory(cat)}
+                                className="text-pink-400 hover:text-pink-700 cursor-pointer"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
                           </span>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No categories selected.</p>
                     )}
 
-                    {/* Available Niches Pills */}
-                    <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg">
-                      {availableNiches.map((niche) => {
-                        const isSelected = selectedCategories.includes(niche)
-                        return (
-                          <button
-                            type="button"
-                            key={niche}
-                            onClick={() => toggleCategory(niche)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer border ${
-                              isSelected
-                                ? 'bg-pink-600 text-white border-pink-600 font-semibold'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3 opacity-40" />}
-                            {niche}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {/* Available Niches Pills (Super Admin Only) */}
+                    {isSuperAdmin && (
+                      <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg">
+                        {availableNiches.map((niche) => {
+                          const isSelected = selectedCategories.includes(niche)
+                          return (
+                            <button
+                              type="button"
+                              key={niche}
+                              onClick={() => toggleCategory(niche)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer border ${
+                                isSelected
+                                  ? 'bg-pink-600 text-white border-pink-600 font-semibold'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3 opacity-40" />}
+                              {niche}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Languages Multi-Select */}
@@ -1505,7 +1648,7 @@ export default function AdminVirtualProfileEditPage() {
                     </div>
 
                     {/* Selected Languages Pills */}
-                    {selectedLanguages.length > 0 && (
+                    {selectedLanguages.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-200 rounded-lg">
                         {selectedLanguages.map((lang) => (
                           <span
@@ -1513,39 +1656,45 @@ export default function AdminVirtualProfileEditPage() {
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
                           >
                             {lang}
-                            <button
-                              type="button"
-                              onClick={() => toggleLanguage(lang)}
-                              className="text-indigo-400 hover:text-indigo-700 cursor-pointer"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
+                            {isSuperAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => toggleLanguage(lang)}
+                                className="text-indigo-400 hover:text-indigo-700 cursor-pointer"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
                           </span>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No languages selected.</p>
                     )}
 
-                    {/* Available Languages Pills */}
-                    <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg">
-                      {availableLanguages.map((lang) => {
-                        const isSelected = selectedLanguages.includes(lang)
-                        return (
-                          <button
-                            type="button"
-                            key={lang}
-                            onClick={() => toggleLanguage(lang)}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer border ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {isSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3 opacity-40" />}
-                            {lang}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {/* Available Languages Pills (Super Admin Only) */}
+                    {isSuperAdmin && (
+                      <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto p-2 bg-white border border-slate-200 rounded-lg">
+                        {availableLanguages.map((lang) => {
+                          const isSelected = selectedLanguages.includes(lang)
+                          return (
+                            <button
+                              type="button"
+                              key={lang}
+                              onClick={() => toggleLanguage(lang)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer border ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white border-indigo-600 font-semibold'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3 opacity-40" />}
+                              {lang}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Bio & Extended Details */}
@@ -1554,10 +1703,15 @@ export default function AdminVirtualProfileEditPage() {
                       <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Creator Bio</Label>
                       <textarea
                         rows={3}
+                        disabled={!isSuperAdmin}
                         value={formData.bio || ''}
                         onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                         placeholder="Brief creator bio or intro..."
-                        className="w-full p-3 bg-slate-50/50 border border-slate-200 text-slate-900 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-[#f50057]"
+                        className={`w-full p-3 text-xs rounded-lg transition-all ${
+                          isSuperAdmin
+                            ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#f50057]'
+                            : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                        }`}
                       />
                     </div>
 
@@ -1565,28 +1719,43 @@ export default function AdminVirtualProfileEditPage() {
                       <div className="space-y-1">
                         <Label className="text-[11px] font-bold text-slate-700 uppercase">YouTube Channel URL</Label>
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.youtube || ''}
                           onChange={(e) => setFormData({ ...formData, youtube: e.target.value })}
                           placeholder="https://youtube.com/@..."
-                          className="h-9 text-xs border-slate-200"
+                          className={`h-9 text-xs ${
+                            isSuperAdmin
+                              ? 'border-slate-200 text-slate-900'
+                              : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] font-bold text-slate-700 uppercase">T-Shirt Size</Label>
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.tshirt_size || ''}
                           onChange={(e) => setFormData({ ...formData, tshirt_size: e.target.value.toUpperCase() })}
                           placeholder="S, M, L, XL, XXL"
-                          className="h-9 text-xs border-slate-200"
+                          className={`h-9 text-xs ${
+                            isSuperAdmin
+                              ? 'border-slate-200 text-slate-900'
+                              : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[11px] font-bold text-slate-700 uppercase">Shoe Size (UK)</Label>
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.shoe_size || ''}
                           onChange={(e) => setFormData({ ...formData, shoe_size: e.target.value })}
                           placeholder="e.g. 7, 8, 9"
-                          className="h-9 text-xs border-slate-200"
+                          className={`h-9 text-xs ${
+                            isSuperAdmin
+                              ? 'border-slate-200 text-slate-900'
+                              : 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1613,14 +1782,20 @@ export default function AdminVirtualProfileEditPage() {
                     </div>
 
                     {(formData.shipping_addresses || []).length < MAX_ADDRESSES ? (
-                      <Button
-                        type="button"
-                        onClick={openAddAddressModal}
-                        className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer shrink-0"
-                      >
-                        <Plus className="mr-1 h-3.5 w-3.5" />
-                        Add Address
-                      </Button>
+                      isSuperAdmin ? (
+                        <Button
+                          type="button"
+                          onClick={openAddAddressModal}
+                          className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer shrink-0"
+                        >
+                          <Plus className="mr-1 h-3.5 w-3.5" />
+                          Add Address
+                        </Button>
+                      ) : (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl shrink-0">
+                          Read-Only
+                        </span>
+                      )
                     ) : (
                       <span className="text-[11px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shrink-0">
                         Max 6 Saved
@@ -1644,14 +1819,18 @@ export default function AdminVirtualProfileEditPage() {
                         <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                           Add a delivery address for physical brand campaigns.
                         </p>
-                        <Button
-                          type="button"
-                          onClick={openAddAddressModal}
-                          className="mt-4 h-9 px-4 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm cursor-pointer"
-                        >
-                          <Plus className="mr-1.5 h-4 w-4" />
-                          Add Primary Address
-                        </Button>
+                        {isSuperAdmin ? (
+                          <Button
+                            type="button"
+                            onClick={openAddAddressModal}
+                            className="mt-4 h-9 px-4 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm cursor-pointer"
+                          >
+                            <Plus className="mr-1.5 h-4 w-4" />
+                            Add Primary Address
+                          </Button>
+                        ) : (
+                          <p className="mt-3 text-xs text-slate-400 italic">No addresses available to view</p>
+                        )}
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1718,39 +1897,45 @@ export default function AdminVirtualProfileEditPage() {
 
                             <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100">
                               {!addr.is_default ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSetDefaultAddress(addr.id)}
-                                  className="text-[11px] font-semibold text-slate-600 hover:text-[#f50057] transition-colors cursor-pointer"
-                                >
-                                  Make Primary
-                                </button>
+                                isSuperAdmin ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetDefaultAddress(addr.id)}
+                                    className="text-[11px] font-semibold text-slate-600 hover:text-[#f50057] transition-colors cursor-pointer"
+                                  >
+                                    Make Primary
+                                  </button>
+                                ) : (
+                                  <span className="text-[11px] text-slate-400">Secondary Address</span>
+                                )
                               ) : (
                                 <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
                                   <CheckCircle2 className="h-3 w-3" /> Selected for orders
                                 </span>
                               )}
 
-                              <div className="flex items-center gap-1.5 ml-auto">
-                                <button
-                                  type="button"
-                                  onClick={() => openEditAddressModal(addr)}
-                                  className="h-7 w-7 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
-                                  title="Edit Address"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </button>
-                                {(formData.shipping_addresses || []).length > 1 && (
+                              {isSuperAdmin && (
+                                <div className="flex items-center gap-1.5 ml-auto">
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteAddress(addr.id)}
-                                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
-                                    title="Delete Address"
+                                    onClick={() => openEditAddressModal(addr)}
+                                    className="h-7 w-7 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                                    title="Edit Address"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Pencil className="h-3.5 w-3.5" />
                                   </button>
-                                )}
-                              </div>
+                                  {(formData.shipping_addresses || []).length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAddress(addr.id)}
+                                      className="h-7 w-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
+                                      title="Delete Address"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -1780,10 +1965,15 @@ export default function AdminVirtualProfileEditPage() {
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.account_name}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, account_name: e.target.value })}
                           placeholder="As per bank records"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
+                          className={`pl-9 h-10 text-xs rounded-lg placeholder:text-slate-400 transition-all ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1794,10 +1984,15 @@ export default function AdminVirtualProfileEditPage() {
                       <div className="relative">
                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.account_number}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, account_number: e.target.value })}
                           placeholder="Enter Account Number"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all font-mono"
+                          className={`pl-9 h-10 text-xs rounded-lg placeholder:text-slate-400 transition-all font-mono ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1808,10 +2003,15 @@ export default function AdminVirtualProfileEditPage() {
                       <div className="relative">
                         <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.ifsc_code}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, ifsc_code: e.target.value.toUpperCase() })}
                           placeholder="e.g. HDFC0001234"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all uppercase font-mono"
+                          className={`pl-9 h-10 text-xs rounded-lg placeholder:text-slate-400 transition-all uppercase font-mono ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1822,6 +2022,7 @@ export default function AdminVirtualProfileEditPage() {
                       <div className="relative">
                         <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
+                          disabled={!isSuperAdmin}
                           value={formData.pan_card}
                           maxLength={10}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1829,7 +2030,11 @@ export default function AdminVirtualProfileEditPage() {
                             setFormData({ ...formData, pan_card: val })
                           }}
                           placeholder="e.g. ABCDE1234F"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all uppercase font-mono tracking-wider"
+                          className={`pl-9 h-10 text-xs rounded-lg placeholder:text-slate-400 transition-all uppercase font-mono tracking-wider ${
+                            isSuperAdmin
+                              ? 'bg-slate-50/50 border border-slate-200 text-slate-900 focus-visible:ring-[#f50057] focus:bg-white'
+                              : 'bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -1844,7 +2049,7 @@ export default function AdminVirtualProfileEditPage() {
                           PAN Card Document / Photo
                         </Label>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          Upload or replace the creator's PAN card document image.
+                          {isSuperAdmin ? "Upload or replace the creator's PAN card document image." : "Creator's verified PAN card document file."}
                         </p>
                       </div>
                       {formData.pan_card_image && (
@@ -1884,61 +2089,70 @@ export default function AdminVirtualProfileEditPage() {
                             </a>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <label className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-xs">
-                            <RefreshCw className={`h-3.5 w-3.5 ${isUploadingPan ? 'animate-spin' : ''}`} />
-                            <span>{isUploadingPan ? 'Uploading...' : 'Replace'}</span>
-                            <input
-                              type="file"
-                              accept="image/jpeg,image/png,image/webp"
-                              className="hidden"
-                              disabled={isUploadingPan}
-                              onChange={handlePanImageUpload}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const updated = { ...formData, pan_card_image: '' }
-                              setFormData(updated)
-                              await performSave(updated, false)
-                              toast.info('PAN Card image removed')
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-xs"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Remove</span>
-                          </button>
-                        </div>
+                        {isSuperAdmin && (
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <label className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-xs">
+                              <RefreshCw className={`h-3.5 w-3.5 ${isUploadingPan ? 'animate-spin' : ''}`} />
+                              <span>{isUploadingPan ? 'Uploading...' : 'Replace'}</span>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                disabled={isUploadingPan}
+                                onChange={handlePanImageUpload}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const updated = { ...formData, pan_card_image: '' }
+                                setFormData(updated)
+                                await performSave(updated, false)
+                                toast.info('PAN Card image removed')
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <label className="relative flex flex-col items-center justify-center w-full py-6 px-4 rounded-xl border-2 border-dashed border-slate-200 hover:border-[#f50057]/50 bg-slate-50/50 hover:bg-rose-500/5 transition-all cursor-pointer group">
-                        {isUploadingPan ? (
-                          <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="h-6 w-6 text-[#f50057] animate-spin" />
-                            <span className="text-xs font-semibold text-slate-600">Uploading PAN Card...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="h-10 w-10 rounded-full bg-slate-100 group-hover:bg-[#f50057]/10 flex items-center justify-center mb-2 transition-colors">
-                              <UploadCloud className="h-5 w-5 text-slate-500 group-hover:text-[#f50057] transition-colors" />
+                      isSuperAdmin ? (
+                        <label className="relative flex flex-col items-center justify-center w-full py-6 px-4 rounded-xl border-2 border-dashed border-slate-200 hover:border-[#f50057]/50 bg-slate-50/50 hover:bg-rose-500/5 transition-all cursor-pointer group">
+                          {isUploadingPan ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <Loader2 className="h-6 w-6 text-[#f50057] animate-spin" />
+                              <span className="text-xs font-semibold text-slate-600">Uploading PAN Card...</span>
                             </div>
-                            <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
-                              Click to upload PAN Card image
-                            </span>
-                            <span className="text-[11px] text-slate-400 mt-0.5">
-                              PNG, JPG, or WEBP (Max 5MB)
-                            </span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          disabled={isUploadingPan}
-                          onChange={handlePanImageUpload}
-                        />
-                      </label>
+                          ) : (
+                            <>
+                              <div className="h-10 w-10 rounded-full bg-slate-100 group-hover:bg-[#f50057]/10 flex items-center justify-center mb-2 transition-colors">
+                                <UploadCloud className="h-5 w-5 text-slate-500 group-hover:text-[#f50057] transition-colors" />
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
+                                Click to upload PAN Card image
+                              </span>
+                              <span className="text-[11px] text-slate-400 mt-0.5">
+                                PNG, JPG, or WEBP (Max 5MB)
+                              </span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            disabled={isUploadingPan}
+                            onChange={handlePanImageUpload}
+                          />
+                        </label>
+                      ) : (
+                        <div className="py-6 px-4 text-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-400 text-xs">
+                          <FileText className="h-6 w-6 text-slate-300 mx-auto mb-1.5" />
+                          <span>No PAN card document uploaded by creator.</span>
+                        </div>
+                      )
                     )}
                   </div>
                 </div>
@@ -2038,7 +2252,7 @@ export default function AdminVirtualProfileEditPage() {
               Next Step
               <ChevronRight className="ml-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
-          ) : (
+          ) : isSuperAdmin ? (
             <Button
               type="button"
               onClick={handleManualSave}
@@ -2054,12 +2268,21 @@ export default function AdminVirtualProfileEditPage() {
                 </>
               )}
             </Button>
+          ) : (
+            <Button
+              type="button"
+              disabled
+              className="h-9 px-3.5 sm:px-6 bg-slate-100 text-slate-400 font-bold text-xs uppercase tracking-wide rounded-lg border border-slate-200 shrink-0 cursor-not-allowed"
+            >
+              <Lock className="mr-1.5 h-3.5 w-3.5" />
+              <span>Read-Only Mode</span>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Add / Edit Shipping Address Modal */}
-      {addressModalOpen && (
+      {addressModalOpen && isSuperAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl space-y-3 max-h-[95vh] overflow-y-auto no-scrollbar scrollbar-none">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -2259,7 +2482,7 @@ export default function AdminVirtualProfileEditPage() {
       )}
 
       {/* Instagram Profile Modal */}
-      {igModalOpen && (
+      {igModalOpen && isSuperAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 overflow-hidden relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">

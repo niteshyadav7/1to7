@@ -91,6 +91,12 @@ function getModuleKeyFromPath(pathname: string): string | null {
 
 function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+
+  // Virtual Profile uses the exact creator dashboard UI (light theme, creator sidebar, creator header)
+  if (pathname.startsWith('/admin/virtual-profile')) {
+    return <>{children}</>
+  }
+
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { headerContent } = useAdminHeader()

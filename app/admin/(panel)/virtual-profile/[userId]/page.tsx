@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Send, CheckCircle2, Clock, TrendingUp, Sparkles, Instagram, Youtube, ShoppingBag, Search, Loader2, Lock } from 'lucide-react'
+import { Send, CheckCircle2, Clock, TrendingUp, Sparkles, Instagram, Youtube, ShoppingBag, Search } from 'lucide-react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import CampaignCard from '@/components/campaigns/CampaignCard'
 import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
 import { Input } from '@/components/ui/input'
@@ -26,6 +27,8 @@ export default function VirtualProfileOverviewPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+
+  const basePath = `/admin/virtual-profile/${userId}`
 
   useEffect(() => {
     if (!userId) return
@@ -56,10 +59,38 @@ export default function VirtualProfileOverviewPage() {
   }
 
   const statCards = [
-    { label: 'Total Applied', value: stats?.total || 0, icon: Send, iconColor: 'text-blue-600', iconBg: 'bg-blue-50', borderColor: 'border-slate-100 hover:border-blue-200' },
-    { label: 'Approved', value: stats?.approved || 0, icon: CheckCircle2, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50', borderColor: 'border-slate-100 hover:border-emerald-200' },
-    { label: 'Pending', value: stats?.pending || 0, icon: Clock, iconColor: 'text-amber-600', iconBg: 'bg-amber-50', borderColor: 'border-slate-100 hover:border-amber-200' },
-    { label: 'Completed', value: stats?.completed || 0, icon: TrendingUp, iconColor: 'text-purple-600', iconBg: 'bg-purple-50', borderColor: 'border-slate-100 hover:border-purple-200' },
+    { 
+      label: 'Total Applied', 
+      value: stats?.total || 0, 
+      icon: Send, 
+      iconColor: 'text-blue-600', 
+      iconBg: 'bg-blue-50', 
+      borderColor: 'border-slate-100 hover:border-blue-200' 
+    },
+    { 
+      label: 'Approved', 
+      value: stats?.approved || 0, 
+      icon: CheckCircle2, 
+      iconColor: 'text-emerald-600', 
+      iconBg: 'bg-emerald-50', 
+      borderColor: 'border-slate-100 hover:border-emerald-200' 
+    },
+    { 
+      label: 'Pending', 
+      value: stats?.pending || 0, 
+      icon: Clock, 
+      iconColor: 'text-amber-600', 
+      iconBg: 'bg-amber-50', 
+      borderColor: 'border-slate-100 hover:border-amber-200' 
+    },
+    { 
+      label: 'Completed', 
+      value: stats?.completed || 0, 
+      icon: TrendingUp, 
+      iconColor: 'text-purple-600', 
+      iconBg: 'bg-purple-50', 
+      borderColor: 'border-slate-100 hover:border-purple-200' 
+    },
   ]
 
   const filteredCampaigns = campaigns.filter(c =>
@@ -70,12 +101,14 @@ export default function VirtualProfileOverviewPage() {
 
   return (
     <div className="space-y-3.5">
-      {/* Header + Stats */}
+      {/* Header + Stats Inline Strip - exact creator UI */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
         <div>
           <h1 className="text-sm font-extrabold text-charcoal-surface tracking-tight">Dashboard Overview</h1>
           <p className="text-[11px] text-secondary">Creator&apos;s campaign applications & performance</p>
         </div>
+
+        {/* Compact Stat Cards Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {statCards.map((card, i) => (
             <motion.div
@@ -102,16 +135,24 @@ export default function VirtualProfileOverviewPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="space-y-0.5">
             <h2 className="text-sm font-extrabold text-charcoal-surface tracking-tight">Live Campaigns</h2>
-            <p className="text-[11px] text-secondary font-medium">What this creator sees as available campaigns</p>
+            <p className="text-[11px] text-secondary font-medium">Browse active brand collaborations</p>
           </div>
-          <div className="relative w-full sm:w-56">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-secondary" />
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              className="pl-7 bg-white border border-slate-200/80 text-charcoal-surface text-xs placeholder:text-secondary rounded-lg h-8 w-full focus-visible:ring-primary-container"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-secondary" />
+              <Input
+                placeholder="Search campaigns..."
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                className="pl-7 bg-white border border-slate-200/80 text-charcoal-surface text-xs placeholder:text-secondary rounded-lg h-8 w-full focus-visible:ring-primary-container"
+              />
+            </div>
+            <Link
+              href={`${basePath}/applied`}
+              className="inline-flex items-center justify-center text-[11px] font-bold text-[#f50057] hover:text-[#d8004c] border border-slate-200 bg-white px-3 py-1.5 rounded-lg shadow-2xs hover:bg-slate-50 transition-all whitespace-nowrap cursor-pointer"
+            >
+              Applications →
+            </Link>
           </div>
         </div>
 
@@ -141,12 +182,12 @@ export default function VirtualProfileOverviewPage() {
         )}
       </div>
 
-      {/* Detail Modal (view only, apply disabled) */}
+      {/* Campaign Detail Modal */}
       <CampaignDetailModal
         campaign={selectedCampaign}
         isOpen={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onApply={() => toast.info('Admin cannot apply on behalf of a creator')}
+        onApply={() => toast.info('Admin mode: Apply is disabled on behalf of creators')}
         isLoggedIn={true}
       />
     </div>

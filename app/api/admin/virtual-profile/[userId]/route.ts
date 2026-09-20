@@ -40,7 +40,10 @@ export async function GET(
           }
         }
 
-        return NextResponse.json({ user })
+        return NextResponse.json({
+          user,
+          is_super_admin: Boolean(admin.is_super_admin)
+        })
       }
 
       case 'stats': {
@@ -141,15 +144,22 @@ export async function GET(
   }
 }
 
-// ─── PUT: Update user profile (admin editing on behalf) ───
+// ─── PUT: Update user profile (superadmin editing with full power) ───
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || !hasActionPermission(admin, 'influencers', 'edit')) {
-      return NextResponse.json({ error: 'Unauthorized: Permission to edit influencer profiles is denied' }, { status: 403 })
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Regular admins can only view; Super Admin has full mutation power
+    if (!admin.is_super_admin) {
+      return NextResponse.json({
+        error: 'Access Denied: Only Super Administrators have full permission to edit influencer profiles.'
+      }, { status: 403 })
     }
 
     const { userId } = await params
@@ -166,9 +176,9 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Same allowedFields as dashboard profile PUT
+    // Fields allowed to be updated by Super Admin
     const allowedFields = [
-      'full_name', 'instagram_username', 'gender', 'category', 'languages',
+      'full_name', 'gender', 'category', 'languages',
       'state', 'city', 'pincode', 'followers',
       'dob', 'alt_mobile', 'tshirt_size', 'shoe_size', 'bio', 'youtube',
       'custom_attributes',
@@ -180,6 +190,58 @@ export async function PUT(
     for (const key of allowedFields) {
       if (body[key] !== undefined) {
         updateData[key] = body[key]
+      }
+    }
+
+    // ─── Super Admin Power: Update & Validate Email ───
+    if (body.email !== undefined) {
+      const cleanEmail = String(body.email || '').trim().toLowerCase()
+      if (!cleanEmail) {
+        return NextResponse.json({ error: 'Email address cannot be empty' }, { status: 400 })
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return NextResponse.json({ error: 'Please enter a valid email address format' }, { status: 400 })
+      }
+      if (cleanEmail !== (currentUser.email || '').toLowerCase()) {
+        const { data: existingEmailUser } = await supabase
+          .from('users')
+          .select('id, influencer_id, full_name')
+          .eq('email', cleanEmail)
+          .neq('id', userId)
+          .maybeSingle()
+
+        if (existingEmailUser) {
+          return NextResponse.json({
+            error: `Email address "${cleanEmail}" is already registered to ${existingEmailUser.full_name || 'another user'} (${existingEmailUser.influencer_id || 'ID: ' + existingEmailUser.id}).`
+          }, { status: 409 })
+        }
+        updateData.email = cleanEmail
+      }
+    }
+
+    // ─── Super Admin Power: Update & Validate Mobile ───
+    if (body.mobile !== undefined) {
+      const cleanMobile = String(body.mobile || '').replace(/\D/g, '')
+      if (!cleanMobile) {
+        return NextResponse.json({ error: 'Mobile number cannot be empty' }, { status: 400 })
+      }
+      if (cleanMobile.length !== 10) {
+        return NextResponse.json({ error: 'Mobile number must be exactly 10 digits' }, { status: 400 })
+      }
+      if (cleanMobile !== currentUser.mobile) {
+        const { data: existingMobileUser } = await supabase
+          .from('users')
+          .select('id, influencer_id, full_name')
+          .eq('mobile', cleanMobile)
+          .neq('id', userId)
+          .maybeSingle()
+
+        if (existingMobileUser) {
+          return NextResponse.json({
+            error: `Mobile number "${cleanMobile}" is already registered to ${existingMobileUser.full_name || 'another user'} (${existingMobileUser.influencer_id || 'ID: ' + existingMobileUser.id}).`
+          }, { status: 409 })
+        }
+        updateData.mobile = cleanMobile
       }
     }
 

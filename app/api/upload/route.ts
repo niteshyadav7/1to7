@@ -7,14 +7,25 @@ export async function POST(request: Request) {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
+    let uploaderId: string | null = null
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (token) {
+      const payload = await verifyToken(token)
+      if (payload?.id) {
+        uploaderId = payload.id
+      }
     }
 
-    const payload = await verifyToken(token)
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    if (!uploaderId) {
+      const { getAdminFromRequest } = await import('@/lib/admin-auth')
+      const admin = await getAdminFromRequest()
+      if (admin?.id) {
+        uploaderId = `admin_${admin.id}`
+      }
+    }
+
+    if (!uploaderId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const formData = await request.formData()
@@ -37,7 +48,7 @@ export async function POST(request: Request) {
 
     // Generate unique filename
     const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${payload.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+    const filename = `${uploaderId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
 
     // Convert to buffer
     const arrayBuffer = await file.arrayBuffer()

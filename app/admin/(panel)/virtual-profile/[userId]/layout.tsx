@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { usePathname, useParams, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Send, CheckCircle2, User, ChevronRight, ChevronLeft,
-  PanelLeft, MessageSquareHeart, ArrowLeft, ShieldAlert, Loader2
+  PanelLeft, MessageSquareHeart, ArrowLeft, Loader2, Menu, LogOut, Sparkles,
+  Eye, ShieldCheck
 } from 'lucide-react'
 import Logo from '@/components/ui/Logo'
 
@@ -27,6 +28,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [virtualUser, setVirtualUser] = useState<VirtualUser | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   const basePath = `/admin/virtual-profile/${userId}`
 
@@ -40,7 +42,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('vp_sidebar_collapsed')
+      const saved = localStorage.getItem('sidebar_collapsed')
       if (saved !== null) setIsCollapsed(JSON.parse(saved))
     } catch { /* ignore */ }
   }, [])
@@ -48,23 +50,26 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
   const toggleCollapse = () => {
     setIsCollapsed(prev => {
       const next = !prev
-      try { localStorage.setItem('vp_sidebar_collapsed', JSON.stringify(next)) } catch { /* ignore */ }
+      try { localStorage.setItem('sidebar_collapsed', JSON.stringify(next)) } catch { /* ignore */ }
       return next
     })
   }
 
-  // Fetch the target user's basic info for the sidebar
+  // Fetch the target creator's basic info for the sidebar
   useEffect(() => {
     if (!userId) return
     setLoadingUser(true)
     fetch(`/api/admin/virtual-profile/${userId}?action=profile`)
       .then(r => r.json())
       .then(data => {
+        if (data.is_super_admin !== undefined) {
+          setIsSuperAdmin(Boolean(data.is_super_admin))
+        }
         if (data.user) {
           setVirtualUser({
             id: data.user.id,
             influencer_id: data.user.influencer_id,
-            full_name: data.user.full_name || 'Unknown Creator',
+            full_name: data.user.full_name || 'Creator',
             instagram_profile_pic: data.user.instagram_profile_pic,
             instagram_username: data.user.instagram_username,
             email: data.user.email,
@@ -91,7 +96,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - EXACT replica of creator dashboard */}
       <aside
         className={`fixed top-0 left-0 z-50 h-screen bg-[#2d3132] border-r border-white/10 flex flex-col transition-all duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -111,7 +116,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
           </button>
         </div>
 
-        {/* Virtual User Info */}
+        {/* Creator Info */}
         <div className={`px-4 py-3 border-t border-b border-white/5 ${isCollapsed ? 'lg:px-2' : ''}`}>
           <div className={`flex items-center ${isCollapsed ? 'lg:justify-center' : 'gap-3'}`} title={isCollapsed ? (virtualUser?.full_name || 'Creator') : undefined}>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white shadow-sm shrink-0 overflow-hidden border border-white/20">
@@ -126,29 +131,11 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-white truncate">{virtualUser?.full_name || 'Loading...'}</p>
-                <p className="text-xs text-slate-400 truncate">{virtualUser?.influencer_id || '...'}</p>
+                <p className="text-xs text-slate-400 truncate">{virtualUser?.influencer_id || 'ID'}</p>
               </div>
             )}
           </div>
         </div>
-
-        {/* Admin Mode Banner */}
-        {!isCollapsed && (
-          <div className="mx-3 mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Admin Mode</span>
-            </div>
-            <p className="text-[10px] text-amber-400/80 mt-0.5 leading-tight">Viewing & editing as this creator</p>
-          </div>
-        )}
-        {isCollapsed && (
-          <div className="mx-2 mt-3 flex justify-center" title="Admin Mode — Virtual Profile">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
-              <ShieldAlert className="h-4 w-4 text-amber-400" />
-            </div>
-          </div>
-        )}
 
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
@@ -158,6 +145,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={true}
                 onClick={() => setSidebarOpen(false)}
                 title={isCollapsed ? link.label : undefined}
                 className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border ${
@@ -176,31 +164,34 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
 
         {/* Exit Virtual Profile */}
         <div className="p-3 mt-auto border-t border-white/5">
-          <button
-            onClick={() => router.push('/admin/influencers')}
+          <Link
+            href="/admin/influencers"
             title={isCollapsed ? "Exit Virtual Profile" : undefined}
-            className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} w-full rounded-lg py-2.5 text-sm font-semibold text-slate-300 hover:bg-indigo-500/10 hover:text-indigo-400 transition-all cursor-pointer`}
+            className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} w-full rounded-lg py-2.5 text-sm font-semibold text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer`}
           >
-            <ArrowLeft className="h-4.5 w-4.5 shrink-0 text-slate-400" />
+            <LogOut className="h-4.5 w-4.5 shrink-0 text-slate-400 group-hover:text-red-400" />
             {!isCollapsed && <span>Exit Virtual Profile</span>}
-          </button>
+          </Link>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-h-screen min-w-0 bg-background relative transition-[padding] duration-300 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
-        {/* Top Header Bar */}
+        {/* Top Header Bar - identical to creator dashboard */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-border-subtle px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Mobile menu toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
               className="rounded-md p-1.5 hover:bg-slate-100 text-secondary hover:text-charcoal-surface transition-colors cursor-pointer lg:hidden"
             >
-              <PanelLeft className="h-5 w-5" />
+              <Menu className="h-5 w-5" />
             </button>
             <div className="lg:hidden">
               <Logo size="sm" />
             </div>
+
+            {/* Desktop collapse toggle */}
             <button
               onClick={toggleCollapse}
               className="hidden lg:flex items-center justify-center p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
@@ -208,23 +199,39 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
             >
               <PanelLeft className="h-5 w-5" />
             </button>
+
+            {/* Virtual Creator Mode Badge in Top Bar */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>Virtual Creator:</span>
+              <strong className="text-amber-950 font-extrabold truncate max-w-[160px]">{virtualUser?.full_name || 'Creator'}</strong>
+              <span className="font-mono text-[10px] text-amber-700 font-semibold">({virtualUser?.influencer_id || 'ID'})</span>
+            </div>
+
+            {/* Admin Role Tier Badge */}
+            {isSuperAdmin ? (
+              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-extrabold shadow-2xs">
+                <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                Super Admin (Full Edit Power)
+              </span>
+            ) : (
+              <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-extrabold shadow-2xs">
+                <Eye className="h-3.5 w-3.5 text-slate-500" />
+                Admin (Read-Only View)
+              </span>
+            )}
           </div>
 
-          {/* Admin context badge */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-xs font-bold text-amber-700">
-              <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Admin Mode —</span>
-              <span className="font-extrabold truncate max-w-[150px]">{virtualUser?.full_name || '...'}</span>
-              <span className="font-mono text-[10px] text-amber-500 hidden md:inline">({virtualUser?.influencer_id})</span>
-            </div>
-            <button
-              onClick={() => router.push('/admin/influencers')}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border border-slate-200"
+          {/* Right Action: Return to Admin Panel */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/admin/influencers"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer"
             >
-              <ArrowLeft className="h-3 w-3" />
-              <span className="hidden sm:inline">Back</span>
-            </button>
+              <ArrowLeft className="h-3.5 w-3.5 text-slate-500" />
+              <span className="hidden sm:inline">Back to Influencers Directory</span>
+              <span className="sm:hidden">Exit</span>
+            </Link>
           </div>
         </header>
 
