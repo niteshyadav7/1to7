@@ -1,34 +1,7 @@
 import { cookies } from 'next/headers'
 import { decrypt } from '@/lib/auth'
-
-export type ModuleKey =
-  | 'dashboard'
-  | 'campaigns'
-  | 'applications'
-  | 'order_details'
-  | 'payments'
-  | 'feedback'
-  | 'analytics'
-  | 'import'
-  | 'influencers'
-  | 'staff'
-  | 'roles'
-  | 'user_issues'
-
-export type ActionKey = 'view' | 'create' | 'edit' | 'delete' | 'export' | 'reset_password'
-
-export type PermissionsMap = Record<string, string[]>
-
-export interface AdminPayload {
-  id: string
-  email: string
-  name?: string
-  full_name?: string
-  role?: string
-  is_active?: boolean
-  permissions?: PermissionsMap
-  is_super_admin?: boolean
-}
+export type { ModuleKey, ActionKey, PermissionsMap, AdminPayload } from '@/types/admin'
+import type { ModuleKey, ActionKey, AdminPayload } from '@/types/admin'
 
 /**
  * Checks if the given admin payload has access to view a specific module/tab.
