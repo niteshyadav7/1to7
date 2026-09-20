@@ -116,7 +116,7 @@ const STEPS = [
   },
 ]
 
-function computeProfileStrength(data: ProfileFormData): number {
+export function computeProfileStrength(data: Partial<ProfileFormData>): number {
   const fields: (keyof ProfileFormData)[] = [
     'full_name',
     'instagram_username',
