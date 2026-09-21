@@ -37,11 +37,11 @@ export async function GET(
 
       case 'stats': {
         const [totalRes, approvedRes, pendingRes, completedRes, rejectedRes] = await Promise.all([
-          supabase.from('campaign_applications').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-          supabase.from('campaign_applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Approved'),
-          supabase.from('campaign_applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('status', ['Applied', 'Under Process', 'Under Review']),
-          supabase.from('campaign_applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Completed'),
-          supabase.from('campaign_applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Rejected'),
+          supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+          supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Approved'),
+          supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).in('status', ['Applied', 'Under Process', 'Under Review']),
+          supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Completed'),
+          supabase.from('applications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'Rejected'),
         ])
 
         return NextResponse.json({
@@ -57,7 +57,7 @@ export async function GET(
 
       case 'applications': {
         const { data: apps, error } = await supabase
-          .from('campaign_applications')
+          .from('applications')
           .select(`
             id, status, form_data, partial_payment, final_payment, pending_amount,
             selected_store, created_at, updated_at,
@@ -78,7 +78,7 @@ export async function GET(
 
       case 'feedback': {
         const { data: fb, error } = await supabase
-          .from('user_feedback')
+          .from('feedback')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })

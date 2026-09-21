@@ -6,22 +6,35 @@ const mocks = vi.hoisted(() => {
   const mockSingle = vi.fn()
   const mockMaybeSingle = vi.fn()
   const mockNeq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }))
-  const mockEq = vi.fn(() => ({
+  const mockOrder = vi.fn((..._args: any[]) => Promise.resolve({ data: [] as any, error: null as any }))
+  const mockIn = vi.fn((..._args: any[]) => Promise.resolve({ count: 0, error: null as any }))
+  const mockEq: any = vi.fn(() => ({
     single: mockSingle,
     maybeSingle: mockMaybeSingle,
     neq: mockNeq,
+    order: mockOrder,
+    in: mockIn,
+    eq: mockEq,
     select: vi.fn(() => ({
       single: mockSingle,
     })),
+    then: (resolve: any) => Promise.resolve({ data: [], count: 0, error: null }).then(resolve),
   }))
-  const mockSelect = vi.fn(() => ({
+  const mockSelect: any = vi.fn(() => ({
     eq: mockEq,
     single: mockSingle,
+    order: mockOrder,
+    then: (resolve: any) => Promise.resolve({ data: [], count: 0, error: null }).then(resolve),
   }))
   const mockUpdate = vi.fn(() => ({
     eq: mockEq,
   }))
   const mockInsert = vi.fn().mockResolvedValue({ error: null })
+  const mockFrom = vi.fn(() => ({
+    select: mockSelect,
+    update: mockUpdate,
+    insert: mockInsert,
+  }))
 
   return {
     mockSingle,
@@ -31,6 +44,9 @@ const mocks = vi.hoisted(() => {
     mockSelect,
     mockUpdate,
     mockInsert,
+    mockOrder,
+    mockIn,
+    mockFrom,
   }
 })
 
@@ -42,11 +58,7 @@ vi.mock('@/lib/admin-auth', () => ({
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: mocks.mockSelect,
-      update: mocks.mockUpdate,
-      insert: mocks.mockInsert,
-    })),
+    from: mocks.mockFrom,
   },
 }))
 
@@ -207,6 +219,83 @@ describe('Virtual Profile API Route - RBAC and Security', () => {
       expect(res.status).toBe(409)
       const data = await res.json()
       expect(data.error).toContain('already registered to Other Creator')
+    })
+  })
+
+  describe('GET ?action=applications', () => {
+    it('queries applications table instead of deprecated campaign_applications', async () => {
+      getAdminMock.mockResolvedValueOnce({
+        id: 'admin-1',
+        email: 'admin@1to7.com',
+        role: 'admin',
+        is_super_admin: false,
+      })
+
+      const mockApps = [
+        {
+          id: 'app-1',
+          status: 'Applied',
+          campaigns: { id: 'c-1', brand_name: 'Deconstruct', campaign_code: 'F10022C201' },
+        },
+      ]
+      mocks.mockOrder.mockResolvedValueOnce({ data: mockApps, error: null })
+
+      const req = new Request('http://localhost:3000/api/admin/virtual-profile/user-1?action=applications')
+      const params = Promise.resolve({ userId: 'user-1' })
+
+      const res = await GET(req, { params })
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.applications).toEqual(mockApps)
+      expect(mocks.mockFrom).toHaveBeenCalledWith('applications')
+      expect(mocks.mockFrom).not.toHaveBeenCalledWith('campaign_applications')
+    })
+  })
+
+  describe('GET ?action=stats', () => {
+    it('queries applications table for user application stats', async () => {
+      getAdminMock.mockResolvedValueOnce({
+        id: 'admin-1',
+        email: 'admin@1to7.com',
+        role: 'admin',
+        is_super_admin: false,
+      })
+
+      const req = new Request('http://localhost:3000/api/admin/virtual-profile/user-1?action=stats')
+      const params = Promise.resolve({ userId: 'user-1' })
+
+      const res = await GET(req, { params })
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.stats).toBeDefined()
+      expect(mocks.mockFrom).toHaveBeenCalledWith('applications')
+      expect(mocks.mockFrom).not.toHaveBeenCalledWith('campaign_applications')
+    })
+  })
+
+  describe('GET ?action=feedback', () => {
+    it('queries feedback table instead of non-existent user_feedback', async () => {
+      getAdminMock.mockResolvedValueOnce({
+        id: 'admin-1',
+        email: 'admin@1to7.com',
+        role: 'admin',
+        is_super_admin: false,
+      })
+
+      const mockFeedback = [
+        { id: 'fb-1', rating: 5, category: 'App Experience', message: 'Great app!' },
+      ]
+      mocks.mockOrder.mockResolvedValueOnce({ data: mockFeedback, error: null })
+
+      const req = new Request('http://localhost:3000/api/admin/virtual-profile/user-1?action=feedback')
+      const params = Promise.resolve({ userId: 'user-1' })
+
+      const res = await GET(req, { params })
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.feedback).toEqual(mockFeedback)
+      expect(mocks.mockFrom).toHaveBeenCalledWith('feedback')
+      expect(mocks.mockFrom).not.toHaveBeenCalledWith('user_feedback')
     })
   })
 })
