@@ -28,6 +28,10 @@ import {
   Copy,
   Clipboard,
   Zap,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,6 +74,10 @@ export default function FinancePayoutPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'finance_queue' | 'dual_approval' | 'disbursed_history'>('finance_queue')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedBrand, setSelectedBrand] = useState('all')
+  const [sortBy, setSortBy] = useState<'date' | 'amount_desc' | 'amount_asc' | 'name'>('date')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(15)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   
   // Bulk Disburse Modal State
@@ -122,18 +130,19 @@ export default function FinancePayoutPage() {
 
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
+  // Unique Brands across all applications
+  const uniqueBrands = useMemo(() => {
+    return Array.from(new Set(applications.map((a) => a.campaigns?.brand_name).filter(Boolean))).sort() as string[]
+  }, [applications])
+
   // Categorize Applications
   // 1. Ready for Finance Payout: MUST be approved by 2 admins (Dual Approval) and NOT already disbursed
   const financeQueueApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
-      // If already disbursed, do not show in pending queue
       const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
       if (isCompleted) return false
 
-      // STRICT DUAL-APPROVAL REQUIREMENT:
-      // Must be approved by 2 admins (Payment Approved / approved_for_finance)
-      // Must NOT be pending second approval or merely Payment Requested
       const isDualApproved =
         (app.status === 'Payment Approved' || init?.status === 'approved_for_finance') &&
         init?.status !== 'pending_second_approval' &&
@@ -175,31 +184,81 @@ export default function FinancePayoutPage() {
       ? pendingDualApprovalApps
       : disbursedApps
 
-  const filteredApps = useMemo(() => {
-    if (!searchQuery.trim()) return currentList
-    const q = searchQuery.toLowerCase()
-    return currentList.filter((app) => {
-      const payout = app.form_data?.finance_payout_completed
-      return (
-        app.users?.full_name?.toLowerCase().includes(q) ||
-        app.users?.influencer_id?.toLowerCase().includes(q) ||
-        app.users?.account_number?.includes(q) ||
-        app.users?.ifsc_code?.toLowerCase().includes(q) ||
-        app.campaigns?.brand_name?.toLowerCase().includes(q) ||
-        app.campaigns?.campaign_code?.toLowerCase().includes(q) ||
-        payout?.utr_number?.toLowerCase().includes(q) ||
-        payout?.batch_id?.toLowerCase().includes(q) ||
-        payout?.executed_by?.toLowerCase().includes(q)
-      )
+  // Apply Brand Filter, Search Query & Sorting
+  const processedApps = useMemo(() => {
+    let result = [...currentList]
+
+    // Brand filter
+    if (selectedBrand !== 'all') {
+      result = result.filter((app) => app.campaigns?.brand_name === selectedBrand)
+    }
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((app) => {
+        const payout = app.form_data?.finance_payout_completed
+        return (
+          app.users?.full_name?.toLowerCase().includes(q) ||
+          app.users?.influencer_id?.toLowerCase().includes(q) ||
+          app.users?.account_number?.includes(q) ||
+          app.users?.ifsc_code?.toLowerCase().includes(q) ||
+          app.campaigns?.brand_name?.toLowerCase().includes(q) ||
+          app.campaigns?.campaign_code?.toLowerCase().includes(q) ||
+          payout?.utr_number?.toLowerCase().includes(q) ||
+          payout?.batch_id?.toLowerCase().includes(q) ||
+          payout?.executed_by?.toLowerCase().includes(q)
+        )
+      })
+    }
+
+    // Sorting
+    result.sort((a, b) => {
+      if (sortBy === 'amount_desc') {
+        const amtA = activeTab === 'disbursed_history' ? getDisbursedAmount(a) : getPayableAmount(a)
+        const amtB = activeTab === 'disbursed_history' ? getDisbursedAmount(b) : getPayableAmount(b)
+        return amtB - amtA
+      }
+      if (sortBy === 'amount_asc') {
+        const amtA = activeTab === 'disbursed_history' ? getDisbursedAmount(a) : getPayableAmount(a)
+        const amtB = activeTab === 'disbursed_history' ? getDisbursedAmount(b) : getPayableAmount(b)
+        return amtA - amtB
+      }
+      if (sortBy === 'name') {
+        const nameA = a.users?.account_name || a.users?.full_name || ''
+        const nameB = b.users?.account_name || b.users?.full_name || ''
+        return nameA.localeCompare(nameB)
+      }
+      // default: date descending
+      const timeA = new Date(
+        activeTab === 'disbursed_history'
+          ? a.form_data?.finance_payout_completed?.executed_at || a.updated_at || 0
+          : a.updated_at || a.created_at || 0
+      ).getTime()
+      const timeB = new Date(
+        activeTab === 'disbursed_history'
+          ? b.form_data?.finance_payout_completed?.executed_at || b.updated_at || 0
+          : b.updated_at || b.created_at || 0
+      ).getTime()
+      return timeB - timeA
     })
-  }, [currentList, searchQuery])
+
+    return result
+  }, [currentList, selectedBrand, searchQuery, sortBy, activeTab])
+
+  // Pagination
+  const totalPages = Math.ceil(processedApps.length / pageSize) || 1
+  const paginatedApps = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return processedApps.slice(start, start + pageSize)
+  }, [processedApps, page, pageSize])
 
   // Bulk Selection Handlers
   const handleSelectAll = () => {
-    if (selectedIds.length === filteredApps.length) {
+    if (selectedIds.length === paginatedApps.length && paginatedApps.length > 0) {
       setSelectedIds([])
     } else {
-      setSelectedIds(filteredApps.map((a) => a.id))
+      setSelectedIds(paginatedApps.map((a) => a.id))
     }
   }
 
@@ -220,7 +279,7 @@ export default function FinancePayoutPage() {
     if (activeTab === 'disbursed_history') {
       const appsToExport = selectedIds.length > 0
         ? disbursedApps.filter((a) => selectedIds.includes(a.id))
-        : filteredApps
+        : processedApps
 
       if (appsToExport.length === 0) {
         toast.error('No disbursed records to export')
@@ -278,7 +337,7 @@ export default function FinancePayoutPage() {
 
     const appsToExport = selectedIds.length > 0
       ? applications.filter((a) => selectedIds.includes(a.id))
-      : filteredApps
+      : processedApps
 
     if (appsToExport.length === 0) {
       toast.error('No applications to export')
@@ -407,130 +466,203 @@ export default function FinancePayoutPage() {
         </div>
       </SetAdminHeader>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg flex items-center justify-between">
-          <div className="space-y-1">
+      {/* Compact & Sleek KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+          <div className="space-y-0.5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ready for Finance Payout</p>
-            <p className="text-2xl font-black text-emerald-400">₹{totalFinanceQueueAmount.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">{financeQueueApps.length} Verified Applications</p>
+            <p className="text-xl font-black text-emerald-400 tracking-tight">₹{totalFinanceQueueAmount.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 font-medium">{financeQueueApps.length} Verified Applications</p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <CheckCircle2 className="h-6 w-6" />
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-sm">
+            <CheckCircle2 className="h-4.5 w-4.5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg flex items-center justify-between">
-          <div className="space-y-1">
+        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+          <div className="space-y-0.5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Awaiting 2nd Admin Approval</p>
-            <p className="text-2xl font-black text-amber-400">₹{totalDualApprovalAmount.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">{pendingDualApprovalApps.length} Approvals Pending</p>
+            <p className="text-xl font-black text-amber-400 tracking-tight">₹{totalDualApprovalAmount.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 font-medium">{pendingDualApprovalApps.length} Approvals Pending</p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-            <Clock className="h-6 w-6" />
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm">
+            <Clock className="h-4.5 w-4.5" />
           </div>
         </div>
 
-        <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg flex items-center justify-between">
-          <div className="space-y-1">
+        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+          <div className="space-y-0.5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               {activeTab === 'finance_queue' && selectedIds.length > 0 ? 'Selected Batch Value' : 'Total Disbursed'}
             </p>
-            <p className="text-2xl font-black text-indigo-400">
+            <p className="text-xl font-black text-indigo-400 tracking-tight">
               ₹{(activeTab === 'finance_queue' && selectedIds.length > 0 ? selectedTotalAmount : totalDisbursedAmount).toLocaleString()}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-[11px] text-slate-500 font-medium">
               {activeTab === 'finance_queue' && selectedIds.length > 0
                 ? `${selectedIds.length} Payees Selected`
                 : `${disbursedApps.length} Disbursed Payouts`}
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Building className="h-6 w-6" />
+          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-sm">
+            <Building className="h-4.5 w-4.5" />
           </div>
         </div>
       </div>
 
       {/* Tabs & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-3 rounded-2xl border border-white/10 backdrop-blur-xl">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => { setActiveTab('finance_queue'); setSelectedIds([]) }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'finance_queue'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-white bg-slate-950/40'
-            }`}
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Finance Payout Queue ({financeQueueApps.length})
-          </button>
+      <div className="space-y-3 bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-lg">
+        {/* Row 1: Segmented Tabs + Quick Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/10 overflow-x-auto max-w-full">
+            <button
+              type="button"
+              onClick={() => { setActiveTab('finance_queue'); setSelectedIds([]); setPage(1) }}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'finance_queue'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Finance Queue ({financeQueueApps.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => { setActiveTab('dual_approval'); setSelectedIds([]) }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'dual_approval'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
-                : 'text-slate-400 hover:text-white bg-slate-950/40'
-            }`}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            Dual-Approval Queue ({pendingDualApprovalApps.length})
-          </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab('dual_approval'); setSelectedIds([]); setPage(1) }}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'dual_approval'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-500/25'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Dual-Approval ({pendingDualApprovalApps.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => { setActiveTab('disbursed_history'); setSelectedIds([]) }}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'disbursed_history'
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                : 'text-slate-400 hover:text-white bg-slate-950/40'
-            }`}
-          >
-            <Building className="h-4 w-4" />
-            Disbursed History ({disbursedApps.length})
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className="relative w-full sm:w-60">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search payee, bank, A/C..."
-              className="bg-slate-950/60 border-white/10 text-white pl-9 h-10 text-xs rounded-xl focus:ring-indigo-500"
-            />
+            <button
+              type="button"
+              onClick={() => { setActiveTab('disbursed_history'); setSelectedIds([]); setPage(1) }}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'disbursed_history'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Building className="h-3.5 w-3.5" />
+              Disbursed History ({disbursedApps.length})
+            </button>
           </div>
 
-          <Button
-            type="button"
-            onClick={handleExportNEFT}
-            className="h-10 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-            {activeTab === 'disbursed_history' ? 'Export History CSV' : 'Export NEFT CSV'}
-          </Button>
-
-          {activeTab === 'finance_queue' && (
+          <div className="flex items-center gap-2">
             <Button
               type="button"
-              onClick={() => {
-                if (selectedIds.length === 0) {
-                  toast.error('Select at least one payee for bulk disburse')
-                  return
-                }
-                setShowBulkModal(true)
-              }}
-              disabled={selectedIds.length === 0}
-              className="h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              onClick={handleExportNEFT}
+              className="h-9 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
-              <Send className="h-4 w-4" />
-              Bulk Disburse ({selectedIds.length})
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+              {activeTab === 'disbursed_history' ? 'Export History' : 'Export NEFT'}
             </Button>
+
+            {activeTab === 'finance_queue' && (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (selectedIds.length === 0) {
+                    toast.error('Select at least one payee for bulk disburse')
+                    return
+                  }
+                  setShowBulkModal(true)
+                }}
+                disabled={selectedIds.length === 0}
+                className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Send className="h-3.5 w-3.5" />
+                Bulk Disburse ({selectedIds.length})
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Filter Toolbar (Search + Brand Filter + Sort + Reset) */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-white/5">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+              placeholder={
+                activeTab === 'disbursed_history'
+                  ? 'Search payee, UTR, batch, A/C...'
+                  : 'Search payee, A/C, IFSC, campaign...'
+              }
+              className="w-full bg-slate-950/70 border border-white/10 text-white pl-9 pr-8 h-9 text-xs rounded-xl focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setPage(1) }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Brand Filter */}
+          <div className="flex items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5 text-slate-500 hidden sm:inline" />
+            <select
+              value={selectedBrand}
+              onChange={(e) => { setSelectedBrand(e.target.value); setPage(1) }}
+              className="bg-slate-950/70 border border-white/10 text-slate-300 text-xs rounded-xl px-2.5 h-9 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Brands ({uniqueBrands.length})</option>
+              {uniqueBrands.map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sort By Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <ArrowUpDown className="h-3.5 w-3.5 text-slate-500 hidden sm:inline" />
+            <select
+              value={sortBy}
+              onChange={(e) => { setSortBy(e.target.value as any); setPage(1) }}
+              className="bg-slate-950/70 border border-white/10 text-slate-300 text-xs rounded-xl px-2.5 h-9 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+            >
+              <option value="date">Sort: Newest First</option>
+              <option value="amount_desc">Sort: Amount (High to Low)</option>
+              <option value="amount_asc">Sort: Amount (Low to High)</option>
+              <option value="name">Sort: Payee (A-Z)</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {(selectedBrand !== 'all' || searchQuery.trim() || sortBy !== 'date') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedBrand('all')
+                setSearchQuery('')
+                setSortBy('date')
+                setPage(1)
+              }}
+              className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer h-9 transition-colors"
+            >
+              <X className="h-3 w-3" /> Reset Filters
+            </button>
           )}
+
+          <div className="ml-auto text-[11px] text-slate-400 font-medium">
+            Showing <span className="text-white font-bold">{processedApps.length}</span> results
+          </div>
         </div>
       </div>
 
@@ -559,7 +691,7 @@ export default function FinancePayoutPage() {
                         onClick={handleSelectAll}
                         className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
                       >
-                        {selectedIds.length > 0 && selectedIds.length === filteredApps.length ? (
+                        {selectedIds.length > 0 && selectedIds.length === paginatedApps.length ? (
                           <CheckSquare className="h-4 w-4 text-emerald-400" />
                         ) : (
                           <Square className="h-4 w-4" />
@@ -577,7 +709,7 @@ export default function FinancePayoutPage() {
               )}
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredApps.length === 0 ? (
+              {paginatedApps.length === 0 ? (
                 <tr>
                   <td
                     colSpan={activeTab === 'disbursed_history' ? 8 : (activeTab === 'finance_queue' ? 7 : 6)}
@@ -587,7 +719,7 @@ export default function FinancePayoutPage() {
                   </td>
                 </tr>
               ) : activeTab === 'disbursed_history' ? (
-                filteredApps.map((app) => {
+                paginatedApps.map((app) => {
                   const payout = app.form_data?.finance_payout_completed
                   const payeeName = app.users?.account_name || app.users?.full_name || 'Unknown Payee'
                   const utr = payout?.utr_number || app.form_data?.payment_initiated?.bank_code || 'N/A'
@@ -688,7 +820,7 @@ export default function FinancePayoutPage() {
                   )
                 })
               ) : (
-                filteredApps.map((app) => {
+                paginatedApps.map((app) => {
                   const isSelected = selectedIds.includes(app.id)
                   const init = app.form_data?.payment_initiation
                   const payeeName = app.users?.account_name || app.users?.full_name || 'Unknown Payee'
@@ -818,6 +950,41 @@ export default function FinancePayoutPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {processedApps.length > pageSize && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-950/60 border-t border-white/5">
+            <div className="text-xs text-slate-400">
+              Showing <span className="font-bold text-white">{(page - 1) * pageSize + 1}</span> to{' '}
+              <span className="font-bold text-white">
+                {Math.min(page * pageSize, processedApps.length)}
+              </span>{' '}
+              of <span className="font-bold text-white">{processedApps.length}</span> applications
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs text-slate-400 font-medium px-2">
+                Page <span className="text-white font-bold">{page}</span> of{' '}
+                <span className="text-white font-bold">{totalPages}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg bg-slate-900 border border-white/10 text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bulk Disburse Modal */}
