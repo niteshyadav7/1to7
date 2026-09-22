@@ -555,7 +555,7 @@ export default function PaymentsPage() {
   // Initiate Payment popup state
   const [initiatePaymentApp, setInitiatePaymentApp] = useState<PaymentEntry | null>(null)
   const [initiateAmount, setInitiateAmount] = useState('')
-  const [initiateBankCode, setInitiateBankCode] = useState('')
+  const [initiateNotes, setInitiateNotes] = useState('')
   // Reject Payment popup state
   const [rejectPaymentApp, setRejectPaymentApp] = useState<PaymentEntry | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -1272,7 +1272,7 @@ export default function PaymentsPage() {
                         {/* {visibleCols.actions && (
                           <td className={`px-2 ${densityPadding[density]}`} onClick={e => e.stopPropagation()}>
                             <div className="relative">
-                              <ActionsMenu payment={payment} onInitiatePayment={(p) => { setInitiatePaymentApp(p); setInitiateAmount(''); setInitiateBankCode('') }} onRejectPayment={(p) => { setRejectPaymentApp(p); setRejectReason('') }} />
+                              <ActionsMenu payment={payment} onInitiatePayment={(p) => { setInitiatePaymentApp(p); setInitiateAmount(String(p.pending_amount && p.pending_amount > 0 ? p.pending_amount : '')); setInitiateNotes('') }} onRejectPayment={(p) => { setRejectPaymentApp(p); setRejectReason('') }} />
                             </div>
                           </td>
                         )} */}
@@ -1498,7 +1498,7 @@ export default function PaymentsPage() {
                                             </div>
                                             {isPending && !isSettled && (payment.pending_amount === undefined || payment.pending_amount > 0) && (
                                               <div className="flex items-center gap-2 shrink-0">
-                                                <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || '')); setInitiateBankCode(''); setActivePartialReqId(req.id || String(idx)) }}
+                                                <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(req.amount || payment.pending_amount || '')); setInitiateNotes(''); setActivePartialReqId(req.id || String(idx)) }}
                                                   className="h-8 px-3 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 text-xs font-medium cursor-pointer">
                                                   <IndianRupee className="mr-1 h-3.5 w-3.5" /> Initiate
                                                 </Button>
@@ -1711,7 +1711,7 @@ export default function PaymentsPage() {
                                         </div>
                                       ) : (
                                         <>
-                                          <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(''); setInitiateBankCode('') }}
+                                          <Button size="sm" onClick={() => { setInitiatePaymentApp(payment); setInitiateAmount(String(payment.pending_amount && payment.pending_amount > 0 ? payment.pending_amount : '')); setInitiateNotes('') }}
                                             className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white shadow-lg shadow-amber-500/20 font-bold border-none cursor-pointer">
                                             <IndianRupee className="mr-1.5 h-4 w-4" /> Initiate Payment
                                           </Button>
@@ -1802,7 +1802,7 @@ export default function PaymentsPage() {
               <div className="p-5 space-y-4">
                 <div className="bg-slate-800/50 border border-white/5 rounded-xl p-3 grid grid-cols-2 gap-3 text-center">
                   <div>
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Total Deal</p>
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-0.5">Remaining Balance</p>
                     <p className="text-sm font-bold text-white">₹{(initiatePaymentApp.pending_amount || 0).toLocaleString()}</p>
                   </div>
                   <div>
@@ -1819,9 +1819,9 @@ export default function PaymentsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Bank Code / Reference *</label>
-                  <input type="text" value={initiateBankCode} onChange={e => setInitiateBankCode(e.target.value)}
-                    placeholder="Enter bank transaction code" className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500/50" />
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Internal Note / Remarks (Optional)</label>
+                  <input type="text" value={initiateNotes} onChange={e => setInitiateNotes(e.target.value)}
+                    placeholder="e.g. Deliverables approved / advance" className="w-full bg-slate-800 border border-white/10 text-white text-sm rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500/50" />
                 </div>
               </div>
               <div className="p-5 border-t border-white/5 flex gap-3">
@@ -1829,60 +1829,52 @@ export default function PaymentsPage() {
                   className="flex-1 rounded-xl border-white/10 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer bg-transparent">Cancel</Button>
                 <Button onClick={async () => {
                   const amt = parseFloat(initiateAmount) || 0
-                  if (amt <= 0 || !initiateBankCode.trim()) { toast.error('Please enter amount and bank code'); return }
+                  if (amt <= 0) { toast.error('Please enter a valid payment amount'); return }
                   const balance = initiatePaymentApp.pending_amount || 0
-                  if (amt > balance) { toast.error(`Amount cannot exceed the current balance (₹${balance.toLocaleString()})`); return }
+                  if (balance > 0 && amt > balance) { toast.error(`Amount cannot exceed the remaining balance (₹${balance.toLocaleString()})`); return }
                   try {
-                    const currentPartial = initiatePaymentApp.partial_payment || 0
-                    const currentPending = initiatePaymentApp.pending_amount || 0
-                    const newPartial = currentPartial + amt
-                    const newPending = Math.max(0, currentPending - amt)
                     const currentFormData = initiatePaymentApp.form_data || {}
-                    const existingBankCode = currentFormData.payment_initiated?.bank_code || ''
-                    const newBankCode = initiateBankCode.trim()
-                    const updatedBankCode = existingBankCode 
-                      ? (existingBankCode.includes(newBankCode) ? existingBankCode : `${existingBankCode}, ${newBankCode}`)
-                      : newBankCode
                     
-                     const updatedRequests = (currentFormData.requests || []).map((r: any, idx: number) => {
-                       const rid = r.id || String(idx)
-                       if (rid === activePartialReqId) return { ...r, status: 'approved', approved_at: new Date().toISOString(), approved_amount: amt, bank_code: initiateBankCode.trim() }
-                       return r
-                     })
+                    const updatedRequests = (currentFormData.requests || []).map((r: any, idx: number) => {
+                      const rid = r.id || String(idx)
+                      if (rid === activePartialReqId) return { ...r, status: 'approved', approved_at: new Date().toISOString(), approved_amount: amt }
+                      return r
+                    })
 
-                     const adminId = admin?.id || admin?.email || 'admin'
-                     const adminName = admin?.name || 'Operations Admin'
+                    const adminId = admin?.id || admin?.email || 'admin'
+                    const adminName = admin?.name || 'Operations Admin'
 
-                     const updatedInit = {
-                       prepared_amount: amt,
-                       prepared_by_id: adminId,
-                       prepared_by_name: adminName,
-                       prepared_at: new Date().toISOString(),
-                       bank_code: updatedBankCode,
-                       status: 'pending_second_approval',
-                     }
+                    const updatedInit = {
+                      prepared_amount: amt,
+                      prepared_by_id: adminId,
+                      prepared_by_name: adminName,
+                      prepared_at: new Date().toISOString(),
+                      notes: initiateNotes.trim(),
+                      status: 'pending_second_approval',
+                    }
 
-                     const updatedFormData = { 
-                       ...currentFormData, 
-                       requests: updatedRequests,
-                       payment_initiation: updatedInit,
-                       payment_initiated: { 
-                         amount: amt, 
-                         bank_code: updatedBankCode, 
-                         initiated_at: new Date().toISOString(),
-                         initiated_by_id: adminId,
-                         initiated_by_name: adminName,
-                       } 
-                     }
+                    const updatedFormData = { 
+                      ...currentFormData, 
+                      requests: updatedRequests,
+                      payment_initiation: updatedInit,
+                      payment_initiated: { 
+                        amount: amt, 
+                        notes: initiateNotes.trim(),
+                        initiated_at: new Date().toISOString(),
+                        initiated_by_id: adminId,
+                        initiated_by_name: adminName,
+                      } 
+                    }
                     const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
                       method: 'PUT', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ status: 'Payment Initiated', form_data: updatedFormData })
                     })
                     if (!res.ok) throw new Error('Failed')
                     setPayments(prev => prev.map(p => p.id === initiatePaymentApp.id ? { ...p, status: 'Payment Initiated', form_data: updatedFormData } : p))
-                    toast.success(`Payment of ₹${amt.toLocaleString()} initiated successfully`)
+                    toast.success(`Payment of ₹${amt.toLocaleString()} initiated! Awaiting 2nd Admin Approval.`)
                     setInitiatePaymentApp(null)
                     setActivePartialReqId(null)
+                    setInitiateNotes('')
                   } catch { toast.error('Failed to initiate payment') }
                 }} className="flex-[2] rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/20 border-none cursor-pointer">
                   <IndianRupee className="mr-1.5 h-4 w-4" /> Confirm Payment

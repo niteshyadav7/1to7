@@ -56,6 +56,10 @@ export async function POST(request: Request) {
       const updatedFormData = {
         ...currentFormData,
         payment_transactions: [...existingTransactions, newTransaction],
+        payment_initiated: {
+          ...(currentFormData.payment_initiated || {}),
+          bank_code: utr_number || currentFormData.payment_initiated?.bank_code || '',
+        },
         finance_payout_completed: {
           batch_id: generatedBatchId,
           utr_number: utr_number || '',
