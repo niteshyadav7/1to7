@@ -275,24 +275,9 @@ export default function AdminVirtualProfileEditPage() {
 
         let loadedAddresses: ShippingAddress[] = []
         if (Array.isArray(data.user.shipping_addresses) && data.user.shipping_addresses.length > 0) {
-          loadedAddresses = data.user.shipping_addresses
-        } else if (data.user.state || data.user.city) {
-          loadedAddresses = [
-            {
-              id: `addr_init_${Date.now()}`,
-              title: 'Primary Address',
-              recipient_name: data.user.full_name || 'Creator',
-              mobile: data.user.mobile || '',
-              address_line1: '',
-              address_line2: '',
-              landmark: '',
-              city: data.user.city || '',
-              state: data.user.state || '',
-              pincode: '',
-              delivery_remarks: '',
-              is_default: true,
-            },
-          ]
+          loadedAddresses = data.user.shipping_addresses.filter(
+            (a: any) => a && typeof a.address_line1 === 'string' && a.address_line1.trim().length > 0
+          )
         }
 
         let effectiveFollowers =
@@ -393,8 +378,19 @@ export default function AdminVirtualProfileEditPage() {
       return
     }
 
+    // Filter out dummy or placeholder addresses lacking address_line1
+    const sanitizedAddresses = Array.isArray(dataToSave.shipping_addresses)
+      ? dataToSave.shipping_addresses.filter(
+          (addr) => addr && typeof addr.address_line1 === 'string' && addr.address_line1.trim().length > 0
+        )
+      : []
+
+    const cleanMobile = (dataToSave.mobile || '').replace(/\D/g, '')
+
     const payload = {
       ...dataToSave,
+      mobile: cleanMobile,
+      shipping_addresses: sanitizedAddresses,
       instagram_username: extractInstagramUsername(dataToSave.instagram_username),
     }
     const payloadStr = JSON.stringify(payload)
@@ -440,6 +436,11 @@ export default function AdminVirtualProfileEditPage() {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current)
     }
+    const cleanMobile = (formData.mobile || '').replace(/\D/g, '')
+    if (cleanMobile.length > 0 && cleanMobile.length !== 10) {
+      toast.error('Mobile number must be exactly 10 digits')
+      return
+    }
     await performSave(formData, false)
   }
 
@@ -447,8 +448,17 @@ export default function AdminVirtualProfileEditPage() {
   useEffect(() => {
     if (!isInitialLoaded.current || !isSuperAdmin) return
 
+    const cleanMobile = (formData.mobile || '').replace(/\D/g, '')
+    // Guard: If admin is partially typing a mobile number (1 to 9 digits),
+    // hold auto-save until 10 digits are entered
+    if (cleanMobile.length > 0 && cleanMobile.length < 10) {
+      setSaveStatus('unsaved')
+      return
+    }
+
     const currentPayload = {
       ...formData,
+      mobile: cleanMobile,
       instagram_username: extractInstagramUsername(formData.instagram_username),
     }
     const currentStr = JSON.stringify(currentPayload)
@@ -468,7 +478,7 @@ export default function AdminVirtualProfileEditPage() {
         clearTimeout(autoSaveTimerRef.current)
       }
     }
-  }, [formData])
+  }, [formData, isSuperAdmin])
 
   // PAN Image Upload via standard /api/upload
   const handlePanImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -220,6 +220,58 @@ describe('Virtual Profile API Route - RBAC and Security', () => {
       const data = await res.json()
       expect(data.error).toContain('already registered to Other Creator')
     })
+
+    it('successfully updates mobile number even if payload contains empty placeholder shipping address', async () => {
+      getAdminMock.mockResolvedValueOnce({
+        id: 'admin-super',
+        email: 'super@1to7.com',
+        role: 'super_admin',
+        is_super_admin: true,
+      })
+
+      // Current user lookup
+      mocks.mockSingle.mockResolvedValueOnce({
+        data: { id: 'user-1', email: 'creator@example.com', mobile: '9581242467' },
+        error: null,
+      })
+
+      // Duplicate mobile check: no conflict
+      mocks.mockMaybeSingle.mockResolvedValueOnce({
+        data: null,
+        error: null,
+      })
+
+      // Updated user return
+      mocks.mockSingle.mockResolvedValueOnce({
+        data: { id: 'user-1', mobile: '9581242464', full_name: 'Vanaja sree' },
+        error: null,
+      })
+
+      const req = new Request('http://localhost:3000/api/admin/virtual-profile/user-1', {
+        method: 'PUT',
+        body: JSON.stringify({
+          mobile: '9581242464',
+          shipping_addresses: [
+            {
+              id: 'addr_init_123',
+              city: 'Medchal-Malkajgiri',
+              state: 'TELANGANA',
+              title: 'Primary Address',
+              mobile: '9581242467',
+              address_line1: '',
+              pincode: '',
+            },
+          ],
+        }),
+      })
+      const params = Promise.resolve({ userId: 'user-1' })
+
+      const res = await PUT(req, { params })
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.success).toBe(true)
+      expect(data.user.mobile).toBe('9581242464')
+    })
   })
 
   describe('GET ?action=applications', () => {

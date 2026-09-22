@@ -69,6 +69,81 @@ describe('user validation schemas', () => {
       const overlongBio = { bio: 'a'.repeat(1001) }
       expect(updateCreatorProfileSchema.safeParse(overlongBio).success).toBe(false)
     })
+
+    it('normalizes formatted mobile numbers with +91 or hyphens', () => {
+      const parsedWithPrefix = updateCreatorProfileSchema.safeParse({ mobile: '+91 98765 43210' })
+      expect(parsedWithPrefix.success).toBe(true)
+      if (parsedWithPrefix.success) {
+        expect(parsedWithPrefix.data.mobile).toBe('9876543210')
+      }
+
+      const parsedWithHyphens = updateCreatorProfileSchema.safeParse({ mobile: '98765-43210' })
+      expect(parsedWithHyphens.success).toBe(true)
+      if (parsedWithHyphens.success) {
+        expect(parsedWithHyphens.data.mobile).toBe('9876543210')
+      }
+    })
+
+    it('filters out dummy/placeholder shipping addresses so they do not block profile updates', () => {
+      const payloadWithDummyAddress = {
+        full_name: 'Vanaja sree',
+        mobile: '9581242464',
+        shipping_addresses: [
+          {
+            id: 'addr_init_12345',
+            city: 'Medchal-Malkajgiri',
+            state: 'TELANGANA',
+            title: 'Primary Address',
+            mobile: '9581242467',
+            address_line1: '', // empty placeholder
+            pincode: '',       // empty placeholder
+            recipient_name: 'Vanaja sree',
+          },
+        ],
+      }
+
+      const result = updateCreatorProfileSchema.safeParse(payloadWithDummyAddress)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.shipping_addresses).toEqual([])
+        expect(result.data.mobile).toBe('9581242464')
+      }
+    })
+
+    it('retains valid shipping addresses while stripping placeholders', () => {
+      const payload = {
+        full_name: 'Vanaja sree',
+        shipping_addresses: [
+          {
+            title: 'Home',
+            recipient_name: 'Vanaja sree',
+            mobile: '9876543210',
+            address_line1: 'Flat 101, Main Road',
+            city: 'Hyderabad',
+            state: 'TELANGANA',
+            pincode: '500001',
+            is_default: true,
+          },
+          {
+            id: 'dummy_1',
+            title: 'Primary Address',
+            recipient_name: 'Vanaja',
+            mobile: '9876543210',
+            address_line1: '',
+            city: 'Hyderabad',
+            state: 'TELANGANA',
+            pincode: '',
+          },
+        ],
+      }
+
+      const result = updateCreatorProfileSchema.safeParse(payload)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.shipping_addresses?.length).toBe(1)
+        expect(result.data.shipping_addresses?.[0].address_line1).toBe('Flat 101, Main Road')
+      }
+    })
   })
 
   describe('shippingAddressSchema', () => {
