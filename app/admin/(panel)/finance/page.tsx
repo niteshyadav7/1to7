@@ -68,7 +68,7 @@ interface Application {
 export default function FinancePayoutPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'finance_queue' | 'dual_approval'>('finance_queue')
+  const [activeTab, setActiveTab] = useState<'finance_queue' | 'dual_approval' | 'disbursed_history'>('finance_queue')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   
@@ -94,6 +94,16 @@ export default function FinancePayoutPage() {
     )
   }
 
+  // Helper to compute disbursed amount
+  const getDisbursedAmount = (app: Application) => {
+    return Number(
+      app.form_data?.finance_payout_completed?.amount_paid ||
+      app.form_data?.payment_initiation?.prepared_amount ||
+      app.form_data?.payment_initiated?.amount ||
+      (Number(app.partial_payment) || 0) + (Number(app.final_payment) || 0)
+    )
+  }
+
   const fetchApplications = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/payments')
@@ -113,6 +123,7 @@ export default function FinancePayoutPage() {
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
   // Categorize Applications
+  // 1. Ready for Finance Payout: MUST be approved by 2 admins (Dual Approval) and NOT already disbursed
   const financeQueueApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
@@ -120,40 +131,67 @@ export default function FinancePayoutPage() {
       const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
       if (isCompleted) return false
 
-      const isApprovedForFinance =
-        app.status === 'Payment Approved' ||
-        app.status === 'Payment Initiated' ||
-        (init && init.status === 'approved_for_finance') ||
-        app.status === 'Payment Requested'
+      // STRICT DUAL-APPROVAL REQUIREMENT:
+      // Must be approved by 2 admins (Payment Approved / approved_for_finance)
+      // Must NOT be pending second approval or merely Payment Requested
+      const isDualApproved =
+        (app.status === 'Payment Approved' || init?.status === 'approved_for_finance') &&
+        init?.status !== 'pending_second_approval' &&
+        app.status !== 'Payment Requested'
 
       const payableAmt = getPayableAmount(app)
-      return isApprovedForFinance && payableAmt > 0
+      return isDualApproved && payableAmt > 0
     })
   }, [applications])
 
+  // 2. Awaiting 2nd Admin Approval
   const pendingDualApprovalApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
       const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
       if (isCompleted) return false
-      return init && init.status === 'pending_second_approval'
+      return (
+        init?.status === 'pending_second_approval' ||
+        (app.status === 'Payment Initiated' && init?.status !== 'approved_for_finance')
+      )
     })
   }, [applications])
 
-  const currentList = activeTab === 'finance_queue' ? financeQueueApps : pendingDualApprovalApps
+  // 3. Disbursed / Completed Payout History
+  const disbursedApps = useMemo(() => {
+    return applications
+      .filter((app) => app.status === 'Completed' || !!app.form_data?.finance_payout_completed)
+      .sort((a, b) => {
+        const timeA = new Date(a.form_data?.finance_payout_completed?.executed_at || a.updated_at || 0).getTime()
+        const timeB = new Date(b.form_data?.finance_payout_completed?.executed_at || b.updated_at || 0).getTime()
+        return timeB - timeA
+      })
+  }, [applications])
+
+  const currentList =
+    activeTab === 'finance_queue'
+      ? financeQueueApps
+      : activeTab === 'dual_approval'
+      ? pendingDualApprovalApps
+      : disbursedApps
 
   const filteredApps = useMemo(() => {
     if (!searchQuery.trim()) return currentList
     const q = searchQuery.toLowerCase()
-    return currentList.filter(
-      (app) =>
+    return currentList.filter((app) => {
+      const payout = app.form_data?.finance_payout_completed
+      return (
         app.users?.full_name?.toLowerCase().includes(q) ||
         app.users?.influencer_id?.toLowerCase().includes(q) ||
         app.users?.account_number?.includes(q) ||
         app.users?.ifsc_code?.toLowerCase().includes(q) ||
         app.campaigns?.brand_name?.toLowerCase().includes(q) ||
-        app.campaigns?.campaign_code?.toLowerCase().includes(q)
-    )
+        app.campaigns?.campaign_code?.toLowerCase().includes(q) ||
+        payout?.utr_number?.toLowerCase().includes(q) ||
+        payout?.batch_id?.toLowerCase().includes(q) ||
+        payout?.executed_by?.toLowerCase().includes(q)
+      )
+    })
   }, [currentList, searchQuery])
 
   // Bulk Selection Handlers
@@ -179,6 +217,65 @@ export default function FinancePayoutPage() {
 
   // Export Bank NEFT / Excel CSV
   const handleExportNEFT = () => {
+    if (activeTab === 'disbursed_history') {
+      const appsToExport = selectedIds.length > 0
+        ? disbursedApps.filter((a) => selectedIds.includes(a.id))
+        : filteredApps
+
+      if (appsToExport.length === 0) {
+        toast.error('No disbursed records to export')
+        return
+      }
+
+      const headers = [
+        'Beneficiary Name',
+        'Influencer ID',
+        'Mobile',
+        'Campaign Code',
+        'Brand Name',
+        'Account Number',
+        'IFSC Code',
+        'Disbursed Amount (INR)',
+        'Bank UTR Number',
+        'Batch ID',
+        'Payment Mode',
+        'Disbursed At',
+        'Disbursed By',
+        'Status',
+      ]
+
+      const rows = appsToExport.map((app) => {
+        const payout = app.form_data?.finance_payout_completed || {}
+        return [
+          `"${app.users?.account_name || app.users?.full_name || ''}"`,
+          `"${app.users?.influencer_id || ''}"`,
+          `"${app.users?.mobile || ''}"`,
+          `"${app.campaigns?.campaign_code || ''}"`,
+          `"${app.campaigns?.brand_name || ''}"`,
+          `"${app.users?.account_number || ''}"`,
+          `"${app.users?.ifsc_code || ''}"`,
+          getDisbursedAmount(app),
+          `"${payout.utr_number || app.form_data?.payment_initiated?.bank_code || ''}"`,
+          `"${payout.batch_id || ''}"`,
+          `"${payout.payment_mode || 'NEFT'}"`,
+          `"${payout.executed_at ? new Date(payout.executed_at).toLocaleString('en-IN') : ''}"`,
+          `"${payout.executed_by || 'Finance Team'}"`,
+          '"Disbursed"',
+        ]
+      })
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `Finance_Disbursed_History_${new Date().toISOString().split('T')[0]}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success(`Exported ${appsToExport.length} disbursed records to CSV!`)
+      return
+    }
+
     const appsToExport = selectedIds.length > 0
       ? applications.filter((a) => selectedIds.includes(a.id))
       : filteredApps
@@ -294,6 +391,7 @@ export default function FinancePayoutPage() {
 
   const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
   const totalDualApprovalAmount = pendingDualApprovalApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
+  const totalDisbursedAmount = disbursedApps.reduce((acc, a) => acc + getDisbursedAmount(a), 0)
 
   return (
     <div className="space-y-6">
@@ -335,9 +433,17 @@ export default function FinancePayoutPage() {
 
         <div className="p-5 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg flex items-center justify-between">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Selected Batch Value</p>
-            <p className="text-2xl font-black text-indigo-400">₹{selectedTotalAmount.toLocaleString()}</p>
-            <p className="text-xs text-slate-500">{selectedIds.length} Payees Selected</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {activeTab === 'finance_queue' && selectedIds.length > 0 ? 'Selected Batch Value' : 'Total Disbursed'}
+            </p>
+            <p className="text-2xl font-black text-indigo-400">
+              ₹{(activeTab === 'finance_queue' && selectedIds.length > 0 ? selectedTotalAmount : totalDisbursedAmount).toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-500">
+              {activeTab === 'finance_queue' && selectedIds.length > 0
+                ? `${selectedIds.length} Payees Selected`
+                : `${disbursedApps.length} Disbursed Payouts`}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
             <Building className="h-6 w-6" />
@@ -347,7 +453,7 @@ export default function FinancePayoutPage() {
 
       {/* Tabs & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-3 rounded-2xl border border-white/10 backdrop-blur-xl">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => { setActiveTab('finance_queue'); setSelectedIds([]) }}
@@ -373,6 +479,19 @@ export default function FinancePayoutPage() {
             <ShieldCheck className="h-4 w-4" />
             Dual-Approval Queue ({pendingDualApprovalApps.length})
           </button>
+
+          <button
+            type="button"
+            onClick={() => { setActiveTab('disbursed_history'); setSelectedIds([]) }}
+            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'disbursed_history'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'text-slate-400 hover:text-white bg-slate-950/40'
+            }`}
+          >
+            <Building className="h-4 w-4" />
+            Disbursed History ({disbursedApps.length})
+          </button>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -392,7 +511,7 @@ export default function FinancePayoutPage() {
             className="h-10 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm"
           >
             <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
-            Export NEFT CSV
+            {activeTab === 'disbursed_history' ? 'Export History CSV' : 'Export NEFT CSV'}
           </Button>
 
           {activeTab === 'finance_queue' && (
@@ -420,37 +539,154 @@ export default function FinancePayoutPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950/80 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold border-b border-white/10">
-              <tr>
-                {activeTab === 'finance_queue' && (
-                  <th className="p-4 w-10">
-                    <button
-                      type="button"
-                      onClick={handleSelectAll}
-                      className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
-                    >
-                      {selectedIds.length > 0 && selectedIds.length === filteredApps.length ? (
-                        <CheckSquare className="h-4 w-4 text-emerald-400" />
-                      ) : (
-                        <Square className="h-4 w-4" />
-                      )}
-                    </button>
-                  </th>
-                )}
-                <th className="p-4">Payee & Influencer</th>
-                <th className="p-4">Campaign</th>
-                <th className="p-4">Bank A/C & IFSC</th>
-                <th className="p-4 text-right">Payable Amount</th>
-                <th className="p-4 text-center">Maker-Checker Status</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
+              {activeTab === 'disbursed_history' ? (
+                <tr>
+                  <th className="p-4">Payee & Influencer</th>
+                  <th className="p-4">Campaign</th>
+                  <th className="p-4">Bank A/C & IFSC</th>
+                  <th className="p-4 text-right">Disbursed Amount</th>
+                  <th className="p-4 text-center">Bank UTR / Ref</th>
+                  <th className="p-4 text-center">Batch & Mode</th>
+                  <th className="p-4 text-center">Disbursed Date & By</th>
+                  <th className="p-4 text-center">Status</th>
+                </tr>
+              ) : (
+                <tr>
+                  {activeTab === 'finance_queue' && (
+                    <th className="p-4 w-10">
+                      <button
+                        type="button"
+                        onClick={handleSelectAll}
+                        className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
+                      >
+                        {selectedIds.length > 0 && selectedIds.length === filteredApps.length ? (
+                          <CheckSquare className="h-4 w-4 text-emerald-400" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                      </button>
+                    </th>
+                  )}
+                  <th className="p-4">Payee & Influencer</th>
+                  <th className="p-4">Campaign</th>
+                  <th className="p-4">Bank A/C & IFSC</th>
+                  <th className="p-4 text-right">Payable Amount</th>
+                  <th className="p-4 text-center">Maker-Checker Status</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredApps.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500">
+                  <td
+                    colSpan={activeTab === 'disbursed_history' ? 8 : (activeTab === 'finance_queue' ? 7 : 6)}
+                    className="text-center py-12 text-slate-500"
+                  >
                     No applications currently matching this finance filter.
                   </td>
                 </tr>
+              ) : activeTab === 'disbursed_history' ? (
+                filteredApps.map((app) => {
+                  const payout = app.form_data?.finance_payout_completed
+                  const payeeName = app.users?.account_name || app.users?.full_name || 'Unknown Payee'
+                  const utr = payout?.utr_number || app.form_data?.payment_initiated?.bank_code || 'N/A'
+                  const batch = payout?.batch_id || 'Direct'
+                  const mode = payout?.payment_mode || 'NEFT'
+                  const executedAt = payout?.executed_at || app.updated_at
+                  const executedBy = payout?.executed_by || 'Finance Team'
+
+                  return (
+                    <tr key={app.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-white text-sm">{payeeName}</div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                          <span>{app.users?.influencer_id}</span>
+                          {app.users?.instagram_username && (
+                            <span className="text-pink-400 font-semibold">@{app.users.instagram_username}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="font-semibold text-slate-200">{app.campaigns?.brand_name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono">{app.campaigns?.campaign_code}</div>
+                      </td>
+
+                      <td className="p-4">
+                        {app.users?.account_number ? (
+                          <div className="space-y-0.5 font-mono">
+                            <div className="text-slate-200 font-bold tracking-wider">
+                              {app.users.account_number}
+                            </div>
+                            <div className="text-[10px] text-indigo-400 uppercase font-semibold">
+                              IFSC: {app.users.ifsc_code}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 italic text-[11px]">N/A</span>
+                        )}
+                      </td>
+
+                      <td className="p-4 text-right">
+                        <div className="text-base font-extrabold text-emerald-400">
+                          ₹{getDisbursedAmount(app).toLocaleString()}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          Total Deal: ₹{((Number(app.partial_payment) || 0) + (Number(app.pending_amount) || 0)).toLocaleString()}
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 font-mono text-xs bg-slate-950/70 border border-white/10 px-2.5 py-1 rounded-xl text-emerald-300">
+                          <span>{utr}</span>
+                          {utr !== 'N/A' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(utr)
+                                toast.success('UTR copied to clipboard!')
+                              }}
+                              className="p-0.5 text-slate-400 hover:text-white rounded cursor-pointer"
+                              title="Copy UTR"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <div className="space-y-0.5">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 block">
+                            {mode}
+                          </span>
+                          <span className="text-[9px] font-mono text-slate-500 block truncate max-w-[100px]">
+                            {batch}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] text-slate-200 font-medium">
+                            {executedAt ? new Date(executedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            By {executedBy}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 inline-flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Disbursed
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 filteredApps.map((app) => {
                   const isSelected = selectedIds.includes(app.id)
