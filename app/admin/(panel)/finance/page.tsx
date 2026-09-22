@@ -453,258 +453,254 @@ export default function FinancePayoutPage() {
   const totalDisbursedAmount = disbursedApps.reduce((acc, a) => acc + getDisbursedAmount(a), 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       <SetAdminHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-md">
-            <IndianRupee className="h-5 w-5" />
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-sm">
+            <IndianRupee className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-white tracking-tight">Finance Payout Desk</h1>
-            <p className="text-xs text-slate-400">Maker-Checker Dual Approval & Bulk NEFT Payout System</p>
+            <h1 className="text-base font-bold text-white tracking-tight">Finance Payout Desk</h1>
+            <p className="text-[10px] text-slate-400">Maker-Checker Dual Approval & Bulk NEFT Payout System</p>
           </div>
         </div>
       </SetAdminHeader>
 
-      {/* Compact & Sleek KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+      {/* Ultra-Compact KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="py-2 px-3 rounded-xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl flex items-center justify-between shadow-sm">
           <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ready for Finance Payout</p>
-            <p className="text-xl font-black text-emerald-400 tracking-tight">₹{totalFinanceQueueAmount.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-500 font-medium">{financeQueueApps.length} Verified Applications</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Ready for Finance Payout</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-black text-emerald-400 tracking-tight">₹{totalFinanceQueueAmount.toLocaleString()}</span>
+              <span className="text-[10px] text-slate-500 font-medium">({financeQueueApps.length} verified)</span>
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-sm">
-            <CheckCircle2 className="h-4.5 w-4.5" />
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+            <CheckCircle2 className="h-3 w-3" />
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+        <div className="py-2 px-3 rounded-xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl flex items-center justify-between shadow-sm">
           <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Awaiting 2nd Admin Approval</p>
-            <p className="text-xl font-black text-amber-400 tracking-tight">₹{totalDualApprovalAmount.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-500 font-medium">{pendingDualApprovalApps.length} Approvals Pending</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Awaiting 2nd Admin Approval</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-black text-amber-400 tracking-tight">₹{totalDualApprovalAmount.toLocaleString()}</span>
+              <span className="text-[10px] text-slate-500 font-medium">({pendingDualApprovalApps.length} pending)</span>
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm">
-            <Clock className="h-4.5 w-4.5" />
+          <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+            <Clock className="h-3 w-3" />
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl shadow-md flex items-center justify-between">
+        <div className="py-2 px-3 rounded-xl bg-slate-900/50 border border-white/[0.08] backdrop-blur-xl flex items-center justify-between shadow-sm">
           <div className="space-y-0.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
               {activeTab === 'finance_queue' && selectedIds.length > 0 ? 'Selected Batch Value' : 'Total Disbursed'}
             </p>
-            <p className="text-xl font-black text-indigo-400 tracking-tight">
-              ₹{(activeTab === 'finance_queue' && selectedIds.length > 0 ? selectedTotalAmount : totalDisbursedAmount).toLocaleString()}
-            </p>
-            <p className="text-[11px] text-slate-500 font-medium">
-              {activeTab === 'finance_queue' && selectedIds.length > 0
-                ? `${selectedIds.length} Payees Selected`
-                : `${disbursedApps.length} Disbursed Payouts`}
-            </p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-black text-indigo-400 tracking-tight">
+                ₹{(activeTab === 'finance_queue' && selectedIds.length > 0 ? selectedTotalAmount : totalDisbursedAmount).toLocaleString()}
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">
+                ({activeTab === 'finance_queue' && selectedIds.length > 0
+                  ? `${selectedIds.length} selected`
+                  : `${disbursedApps.length} disbursed`})
+              </span>
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shadow-sm">
-            <Building className="h-4.5 w-4.5" />
+          <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+            <Building className="h-3 w-3" />
           </div>
         </div>
       </div>
 
-      {/* Tabs & Controls */}
-      <div className="space-y-3 bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-lg">
-        {/* Row 1: Segmented Tabs + Quick Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-1.5 p-1 bg-slate-950/60 rounded-xl border border-white/10 overflow-x-auto max-w-full">
-            <button
-              type="button"
-              onClick={() => { setActiveTab('finance_queue'); setSelectedIds([]); setPage(1) }}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                activeTab === 'finance_queue'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Finance Queue ({financeQueueApps.length})
-            </button>
+      {/* Unified Single-Line Controls Header */}
+      <div className="bg-slate-900/60 px-3 py-1.5 rounded-xl border border-white/10 backdrop-blur-xl shadow-md flex flex-wrap lg:flex-nowrap items-center justify-between gap-2">
+        {/* Left: Compact Segmented Tabs */}
+        <div className="inline-flex items-center gap-1 p-0.5 bg-slate-950/70 rounded-lg border border-white/10 shrink-0">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('finance_queue'); setSelectedIds([]); setPage(1) }}
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'finance_queue'
+                ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            Finance Queue ({financeQueueApps.length})
+          </button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveTab('dual_approval'); setSelectedIds([]); setPage(1) }}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                activeTab === 'dual_approval'
-                  ? 'bg-amber-600 text-white shadow-md shadow-amber-500/25'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Dual-Approval ({pendingDualApprovalApps.length})
-            </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('dual_approval'); setSelectedIds([]); setPage(1) }}
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'dual_approval'
+                ? 'bg-amber-600 text-white shadow-sm shadow-amber-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ShieldCheck className="h-3 w-3" />
+            Dual-Approval ({pendingDualApprovalApps.length})
+          </button>
 
-            <button
-              type="button"
-              onClick={() => { setActiveTab('disbursed_history'); setSelectedIds([]); setPage(1) }}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                activeTab === 'disbursed_history'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Building className="h-3.5 w-3.5" />
-              Disbursed History ({disbursedApps.length})
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={handleExportNEFT}
-              className="h-9 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
-              {activeTab === 'disbursed_history' ? 'Export History' : 'Export NEFT'}
-            </Button>
-
-            {activeTab === 'finance_queue' && (
-              <Button
-                type="button"
-                onClick={() => {
-                  if (selectedIds.length === 0) {
-                    toast.error('Select at least one payee for bulk disburse')
-                    return
-                  }
-                  setShowBulkModal(true)
-                }}
-                disabled={selectedIds.length === 0}
-                className="h-9 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs cursor-pointer shadow-md shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5"
-              >
-                <Send className="h-3.5 w-3.5" />
-                Bulk Disburse ({selectedIds.length})
-              </Button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('disbursed_history'); setSelectedIds([]); setPage(1) }}
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'disbursed_history'
+                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Building className="h-3 w-3" />
+            Disbursed History ({disbursedApps.length})
+          </button>
         </div>
 
-        {/* Row 2: Filter Toolbar (Search + Brand Filter + Sort + Reset) */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-white/5">
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+        {/* Center: Search + Filter Inputs */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {/* Compact Search */}
+          <div className="relative min-w-[130px] max-w-[190px] flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
-              placeholder={
-                activeTab === 'disbursed_history'
-                  ? 'Search payee, UTR, batch, A/C...'
-                  : 'Search payee, A/C, IFSC, campaign...'
-              }
-              className="w-full bg-slate-950/70 border border-white/10 text-white pl-9 pr-8 h-9 text-xs rounded-xl focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
+              placeholder={activeTab === 'disbursed_history' ? 'Search UTR, name...' : 'Search payee, A/C...'}
+              className="w-full bg-slate-950/70 border border-white/10 text-white pl-7 pr-6 h-7 text-[11px] rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => { setSearchQuery(''); setPage(1) }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
               >
-                <X className="h-3 w-3" />
+                <X className="h-2.5 w-2.5" />
               </button>
             )}
           </div>
 
           {/* Brand Filter */}
-          <div className="flex items-center gap-1.5">
-            <Tag className="h-3.5 w-3.5 text-slate-500 hidden sm:inline" />
-            <select
-              value={selectedBrand}
-              onChange={(e) => { setSelectedBrand(e.target.value); setPage(1) }}
-              className="bg-slate-950/70 border border-white/10 text-slate-300 text-xs rounded-xl px-2.5 h-9 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Brands ({uniqueBrands.length})</option>
-              {uniqueBrands.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={selectedBrand}
+            onChange={(e) => { setSelectedBrand(e.target.value); setPage(1) }}
+            className="bg-slate-950/70 border border-white/10 text-slate-300 text-[11px] rounded-lg px-2 h-7 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer max-w-[110px] truncate"
+          >
+            <option value="all">All Brands</option>
+            {uniqueBrands.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+          </select>
 
-          {/* Sort By Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <ArrowUpDown className="h-3.5 w-3.5 text-slate-500 hidden sm:inline" />
-            <select
-              value={sortBy}
-              onChange={(e) => { setSortBy(e.target.value as any); setPage(1) }}
-              className="bg-slate-950/70 border border-white/10 text-slate-300 text-xs rounded-xl px-2.5 h-9 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
-            >
-              <option value="date">Sort: Newest First</option>
-              <option value="amount_desc">Sort: Amount (High to Low)</option>
-              <option value="amount_asc">Sort: Amount (Low to High)</option>
-              <option value="name">Sort: Payee (A-Z)</option>
-            </select>
-          </div>
+          {/* Sort Filter */}
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value as any); setPage(1) }}
+            className="bg-slate-950/70 border border-white/10 text-slate-300 text-[11px] rounded-lg px-2 h-7 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer max-w-[110px]"
+          >
+            <option value="date">Newest</option>
+            <option value="amount_desc">₹ High to Low</option>
+            <option value="amount_asc">₹ Low to High</option>
+            <option value="name">Payee A-Z</option>
+          </select>
 
-          {/* Clear Filters Button */}
+          {/* Reset Filters */}
           {(selectedBrand !== 'all' || searchQuery.trim() || sortBy !== 'date') && (
             <button
               type="button"
+              title="Reset Filters"
               onClick={() => {
                 setSelectedBrand('all')
                 setSearchQuery('')
                 setSortBy('date')
                 setPage(1)
               }}
-              className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer h-9 transition-colors"
+              className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1 px-1.5 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 cursor-pointer transition-colors shrink-0"
             >
-              <X className="h-3 w-3" /> Reset Filters
+              <X className="h-2.5 w-2.5" /> Clear
             </button>
           )}
 
-          <div className="ml-auto text-[11px] text-slate-400 font-medium">
-            Showing <span className="text-white font-bold">{processedApps.length}</span> results
+          <div className="hidden xl:block text-[10px] text-slate-500 shrink-0">
+            <span className="text-slate-300 font-semibold">{processedApps.length}</span> found
           </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            type="button"
+            onClick={handleExportNEFT}
+            className="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-[11px] font-semibold cursor-pointer flex items-center gap-1 shadow-sm"
+          >
+            <FileSpreadsheet className="h-3 w-3 text-emerald-400" />
+            {activeTab === 'disbursed_history' ? 'Export History' : 'Export NEFT'}
+          </Button>
+
+          {activeTab === 'finance_queue' && (
+            <Button
+              type="button"
+              onClick={() => {
+                if (selectedIds.length === 0) {
+                  toast.error('Select at least one payee for bulk disburse')
+                  return
+                }
+                setShowBulkModal(true)
+              }}
+              disabled={selectedIds.length === 0}
+              className="h-7 px-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-[11px] cursor-pointer shadow-sm shadow-emerald-500/20 disabled:opacity-50 flex items-center gap-1"
+            >
+              <Send className="h-3 w-3" />
+              Bulk Disburse ({selectedIds.length})
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Table Container */}
-      <div className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+      <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950/80 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold border-b border-white/10">
               {activeTab === 'disbursed_history' ? (
                 <tr>
-                  <th className="p-4">Payee & Influencer</th>
-                  <th className="p-4">Campaign</th>
-                  <th className="p-4">Bank A/C & IFSC</th>
-                  <th className="p-4 text-right">Disbursed Amount</th>
-                  <th className="p-4 text-center">Bank UTR / Ref</th>
-                  <th className="p-4 text-center">Batch & Mode</th>
-                  <th className="p-4 text-center">Disbursed Date & By</th>
-                  <th className="p-4 text-center">Status</th>
+                  <th className="px-3 py-2.5">Payee & Influencer</th>
+                  <th className="px-3 py-2.5">Campaign</th>
+                  <th className="px-3 py-2.5">Bank A/C & IFSC</th>
+                  <th className="px-3 py-2.5 text-right">Disbursed Amount</th>
+                  <th className="px-3 py-2.5 text-center">Bank UTR / Ref</th>
+                  <th className="px-3 py-2.5 text-center">Batch & Mode</th>
+                  <th className="px-3 py-2.5 text-center">Disbursed Date & By</th>
+                  <th className="px-3 py-2.5 text-center">Status</th>
                 </tr>
               ) : (
                 <tr>
                   {activeTab === 'finance_queue' && (
-                    <th className="p-4 w-10">
+                    <th className="px-3 py-2.5 w-8">
                       <button
                         type="button"
                         onClick={handleSelectAll}
                         className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
                       >
                         {selectedIds.length > 0 && selectedIds.length === paginatedApps.length ? (
-                          <CheckSquare className="h-4 w-4 text-emerald-400" />
+                          <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
                         ) : (
-                          <Square className="h-4 w-4" />
+                          <Square className="h-3.5 w-3.5" />
                         )}
                       </button>
                     </th>
                   )}
-                  <th className="p-4">Payee & Influencer</th>
-                  <th className="p-4">Campaign</th>
-                  <th className="p-4">Bank A/C & IFSC</th>
-                  <th className="p-4 text-right">Payable Amount</th>
-                  <th className="p-4 text-center">Maker-Checker Status</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="px-3 py-2.5">Payee & Influencer</th>
+                  <th className="px-3 py-2.5">Campaign</th>
+                  <th className="px-3 py-2.5">Bank A/C & IFSC</th>
+                  <th className="px-3 py-2.5 text-right">Payable Amount</th>
+                  <th className="px-3 py-2.5 text-center">Maker-Checker Status</th>
+                  <th className="px-3 py-2.5 text-right">Actions</th>
                 </tr>
               )}
             </thead>
@@ -730,9 +726,9 @@ export default function FinancePayoutPage() {
 
                   return (
                     <tr key={app.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-4">
-                        <div className="font-bold text-white text-sm">{payeeName}</div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <td className="px-3 py-2">
+                        <div className="font-bold text-white text-xs">{payeeName}</div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                           <span>{app.users?.influencer_id}</span>
                           {app.users?.instagram_username && (
                             <span className="text-pink-400 font-semibold">@{app.users.instagram_username}</span>
@@ -740,37 +736,37 @@ export default function FinancePayoutPage() {
                         </div>
                       </td>
 
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-200">{app.campaigns?.brand_name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{app.campaigns?.campaign_code}</div>
+                      <td className="px-3 py-2">
+                        <div className="font-semibold text-slate-200 text-xs">{app.campaigns?.brand_name}</div>
+                        <div className="text-[9px] text-slate-500 font-mono">{app.campaigns?.campaign_code}</div>
                       </td>
 
-                      <td className="p-4">
+                      <td className="px-3 py-2">
                         {app.users?.account_number ? (
                           <div className="space-y-0.5 font-mono">
-                            <div className="text-slate-200 font-bold tracking-wider">
+                            <div className="text-slate-200 font-bold tracking-wider text-xs">
                               {app.users.account_number}
                             </div>
-                            <div className="text-[10px] text-indigo-400 uppercase font-semibold">
+                            <div className="text-[9px] text-indigo-400 uppercase font-semibold">
                               IFSC: {app.users.ifsc_code}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-slate-500 italic text-[11px]">N/A</span>
+                          <span className="text-slate-500 italic text-[10px]">N/A</span>
                         )}
                       </td>
 
-                      <td className="p-4 text-right">
-                        <div className="text-base font-extrabold text-emerald-400">
+                      <td className="px-3 py-2 text-right">
+                        <div className="text-sm font-extrabold text-emerald-400">
                           ₹{getDisbursedAmount(app).toLocaleString()}
                         </div>
-                        <div className="text-[10px] text-slate-500">
-                          Total Deal: ₹{((Number(app.partial_payment) || 0) + (Number(app.pending_amount) || 0)).toLocaleString()}
+                        <div className="text-[9px] text-slate-500">
+                          Total: ₹{((Number(app.partial_payment) || 0) + (Number(app.pending_amount) || 0)).toLocaleString()}
                         </div>
                       </td>
 
-                      <td className="p-4 text-center">
-                        <div className="inline-flex items-center gap-1.5 font-mono text-xs bg-slate-950/70 border border-white/10 px-2.5 py-1 rounded-xl text-emerald-300">
+                      <td className="px-3 py-2 text-center">
+                        <div className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-950/70 border border-white/10 px-2 py-0.5 rounded-lg text-emerald-300">
                           <span>{utr}</span>
                           {utr !== 'N/A' && (
                             <button
@@ -782,37 +778,37 @@ export default function FinancePayoutPage() {
                               className="p-0.5 text-slate-400 hover:text-white rounded cursor-pointer"
                               title="Copy UTR"
                             >
-                              <Copy className="h-3 w-3" />
+                              <Copy className="h-2.5 w-2.5" />
                             </button>
                           )}
                         </div>
                       </td>
 
-                      <td className="p-4 text-center">
+                      <td className="px-3 py-2 text-center">
                         <div className="space-y-0.5">
-                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 block">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 inline-block">
                             {mode}
                           </span>
-                          <span className="text-[9px] font-mono text-slate-500 block truncate max-w-[100px]">
+                          <span className="text-[9px] font-mono text-slate-500 block truncate max-w-[90px]">
                             {batch}
                           </span>
                         </div>
                       </td>
 
-                      <td className="p-4 text-center">
+                      <td className="px-3 py-2 text-center">
                         <div className="space-y-0.5">
-                          <div className="text-[11px] text-slate-200 font-medium">
+                          <div className="text-[10px] text-slate-200 font-medium">
                             {executedAt ? new Date(executedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                           </div>
-                          <div className="text-[10px] text-slate-500">
+                          <div className="text-[9px] text-slate-500">
                             By {executedBy}
                           </div>
                         </div>
                       </td>
 
-                      <td className="p-4 text-center">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 inline-flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
+                      <td className="px-3 py-2 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 inline-flex items-center gap-1">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
                           Disbursed
                         </span>
                       </td>
@@ -833,24 +829,24 @@ export default function FinancePayoutPage() {
                       }`}
                     >
                       {activeTab === 'finance_queue' && (
-                        <td className="p-4">
+                        <td className="px-3 py-2">
                           <button
                             type="button"
                             onClick={() => toggleSelect(app.id)}
                             className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
                           >
                             {isSelected ? (
-                              <CheckSquare className="h-4 w-4 text-emerald-400" />
+                              <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
                             ) : (
-                              <Square className="h-4 w-4" />
+                              <Square className="h-3.5 w-3.5" />
                             )}
                           </button>
                         </td>
                       )}
 
-                      <td className="p-4">
-                        <div className="font-bold text-white text-sm">{payeeName}</div>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <td className="px-3 py-2">
+                        <div className="font-bold text-white text-xs">{payeeName}</div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                           <span>{app.users?.influencer_id}</span>
                           {app.users?.instagram_username && (
                             <span className="text-pink-400 font-semibold">@{app.users.instagram_username}</span>
@@ -858,73 +854,73 @@ export default function FinancePayoutPage() {
                         </div>
                       </td>
 
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-200">{app.campaigns?.brand_name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{app.campaigns?.campaign_code}</div>
+                      <td className="px-3 py-2">
+                        <div className="font-semibold text-slate-200 text-xs">{app.campaigns?.brand_name}</div>
+                        <div className="text-[9px] text-slate-500 font-mono">{app.campaigns?.campaign_code}</div>
                       </td>
 
-                      <td className="p-4">
+                      <td className="px-3 py-2">
                         {app.users?.account_number ? (
                           <div className="space-y-0.5 font-mono">
-                            <div className="text-slate-200 font-bold tracking-wider">
+                            <div className="text-slate-200 font-bold tracking-wider text-xs">
                               {app.users.account_number}
                             </div>
-                            <div className="text-[10px] text-indigo-400 uppercase font-semibold">
+                            <div className="text-[9px] text-indigo-400 uppercase font-semibold">
                               IFSC: {app.users.ifsc_code}
                             </div>
                           </div>
                         ) : (
-                          <span className="text-red-400 italic text-[11px]">Bank details missing</span>
+                          <span className="text-red-400 italic text-[10px]">Bank details missing</span>
                         )}
                       </td>
 
-                      <td className="p-4 text-right">
-                        <div className="text-base font-extrabold text-emerald-400">
+                      <td className="px-3 py-2 text-right">
+                        <div className="text-sm font-extrabold text-emerald-400">
                           ₹{getPayableAmount(app).toLocaleString()}
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[9px] text-slate-500">
                           Total: ₹{((Number(app.partial_payment) || 0) + (Number(app.pending_amount) || 0)).toLocaleString()}
                         </div>
                       </td>
 
-                      <td className="p-4 text-center">
+                      <td className="px-3 py-2 text-center">
                         {init?.status === 'approved_for_finance' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 inline-flex items-center gap-1">
-                            <UserCheck className="h-3 w-3" />
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 inline-flex items-center gap-1">
+                            <UserCheck className="h-2.5 w-2.5" />
                             Approved by 2 Admins
                           </span>
                         ) : init?.status === 'pending_second_approval' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
-                            <Clock className="h-3 w-3 animate-pulse" />
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
+                            <Clock className="h-2.5 w-2.5 animate-pulse" />
                             Awaiting 2nd Admin
                           </span>
                         ) : app.status === 'Payment Initiated' ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 inline-flex items-center gap-1">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
                             Payment Initiated
                           </span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25">
                             {app.status}
                           </span>
                         )}
                       </td>
 
-                      <td className="p-4 text-right">
+                      <td className="px-3 py-2 text-right">
                         {activeTab === 'dual_approval' ? (
                           <Button
                             type="button"
                             size="sm"
                             onClick={() => handleDualApprove(app.id)}
                             disabled={approvingId === app.id}
-                            className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-md"
+                            className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] cursor-pointer shadow-sm"
                           >
                             {approvingId === app.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
                               <>
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                Approve for Finance
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Approve
                               </>
                             )}
                           </Button>
@@ -936,9 +932,9 @@ export default function FinancePayoutPage() {
                               setSelectedIds([app.id])
                               setShowBulkModal(true)
                             }}
-                            className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer shadow-md"
+                            className="h-7 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] cursor-pointer shadow-sm"
                           >
-                            <Send className="h-3.5 w-3.5 mr-1" />
+                            <Send className="h-3 w-3 mr-1" />
                             Disburse
                           </Button>
                         )}
