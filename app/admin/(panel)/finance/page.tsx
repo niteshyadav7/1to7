@@ -32,7 +32,10 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
+  Receipt,
+  ShoppingCart,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -50,6 +53,7 @@ interface UserInfo {
   account_number: string
   ifsc_code: string
   instagram_username?: string
+  followers?: number
 }
 
 interface Application {
@@ -80,9 +84,10 @@ export default function FinancePayoutPage() {
   const [pageSize, setPageSize] = useState(15)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   
-  // Export Modal State
+  // Export Modal State (Matching 1to7_Export_Format.xlsx)
   const [showExportModal, setShowExportModal] = useState(false)
-  const [exportFormat, setExportFormat] = useState<'bank_batch' | 'detailed_audit'>('bank_batch')
+  const [exportFormat, setExportFormat] = useState<'refund' | 'order'>('refund')
+  const [refundMode, setRefundMode] = useState<'full_17' | 'bank_5'>('full_17')
   const [exportScope, setExportScope] = useState<'selected' | 'filtered' | 'all'>('filtered')
   const [refDelimiter, setRefDelimiter] = useState<'+' | '-'>('+')
 
@@ -355,8 +360,170 @@ export default function FinancePayoutPage() {
     setShowExportModal(true)
   }
 
+  // 1to7 Exact Column Headers from 1to7_Export_Format.xlsx
+  const REFUND_HEADERS_17 = [
+    'IFSC Code',
+    'Account No.',
+    'Beneficiary Name',
+    'Amount',
+    'Ref No. (HYPE ID+CAMPAIGN CODE)',
+    'Campaign ID',
+    'Phone No',
+    'Timestamp',
+    'Screen Shot',
+    'Engagement Rate',
+    'Impressions',
+    'views',
+    'likes',
+    'comments',
+    'shares',
+    'saves',
+    'Feedback',
+  ]
+
+  const REFUND_HEADERS_5 = [
+    'IFSC Code',
+    'Account No.',
+    'Beneficiary Name',
+    'Amount',
+    'Ref No. (HYPE ID+CAMPAIGN CODE)',
+  ]
+
+  const ORDER_HEADERS_12 = [
+    'Timestamp',
+    'Campaign ID',
+    'Mobile Number',
+    'Brand Name',
+    'Followers Count',
+    'Instagram ID',
+    'Status',
+    'ORDER SS',
+    'ORDER ID',
+    'ORDER AMOUNT',
+    'REFUND AMOUNT',
+    'HYPE ID',
+  ]
+
+  const getRefundRow = useCallback(
+    (app: Application, delimiter: '+' | '-' = '+', mode: 'full_17' | 'bank_5' = 'full_17') => {
+      const fd = app.form_data || {}
+      const pr = fd.payment_request || {}
+      const cs = fd.completion_submission || {}
+      const pi = fd.payment_initiation || {}
+
+      const ifsc = getIfscCode(app)
+      const accountNo = getAccountNumber(app)
+      const beneficiaryName = getBeneficiaryName(app)
+      const amount = activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app)
+      const refNo = getRefNo(app, delimiter)
+
+      if (mode === 'bank_5') {
+        return [ifsc, accountNo, beneficiaryName, amount, refNo]
+      }
+
+      const campaignId = app.campaigns?.campaign_code || fd['Campaign ID'] || ''
+      const phoneNo = app.users?.mobile || fd['-Mobile Number'] || fd['WhatsApp / Alternate Mobile'] || ''
+
+      const rawDate = pr.submitted_at || pi.prepared_at || app.updated_at || app.created_at
+      let timestamp = ''
+      if (rawDate) {
+        try {
+          const d = new Date(rawDate)
+          timestamp = !isNaN(d.getTime()) ? d.toISOString().replace('T', ' ').slice(0, 16) : String(rawDate)
+        } catch {
+          timestamp = String(rawDate)
+        }
+      }
+
+      const screenshot =
+        pr.supporting_document ||
+        cs.supporting_document ||
+        cs.deliverable_link ||
+        fd['ORDER SS IF REQ'] ||
+        fd.order_details?.['Order Placement Screenshot'] ||
+        ''
+
+      const views = pr.Views || cs.views_count || fd.views || ''
+      const likes = pr.Likes || fd.likes || ''
+      const comments = pr.Comments || fd.comments || ''
+      const shares = pr.Shares || fd.shares || ''
+      const saves = pr.Saves || fd.saves || ''
+      const impressions = pr.Impressions || pr.impressions || fd.impressions || ''
+
+      let engagementRate = pr.engagement_rate || fd.engagement_rate || ''
+      if (!engagementRate && views && (likes || comments)) {
+        const vNum =
+          parseFloat(String(views).replace(/[^0-9.]/g, '')) *
+          (String(views).toLowerCase().includes('k') ? 1000 : String(views).toLowerCase().includes('m') ? 1000000 : 1)
+        const intNum = (parseFloat(String(likes || 0)) || 0) + (parseFloat(String(comments || 0)) || 0)
+        if (vNum > 0 && intNum > 0) {
+          engagementRate = ((intNum / vNum) * 100).toFixed(2) + '%'
+        }
+      }
+
+      const feedback = pr.payment_reason || cs.notes || pi.notes || fd.feedback || ''
+
+      return [
+        ifsc,
+        accountNo,
+        beneficiaryName,
+        amount,
+        refNo,
+        campaignId,
+        phoneNo,
+        timestamp,
+        screenshot,
+        engagementRate,
+        impressions,
+        views,
+        likes,
+        comments,
+        shares,
+        saves,
+        feedback,
+      ]
+    },
+    [activeTab, getAccountNumber, getBeneficiaryName, getDisbursedAmount, getIfscCode, getPayableAmount, getRefNo]
+  )
+
+  const getOrderRow = useCallback(
+    (app: Application) => {
+      const fd = app.form_data || {}
+      const od = fd.order_details || {}
+
+      const timestamp = od['Order Date (DD-MM-YYYY)'] || (app.created_at ? new Date(app.created_at).toISOString().split('T')[0] : '')
+      const campaignId = app.campaigns?.campaign_code || fd['Campaign ID'] || ''
+      const mobile = app.users?.mobile || fd['-Mobile Number'] || fd['WhatsApp / Alternate Mobile'] || ''
+      const brandName = app.campaigns?.brand_name || fd['Brand'] || ''
+      const followers = app.users?.followers || fd.applied_instagram_followers || fd.followers || 0
+      const instagramId = app.users?.instagram_username || fd.applied_instagram_username || ''
+      const status = app.status || 'Applied'
+      const orderSS = od['Order Placement Screenshot'] || fd['ORDER SS IF REQ'] || ''
+      const orderId = od['Order ID'] || fd['ORDER ID'] || ''
+      const orderAmount = od['Product Amount (₹)'] || fd.order_amount || ''
+      const refundAmount = fd['REFUND AMOUNT'] || fd.total_deal || fd.agreed_commercial || getPayableAmount(app) || ''
+      const hypeId = app.users?.influencer_id || fd['User id'] || ''
+
+      return [
+        timestamp,
+        campaignId,
+        mobile,
+        brandName,
+        followers,
+        instagramId,
+        status,
+        orderSS,
+        orderId,
+        orderAmount,
+        refundAmount,
+        hypeId,
+      ]
+    },
+    [getPayableAmount]
+  )
+
   // 1. Copy to Clipboard (TSV / Excel Ready Format)
-  const handleCopyToClipboard = (format: 'bank_batch' | 'detailed_audit') => {
+  const handleCopyToClipboard = (format: 'refund' | 'order') => {
     const targetApps = getExportTargetApps()
     if (targetApps.length === 0) {
       toast.error('No applications to copy')
@@ -366,44 +533,12 @@ export default function FinancePayoutPage() {
     let headers: string[] = []
     let rows: (string | number)[][] = []
 
-    if (format === 'bank_batch') {
-      headers = ['IFSC Code', 'Account No.', 'Beneficiary Name', 'Amount', 'Ref No. (HYPE ID+CAMPAIGN CODE)']
-      rows = targetApps.map((app) => [
-        getIfscCode(app),
-        getAccountNumber(app),
-        getBeneficiaryName(app),
-        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
-        getRefNo(app, refDelimiter),
-      ])
+    if (format === 'refund') {
+      headers = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      rows = targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode))
     } else {
-      headers = [
-        'Beneficiary Name',
-        'Account Number',
-        'IFSC Code',
-        'Amount (INR)',
-        'Ref No.',
-        'Campaign Code',
-        'Brand Name',
-        'Influencer ID',
-        'Instagram Handle',
-        'Mobile',
-        'Payment Mode',
-        'Status',
-      ]
-      rows = targetApps.map((app) => [
-        getBeneficiaryName(app),
-        getAccountNumber(app),
-        getIfscCode(app),
-        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
-        getRefNo(app, refDelimiter),
-        app.campaigns?.campaign_code || '',
-        app.campaigns?.brand_name || '',
-        app.users?.influencer_id || '',
-        app.users?.instagram_username ? `@${app.users.instagram_username}` : '',
-        app.users?.mobile || '',
-        app.form_data?.finance_payout_completed?.payment_mode || 'NEFT',
-        activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved'),
-      ])
+      headers = ORDER_HEADERS_12
+      rows = targetApps.map((app) => getOrderRow(app))
     }
 
     const tsvContent = [
@@ -412,11 +547,11 @@ export default function FinancePayoutPage() {
     ].join('\n')
 
     navigator.clipboard.writeText(tsvContent)
-    toast.success(`Copied ${targetApps.length} records! Ready to paste (Ctrl+V) directly into Excel or bank portal.`)
+    toast.success(`Copied ${targetApps.length} records (${headers.length} cols)! Paste with Ctrl+V into Sheet '${format === 'refund' ? 'Refund' : 'Order'}'.`)
   }
 
-  // 2. Download CSV (RFC-4180 with UTF-8 BOM)
-  const handleDownloadCSV = (format: 'bank_batch' | 'detailed_audit') => {
+  // 2. Download CSV (RFC-4180 with UTF-8 BOM & Number Preservation)
+  const handleDownloadCSV = (format: 'refund' | 'order') => {
     const targetApps = getExportTargetApps()
     if (targetApps.length === 0) {
       toast.error('No applications to export')
@@ -427,46 +562,32 @@ export default function FinancePayoutPage() {
     let rows: (string | number)[][] = []
     let filename = ''
 
-    if (format === 'bank_batch') {
-      headers = ['IFSC Code', 'Account No.', 'Beneficiary Name', 'Amount', 'Ref No. (HYPE ID+CAMPAIGN CODE)']
-      rows = targetApps.map((app) => [
-        `"${getIfscCode(app)}"`,
-        `="${getAccountNumber(app)}"`,
-        `"${getBeneficiaryName(app).replace(/"/g, '""')}"`,
-        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
-        `"${getRefNo(app, refDelimiter)}"`,
-      ])
-      filename = `Bank_Batch_Payout_${new Date().toISOString().split('T')[0]}.csv`
+    if (format === 'refund') {
+      headers = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      rows = targetApps.map((app) => {
+        const rawRow = getRefundRow(app, refDelimiter, refundMode)
+        return rawRow.map((val, idx) => {
+          if (idx === 1) return `="${val}"` // account number preservation
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+            return `"${val.replace(/"/g, '""')}"`
+          }
+          return val
+        })
+      })
+      filename = `1to7_Refund_Export_${new Date().toISOString().split('T')[0]}.csv`
     } else {
-      headers = [
-        'Beneficiary Name',
-        'Account Number',
-        'IFSC Code',
-        'Amount (INR)',
-        'Ref No.',
-        'Campaign Code',
-        'Brand Name',
-        'Influencer ID',
-        'Instagram Handle',
-        'Mobile',
-        'Payment Mode',
-        'Status',
-      ]
-      rows = targetApps.map((app) => [
-        `"${getBeneficiaryName(app).replace(/"/g, '""')}"`,
-        `="${getAccountNumber(app)}"`,
-        `"${getIfscCode(app)}"`,
-        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
-        `"${getRefNo(app, refDelimiter)}"`,
-        `"${app.campaigns?.campaign_code || ''}"`,
-        `"${app.campaigns?.brand_name || ''}"`,
-        `"${app.users?.influencer_id || ''}"`,
-        `"${app.users?.instagram_username ? `@${app.users.instagram_username}` : ''}"`,
-        `"${app.users?.mobile || ''}"`,
-        `"${app.form_data?.finance_payout_completed?.payment_mode || 'NEFT'}"`,
-        `"${activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved')}"`,
-      ])
-      filename = `Finance_Audit_Report_${new Date().toISOString().split('T')[0]}.csv`
+      headers = ORDER_HEADERS_12
+      rows = targetApps.map((app) => {
+        const rawRow = getOrderRow(app)
+        return rawRow.map((val, idx) => {
+          if (idx === 8 || idx === 2) return `="${val}"` // order ID and mobile preservation
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
+            return `"${val.replace(/"/g, '""')}"`
+          }
+          return val
+        })
+      })
+      filename = `1to7_Order_Export_${new Date().toISOString().split('T')[0]}.csv`
     }
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n')
@@ -480,6 +601,46 @@ export default function FinancePayoutPage() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     toast.success(`Downloaded ${targetApps.length} records as CSV!`)
+  }
+
+  // 3. Download Native Multi-Sheet Excel (.xlsx) matching 1to7_Export_Format.xlsx
+  const handleDownloadExcel = (format: 'refund' | 'order' | 'both') => {
+    const targetApps = getExportTargetApps()
+    if (targetApps.length === 0) {
+      toast.error('No applications to export')
+      return
+    }
+
+    const wb = XLSX.utils.book_new()
+
+    if (format === 'refund' || format === 'both') {
+      const refundHeaders = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      const refundData = [
+        refundHeaders,
+        ...targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode)),
+      ]
+      const wsRefund = XLSX.utils.aoa_to_sheet(refundData)
+      XLSX.utils.book_append_sheet(wb, wsRefund, 'Refund')
+    }
+
+    if (format === 'order' || format === 'both') {
+      const orderData = [
+        ORDER_HEADERS_12,
+        ...targetApps.map((app) => getOrderRow(app)),
+      ]
+      const wsOrder = XLSX.utils.aoa_to_sheet(orderData)
+      XLSX.utils.book_append_sheet(wb, wsOrder, 'Order')
+    }
+
+    const filename =
+      format === 'both'
+        ? `1to7_Export_Format_${new Date().toISOString().split('T')[0]}.xlsx`
+        : format === 'refund'
+        ? `1to7_Refund_Export_${new Date().toISOString().split('T')[0]}.xlsx`
+        : `1to7_Order_Export_${new Date().toISOString().split('T')[0]}.xlsx`
+
+    XLSX.writeFile(wb, filename)
+    toast.success(`Downloaded ${targetApps.length} records as Excel (.xlsx)!`)
   }
 
   // Bulk Disburse Execution
@@ -1272,7 +1433,7 @@ export default function FinancePayoutPage() {
         )}
       </AnimatePresence>
 
-      {/* Custom Export Modal with 5-Column Bank Batch & 1-Click Clipboard */}
+      {/* Custom Export Modal matching 1to7_Export_Format.xlsx */}
       <AnimatePresence>
         {showExportModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
@@ -1280,23 +1441,23 @@ export default function FinancePayoutPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-slate-900 border border-white/10 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
             >
               {/* Header */}
-              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-slate-950/60">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                    <FileSpreadsheet className="h-4 w-4" />
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500/20 to-sky-500/20 border border-white/15 flex items-center justify-center text-white">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                      Export Payout Records
-                      <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Export Records (1to7 Format)
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {getExportTargetApps().length} Records
                       </span>
                     </h2>
                     <p className="text-[11px] text-slate-400">
-                      Export 5-column bank batch format or full audit log with instant 1-click clipboard copy
+                      Matches <span className="text-slate-300 font-mono">1to7_Export_Format.xlsx</span> with 1-click clipboard paste & multi-sheet Excel
                     </p>
                   </div>
                 </div>
@@ -1311,63 +1472,141 @@ export default function FinancePayoutPage() {
 
               {/* Body */}
               <div className="p-4 overflow-y-auto space-y-4 text-xs">
-                {/* 1. Format Selection */}
+                {/* 1. Format Selection: Refund vs Order */}
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    1. Choose Export Format
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                    <span>1. Choose Export Format</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Select matching worksheet from 1to7 template</span>
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {/* Bank Batch 5-col */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Format Card 1: Refund Export */}
                     <div
-                      onClick={() => setExportFormat('bank_batch')}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                        exportFormat === 'bank_batch'
-                          ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                      onClick={() => setExportFormat('refund')}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition-all relative overflow-hidden ${
+                        exportFormat === 'refund'
+                          ? 'border-rose-500/70 bg-gradient-to-br from-rose-950/40 via-slate-900/80 to-slate-900 ring-2 ring-rose-500/30 shadow-lg shadow-rose-950/20'
                           : 'bg-slate-950/40 border-white/10 hover:border-white/20'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-white text-[12px] flex items-center gap-1.5">
-                          🏦 Bank Batch (5 Columns)
+                        <span className="font-bold text-white text-[13px] flex items-center gap-1.5">
+                          <Receipt className="h-4 w-4 text-rose-400" />
+                          Refund Export
                         </span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
-                          Recommended
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 uppercase tracking-wider">
+                          Sheet 1 (Refund)
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
-                        Exact template for bank portal NEFT batch upload or copy-paste.
+                      <p className="text-[11px] text-slate-300 leading-relaxed mb-2.5">
+                        Exact template for bank transfer & deliverable metrics.
                       </p>
-                      <div className="text-[10px] text-slate-500 font-mono bg-slate-950/60 p-1.5 rounded border border-white/5 truncate">
-                        IFSC | Account No. | Beneficiary | Amount | Ref No.
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">🏦 IFSC & Acc</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">💰 Amount & Ref</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">📊 7 Post Metrics</span>
+                      </div>
+                      <div className="text-[9.5px] text-slate-400 font-mono bg-slate-950/70 p-1.5 rounded border border-white/5 truncate">
+                        IFSC | Account No. | Beneficiary | Amount | Ref No. | Campaign...
                       </div>
                     </div>
 
-                    {/* Detailed Audit */}
+                    {/* Format Card 2: Order Export */}
                     <div
-                      onClick={() => setExportFormat('detailed_audit')}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                        exportFormat === 'detailed_audit'
-                          ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                      onClick={() => setExportFormat('order')}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition-all relative overflow-hidden ${
+                        exportFormat === 'order'
+                          ? 'border-sky-500/70 bg-gradient-to-br from-sky-950/40 via-slate-900/80 to-slate-900 ring-2 ring-sky-500/30 shadow-lg shadow-sky-950/20'
                           : 'bg-slate-950/40 border-white/10 hover:border-white/20'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-white text-[12px] flex items-center gap-1.5">
-                          📊 Detailed Audit (12 Columns)
+                        <span className="font-bold text-white text-[13px] flex items-center gap-1.5">
+                          <ShoppingCart className="h-4 w-4 text-sky-400" />
+                          Order Export
                         </span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-white/10">
-                          Full Report
+                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold border border-sky-500/30 uppercase tracking-wider">
+                          Sheet 2 (Order)
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
-                        Complete financial audit with brand, handle, mobile, IDs & status.
+                      <p className="text-[11px] text-slate-300 leading-relaxed mb-2.5">
+                        Exact template for order placement tracking & refund amounts.
                       </p>
-                      <div className="text-[10px] text-slate-500 font-mono bg-slate-950/60 p-1.5 rounded border border-white/5 truncate">
-                        Bank + Brand + Campaign + Handle + Status
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">🛍️ ORDER ID</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">💵 ORDER AMT</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">🏷️ REFUND AMT</span>
+                      </div>
+                      <div className="text-[9.5px] text-slate-400 font-mono bg-slate-950/70 p-1.5 rounded border border-white/5 truncate">
+                        Timestamp | Campaign ID | Mobile | Brand | Followers | Status | ORDER ID...
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Sub-bar: Format Customization Options */}
+                {exportFormat === 'refund' ? (
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/10 flex flex-wrap items-center justify-between gap-3">
+                    {/* Columns Mode Toggle */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">Columns:</span>
+                      <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => setRefundMode('full_17')}
+                          className={`px-2.5 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
+                            refundMode === 'full_17' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          📋 Full 17 Columns (Sheet 1)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefundMode('bank_5')}
+                          className={`px-2.5 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
+                            refundMode === 'bank_5' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          ⚡ Bank NEFT Only (5 Cols)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Delimiter Selector */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-300 whitespace-nowrap">Ref No:</span>
+                      <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => setRefDelimiter('+')}
+                          className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
+                            refDelimiter === '+' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Format: HY1466+GBLN01"
+                        >
+                          + (Plus)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefDelimiter('-')}
+                          className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
+                            refDelimiter === '-' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Format: HY1466-GBLN01"
+                        >
+                          - (Hyphen)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between text-[11px] text-slate-300">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                      <span>Order Export includes 12 columns matching <strong>Sheet 2 (Order)</strong> with safe numeric escaping.</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">ORDER ID & Mobile formatted as text</span>
+                  </div>
+                )}
 
                 {/* 2. Scope Selection */}
                 <div className="space-y-1.5">
@@ -1420,101 +1659,79 @@ export default function FinancePayoutPage() {
                   </div>
                 </div>
 
-                {/* 3. Ref No Delimiter Option (if bank_batch) */}
-                {exportFormat === 'bank_batch' && (
-                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-300">Ref No. Delimiter Format:</span>
-                      <p className="text-[10px] text-slate-400">
-                        {refDelimiter === '+' ? 'Example: HY1466+GBLN01 (matches your template)' : 'Example: HY1466-GBLN01'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-lg border border-white/10 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setRefDelimiter('+')}
-                        className={`px-2.5 py-1 text-[11px] font-bold rounded cursor-pointer transition-colors ${
-                          refDelimiter === '+' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        + (Plus)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRefDelimiter('-')}
-                        className={`px-2.5 py-1 text-[11px] font-bold rounded cursor-pointer transition-colors ${
-                          refDelimiter === '-' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        - (Hyphen)
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Live Table Preview */}
+                {/* 3. Live Table Preview with Red Excel Header */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-slate-300 uppercase tracking-wider">Preview Table (First 3 Rows)</span>
-                    <span className="text-[10px] text-slate-500">Live preview of columns & formatting</span>
+                    <span className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Preview Table</span>
+                      <span className="text-[9.5px] font-normal text-slate-400 font-mono">
+                        ({exportFormat === 'refund' ? (refundMode === 'full_17' ? '17 Columns' : '5 Columns') : '12 Columns'})
+                      </span>
+                    </span>
+                    <span className="text-[10px] text-slate-400">Live preview matching Excel template</span>
                   </div>
 
-                  <div className="overflow-x-auto rounded-lg border border-white/15 bg-slate-950/80 shadow-inner max-h-48">
+                  <div className="overflow-x-auto rounded-lg border border-white/15 bg-slate-950/80 shadow-inner max-h-48 scrollbar-thin scrollbar-thumb-slate-700">
                     <table className="w-full text-left border-collapse text-[10px]">
                       <thead>
                         <tr className="bg-[#B91C1C] text-white font-extrabold uppercase tracking-wide border-b border-red-800">
-                          {exportFormat === 'bank_batch' ? (
-                            <>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">IFSC Code</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Account No.</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Beneficiary Name</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60 text-right">Amount</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap">Ref No. (HYPE ID+CAMPAIGN CODE)</th>
-                            </>
+                          {exportFormat === 'refund' ? (
+                            refundMode === 'full_17' ? (
+                              REFUND_HEADERS_17.map((h, i) => (
+                                <th key={h} className={`px-2.5 py-2 whitespace-nowrap ${i < REFUND_HEADERS_17.length - 1 ? 'border-r border-red-800/60' : ''}`}>
+                                  {h}
+                                </th>
+                              ))
+                            ) : (
+                              REFUND_HEADERS_5.map((h, i) => (
+                                <th key={h} className={`px-2.5 py-2 whitespace-nowrap ${i < REFUND_HEADERS_5.length - 1 ? 'border-r border-red-800/60' : ''}`}>
+                                  {h}
+                                </th>
+                              ))
+                            )
                           ) : (
-                            <>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Beneficiary</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Account No.</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">IFSC</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60 text-right">Amount</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Ref No.</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Brand</th>
-                              <th className="px-2.5 py-2 whitespace-nowrap">Status</th>
-                            </>
+                            ORDER_HEADERS_12.map((h, i) => (
+                              <th key={h} className={`px-2.5 py-2 whitespace-nowrap ${i < ORDER_HEADERS_12.length - 1 ? 'border-r border-red-800/60' : ''}`}>
+                                {h}
+                              </th>
+                            ))
                           )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5 font-mono text-[10px] text-slate-300">
-                        {getExportTargetApps().slice(0, 3).map((app, idx) => (
-                          <tr key={app.id || idx} className="hover:bg-white/[0.02]">
-                            {exportFormat === 'bank_batch' ? (
-                              <>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-amber-300 font-semibold border-r border-white/5">{getIfscCode(app) || 'SBIN0021999'}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-sky-300 border-r border-white/5">{getAccountNumber(app) || '37600895359'}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-white font-sans font-semibold border-r border-white/5">{getBeneficiaryName(app)}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-bold text-right border-r border-white/5">
-                                  ₹{(activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app)).toLocaleString()}
+                        {getExportTargetApps().slice(0, 3).map((app, idx) => {
+                          const row = exportFormat === 'refund'
+                            ? getRefundRow(app, refDelimiter, refundMode)
+                            : getOrderRow(app)
+
+                          return (
+                            <tr key={app.id || idx} className="hover:bg-white/[0.02]">
+                              {row.map((val, cellIdx) => (
+                                <td
+                                  key={cellIdx}
+                                  className={`px-2.5 py-2 whitespace-nowrap max-w-[200px] truncate ${
+                                    cellIdx < row.length - 1 ? 'border-r border-white/5' : ''
+                                  } ${
+                                    cellIdx === 0 ? 'text-amber-300 font-semibold' : ''
+                                  } ${
+                                    (exportFormat === 'refund' && cellIdx === 1) || (exportFormat === 'order' && cellIdx === 8) ? 'text-sky-300' : ''
+                                  } ${
+                                    (exportFormat === 'refund' && cellIdx === 3) || (exportFormat === 'order' && (cellIdx === 9 || cellIdx === 10)) ? 'text-emerald-400 font-bold' : ''
+                                  }`}
+                                  title={String(val || '')}
+                                >
+                                  {String(val ?? '-')}
                                 </td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-purple-300">{getRefNo(app, refDelimiter)}</td>
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-white font-sans font-semibold border-r border-white/5">{getBeneficiaryName(app)}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-sky-300 border-r border-white/5">{getAccountNumber(app)}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-amber-300 border-r border-white/5">{getIfscCode(app)}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-bold text-right border-r border-white/5">
-                                  ₹{(activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app)).toLocaleString()}
-                                </td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-purple-300 border-r border-white/5">{getRefNo(app, refDelimiter)}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-slate-300 border-r border-white/5">{app.campaigns?.brand_name || '-'}</td>
-                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-semibold">{activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved')}</td>
-                              </>
-                            )}
-                          </tr>
-                        ))}
+                              ))}
+                            </tr>
+                          )
+                        })}
                         {getExportTargetApps().length === 0 && (
                           <tr>
-                            <td colSpan={5} className="px-4 py-4 text-center text-slate-500 italic font-sans">
+                            <td
+                              colSpan={exportFormat === 'refund' ? (refundMode === 'full_17' ? 17 : 5) : 12}
+                              className="px-4 py-4 text-center text-slate-500 italic font-sans"
+                            >
                               No records match the current export scope.
                             </td>
                           </tr>
@@ -1523,28 +1740,28 @@ export default function FinancePayoutPage() {
                     </table>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-slate-400 px-0.5">
-                    <span>💡 Tip: Account numbers are text-formatted to prevent scientific notation (e.g. 3.76E+10) in Excel.</span>
-                    <span className="font-semibold text-slate-300">Total: {getExportTargetApps().length} records</span>
+                    <span>💡 Tip: Select cell <strong>A1</strong> in your spreadsheet and press <strong>Ctrl + V</strong> after copying.</span>
+                    <span className="font-semibold text-slate-300">Ready to export: {getExportTargetApps().length} records</span>
                   </div>
                 </div>
               </div>
 
               {/* Footer Actions */}
-              <div className="p-4 border-t border-white/10 bg-slate-950/70 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+              <div className="p-4 border-t border-white/10 bg-slate-950/70 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowExportModal(false)}
-                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5 bg-transparent text-xs h-10 px-4 cursor-pointer"
+                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5 bg-transparent text-xs h-10 px-3 cursor-pointer"
                 >
                   Cancel
                 </Button>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  {/* Copy to Clipboard */}
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                  {/* Copy to Clipboard (TSV / Excel Table) */}
                   <Button
                     type="button"
                     onClick={() => handleCopyToClipboard(exportFormat)}
-                    className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/15 font-bold text-xs h-10 px-3.5 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                    className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/15 font-bold text-xs h-10 px-3.5 cursor-pointer flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
                     title="Copy directly as Excel table to paste with Ctrl + V"
                   >
                     <Copy className="h-3.5 w-3.5 text-sky-400" />
@@ -1555,10 +1772,32 @@ export default function FinancePayoutPage() {
                   <Button
                     type="button"
                     onClick={() => handleDownloadCSV(exportFormat)}
-                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs h-10 px-4 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
+                    className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 font-bold text-xs h-10 px-3.5 cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                    title="Download RFC-4180 CSV with UTF-8 BOM"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Download CSV</span>
+                    <Download className="h-3.5 w-3.5 text-amber-400" />
+                    <span>CSV</span>
+                  </Button>
+
+                  {/* Download Excel (.xlsx) */}
+                  <Button
+                    type="button"
+                    onClick={() => handleDownloadExcel(exportFormat)}
+                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs h-10 px-4 cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
+                    title="Download native Excel workbook (.xlsx)"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-white" />
+                    <span>Download Excel (.xlsx)</span>
+                  </Button>
+
+                  {/* Download Both Sheets (.xlsx) */}
+                  <Button
+                    type="button"
+                    onClick={() => handleDownloadExcel('both')}
+                    className="rounded-xl bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-200 border border-indigo-500/30 font-bold text-xs h-10 px-3 cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                    title="Download workbook with BOTH Refund and Order sheets"
+                  >
+                    <span>Both Sheets</span>
                   </Button>
                 </div>
               </div>
