@@ -28,15 +28,22 @@ export async function PUT(
       }
     }
 
-    // Guardrail: Paid Variable campaigns require colleague approval on negotiated commercial
-    if (body.status === 'Approved') {
+    // Check if this update is for order verification (which requires only single admin approval, NO 2nd approval required)
+    const isOrderVerification = Boolean(
+      body.form_data?.order_details_approved === true ||
+      updates.form_data?.order_details_approved === true
+    )
+
+    // Guardrail: Paid Variable campaigns require colleague approval on negotiated commercial before initial profile approval
+    // Order verification does NOT require a 2nd approval / peer approval.
+    if (body.status === 'Approved' && !isOrderVerification) {
       const { data: appRecord, error: checkErr } = await supabase
         .from('applications')
-        .select('form_data, campaigns ( budget_type )')
+        .select('status, form_data, campaigns ( budget_type )')
         .eq('id', id)
         .single()
 
-      if (!checkErr && appRecord) {
+      if (!checkErr && appRecord && appRecord.status !== 'Approved') {
         const campaignData: any = Array.isArray(appRecord.campaigns) ? appRecord.campaigns[0] : appRecord.campaigns
         const budgetType = String(campaignData?.budget_type || '').toLowerCase()
         if (budgetType.includes('variable')) {

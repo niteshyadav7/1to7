@@ -24,15 +24,24 @@ export async function POST(request: Request) {
     let targetApplicationIds = applicationIds
     let skippedCount = 0
 
-    if (status === 'Approved') {
+    const isOrderVerification = Boolean(
+      body.form_data?.order_details_approved === true ||
+      body.is_order_verification === true
+    )
+
+    if (status === 'Approved' && !isOrderVerification) {
       const { data: appsToCheck, error: checkErr } = await supabase
         .from('applications')
-        .select('id, form_data, campaigns ( budget_type )')
+        .select('id, status, form_data, campaigns ( budget_type )')
         .in('id', applicationIds)
 
       if (!checkErr && appsToCheck) {
         const eligibleIds: string[] = []
         for (const app of appsToCheck) {
+          if (app.status === 'Approved') {
+            eligibleIds.push(app.id)
+            continue
+          }
           const isPaidVar = String((app as any).campaigns?.budget_type || '').toLowerCase().includes('variable')
           const negotiation = (app.form_data as any)?.negotiation
           if (isPaidVar && negotiation?.status !== 'approved') {

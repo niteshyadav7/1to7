@@ -2146,13 +2146,18 @@ export default function OrderDetailsPage() {
                 ) : null
               })()}
               <div className="p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <IndianRupee className="h-5 w-5 text-amber-500" />
-                Total Deal
-              </h3>
-              <p className="text-xs text-slate-400 mb-4">
-                Enter the approved amount and commission. The sum will be shown to the influencer.
-              </p>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                    Verify & Approve Order
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                    Single Approval
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mb-4">
+                  Enter approved amount and commission. Order is verified immediately by your single approval (no 2nd approval required).
+                </p>
               
               <div className="space-y-4 mb-6">
                 <div>
@@ -2162,7 +2167,7 @@ export default function OrderDetailsPage() {
                     value={paymentAmount}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentAmount(e.target.value)}
                     placeholder="e.g. 1000"
-                    className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                    className="bg-slate-800 border-white/10 text-white focus:ring-emerald-500"
                   />
                 </div>
                 <div>
@@ -2172,13 +2177,13 @@ export default function OrderDetailsPage() {
                     value={paymentCommission}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentCommission(e.target.value)}
                     placeholder="e.g. 200"
-                    className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                    className="bg-slate-800 border-white/10 text-white focus:ring-emerald-500"
                   />
                 </div>
                 {paymentAmount || paymentCommission ? (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                    <p className="text-[10px] text-amber-500 uppercase tracking-wider font-bold mb-1">Total to Influencer</p>
-                    <p className="text-lg font-bold text-amber-400">
+                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                    <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold mb-1">Total to Influencer</p>
+                    <p className="text-lg font-bold text-emerald-400">
                       ₹{((parseFloat(paymentAmount) || 0) + (parseFloat(paymentCommission) || 0)).toLocaleString()}
                     </p>
                   </div>
@@ -2189,8 +2194,9 @@ export default function OrderDetailsPage() {
                 <Button variant="outline" onClick={() => setInitiatePaymentApp(null)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
                   Cancel
                 </Button>
-                <Button onClick={handleInitiatePaymentSubmit} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-none font-bold cursor-pointer">
-                  Confirm Payment
+                <Button onClick={handleInitiatePaymentSubmit} className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white border-none font-bold cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Verify & Approve Order
                 </Button>
               </div>
               </div>
@@ -2482,12 +2488,17 @@ export default function OrderDetailsPage() {
               className="relative w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
             >
               <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                  <IndianRupee className="h-5 w-5 text-amber-500" />
-                  Bulk Verify & Approve
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                    Bulk Verify & Approve
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                    Single Approval
+                  </span>
+                </div>
                 <p className="text-xs text-slate-400 mb-4">
-                  Approve {selectedIds.size} selected order(s). Enter the deal amount and commission that will be applied to all.
+                  Approve {selectedIds.size} selected order(s) immediately with no 2nd approval required. Enter the deal amount and commission to apply to all.
                 </p>
 
                 <div className="space-y-4 mb-6">
@@ -2498,7 +2509,7 @@ export default function OrderDetailsPage() {
                       value={bulkPaymentAmount}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBulkPaymentAmount(e.target.value)}
                       placeholder="e.g. 1000"
-                      className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                      className="bg-slate-800 border-white/10 text-white focus:ring-emerald-500"
                     />
                   </div>
                   <div>
@@ -2508,13 +2519,13 @@ export default function OrderDetailsPage() {
                       value={bulkPaymentCommission}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBulkPaymentCommission(e.target.value)}
                       placeholder="e.g. 200"
-                      className="bg-slate-800 border-white/10 text-white focus:ring-amber-500"
+                      className="bg-slate-800 border-white/10 text-white focus:ring-emerald-500"
                     />
                   </div>
                   {(bulkPaymentAmount || bulkPaymentCommission) ? (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                      <p className="text-[10px] text-amber-500 uppercase tracking-wider font-bold mb-1">Total per Influencer</p>
-                      <p className="text-lg font-bold text-amber-400">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <p className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold mb-1">Total per Influencer</p>
+                      <p className="text-lg font-bold text-emerald-400">
                         ₹{((parseFloat(bulkPaymentAmount) || 0) + (parseFloat(bulkPaymentCommission) || 0)).toLocaleString()}
                       </p>
                     </div>
@@ -2525,9 +2536,9 @@ export default function OrderDetailsPage() {
                   <Button variant="outline" onClick={() => setBulkVerifyModal(false)} className="flex-1 bg-transparent border-white/10 text-slate-400 hover:text-white cursor-pointer">
                     Cancel
                   </Button>
-                  <Button onClick={handleBulkVerifySubmit} disabled={bulkUpdating} className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white border-none font-bold cursor-pointer">
-                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-                    Approve {selectedIds.size} Order(s)
+                  <Button onClick={handleBulkVerifySubmit} disabled={bulkUpdating} className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white border-none font-bold cursor-pointer shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5">
+                    {bulkUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+                    Verify & Approve {selectedIds.size} Order(s)
                   </Button>
                 </div>
               </div>
