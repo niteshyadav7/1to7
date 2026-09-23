@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('id, form_data, status, pending_amount, partial_payment, final_payment, campaigns(brand_name, campaign_code)')
+      .select('id, form_data, status, pending_amount, partial_payment, final_payment, updated_at, campaigns(brand_name, campaign_code)')
       .eq('id', application_id)
       .single()
 
@@ -28,12 +28,22 @@ export async function POST(request: Request) {
 
     const currentFormData = application.form_data || {}
     let currentInit = currentFormData.payment_initiation
-    if (!currentInit && currentFormData.payment_initiated) {
+    if (!currentInit && (currentFormData.payment_initiated || application.status === 'Payment Initiated')) {
+      const defaultAmount = Number(
+        currentFormData.payment_initiated?.amount ||
+        currentFormData.payment_request?.payment_amount ||
+        application.pending_amount ||
+        application.partial_payment ||
+        0
+      )
+      const initiatedBy = currentFormData.payment_initiated?.initiated_by_id
+      const initiatedByName = currentFormData.payment_initiated?.initiated_by_name
+
       currentInit = {
-        prepared_amount: currentFormData.payment_initiated.amount,
-        prepared_by_id: currentFormData.payment_initiated.initiated_by_id || 'ec23f059-2369-4360-8ab2-e86faf60a3a7',
-        prepared_by_name: currentFormData.payment_initiated.initiated_by_name || 'Vishakha',
-        prepared_at: currentFormData.payment_initiated.initiated_at,
+        prepared_amount: defaultAmount,
+        prepared_by_id: initiatedBy || 'ec23f059-2369-4360-8ab2-e86faf60a3a7',
+        prepared_by_name: initiatedByName || 'Vishakha',
+        prepared_at: currentFormData.payment_initiated?.initiated_at || application.updated_at || new Date().toISOString(),
         status: 'pending_second_approval',
       }
     }
@@ -89,13 +99,17 @@ export async function POST(request: Request) {
       }
 
       // Enforce Dual-Approval Guardrail
-      if (currentInit.prepared_by_id === adminIdentifier) {
+      if (
+        currentInit.prepared_by_id &&
+        currentInit.prepared_by_id !== 'initial_request' &&
+        (currentInit.prepared_by_id === adminIdentifier || (adminName && currentInit.prepared_by_name && adminName.toLowerCase() === currentInit.prepared_by_name.toLowerCase()))
+      ) {
         return NextResponse.json({
           error: 'Maker-Checker Guardrail: You prepared this payout request. Another colleague must provide the second approval.',
         }, { status: 403 })
       }
 
-      const approvedAmount = Number(currentInit.prepared_amount) || application.pending_amount || 0
+      const approvedAmount = Number(currentInit.prepared_amount) || Number(application.pending_amount) || 0
 
       const updatedInit = {
         ...currentInit,
@@ -109,6 +123,12 @@ export async function POST(request: Request) {
       const updatedFormData = {
         ...currentFormData,
         payment_initiation: updatedInit,
+        payment_initiated: currentFormData.payment_initiated || {
+          amount: approvedAmount,
+          initiated_at: currentInit.prepared_at || new Date().toISOString(),
+          initiated_by_id: currentInit.prepared_by_id,
+          initiated_by_name: currentInit.prepared_by_name,
+        },
       }
 
       const { error: updateErr } = await supabase

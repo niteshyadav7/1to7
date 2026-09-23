@@ -1656,7 +1656,7 @@ export default function PaymentsPage() {
                                           const makerName = init?.prepared_by_name || initiated?.initiated_by_name || 'Vishakha'
                                           const currentAdminId = admin?.id || admin?.email
                                           const isMaker = Boolean(currentAdminId && makerId && (currentAdminId === makerId || (admin?.name && makerName && admin.name.toLowerCase() === makerName.toLowerCase())))
-                                          const amt = Number(init?.prepared_amount || initiated?.amount || payment.partial_payment || 500)
+                                          const amt = Number(init?.prepared_amount || initiated?.amount || payment.form_data?.payment_request?.payment_amount || payment.pending_amount || payment.partial_payment || 500)
 
                                           if (isMaker) {
                                             return (

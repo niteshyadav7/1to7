@@ -89,6 +89,55 @@ export async function POST(request: Request) {
 
       const results = await Promise.all(updatePromises)
       data = results.filter(r => r.data).map(r => r.data)
+    } else if (status === 'Payment Initiated') {
+      const { data: existingApps, error: fetchErr } = await supabase
+        .from('applications')
+        .select('id, form_data, pending_amount, partial_payment')
+        .in('id', targetApplicationIds)
+
+      if (fetchErr) {
+        console.error('Fetch error during bulk payment initiation:', fetchErr)
+      }
+
+      const adminId = admin.id || admin.email || 'admin'
+      const adminName = admin.name || admin.full_name || 'Operations Admin'
+
+      const updatePromises = (existingApps || []).map(app => {
+        const currForm = (app.form_data && typeof app.form_data === 'object') ? app.form_data : {}
+        const amt = Number(currForm.payment_request?.payment_amount || app.pending_amount || app.partial_payment || 0)
+        const updatedInit = {
+          prepared_amount: amt,
+          prepared_by_id: adminId,
+          prepared_by_name: adminName,
+          prepared_at: new Date().toISOString(),
+          notes: 'Bulk payment initiation',
+          status: 'pending_second_approval',
+        }
+        const mergedForm = {
+          ...currForm,
+          payment_initiation: updatedInit,
+          payment_initiated: {
+            amount: amt,
+            notes: 'Bulk payment initiation',
+            initiated_at: new Date().toISOString(),
+            initiated_by_id: adminId,
+            initiated_by_name: adminName,
+          }
+        }
+        return supabase
+          .from('applications')
+          .update({
+            status: 'Payment Initiated',
+            form_data: mergedForm,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', app.id)
+          .select('id, status, form_data, users ( email, full_name ), campaigns ( brand_name, campaign_code )')
+          .single()
+      })
+
+      const results = await Promise.all(updatePromises)
+      data = results.filter(r => r.data).map(r => r.data)
     } else {
       // Standard bulk update
       const { data: bulkData, error } = await supabase
