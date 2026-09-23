@@ -139,6 +139,18 @@ export default function FinancePayoutPage() {
     fetchApplications()
   }, [fetchApplications])
 
+  // Close modals on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showExportModal) setShowExportModal(false)
+        if (showBulkModal && !disbursing) setShowBulkModal(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showExportModal, showBulkModal, disbursing])
+
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
   // Unique Brands across all applications
@@ -1436,12 +1448,22 @@ export default function FinancePayoutPage() {
       {/* Custom Export Modal matching 1to7_Export_Format.xlsx */}
       <AnimatePresence>
         {showExportModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+            {/* Clickable Backdrop Overlay - closes modal when clicking outside */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
+              onClick={() => setShowExportModal(false)}
+            />
+
+            {/* Modal Dialog Card */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 border border-white/10 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+              className="relative z-10 bg-slate-900 border border-white/10 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
             >
               {/* Header */}
               <div className="p-4 border-b border-white/10 flex items-center justify-between bg-slate-950/60">
