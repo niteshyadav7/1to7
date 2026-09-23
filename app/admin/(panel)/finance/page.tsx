@@ -89,7 +89,7 @@ export default function FinancePayoutPage() {
   const [exportFormat, setExportFormat] = useState<'refund' | 'order'>('refund')
   const [refundMode, setRefundMode] = useState<'full_17' | 'bank_5'>('full_17')
   const [exportScope, setExportScope] = useState<'selected' | 'filtered' | 'all'>('filtered')
-  const [refDelimiter, setRefDelimiter] = useState<'+' | '-'>('+')
+  const [refDelimiter, setRefDelimiter] = useState<'' | '+' | '-'>('')
 
   // Bulk Disburse Modal State
   const [showBulkModal, setShowBulkModal] = useState(false)
@@ -341,7 +341,7 @@ export default function FinancePayoutPage() {
     return parsed.ifsc ? parsed.ifsc.toUpperCase() : ''
   }, [])
 
-  const getRefNo = useCallback((app: Application, delimiter: '+' | '-' = '+') => {
+  const getRefNo = useCallback((app: Application, delimiter: string = '') => {
     const hypeId = app.users?.influencer_id || 'HYPE'
     const campaignCode = app.campaigns?.campaign_code || 'CAMPAIGN'
     return `${hypeId}${delimiter}${campaignCode}`
@@ -378,7 +378,7 @@ export default function FinancePayoutPage() {
     'Account No.',
     'Beneficiary Name',
     'Amount',
-    'Ref No. (HYPE ID+CAMPAIGN CODE)',
+    'Ref No.',
     'Campaign ID',
     'Phone No',
     'Timestamp',
@@ -398,7 +398,7 @@ export default function FinancePayoutPage() {
     'Account No.',
     'Beneficiary Name',
     'Amount',
-    'Ref No. (HYPE ID+CAMPAIGN CODE)',
+    'Ref No.',
   ]
 
   const ORDER_HEADERS_12 = [
@@ -417,7 +417,7 @@ export default function FinancePayoutPage() {
   ]
 
   const getRefundRow = useCallback(
-    (app: Application, delimiter: '+' | '-' = '+', mode: 'full_17' | 'bank_5' = 'full_17') => {
+    (app: Application, delimiter: string = '', mode: 'full_17' | 'bank_5' = 'full_17') => {
       const fd = app.form_data || {}
       const pr = fd.payment_request || {}
       const cs = fd.completion_submission || {}
@@ -579,7 +579,7 @@ export default function FinancePayoutPage() {
       rows = targetApps.map((app) => {
         const rawRow = getRefundRow(app, refDelimiter, refundMode)
         return rawRow.map((val, idx) => {
-          if (idx === 1) return `="${val}"` // account number preservation
+          if (idx === 1 || (refundMode === 'full_17' && idx === 6)) return `="${val}"` // account number & phone number preservation
           if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
             return `"${val.replace(/"/g, '""')}"`
           }
@@ -1599,11 +1599,21 @@ export default function FinancePayoutPage() {
                       <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-white/10">
                         <button
                           type="button"
+                          onClick={() => setRefDelimiter('')}
+                          className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
+                            refDelimiter === '' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title="Format: HY13125F10022C201 (Direct without delimiter)"
+                        >
+                          Direct (No Separator)
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setRefDelimiter('+')}
                           className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
                             refDelimiter === '+' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                           }`}
-                          title="Format: HY1466+GBLN01"
+                          title="Format: HY13125+F10022C201"
                         >
                           + (Plus)
                         </button>
@@ -1613,7 +1623,7 @@ export default function FinancePayoutPage() {
                           className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
                             refDelimiter === '-' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                           }`}
-                          title="Format: HY1466-GBLN01"
+                          title="Format: HY13125-F10022C201"
                         >
                           - (Hyphen)
                         </button>
