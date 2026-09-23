@@ -80,6 +80,12 @@ export default function FinancePayoutPage() {
   const [pageSize, setPageSize] = useState(15)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   
+  // Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportFormat, setExportFormat] = useState<'bank_batch' | 'detailed_audit'>('bank_batch')
+  const [exportScope, setExportScope] = useState<'selected' | 'filtered' | 'all'>('filtered')
+  const [refDelimiter, setRefDelimiter] = useState<'+' | '-'>('+')
+
   // Bulk Disburse Modal State
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [utrNumber, setUtrNumber] = useState('')
@@ -274,111 +280,206 @@ export default function FinancePayoutPage() {
       .reduce((sum, app) => sum + getPayableAmount(app), 0)
   }, [applications, selectedIds])
 
-  // Export Bank NEFT / Excel CSV
-  const handleExportNEFT = () => {
-    if (activeTab === 'disbursed_history') {
-      const appsToExport = selectedIds.length > 0
-        ? disbursedApps.filter((a) => selectedIds.includes(a.id))
-        : processedApps
-
-      if (appsToExport.length === 0) {
-        toast.error('No disbursed records to export')
-        return
+  // Helper to parse bank details from multiline text if users table fields are missing
+  const parseBankDetailsFromText = (text?: string) => {
+    if (!text) return { name: '', account: '', ifsc: '' }
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+    let name = ''
+    let account = ''
+    let ifsc = ''
+    for (const line of lines) {
+      const ifscMatch = line.match(/[A-Z]{4}0[A-Z0-9]{6}/i)
+      if (ifscMatch) {
+        ifsc = ifscMatch[0].toUpperCase()
+        continue
       }
+      const accMatch = line.match(/\b\d{9,18}\b/)
+      if (accMatch) {
+        account = accMatch[0]
+        continue
+      }
+      if (!name && /^[a-zA-Z\s.]+$/.test(line) && line.length > 2) {
+        name = line
+      }
+    }
+    return { name, account, ifsc }
+  }
 
-      const headers = [
-        'Beneficiary Name',
-        'Influencer ID',
-        'Mobile',
-        'Campaign Code',
-        'Brand Name',
-        'Account Number',
-        'IFSC Code',
-        'Disbursed Amount (INR)',
-        'Bank UTR Number',
-        'Batch ID',
-        'Payment Mode',
-        'Disbursed At',
-        'Disbursed By',
-        'Status',
-      ]
+  const getBeneficiaryName = useCallback((app: Application) => {
+    if (app.users?.account_name?.trim()) return app.users.account_name.trim()
+    if (app.users?.full_name?.trim()) return app.users.full_name.trim()
+    const parsed = parseBankDetailsFromText(app.form_data?.payment_request?.bank_details)
+    return parsed.name || 'Unknown Beneficiary'
+  }, [])
 
-      const rows = appsToExport.map((app) => {
-        const payout = app.form_data?.finance_payout_completed || {}
-        return [
-          `"${app.users?.account_name || app.users?.full_name || ''}"`,
-          `"${app.users?.influencer_id || ''}"`,
-          `"${app.users?.mobile || ''}"`,
-          `"${app.campaigns?.campaign_code || ''}"`,
-          `"${app.campaigns?.brand_name || ''}"`,
-          `"${app.users?.account_number || ''}"`,
-          `"${app.users?.ifsc_code || ''}"`,
-          getDisbursedAmount(app),
-          `"${payout.utr_number || app.form_data?.payment_initiated?.bank_code || ''}"`,
-          `"${payout.batch_id || ''}"`,
-          `"${payout.payment_mode || 'NEFT'}"`,
-          `"${payout.executed_at ? new Date(payout.executed_at).toLocaleString('en-IN') : ''}"`,
-          `"${payout.executed_by || 'Finance Team'}"`,
-          '"Disbursed"',
-        ]
-      })
+  const getAccountNumber = useCallback((app: Application) => {
+    if (app.users?.account_number?.trim()) return app.users.account_number.trim()
+    const parsed = parseBankDetailsFromText(app.form_data?.payment_request?.bank_details)
+    return parsed.account || ''
+  }, [])
 
-      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
-      const encodedUri = encodeURI(csvContent)
-      const link = document.createElement('a')
-      link.setAttribute('href', encodedUri)
-      link.setAttribute('download', `Finance_Disbursed_History_${new Date().toISOString().split('T')[0]}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      toast.success(`Exported ${appsToExport.length} disbursed records to CSV!`)
+  const getIfscCode = useCallback((app: Application) => {
+    if (app.users?.ifsc_code?.trim()) return app.users.ifsc_code.trim().toUpperCase()
+    const parsed = parseBankDetailsFromText(app.form_data?.payment_request?.bank_details)
+    return parsed.ifsc ? parsed.ifsc.toUpperCase() : ''
+  }, [])
+
+  const getRefNo = useCallback((app: Application, delimiter: '+' | '-' = '+') => {
+    const hypeId = app.users?.influencer_id || 'HYPE'
+    const campaignCode = app.campaigns?.campaign_code || 'CAMPAIGN'
+    return `${hypeId}${delimiter}${campaignCode}`
+  }, [])
+
+  // Resolve target applications to export based on selected exportScope
+  const getExportTargetApps = useCallback(() => {
+    if (exportScope === 'selected' && selectedIds.length > 0) {
+      const sourceList = activeTab === 'disbursed_history' ? disbursedApps : applications
+      return sourceList.filter((a) => selectedIds.includes(a.id))
+    }
+    if (exportScope === 'all') {
+      return activeTab === 'disbursed_history'
+        ? disbursedApps
+        : activeTab === 'finance_queue'
+        ? financeQueueApps
+        : pendingDualApprovalApps
+    }
+    return processedApps
+  }, [exportScope, selectedIds, activeTab, disbursedApps, applications, financeQueueApps, pendingDualApprovalApps, processedApps])
+
+  const handleOpenExportModal = () => {
+    if (selectedIds.length > 0) {
+      setExportScope('selected')
+    } else {
+      setExportScope('filtered')
+    }
+    setShowExportModal(true)
+  }
+
+  // 1. Copy to Clipboard (TSV / Excel Ready Format)
+  const handleCopyToClipboard = (format: 'bank_batch' | 'detailed_audit') => {
+    const targetApps = getExportTargetApps()
+    if (targetApps.length === 0) {
+      toast.error('No applications to copy')
       return
     }
 
-    const appsToExport = selectedIds.length > 0
-      ? applications.filter((a) => selectedIds.includes(a.id))
-      : processedApps
+    let headers: string[] = []
+    let rows: (string | number)[][] = []
 
-    if (appsToExport.length === 0) {
+    if (format === 'bank_batch') {
+      headers = ['IFSC Code', 'Account No.', 'Beneficiary Name', 'Amount', 'Ref No. (HYPE ID+CAMPAIGN CODE)']
+      rows = targetApps.map((app) => [
+        getIfscCode(app),
+        getAccountNumber(app),
+        getBeneficiaryName(app),
+        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
+        getRefNo(app, refDelimiter),
+      ])
+    } else {
+      headers = [
+        'Beneficiary Name',
+        'Account Number',
+        'IFSC Code',
+        'Amount (INR)',
+        'Ref No.',
+        'Campaign Code',
+        'Brand Name',
+        'Influencer ID',
+        'Instagram Handle',
+        'Mobile',
+        'Payment Mode',
+        'Status',
+      ]
+      rows = targetApps.map((app) => [
+        getBeneficiaryName(app),
+        getAccountNumber(app),
+        getIfscCode(app),
+        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
+        getRefNo(app, refDelimiter),
+        app.campaigns?.campaign_code || '',
+        app.campaigns?.brand_name || '',
+        app.users?.influencer_id || '',
+        app.users?.instagram_username ? `@${app.users.instagram_username}` : '',
+        app.users?.mobile || '',
+        app.form_data?.finance_payout_completed?.payment_mode || 'NEFT',
+        activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved'),
+      ])
+    }
+
+    const tsvContent = [
+      headers.join('\t'),
+      ...rows.map((row) => row.join('\t')),
+    ].join('\n')
+
+    navigator.clipboard.writeText(tsvContent)
+    toast.success(`Copied ${targetApps.length} records! Ready to paste (Ctrl+V) directly into Excel or bank portal.`)
+  }
+
+  // 2. Download CSV (RFC-4180 with UTF-8 BOM)
+  const handleDownloadCSV = (format: 'bank_batch' | 'detailed_audit') => {
+    const targetApps = getExportTargetApps()
+    if (targetApps.length === 0) {
       toast.error('No applications to export')
       return
     }
 
-    const headers = [
-      'Beneficiary Name',
-      'Account Number',
-      'IFSC Code',
-      'Amount (INR)',
-      'Campaign Code',
-      'Brand Name',
-      'Influencer ID',
-      'Mobile',
-      'Payment Mode',
-      'Remarks',
-    ]
+    let headers: string[] = []
+    let rows: (string | number)[][] = []
+    let filename = ''
 
-    const rows = appsToExport.map((app) => [
-      `"${app.users?.account_name || app.users?.full_name || ''}"`,
-      `"${app.users?.account_number || ''}"`,
-      `"${app.users?.ifsc_code || ''}"`,
-      getPayableAmount(app),
-      `"${app.campaigns?.campaign_code || ''}"`,
-      `"${app.campaigns?.brand_name || ''}"`,
-      `"${app.users?.influencer_id || ''}"`,
-      `"${app.users?.mobile || ''}"`,
-      'NEFT',
-      `"Payout for ${app.campaigns?.brand_name || 'Campaign'}"`,
-    ])
+    if (format === 'bank_batch') {
+      headers = ['IFSC Code', 'Account No.', 'Beneficiary Name', 'Amount', 'Ref No. (HYPE ID+CAMPAIGN CODE)']
+      rows = targetApps.map((app) => [
+        `"${getIfscCode(app)}"`,
+        `="${getAccountNumber(app)}"`,
+        `"${getBeneficiaryName(app).replace(/"/g, '""')}"`,
+        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
+        `"${getRefNo(app, refDelimiter)}"`,
+      ])
+      filename = `Bank_Batch_Payout_${new Date().toISOString().split('T')[0]}.csv`
+    } else {
+      headers = [
+        'Beneficiary Name',
+        'Account Number',
+        'IFSC Code',
+        'Amount (INR)',
+        'Ref No.',
+        'Campaign Code',
+        'Brand Name',
+        'Influencer ID',
+        'Instagram Handle',
+        'Mobile',
+        'Payment Mode',
+        'Status',
+      ]
+      rows = targetApps.map((app) => [
+        `"${getBeneficiaryName(app).replace(/"/g, '""')}"`,
+        `="${getAccountNumber(app)}"`,
+        `"${getIfscCode(app)}"`,
+        activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app),
+        `"${getRefNo(app, refDelimiter)}"`,
+        `"${app.campaigns?.campaign_code || ''}"`,
+        `"${app.campaigns?.brand_name || ''}"`,
+        `"${app.users?.influencer_id || ''}"`,
+        `"${app.users?.instagram_username ? `@${app.users.instagram_username}` : ''}"`,
+        `"${app.users?.mobile || ''}"`,
+        `"${app.form_data?.finance_payout_completed?.payment_mode || 'NEFT'}"`,
+        `"${activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved')}"`,
+      ])
+      filename = `Finance_Audit_Report_${new Date().toISOString().split('T')[0]}.csv`
+    }
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
-    const encodedUri = encodeURI(csvContent)
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Finance_NEFT_Payout_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    toast.success(`Exported ${appsToExport.length} payout records to CSV!`)
+    URL.revokeObjectURL(url)
+    toast.success(`Downloaded ${targetApps.length} records as CSV!`)
   }
 
   // Bulk Disburse Execution
@@ -635,11 +736,12 @@ export default function FinancePayoutPage() {
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             type="button"
-            onClick={handleExportNEFT}
-            className="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-[11px] font-semibold cursor-pointer flex items-center gap-1 shadow-sm"
+            onClick={handleOpenExportModal}
+            className="h-7 px-2.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition-all hover:scale-[1.02]"
+            title="Export custom bank batch or audit report"
           >
-            <FileSpreadsheet className="h-3 w-3 text-emerald-400" />
-            {activeTab === 'disbursed_history' ? 'Export History' : 'Export NEFT'}
+            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Export Data</span>
           </Button>
 
           {activeTab === 'finance_queue' && (
@@ -1164,6 +1266,301 @@ export default function FinancePayoutPage() {
                     <><CheckCircle2 className="mr-1.5 h-4 w-4" /> Confirm & Disburse</>
                   )}
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Export Modal with 5-Column Bank Batch & 1-Click Clipboard */}
+      <AnimatePresence>
+        {showExportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-white/10 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                      Export Payout Records
+                      <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        {getExportTargetApps().length} Records
+                      </span>
+                    </h2>
+                    <p className="text-[11px] text-slate-400">
+                      Export 5-column bank batch format or full audit log with instant 1-click clipboard copy
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 overflow-y-auto space-y-4 text-xs">
+                {/* 1. Format Selection */}
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    1. Choose Export Format
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Bank Batch 5-col */}
+                    <div
+                      onClick={() => setExportFormat('bank_batch')}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        exportFormat === 'bank_batch'
+                          ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                          : 'bg-slate-950/40 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-white text-[12px] flex items-center gap-1.5">
+                          🏦 Bank Batch (5 Columns)
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                          Recommended
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
+                        Exact template for bank portal NEFT batch upload or copy-paste.
+                      </p>
+                      <div className="text-[10px] text-slate-500 font-mono bg-slate-950/60 p-1.5 rounded border border-white/5 truncate">
+                        IFSC | Account No. | Beneficiary | Amount | Ref No.
+                      </div>
+                    </div>
+
+                    {/* Detailed Audit */}
+                    <div
+                      onClick={() => setExportFormat('detailed_audit')}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        exportFormat === 'detailed_audit'
+                          ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                          : 'bg-slate-950/40 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-white text-[12px] flex items-center gap-1.5">
+                          📊 Detailed Audit (12 Columns)
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-semibold border border-white/10">
+                          Full Report
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed mb-2">
+                        Complete financial audit with brand, handle, mobile, IDs & status.
+                      </p>
+                      <div className="text-[10px] text-slate-500 font-mono bg-slate-950/60 p-1.5 rounded border border-white/5 truncate">
+                        Bank + Brand + Campaign + Handle + Status
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Scope Selection */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                    <span>2. Select Scope</span>
+                    <span className="text-slate-400 font-normal lowercase">Targeting {getExportTargetApps().length} rows</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      disabled={selectedIds.length === 0}
+                      onClick={() => setExportScope('selected')}
+                      className={`py-2 px-2.5 rounded-xl border text-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        exportScope === 'selected'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 font-bold'
+                          : 'bg-slate-950/40 border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="text-[11px]">Selected Rows</div>
+                      <div className="text-[12px] font-bold mt-0.5">({selectedIds.length})</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setExportScope('filtered')}
+                      className={`py-2 px-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        exportScope === 'filtered'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 font-bold'
+                          : 'bg-slate-950/40 border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="text-[11px]">Filtered View</div>
+                      <div className="text-[12px] font-bold mt-0.5">({processedApps.length})</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setExportScope('all')}
+                      className={`py-2 px-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        exportScope === 'all'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 font-bold'
+                          : 'bg-slate-950/40 border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="text-[11px]">All in Tab</div>
+                      <div className="text-[12px] font-bold mt-0.5">
+                        ({activeTab === 'finance_queue' ? financeQueueApps.length : activeTab === 'dual_approval' ? pendingDualApprovalApps.length : disbursedApps.length})
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Ref No Delimiter Option (if bank_batch) */}
+                {exportFormat === 'bank_batch' && (
+                  <div className="p-2.5 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-300">Ref No. Delimiter Format:</span>
+                      <p className="text-[10px] text-slate-400">
+                        {refDelimiter === '+' ? 'Example: HY1466+GBLN01 (matches your template)' : 'Example: HY1466-GBLN01'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-lg border border-white/10 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setRefDelimiter('+')}
+                        className={`px-2.5 py-1 text-[11px] font-bold rounded cursor-pointer transition-colors ${
+                          refDelimiter === '+' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        + (Plus)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRefDelimiter('-')}
+                        className={`px-2.5 py-1 text-[11px] font-bold rounded cursor-pointer transition-colors ${
+                          refDelimiter === '-' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        - (Hyphen)
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Live Table Preview */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-slate-300 uppercase tracking-wider">Preview Table (First 3 Rows)</span>
+                    <span className="text-[10px] text-slate-500">Live preview of columns & formatting</span>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border border-white/15 bg-slate-950/80 shadow-inner max-h-48">
+                    <table className="w-full text-left border-collapse text-[10px]">
+                      <thead>
+                        <tr className="bg-[#B91C1C] text-white font-extrabold uppercase tracking-wide border-b border-red-800">
+                          {exportFormat === 'bank_batch' ? (
+                            <>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">IFSC Code</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Account No.</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Beneficiary Name</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60 text-right">Amount</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap">Ref No. (HYPE ID+CAMPAIGN CODE)</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Beneficiary</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Account No.</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">IFSC</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60 text-right">Amount</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Ref No.</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap border-r border-red-800/60">Brand</th>
+                              <th className="px-2.5 py-2 whitespace-nowrap">Status</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 font-mono text-[10px] text-slate-300">
+                        {getExportTargetApps().slice(0, 3).map((app, idx) => (
+                          <tr key={app.id || idx} className="hover:bg-white/[0.02]">
+                            {exportFormat === 'bank_batch' ? (
+                              <>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-amber-300 font-semibold border-r border-white/5">{getIfscCode(app) || 'SBIN0021999'}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-sky-300 border-r border-white/5">{getAccountNumber(app) || '37600895359'}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-white font-sans font-semibold border-r border-white/5">{getBeneficiaryName(app)}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-bold text-right border-r border-white/5">
+                                  ₹{(activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app)).toLocaleString()}
+                                </td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-purple-300">{getRefNo(app, refDelimiter)}</td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-white font-sans font-semibold border-r border-white/5">{getBeneficiaryName(app)}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-sky-300 border-r border-white/5">{getAccountNumber(app)}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-amber-300 border-r border-white/5">{getIfscCode(app)}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-bold text-right border-r border-white/5">
+                                  ₹{(activeTab === 'disbursed_history' ? getDisbursedAmount(app) : getPayableAmount(app)).toLocaleString()}
+                                </td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-purple-300 border-r border-white/5">{getRefNo(app, refDelimiter)}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-slate-300 border-r border-white/5">{app.campaigns?.brand_name || '-'}</td>
+                                <td className="px-2.5 py-2 whitespace-nowrap text-emerald-400 font-semibold">{activeTab === 'disbursed_history' ? 'Disbursed' : (app.status || 'Approved')}</td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                        {getExportTargetApps().length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-4 text-center text-slate-500 italic font-sans">
+                              No records match the current export scope.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 px-0.5">
+                    <span>💡 Tip: Account numbers are text-formatted to prevent scientific notation (e.g. 3.76E+10) in Excel.</span>
+                    <span className="font-semibold text-slate-300">Total: {getExportTargetApps().length} records</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-4 border-t border-white/10 bg-slate-950/70 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowExportModal(false)}
+                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5 bg-transparent text-xs h-10 px-4 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Copy to Clipboard */}
+                  <Button
+                    type="button"
+                    onClick={() => handleCopyToClipboard(exportFormat)}
+                    className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 border border-white/15 font-bold text-xs h-10 px-3.5 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                    title="Copy directly as Excel table to paste with Ctrl + V"
+                  >
+                    <Copy className="h-3.5 w-3.5 text-sky-400" />
+                    <span>Copy to Clipboard</span>
+                  </Button>
+
+                  {/* Download CSV */}
+                  <Button
+                    type="button"
+                    onClick={() => handleDownloadCSV(exportFormat)}
+                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs h-10 px-4 cursor-pointer flex-1 sm:flex-initial flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download CSV</span>
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </div>
