@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -99,6 +100,29 @@ export function getOrderVerificationStatus(order: { status?: string; form_data?:
     return 'Rejected'
   }
   return 'Pending'
+}
+
+export function getOrderApproverName(order: { form_data?: Record<string, any> }): string | null {
+  const fd = order.form_data || {}
+  // 1. Explicitly recorded when order was verified & approved
+  if (fd.order_details_approved_by_name) return String(fd.order_details_approved_by_name).trim()
+  if (fd.order_approved_by_name) return String(fd.order_approved_by_name).trim()
+  if (fd.order_approved_by) return String(fd.order_approved_by).trim()
+  if (fd.approved_by_name) return String(fd.approved_by_name).trim()
+
+  // 2. From payment initiation / maker admin (if approved in payment pipeline)
+  const pi = fd.payment_initiation
+  if (pi?.prepared_by_name) return String(pi.prepared_by_name).trim()
+  if (pi?.initiated_by_name) return String(pi.initiated_by_name).trim()
+
+  const pint = fd.payment_initiated
+  if (pint?.initiated_by_name) return String(pint.initiated_by_name).trim()
+
+  // 3. Fallbacks
+  if (fd.negotiation?.approved_by_name) return String(fd.negotiation.approved_by_name).trim()
+  if (fd.approved_by_admin_name) return String(fd.approved_by_admin_name).trim()
+
+  return null
 }
 
 const statusFilters = ['All', 'Pending', 'Approved', 'Rejected']
@@ -610,6 +634,7 @@ function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; on
 
 // ─── Main Component ────────────────────────────────────────
 export default function OrderDetailsPage() {
+  const { admin } = useAdminPermissions()
   // Core data
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<OrderEntry[]>([])
@@ -825,13 +850,23 @@ export default function OrderDetailsPage() {
       return
     }
 
+    const approverName = admin?.name || admin?.email || 'Admin'
+    const approverId = admin?.id || admin?.email || null
+    const approvedAt = new Date().toISOString()
+
     setBulkUpdating(true)
     let successCount = 0
     try {
       for (const id of selectedIds) {
         const order = orders.find(o => o.id === id)
         if (!order) continue
-        const updatedFormData = { ...order.form_data, order_details_approved: true }
+        const updatedFormData = {
+          ...order.form_data,
+          order_details_approved: true,
+          order_details_approved_by_name: approverName,
+          order_details_approved_by_id: approverId,
+          order_details_approved_at: approvedAt,
+        }
         const res = await fetch(`/api/admin/applications/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -862,6 +897,7 @@ export default function OrderDetailsPage() {
       return
     }
 
+    const rejecterName = admin?.name || admin?.email || 'Admin'
     setBulkUpdating(true)
     let successCount = 0
     try {
@@ -873,8 +909,15 @@ export default function OrderDetailsPage() {
           order_details: order.form_data?.order_details || {},
           rejection_reason: bulkRejectReason,
           rejected_at: new Date().toISOString(),
+          rejected_by_name: rejecterName,
         }
-        const newFormData = { ...order.form_data, rejection_reason: bulkRejectReason, order_details_approved: false, order_history: [...currentHistory, historyEntry] }
+        const newFormData = {
+          ...order.form_data,
+          rejection_reason: bulkRejectReason,
+          order_details_approved: false,
+          order_rejected_by_name: rejecterName,
+          order_history: [...currentHistory, historyEntry]
+        }
         const res = await fetch(`/api/admin/applications/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -907,11 +950,18 @@ export default function OrderDetailsPage() {
       return
     }
 
+    const approverName = admin?.name || admin?.email || 'Admin'
+    const approverId = admin?.id || admin?.email || null
+    const approvedAt = new Date().toISOString()
+
     try {
-      // Set order_details_approved flag so the campaign moves from Applied → Approved on influencer dashboard
+      // Set order_details_approved flag and approver details so it shows in admin panel
       const updatedFormData = {
         ...initiatePaymentApp.form_data,
-        order_details_approved: true
+        order_details_approved: true,
+        order_details_approved_by_name: approverName,
+        order_details_approved_by_id: approverId,
+        order_details_approved_at: approvedAt,
       }
 
       const res = await fetch(`/api/admin/applications/${initiatePaymentApp.id}`, {
@@ -941,14 +991,23 @@ export default function OrderDetailsPage() {
       return
     }
 
+    const rejecterName = admin?.name || admin?.email || 'Admin'
+
     try {
       const currentHistory = rejectApp.form_data?.order_history || []
       const historyEntry = {
         order_details: rejectApp.form_data?.order_details || {},
         rejection_reason: rejectReason,
         rejected_at: new Date().toISOString(),
+        rejected_by_name: rejecterName,
       }
-      const newFormData = { ...rejectApp.form_data, rejection_reason: rejectReason, order_details_approved: false, order_history: [...currentHistory, historyEntry] }
+      const newFormData = {
+        ...rejectApp.form_data,
+        rejection_reason: rejectReason,
+        order_details_approved: false,
+        order_rejected_by_name: rejecterName,
+        order_history: [...currentHistory, historyEntry]
+      }
       const res = await fetch(`/api/admin/applications/${rejectApp.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -971,7 +1030,14 @@ export default function OrderDetailsPage() {
   // ─── Edit Submission Handlers ───────────────────────────
   const openEditSubmissionModal = (order: OrderEntry) => {
     const details = order.form_data?.order_details || {}
-    const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+    const internalKeys = [
+      'order_details', 'rejection_reason', 'order_details_approved',
+      'order_details_approved_by_id', 'order_details_approved_by_name',
+      'order_details_approved_at', 'order_approved_by_name',
+      'order_rejected_by_name', 'order_history', 'payment_requests',
+      'payment_request_amount', 'payment_request_reason', 'supporting_document',
+      'live_date', 'payment_reason', 'payment_amount'
+    ]
     const customResponses: Record<string, any> = {}
     if (order.form_data) {
       Object.entries(order.form_data).forEach(([k, v]) => {
@@ -1046,6 +1112,8 @@ export default function OrderDetailsPage() {
         campaign_code: o.campaigns?.campaign_code || '',
         platform: o.campaigns?.platform || '',
         status: o.status,
+        order_review_status: getOrderVerificationStatus(o),
+        order_approved_by: getOrderApproverName(o) || '',
         ...details,
         ...customFields,
         partial_payment: o.partial_payment,
@@ -1493,10 +1561,18 @@ export default function OrderDetailsPage() {
                                     Pending Review
                                   </span>
                                 ) : reviewStatus === 'Approved' ? (
-                                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs whitespace-nowrap">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                                    Order Verified
-                                  </span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-xs whitespace-nowrap">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                      Order Verified
+                                    </span>
+                                    {getOrderApproverName(order) && (
+                                      <span className="text-[9px] text-emerald-400/90 font-medium px-1 flex items-center gap-1 truncate max-w-[130px]" title={`Approved by ${getOrderApproverName(order)}`}>
+                                        <UserCheck className="h-2.5 w-2.5 shrink-0" />
+                                        by {getOrderApproverName(order)}
+                                      </span>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-xs whitespace-nowrap" title={order.form_data?.rejection_reason || ''}>
                                     <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
@@ -1619,7 +1695,14 @@ export default function OrderDetailsPage() {
 
                                       {/* Application Form Responses (Fills remaining height) */}
                                       {order.form_data && (() => {
-                                        const internalKeys = ['order_details', 'rejection_reason', 'order_details_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
+                                        const internalKeys = [
+                                          'order_details', 'rejection_reason', 'order_details_approved',
+                                          'order_details_approved_by_id', 'order_details_approved_by_name',
+                                          'order_details_approved_at', 'order_approved_by_name',
+                                          'order_rejected_by_name', 'order_history', 'payment_requests',
+                                          'payment_request_amount', 'payment_request_reason', 'supporting_document',
+                                          'live_date', 'payment_reason', 'payment_amount'
+                                        ]
                                         const customEntries = Object.entries(order.form_data).filter(([key]) => !internalKeys.includes(key))
                                         if (customEntries.length === 0) return null
 
@@ -1729,7 +1812,13 @@ export default function OrderDetailsPage() {
                                           </div>
                                           {(() => {
                                             const rev = getOrderVerificationStatus(order)
-                                            if (rev === 'Approved') return <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Verified</span>
+                                            const approver = getOrderApproverName(order)
+                                            if (rev === 'Approved') return (
+                                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                                Verified{approver ? ` by ${approver}` : ''}
+                                              </span>
+                                            )
                                             if (rev === 'Rejected') return <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">Rejected</span>
                                             return <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30 animate-pulse">Action Required</span>
                                           })()}
@@ -1789,20 +1878,57 @@ export default function OrderDetailsPage() {
                                       <div className="pt-3 border-t border-white/5 space-y-2 shrink-0">
                                         {(() => {
                                           const reviewStatus = getOrderVerificationStatus(order)
+                                          const approverName = getOrderApproverName(order)
+                                          const approvedAt = order.form_data?.order_details_approved_at || order.form_data?.payment_initiation?.prepared_at || order.form_data?.payment_initiated?.initiated_at
+
                                           if (reviewStatus === 'Approved') {
                                             return (
-                                              <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2.5 rounded-xl">
-                                                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                                                Order Verified & Approved
+                                              <div className="flex flex-col gap-1.5 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl shadow-xs">
+                                                <div className="flex items-center justify-between gap-2">
+                                                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                                                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                                    <span>Order Verified & Approved</span>
+                                                  </div>
+                                                  {approverName && (
+                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 rounded-lg shadow-xs">
+                                                      <UserCheck className="h-3 w-3 shrink-0" />
+                                                      {approverName}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                {approverName ? (
+                                                  <div className="text-[10.5px] text-emerald-400/90 font-medium pl-6 flex items-center gap-1.5 flex-wrap">
+                                                    <span>Approved by</span>
+                                                    <span className="text-white font-bold bg-white/10 px-1.5 py-0.5 rounded text-[10px]">{approverName}</span>
+                                                    {approvedAt && (
+                                                      <span className="text-[9.5px] text-emerald-400/70">
+                                                        • {new Date(approvedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <p className="text-[10px] text-emerald-400/70 font-medium pl-6">
+                                                    Order confirmed by Operations Desk
+                                                  </p>
+                                                )}
                                               </div>
                                             )
                                           }
                                           if (reviewStatus === 'Rejected') {
+                                            const rejecterName = order.form_data?.order_rejected_by_name || order.form_data?.order_history?.[order.form_data.order_history.length - 1]?.rejected_by_name
                                             return (
                                               <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2 text-red-400 text-xs font-bold bg-red-500/10 border border-red-500/20 px-3.5 py-2 rounded-xl">
-                                                  <XCircle className="h-4 w-4 shrink-0" />
-                                                  Order Rejected
+                                                <div className="flex items-center justify-between gap-2 text-red-400 text-xs font-bold bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl">
+                                                  <div className="flex items-center gap-2">
+                                                    <XCircle className="h-4 w-4 shrink-0" />
+                                                    <span>Order Rejected</span>
+                                                  </div>
+                                                  {rejecterName && (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-300 bg-red-500/20 border border-red-500/30 px-2 py-0.5 rounded-md">
+                                                      <UserX className="h-2.5 w-2.5 shrink-0" />
+                                                      {rejecterName}
+                                                    </span>
+                                                  )}
                                                 </div>
                                                 {order.form_data?.rejection_reason && (
                                                   <p className="text-[11px] text-red-300 font-medium px-1">Reason: {order.form_data?.rejection_reason}</p>

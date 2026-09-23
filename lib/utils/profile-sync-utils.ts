@@ -414,7 +414,12 @@ export const TRANSIENT_CAMPAIGN_SLUGS = [
   'applied_instagram_followers',
   'preferred_store',
   'order_details',
-  'order_details_approved'
+  'order_details_approved',
+  'order_details_approved_by_id',
+  'order_details_approved_by_name',
+  'order_details_approved_at',
+  'order_approved_by_name',
+  'order_rejected_by_name'
 ]
 
 /**

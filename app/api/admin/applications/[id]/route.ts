@@ -65,6 +65,15 @@ export async function PUT(
       }
     }
 
+    // Automatically stamp order approver name & ID if approving order details
+    if (updates.form_data && updates.form_data.order_details_approved === true) {
+      if (!updates.form_data.order_details_approved_by_name && admin?.name) {
+        updates.form_data.order_details_approved_by_name = admin.name
+        updates.form_data.order_details_approved_by_id = admin.id || admin.email
+        updates.form_data.order_details_approved_at = new Date().toISOString()
+      }
+    }
+
     const { data: application, error } = await supabase
       .from('applications')
       .update(updates)

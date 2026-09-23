@@ -38,10 +38,15 @@ export default function ApplicationReviewModal({
     'revocation_note',
     'order_details',
     'order_details_approved',
+    'order_details_approved_by_id',
+    'order_details_approved_by_name',
+    'order_details_approved_at',
+    'order_approved_by_name',
+    'order_rejected_by_name',
   ]
 
   const customEntries = Object.entries(formData).filter(
-    ([key]) => !excludedKeys.includes(key)
+    ([key]) => !excludedKeys.includes(key) && !key.startsWith('_') && !key.startsWith('order_details_approved')
   )
 
   return (

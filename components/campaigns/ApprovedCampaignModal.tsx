@@ -684,7 +684,13 @@ export default function ApprovedCampaignModal({
                       {application.form_data && Object.keys(application.form_data).length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                           {Object.entries(application.form_data).map(([key, val]) => {
-                            if (['payment_request', 'completion_submission', 'requests', 'total_deal', 'rejection_reason', 'revocation_note', 'order_details', 'order_details_approved'].includes(key)) {
+                            if (
+                              ['payment_request', 'completion_submission', 'requests', 'total_deal', 'rejection_reason', 'revocation_note', 'order_details', 'order_details_approved'].includes(key) ||
+                              key.startsWith('order_details_approved') ||
+                              key.startsWith('order_approved') ||
+                              key.startsWith('order_rejected') ||
+                              key.startsWith('_')
+                            ) {
                               return null
                             }
                             return (
