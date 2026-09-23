@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { PwaProvider } from "@/components/pwa/PwaProvider";
 import { NetworkStatusProvider } from "@/components/providers/NetworkStatusProvider";
 import { ConditionalNavbar } from "@/components/ConditionalNavbar";
+import TitleWatcher from "@/components/TitleWatcher";
 import { Toaster } from "sonner";
 
 const fontSans = Montserrat({
@@ -24,7 +25,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata = {
-  title: "1to7 Media | Creator Portal",
+  title: {
+    template: "%s | 1to7 Media",
+    default: "1to7 Media",
+  },
   description: "Find premium brand collaborations and manage your influencer campaigns.",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -72,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={`${fontSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
+          <TitleWatcher />
           <NetworkStatusProvider>
             <PwaProvider>
               <div className="min-h-screen flex flex-col bg-slate-50">

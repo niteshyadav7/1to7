@@ -26,13 +26,16 @@ export function useAdminHeader() {
   return useContext(AdminHeaderContext)
 }
 
-export function SetAdminHeader({ children }: { children: React.ReactNode }) {
+export function SetAdminHeader({ children, pageTitle }: { children: React.ReactNode; pageTitle?: string }) {
   const { setHeaderContent } = useAdminHeader()
 
   useEffect(() => {
     setHeaderContent(children)
+    if (pageTitle && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('set-tab-title', { detail: pageTitle }))
+    }
     return () => setHeaderContent(null)
-  }, [children, setHeaderContent])
+  }, [children, pageTitle, setHeaderContent])
 
   return null
 }
