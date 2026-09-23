@@ -87,7 +87,7 @@ export default function FinancePayoutPage() {
   // Export Modal State (Matching 1to7_Export_Format.xlsx)
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportFormat, setExportFormat] = useState<'refund' | 'order'>('refund')
-  const [refundMode, setRefundMode] = useState<'full_17' | 'bank_5'>('full_17')
+  const [refundMode, setRefundMode] = useState<'full_18' | 'bank_5'>('full_18')
   const [exportScope, setExportScope] = useState<'selected' | 'filtered' | 'all'>('filtered')
   const [refDelimiter, setRefDelimiter] = useState<'' | '+' | '-'>('')
 
@@ -342,9 +342,9 @@ export default function FinancePayoutPage() {
   }, [])
 
   const getRefNo = useCallback((app: Application, delimiter: string = '') => {
-    const hypeId = app.users?.influencer_id || 'HYPE'
-    const campaignCode = app.campaigns?.campaign_code || 'CAMPAIGN'
-    return `${hypeId}${delimiter}${campaignCode}`
+    const campaignCode = app.campaigns?.campaign_code || app.form_data?.['Campaign ID'] || 'CAMPAIGN'
+    const hypeId = app.users?.influencer_id || app.form_data?.['User id'] || 'HYPE'
+    return `${campaignCode}${delimiter}${hypeId}`
   }, [])
 
   // Resolve target applications to export based on selected exportScope
@@ -372,8 +372,8 @@ export default function FinancePayoutPage() {
     setShowExportModal(true)
   }
 
-  // 1to7 Exact Column Headers from 1to7_Export_Format.xlsx
-  const REFUND_HEADERS_17 = [
+  // 1to7 Exact Column Headers from 1to7_Export_Format.xlsx + Reel Link
+  const REFUND_HEADERS_18 = [
     'IFSC Code',
     'Account No.',
     'Beneficiary Name',
@@ -383,6 +383,7 @@ export default function FinancePayoutPage() {
     'Phone No',
     'Timestamp',
     'Screen Shot',
+    'Reel Link',
     'Engagement Rate',
     'Impressions',
     'views',
@@ -417,7 +418,7 @@ export default function FinancePayoutPage() {
   ]
 
   const getRefundRow = useCallback(
-    (app: Application, delimiter: string = '', mode: 'full_17' | 'bank_5' = 'full_17') => {
+    (app: Application, delimiter: string = '', mode: 'full_18' | 'bank_5' = 'full_18') => {
       const fd = app.form_data || {}
       const pr = fd.payment_request || {}
       const cs = fd.completion_submission || {}
@@ -450,9 +451,18 @@ export default function FinancePayoutPage() {
       const screenshot =
         pr.supporting_document ||
         cs.supporting_document ||
-        cs.deliverable_link ||
         fd['ORDER SS IF REQ'] ||
         fd.order_details?.['Order Placement Screenshot'] ||
+        ''
+
+      const reelLink =
+        cs.deliverable_link ||
+        pr.deliverable_link ||
+        pr.reel_link ||
+        fd.reel_link ||
+        fd.deliverable_link ||
+        fd['Reel Link'] ||
+        fd['Post Link'] ||
         ''
 
       const views = pr.Views || cs.views_count || fd.views || ''
@@ -485,6 +495,7 @@ export default function FinancePayoutPage() {
         phoneNo,
         timestamp,
         screenshot,
+        reelLink,
         engagementRate,
         impressions,
         views,
@@ -546,7 +557,7 @@ export default function FinancePayoutPage() {
     let rows: (string | number)[][] = []
 
     if (format === 'refund') {
-      headers = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      headers = refundMode === 'full_18' ? REFUND_HEADERS_18 : REFUND_HEADERS_5
       rows = targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode))
     } else {
       headers = ORDER_HEADERS_12
@@ -575,11 +586,11 @@ export default function FinancePayoutPage() {
     let filename = ''
 
     if (format === 'refund') {
-      headers = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      headers = refundMode === 'full_18' ? REFUND_HEADERS_18 : REFUND_HEADERS_5
       rows = targetApps.map((app) => {
         const rawRow = getRefundRow(app, refDelimiter, refundMode)
         return rawRow.map((val, idx) => {
-          if (idx === 1 || (refundMode === 'full_17' && idx === 6)) return `="${val}"` // account number & phone number preservation
+          if (idx === 1 || (refundMode === 'full_18' && idx === 6)) return `="${val}"` // account number & phone number preservation
           if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
             return `"${val.replace(/"/g, '""')}"`
           }
@@ -626,7 +637,7 @@ export default function FinancePayoutPage() {
     const wb = XLSX.utils.book_new()
 
     if (format === 'refund' || format === 'both') {
-      const refundHeaders = refundMode === 'full_17' ? REFUND_HEADERS_17 : REFUND_HEADERS_5
+      const refundHeaders = refundMode === 'full_18' ? REFUND_HEADERS_18 : REFUND_HEADERS_5
       const refundData = [
         refundHeaders,
         ...targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode)),
@@ -1525,10 +1536,11 @@ export default function FinancePayoutPage() {
                       <div className="flex flex-wrap gap-1 mb-2">
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">🏦 IFSC & Acc</span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">💰 Amount & Ref</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">🎬 Reel Link & SS</span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-white/5 font-mono">📊 7 Post Metrics</span>
                       </div>
                       <div className="text-[9.5px] text-slate-400 font-mono bg-slate-950/70 p-1.5 rounded border border-white/5 truncate">
-                        IFSC | Account No. | Beneficiary | Amount | Ref No. | Campaign...
+                        IFSC | Account No. | Beneficiary | Amount | Ref No. | Campaign | Phone | Time | SS | Reel Link...
                       </div>
                     </div>
 
@@ -1574,12 +1586,12 @@ export default function FinancePayoutPage() {
                       <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-white/10">
                         <button
                           type="button"
-                          onClick={() => setRefundMode('full_17')}
+                          onClick={() => setRefundMode('full_18')}
                           className={`px-2.5 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
-                            refundMode === 'full_17' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                            refundMode === 'full_18' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                           }`}
                         >
-                          📋 Full 17 Columns (Sheet 1)
+                          📋 Full 18 Columns (Sheet 1 + Reel Link)
                         </button>
                         <button
                           type="button"
@@ -1603,7 +1615,7 @@ export default function FinancePayoutPage() {
                           className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
                             refDelimiter === '' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                           }`}
-                          title="Format: HY13125F10022C201 (Direct without delimiter)"
+                          title="Format: F10022C201HY13125 (Direct without delimiter)"
                         >
                           Direct (No Separator)
                         </button>
@@ -1613,7 +1625,7 @@ export default function FinancePayoutPage() {
                           className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
                             refDelimiter === '+' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                           }`}
-                          title="Format: HY13125+F10022C201"
+                          title="Format: F10022C201+HY13125"
                         >
                           + (Plus)
                         </button>
@@ -1623,7 +1635,7 @@ export default function FinancePayoutPage() {
                           className={`px-2 py-1 text-[10.5px] font-bold rounded cursor-pointer transition-colors ${
                             refDelimiter === '-' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                           }`}
-                          title="Format: HY13125-F10022C201"
+                          title="Format: F10022C201-HY13125"
                         >
                           - (Hyphen)
                         </button>
@@ -1697,7 +1709,7 @@ export default function FinancePayoutPage() {
                     <span className="font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                       <span>Preview Table</span>
                       <span className="text-[9.5px] font-normal text-slate-400 font-mono">
-                        ({exportFormat === 'refund' ? (refundMode === 'full_17' ? '17 Columns' : '5 Columns') : '12 Columns'})
+                        ({exportFormat === 'refund' ? (refundMode === 'full_18' ? '18 Columns' : '5 Columns') : '12 Columns'})
                       </span>
                     </span>
                     <span className="text-[10px] text-slate-400">Live preview matching Excel template</span>
@@ -1708,9 +1720,9 @@ export default function FinancePayoutPage() {
                       <thead>
                         <tr className="bg-[#B91C1C] text-white font-extrabold uppercase tracking-wide border-b border-red-800">
                           {exportFormat === 'refund' ? (
-                            refundMode === 'full_17' ? (
-                              REFUND_HEADERS_17.map((h, i) => (
-                                <th key={h} className={`px-2.5 py-2 whitespace-nowrap ${i < REFUND_HEADERS_17.length - 1 ? 'border-r border-red-800/60' : ''}`}>
+                            refundMode === 'full_18' ? (
+                              REFUND_HEADERS_18.map((h, i) => (
+                                <th key={h} className={`px-2.5 py-2 whitespace-nowrap ${i < REFUND_HEADERS_18.length - 1 ? 'border-r border-red-800/60' : ''}`}>
                                   {h}
                                 </th>
                               ))
@@ -1761,7 +1773,7 @@ export default function FinancePayoutPage() {
                         {getExportTargetApps().length === 0 && (
                           <tr>
                             <td
-                              colSpan={exportFormat === 'refund' ? (refundMode === 'full_17' ? 17 : 5) : 12}
+                              colSpan={exportFormat === 'refund' ? (refundMode === 'full_18' ? 18 : 5) : 12}
                               className="px-4 py-4 text-center text-slate-500 italic font-sans"
                             >
                               No records match the current export scope.
