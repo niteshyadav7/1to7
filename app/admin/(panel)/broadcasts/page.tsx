@@ -64,13 +64,12 @@ export default function AdminBroadcastsPage() {
   const [formTitle, setFormTitle] = useState('')
   const [formMessage, setFormMessage] = useState('')
   const [formType, setFormType] = useState<'critical' | 'warning' | 'info' | 'success'>('warning')
-  const [formTargetType, setFormTargetType] = useState<'all' | 'missing_bank' | 'specific_user'>('all')
+  const [formTargetType, setFormTargetType] = useState<'all' | 'specific_user'>('all')
   const [formUserIdentifier, setFormUserIdentifier] = useState('')
-  const [formActionLabel, setFormActionLabel] = useState('Resolve Issue')
-  const [formActionUrl, setFormActionUrl] = useState('/dashboard/profile')
-  const [formDuration, setFormDuration] = useState('8')
+  const [formActionLabel, setFormActionLabel] = useState('View Details')
+  const [formActionUrl, setFormActionUrl] = useState('/dashboard')
+  const [formDuration, setFormDuration] = useState('10')
   const [formAllowDismiss, setFormAllowDismiss] = useState(true)
-  const [formAutoResolveBank, setFormAutoResolveBank] = useState(true)
 
   // Fetch Alerts
   const fetchAlerts = useCallback(async (isBackground = false) => {
@@ -104,27 +103,16 @@ export default function AdminBroadcastsPage() {
     }
   }, [fetchAlerts])
 
-  // Quick preset: Missing Bank Broadcast
-  const handleOpenBankPreset = () => {
-    setFormTitle('Bank Details Required for Payout ⚠️')
-    setFormMessage(
-      'Your collaboration payout is waiting! Please update your Bank Account Number & IFSC code in your Profile so our finance team can disburse your funds.'
-    )
-    setFormType('warning')
-    setFormTargetType('missing_bank')
-    setFormActionLabel('Add Bank Details Now')
-    setFormActionUrl('/dashboard/profile')
-    setFormDuration('10')
-    setFormAllowDismiss(true)
-    setFormAutoResolveBank(true)
-    setShowCreateModal(true)
-  }
-
   // Create Submit
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formTitle.trim() || !formMessage.trim()) {
       toast.error('Title and message are required')
+      return
+    }
+
+    if (formTargetType === 'specific_user' && !formUserIdentifier.trim()) {
+      toast.error('Creator influencer ID, mobile, or email is required')
       return
     }
 
@@ -143,7 +131,6 @@ export default function AdminBroadcastsPage() {
           action_url: formActionUrl.trim(),
           auto_duration_seconds: parseInt(formDuration, 10) || 8,
           allow_dismiss: formAllowDismiss,
-          auto_resolve_on_bank: formAutoResolveBank,
         }),
       })
 
@@ -157,6 +144,8 @@ export default function AdminBroadcastsPage() {
       setFormMessage('')
       setFormTargetType('all')
       setFormUserIdentifier('')
+      setFormActionLabel('View Details')
+      setFormActionUrl('/dashboard')
       fetchAlerts(true)
     } catch (err: any) {
       toast.error(err.message || 'Creation failed')
@@ -210,6 +199,7 @@ export default function AdminBroadcastsPage() {
   }, [alerts, searchQuery, selectedType, selectedStatus])
 
   const activeAlertsCount = useMemo(() => alerts.filter(a => a.is_active).length, [alerts])
+  const specificAlertsCount = useMemo(() => alerts.filter(a => a.target_type === 'specific_user').length, [alerts])
   const totalResolvedCount = useMemo(() => alerts.reduce((acc, a) => acc + Number(a.resolved_count || 0), 0), [alerts])
 
   return (
@@ -221,7 +211,7 @@ export default function AdminBroadcastsPage() {
           </div>
           <div>
             <h1 className="text-base font-bold text-white tracking-tight">In-App Alerts & Broadcasts</h1>
-            <p className="text-[10px] text-slate-400">Broadcast creator popups, missing bank warnings, and operational announcements</p>
+            <p className="text-[10px] text-slate-400">Broadcast creator popups, notices, and operational announcements</p>
           </div>
         </div>
       </SetAdminHeader>
@@ -239,19 +229,14 @@ export default function AdminBroadcastsPage() {
           </div>
         </div>
 
-        <div className="bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between shadow-xl relative overflow-hidden">
+        <div className="bg-slate-900/60 border border-purple-500/20 rounded-2xl p-4 flex items-center justify-between shadow-xl relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Missing Bank Accounts</p>
-            <p className="text-2xl font-extrabold text-amber-300 mt-1">{missingBankCount}</p>
-            <button
-              onClick={handleOpenBankPreset}
-              className="text-[11px] text-amber-400 font-bold hover:underline flex items-center gap-1 mt-0.5 cursor-pointer"
-            >
-              <span>⚡ Send Bank Alert</span>
-            </button>
+            <p className="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Specific Creator Alerts</p>
+            <p className="text-2xl font-extrabold text-purple-300 mt-1">{specificAlertsCount}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Targeted Direct Popups</p>
           </div>
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 relative z-10">
-            <CreditCard className="h-5 w-5" />
+          <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 relative z-10">
+            <Send className="h-5 w-5" />
           </div>
         </div>
 
@@ -312,23 +297,17 @@ export default function AdminBroadcastsPage() {
 
         <div className="flex items-center gap-2.5">
           <Button
-            onClick={handleOpenBankPreset}
-            className="h-10 px-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
-          >
-            <CreditCard className="h-3.5 w-3.5" />
-            <span>Bank Warning Preset</span>
-          </Button>
-
-          <Button
             onClick={() => {
               setFormTitle('')
               setFormMessage('')
+              setFormType('warning')
               setFormTargetType('all')
-              setFormActionLabel('Resolve Issue')
-              setFormActionUrl('/dashboard/profile')
+              setFormUserIdentifier('')
+              setFormActionLabel('View Details')
+              setFormActionUrl('/dashboard')
               setShowCreateModal(true)
             }}
-            className="h-10 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20"
+            className="h-10 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
           >
             <Plus className="h-4 w-4" />
             <span>New Broadcast Alert</span>
@@ -514,20 +493,23 @@ export default function AdminBroadcastsPage() {
                 </button>
               </div>
 
-              {/* Form Body */}
-              <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Form Body - scrollbar hidden */}
+              <form 
+                onSubmit={handleCreateSubmit} 
+                className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              >
                 {/* Target Audience */}
                 <div>
                   <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5 block">
                     Target Audience *
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={() => setFormTargetType('all')}
-                      className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         formTargetType === 'all'
-                          ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 shadow-sm'
+                          ? 'bg-indigo-600/25 border-indigo-500 text-indigo-200 shadow-sm font-bold'
                           : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
                       }`}
                     >
@@ -537,27 +519,10 @@ export default function AdminBroadcastsPage() {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setFormTargetType('missing_bank')
-                        setFormActionUrl('/dashboard/profile')
-                        setFormActionLabel('Add Bank Details')
-                      }}
-                      className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                        formTargetType === 'missing_bank'
-                          ? 'bg-amber-600/20 border-amber-500 text-amber-300 shadow-sm'
-                          : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
-                      }`}
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      <span>Missing Bank</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => setFormTargetType('specific_user')}
-                      className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         formTargetType === 'specific_user'
-                          ? 'bg-purple-600/20 border-purple-500 text-purple-300 shadow-sm'
+                          ? 'bg-purple-600/25 border-purple-500 text-purple-200 shadow-sm font-bold'
                           : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
                       }`}
                     >
@@ -571,12 +536,12 @@ export default function AdminBroadcastsPage() {
                 {formTargetType === 'specific_user' && (
                   <div>
                     <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">
-                      Creator Influencer ID or Phone *
+                      Creator Influencer ID, Phone, or Email *
                     </label>
                     <Input
                       value={formUserIdentifier}
                       onChange={e => setFormUserIdentifier(e.target.value)}
-                      placeholder="e.g. HY24617 or mobile number"
+                      placeholder="e.g. HY24702, 9876543210, or creator@example.com"
                       className="bg-slate-800 border-white/10 text-white placeholder:text-slate-500 text-xs h-10 rounded-xl"
                       required
                     />
@@ -619,13 +584,13 @@ export default function AdminBroadcastsPage() {
                   <Input
                     value={formTitle}
                     onChange={e => setFormTitle(e.target.value)}
-                    placeholder="e.g. Bank Details Missing — Payout On Hold"
+                    placeholder="e.g. Action Required: Profile Verification or Update"
                     className="bg-slate-800 border-white/10 text-white placeholder:text-slate-500 text-xs h-10 rounded-xl"
                     required
                   />
                 </div>
 
-                {/* Alert Message */}
+                {/* Message Description */}
                 <div>
                   <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">
                     Message Description *
@@ -649,7 +614,7 @@ export default function AdminBroadcastsPage() {
                     <Input
                       value={formActionLabel}
                       onChange={e => setFormActionLabel(e.target.value)}
-                      placeholder="e.g. Add Bank Details"
+                      placeholder="e.g. View Details"
                       className="bg-slate-800 border-white/10 text-white placeholder:text-slate-500 text-xs h-10 rounded-xl"
                     />
                   </div>
@@ -660,7 +625,7 @@ export default function AdminBroadcastsPage() {
                     <Input
                       value={formActionUrl}
                       onChange={e => setFormActionUrl(e.target.value)}
-                      placeholder="/dashboard/profile"
+                      placeholder="/dashboard/campaigns"
                       className="bg-slate-800 border-white/10 text-white placeholder:text-slate-500 text-xs h-10 rounded-xl"
                     />
                   </div>
@@ -683,14 +648,14 @@ export default function AdminBroadcastsPage() {
                   </div>
 
                   <div className="flex flex-col justify-end">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300 pb-2">
                       <input
                         type="checkbox"
-                        checked={formAutoResolveBank}
-                        onChange={e => setFormAutoResolveBank(e.target.checked)}
+                        checked={formAllowDismiss}
+                        onChange={e => setFormAllowDismiss(e.target.checked)}
                         className="rounded bg-slate-800 border-white/10 text-indigo-600 focus:ring-0"
                       />
-                      <span>Auto-resolve when bank details added</span>
+                      <span>Allow creator to dismiss (Cut ✕)</span>
                     </label>
                   </div>
                 </div>
