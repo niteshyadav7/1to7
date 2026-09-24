@@ -166,63 +166,63 @@ function timeAgo(dateStr: string): string {
 function CompletionSkeletonRow({ densityPadding, visibleCols }: { densityPadding: string; visibleCols: Record<string, boolean> }) {
   return (
     <tr className="border-b border-white/[0.03] animate-pulse">
-      <td className={densityPadding}>
-        <div className="w-4 h-4 rounded bg-slate-800" />
+      <td className={`w-8 px-1.5 text-center ${densityPadding}`}>
+        <div className="w-4 h-4 mx-auto rounded bg-slate-800" />
       </td>
       {visibleCols.influencer && (
         <td className={densityPadding}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-slate-800 shrink-0" />
-            <div className="space-y-1.5">
-              <div className="w-28 h-3.5 rounded bg-slate-800" />
-              <div className="w-20 h-2.5 rounded bg-slate-800/60" />
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
+            <div className="space-y-1">
+              <div className="w-20 h-3 rounded bg-slate-800" />
+              <div className="w-14 h-2 rounded bg-slate-800/60" />
             </div>
           </div>
         </td>
       )}
       {visibleCols.campaign && (
         <td className={densityPadding}>
-          <div className="space-y-1.5">
-            <div className="w-24 h-3.5 rounded bg-slate-800" />
-            <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+          <div className="space-y-1">
+            <div className="w-18 h-3 rounded bg-slate-800" />
+            <div className="w-14 h-2 rounded bg-slate-800/60" />
           </div>
         </td>
       )}
       {visibleCols.liveDate && (
         <td className={densityPadding}>
-          <div className="w-20 h-4 rounded bg-slate-800" />
+          <div className="w-16 h-3 rounded bg-slate-800" />
         </td>
       )}
-      {visibleCols.link && (
+      {visibleCols.deliverable && (
         <td className={densityPadding}>
-          <div className="w-28 h-6 rounded-lg bg-slate-800" />
+          <div className="w-20 h-5 rounded-md bg-slate-800" />
         </td>
       )}
       {visibleCols.views && (
         <td className={densityPadding}>
-          <div className="w-16 h-4 rounded bg-slate-800" />
+          <div className="w-14 h-4 rounded bg-slate-800" />
         </td>
       )}
       {visibleCols.proof && (
         <td className={`${densityPadding} text-center`}>
-          <div className="w-12 h-8 rounded-lg bg-slate-800 mx-auto" />
+          <div className="w-10 h-7 rounded-md bg-slate-800 mx-auto" />
         </td>
       )}
       {visibleCols.status && (
         <td className={densityPadding}>
-          <div className="w-24 h-6 rounded-full bg-slate-800" />
+          <div className="w-20 h-5 rounded-full bg-slate-800" />
         </td>
       )}
       {visibleCols.submitted && (
         <td className={densityPadding}>
-          <div className="w-16 h-3 rounded bg-slate-800" />
+          <div className="w-12 h-3 rounded bg-slate-800" />
         </td>
       )}
       {visibleCols.actions && (
-        <td className={`${densityPadding} text-right`}>
-          <div className="flex items-center justify-end gap-1.5">
-            <div className="w-7 h-7 rounded-lg bg-slate-800" />
-            <div className="w-7 h-7 rounded-lg bg-slate-800" />
+        <td className={`w-12 px-1 text-right ${densityPadding}`}>
+          <div className="flex items-center justify-end gap-1">
+            <div className="w-6 h-6 rounded-md bg-slate-800" />
+            <div className="w-6 h-6 rounded-md bg-slate-800" />
           </div>
         </td>
       )}
@@ -629,9 +629,9 @@ export default function CompletionDetailsPage() {
   }
 
   const densityPadding = {
-    compact: 'py-2 px-3.5',
-    default: 'py-3.5 px-4',
-    comfortable: 'py-5 px-4',
+    compact: 'py-1.5 px-2.5',
+    default: 'py-2 px-2.5',
+    comfortable: 'py-3 px-3',
   }[density]
 
   const isInitialLoading = loading && completions.length === 0
@@ -865,24 +865,24 @@ export default function CompletionDetailsPage() {
 
       {/* ─── Completions Table ───────────────────────────────── */}
       <div className="bg-slate-900/60 border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+        <div className="w-full overflow-x-auto no-scrollbar hide-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <table className="w-full text-left border-collapse table-auto text-xs">
             <thead>
-              <tr className="border-b border-white/10 bg-slate-950/70 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="py-3.5 px-4 w-10">
+              <tr className="border-b border-white/10 bg-slate-950/80 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                <th className="w-8 px-1.5 py-2.5 text-center">
                   <input
                     type="checkbox"
                     checked={selectedIds.size > 0 && selectedIds.size === paginatedCompletions.length}
                     onChange={toggleSelectAll}
-                    className="rounded border-white/20 accent-indigo-500 cursor-pointer"
+                    className="rounded border-white/20 accent-indigo-500 cursor-pointer w-3.5 h-3.5"
                   />
                 </th>
                 {visibleCols.influencer && (
                   <th
                     onClick={() => { setSortField('name'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Influencer
                       {sortField === 'name' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
@@ -891,9 +891,9 @@ export default function CompletionDetailsPage() {
                 {visibleCols.campaign && (
                   <th
                     onClick={() => { setSortField('campaign'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Campaign
                       {sortField === 'campaign' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
@@ -902,37 +902,37 @@ export default function CompletionDetailsPage() {
                 {visibleCols.liveDate && (
                   <th
                     onClick={() => { setSortField('live_date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Content Live Date
                       {sortField === 'live_date' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
                   </th>
                 )}
                 {visibleCols.deliverable && (
-                  <th className="py-3.5 px-4">Live Deliverable</th>
+                  <th className="px-2.5 py-2.5">Live Deliverable</th>
                 )}
                 {visibleCols.views && (
                   <th
                     onClick={() => { setSortField('views'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Views / Reach
                       {sortField === 'views' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
                   </th>
                 )}
                 {visibleCols.proof && (
-                  <th className="py-3.5 px-4 text-center">Analytics Proof</th>
+                  <th className="px-2.5 py-2.5 text-center">Analytics Proof</th>
                 )}
                 {visibleCols.status && (
                   <th
                     onClick={() => { setSortField('status'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Review Status
                       {sortField === 'status' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
@@ -941,16 +941,16 @@ export default function CompletionDetailsPage() {
                 {visibleCols.submitted && (
                   <th
                     onClick={() => { setSortField('date'); setSortDir(sortDir === 'asc' ? 'desc' : 'asc') }}
-                    className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors"
+                    className="px-2.5 py-2.5 cursor-pointer hover:text-white transition-colors"
                   >
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       Submitted
                       {sortField === 'date' && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3 text-indigo-400" /> : <ArrowDown className="h-3 w-3 text-indigo-400" />)}
                     </div>
                   </th>
                 )}
                 {visibleCols.actions && (
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="w-12 px-1 py-2.5 text-right">Actions</th>
                 )}
               </tr>
             </thead>
@@ -961,7 +961,7 @@ export default function CompletionDetailsPage() {
                 ))
               ) : paginatedCompletions.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-500">
+                  <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="py-16 text-center text-slate-500">
                     <FileCheck className="h-10 w-10 mx-auto mb-3 opacity-30 text-slate-400" />
                     <p className="text-sm font-semibold text-slate-400">No completion deliverables found</p>
                     <p className="text-xs text-slate-500 mt-1">
@@ -987,52 +987,53 @@ export default function CompletionDetailsPage() {
                         }`}
                       >
                         {/* Checkbox */}
-                        <td className={densityPadding} onClick={(e) => e.stopPropagation()}>
+                        <td className={`w-8 px-1.5 text-center ${densityPadding}`} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(app.id)}
                             onChange={() => toggleSelect(app.id)}
-                            className="rounded border-white/20 accent-indigo-500 cursor-pointer"
+                            className="rounded border-white/20 accent-indigo-500 cursor-pointer w-3.5 h-3.5"
                           />
                         </td>
 
                         {/* Influencer Column */}
                         {visibleCols.influencer && (
                           <td className={densityPadding}>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                               {app.users?.instagram_profile_pic ? (
                                 <img
                                   src={app.users.instagram_profile_pic}
                                   alt={app.users.full_name}
-                                  className="w-9 h-9 rounded-full object-cover border border-white/10 shrink-0"
+                                  className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0"
                                 />
                               ) : (
-                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-white text-xs border border-white/10 shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-white text-[10px] border border-white/10 shrink-0">
                                   {app.users?.full_name?.charAt(0) || 'U'}
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <p className="font-bold text-white truncate">{app.users?.full_name || 'Creator'}</p>
-                                  <span className="font-mono text-[10px] text-slate-400 font-semibold px-1.5 py-0.2 rounded bg-slate-800 border border-white/5">
+                                <div className="flex items-center gap-1">
+                                  <p className="font-bold text-white truncate text-xs max-w-[110px]" title={app.users?.full_name}>{app.users?.full_name || 'Creator'}</p>
+                                  <span className="font-mono text-[9px] text-slate-400 font-semibold px-1 py-0.2 rounded bg-slate-800 border border-white/5 truncate max-w-[55px]">
                                     {app.users?.influencer_id || 'ID'}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[10.5px] text-slate-400">
                                   {app.users?.instagram_username && (
                                     <a
                                       href={getInstagramUrl(app.users.instagram_username)}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
-                                      className="text-pink-400 hover:text-pink-300 hover:underline flex items-center gap-0.5 truncate"
+                                      className="text-pink-400 hover:text-pink-300 hover:underline flex items-center gap-0.5 truncate max-w-[95px]"
+                                      title={getInstagramDisplayHandle(app.users.instagram_username)}
                                     >
-                                      <Instagram className="h-3 w-3 shrink-0" />
-                                      {getInstagramDisplayHandle(app.users.instagram_username)}
+                                      <Instagram className="h-2.5 w-2.5 shrink-0" />
+                                      <span className="truncate">{getInstagramDisplayHandle(app.users.instagram_username)}</span>
                                     </a>
                                   )}
                                   {app.users?.followers && (
-                                    <span className="text-[10px] text-slate-400">
+                                    <span className="text-[9.5px] text-slate-400 whitespace-nowrap">
                                       • {formatFollowers(app.users.followers)}
                                     </span>
                                   )}
@@ -1045,18 +1046,18 @@ export default function CompletionDetailsPage() {
                         {/* Campaign Column */}
                         {visibleCols.campaign && (
                           <td className={densityPadding}>
-                            <p className="font-bold text-white">{app.campaigns?.brand_name}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-[10px] text-slate-400">{app.campaigns?.campaign_code}</span>
+                            <p className="font-bold text-white text-xs truncate max-w-[110px]" title={app.campaigns?.brand_name}>{app.campaigns?.brand_name}</p>
+                            <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                              <span className="font-mono text-[9.5px] text-slate-400 truncate max-w-[85px]">{app.campaigns?.campaign_code}</span>
                               {app.campaigns?.platform && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-slate-800 text-indigo-300 border border-white/5">
+                                <span className="px-1 py-0.2 rounded text-[8.5px] font-bold uppercase bg-slate-800 text-indigo-300 border border-white/5">
                                   {app.campaigns.platform}
                                 </span>
                               )}
                               {app.form_data?.completion_history && app.form_data.completion_history.length > 0 && (
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5" title={`${app.form_data.completion_history.length} previous refills archived`}>
-                                  <History className="h-2.5 w-2.5" />
-                                  Attempt #{app.form_data.completion_history.length + 1}
+                                <span className="px-1 py-0.2 rounded text-[8.5px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5" title={`${app.form_data.completion_history.length} previous refills archived`}>
+                                  <History className="h-2 w-2" />
+                                  #{app.form_data.completion_history.length + 1}
                                 </span>
                               )}
                             </div>
@@ -1068,18 +1069,18 @@ export default function CompletionDetailsPage() {
                           <td className={densityPadding}>
                             {comp.live_date ? (
                               <div>
-                                <p className="font-bold text-slate-200 flex items-center gap-1">
-                                  <Calendar className="h-3 w-3 text-indigo-400" />
-                                  {new Date(comp.live_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                <p className="font-semibold text-slate-200 text-xs flex items-center gap-1 whitespace-nowrap">
+                                  <Calendar className="h-2.5 w-2.5 text-indigo-400 shrink-0" />
+                                  {new Date(comp.live_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                 </p>
                                 {maturationInfo && (
-                                  <span className={`text-[10px] font-semibold block mt-0.5 ${maturationInfo.canSubmit ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                    {maturationInfo.canSubmit ? '✓ Maturation Complete' : `⏳ ${maturationInfo.daysRemaining}d remaining`}
+                                  <span className={`text-[9px] font-semibold block mt-0.5 whitespace-nowrap ${maturationInfo.canSubmit ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                    {maturationInfo.canSubmit ? '✓ Matured' : `⏳ ${maturationInfo.daysRemaining}d left`}
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-slate-500 italic">Not specified</span>
+                              <span className="text-slate-500 italic text-[11px]">None</span>
                             )}
                           </td>
                         )}
@@ -1093,13 +1094,14 @@ export default function CompletionDetailsPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 transition-colors font-medium text-xs max-w-[200px] truncate"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 transition-colors font-medium text-[11px] max-w-[115px] truncate"
+                                title={comp.deliverable_link}
                               >
-                                <ExternalLink className="h-3 w-3 shrink-0" />
-                                <span className="truncate">Open Live Content</span>
+                                <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                                <span className="truncate">Live Post</span>
                               </a>
                             ) : (
-                              <span className="text-slate-500 italic">No link attached</span>
+                              <span className="text-slate-500 italic text-[11px]">No link</span>
                             )}
                           </td>
                         )}
@@ -1108,7 +1110,7 @@ export default function CompletionDetailsPage() {
                         {visibleCols.views && (
                           <td className={densityPadding}>
                             {comp.views_count ? (
-                              <span className="font-extrabold text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-white/5">
+                              <span className="font-extrabold text-white bg-slate-800 px-2 py-0.5 rounded text-[11px] border border-white/5 whitespace-nowrap">
                                 👁️ {formatViews(comp.views_count)}
                               </span>
                             ) : (
@@ -1127,15 +1129,15 @@ export default function CompletionDetailsPage() {
                                   e.stopPropagation()
                                   setPreviewImage({ src: comp.supporting_document!, alt: `${app.users?.full_name} Analytics Proof` })
                                 }}
-                                className="relative group inline-block rounded-lg overflow-hidden border border-white/10 hover:border-indigo-400 transition-all cursor-pointer shadow-sm"
+                                className="relative group inline-block rounded-md overflow-hidden border border-white/10 hover:border-indigo-400 transition-all cursor-pointer shadow-sm"
                               >
                                 <img
                                   src={comp.supporting_document}
                                   alt="Proof"
-                                  className="h-10 w-14 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                                  className="h-7 w-10 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                                 />
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Eye className="h-3.5 w-3.5 text-white" />
+                                  <Eye className="h-3 w-3 text-white" />
                                 </div>
                               </button>
                             ) : (
@@ -1148,19 +1150,19 @@ export default function CompletionDetailsPage() {
                         {visibleCols.status && (
                           <td className={densityPadding}>
                             {compStatus === 'Completed' ? (
-                              <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/30 flex items-center gap-1 w-fit">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Verified & Completed
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[9.5px] font-extrabold border border-emerald-500/30 flex items-center gap-1 w-fit whitespace-nowrap">
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                Completed
                               </span>
                             ) : compStatus === 'Revision Needed' ? (
-                              <span className="px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[10px] font-extrabold border border-rose-500/30 flex items-center gap-1 w-fit">
-                                <XCircle className="h-3 w-3" />
-                                Revision Requested
+                              <span className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[9.5px] font-extrabold border border-rose-500/30 flex items-center gap-1 w-fit whitespace-nowrap">
+                                <XCircle className="h-2.5 w-2.5" />
+                                Revision
                               </span>
                             ) : (
-                              <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-extrabold border border-amber-500/30 flex items-center gap-1 w-fit animate-pulse">
-                                <Clock className="h-3 w-3" />
-                                Pending Review
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[9.5px] font-extrabold border border-amber-500/30 flex items-center gap-1 w-fit whitespace-nowrap animate-pulse">
+                                <Clock className="h-2.5 w-2.5" />
+                                Pending
                               </span>
                             )}
                           </td>
@@ -1169,7 +1171,7 @@ export default function CompletionDetailsPage() {
                         {/* Submitted Time */}
                         {visibleCols.submitted && (
                           <td className={densityPadding}>
-                            <span className="text-slate-400 font-medium">
+                            <span className="text-slate-400 font-medium text-[10.5px] whitespace-nowrap">
                               {timeAgo(app.completion_submitted_at || app.updated_at)}
                             </span>
                           </td>
@@ -1177,25 +1179,25 @@ export default function CompletionDetailsPage() {
 
                         {/* Quick Actions Dropdown / Trigger */}
                         {visibleCols.actions && (
-                          <td className={`${densityPadding} text-right`} onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className={`w-12 px-1 text-right ${densityPadding}`} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1">
                               {/* Edit Button */}
                               <button
                                 type="button"
                                 onClick={() => openEditModal(app)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer border border-white/5"
+                                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer border border-white/5"
                                 title="Edit submission deliverables"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-3 w-3" />
                               </button>
 
                               {/* Expand Arrow */}
                               <button
                                 type="button"
                                 onClick={() => toggleRow(app.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                               >
-                                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-400' : ''}`} />
+                                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-indigo-400' : ''}`} />
                               </button>
                             </div>
                           </td>
@@ -1205,7 +1207,7 @@ export default function CompletionDetailsPage() {
                       {/* ─── Expanded Row ────────────────────── */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={10} className="p-0 bg-slate-950/40 border-b border-indigo-500/20">
+                          <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="p-0 bg-slate-950/40 border-b border-indigo-500/20">
                             <motion.div
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}

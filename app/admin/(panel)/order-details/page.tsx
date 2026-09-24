@@ -575,25 +575,61 @@ function SortableHeader({
 }
 
 // ─── Skeleton Row ──────────────────────────────────────────
-function SkeletonRow() {
+function SkeletonRow({
+  visibleCols,
+  densityClass = 'py-3.5',
+}: {
+  visibleCols?: Record<string, boolean>
+  densityClass?: string
+}) {
+  const cols = visibleCols || defaultColumns
   return (
-    <tr className="border-b border-white/[0.03]">
-      <td className="px-4 py-4"><div className="w-5 h-5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
-          <div className="space-y-1.5">
-            <div className="w-28 h-3.5 rounded bg-slate-800 animate-pulse" />
-            <div className="w-20 h-2.5 rounded bg-slate-800/60 animate-pulse" />
-          </div>
-        </div>
+    <tr className="border-b border-white/[0.03] animate-pulse">
+      <td className={`px-3 ${densityClass} w-12 text-center`}>
+        <div className="w-4 h-4 mx-auto rounded bg-slate-800" />
       </td>
-      <td className="px-4 py-4"><div className="w-24 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-20 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-12 h-10 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-16 h-6 rounded-full bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-14 h-3.5 rounded bg-slate-800 animate-pulse" /></td>
-      <td className="px-4 py-4"><div className="w-8 h-8 rounded-lg bg-slate-800 animate-pulse" /></td>
+      {cols.influencer && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
+            <div className="space-y-1.5">
+              <div className="w-24 h-3.5 rounded bg-slate-800" />
+              <div className="w-16 h-2 rounded bg-slate-800/60" />
+            </div>
+          </div>
+        </td>
+      )}
+      {cols.campaign && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="space-y-1.5">
+            <div className="w-20 h-3.5 rounded bg-slate-800" />
+            <div className="w-14 h-2 rounded bg-slate-800/60" />
+          </div>
+        </td>
+      )}
+      {cols.orderFields && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="space-y-1.5">
+            <div className="w-24 h-3 rounded bg-slate-800" />
+            <div className="w-14 h-2.5 rounded bg-slate-800/60" />
+          </div>
+        </td>
+      )}
+      {cols.screenshot && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="w-10 h-7 rounded bg-slate-800" />
+        </td>
+      )}
+      {cols.status && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="w-20 h-5 rounded-full bg-slate-800" />
+        </td>
+      )}
+      {cols.date && (
+        <td className={`px-3 ${densityClass}`}>
+          <div className="w-14 h-3.5 rounded bg-slate-800" />
+        </td>
+      )}
     </tr>
   )
 }
@@ -641,6 +677,18 @@ export default function OrderDetailsPage() {
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('All')
+  const [isSwitchingTab, setIsSwitchingTab] = useState(false)
+
+  const handleStatusChange = useCallback((status: string) => {
+    if (status === activeStatus) return
+    setIsSwitchingTab(true)
+    setActiveStatus(status)
+    setPage(1)
+    setSelectedIds(new Set())
+    setTimeout(() => {
+      setIsSwitchingTab(false)
+    }, 200)
+  }, [activeStatus])
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -1215,7 +1263,14 @@ export default function OrderDetailsPage() {
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Order Details</h1>
             <p className="text-xs text-slate-400">
-              {totalFiltered} order{totalFiltered !== 1 ? 's' : ''} submitted across all campaigns
+              {isInitialLoading ? (
+                <span className="inline-flex items-center gap-1.5 text-slate-500">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                  Loading order submissions...
+                </span>
+              ) : (
+                `${totalFiltered} order${totalFiltered !== 1 ? 's' : ''} submitted across all campaigns`
+              )}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1231,7 +1286,7 @@ export default function OrderDetailsPage() {
         {statusFilters.map(f => (
           <button
             key={f}
-            onClick={() => setActiveStatus(f)}
+            onClick={() => handleStatusChange(f)}
             className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
               activeStatus === f
                 ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-lg shadow-indigo-500/10 font-bold'
@@ -1240,7 +1295,11 @@ export default function OrderDetailsPage() {
           >
             {f === 'All' ? 'All Orders' : f === 'Pending' ? 'Pending Review' : f === 'Approved' ? 'Order Verified' : 'Order Rejected'}
             <span className="ml-1.5 text-[10px] opacity-75 font-mono">
-              ({f === 'All' ? orders.length : (statusCounts[f] || 0)})
+              {isInitialLoading ? (
+                <span className="inline-block w-4 h-2.5 rounded bg-white/20 animate-pulse align-middle" />
+              ) : (
+                `(${f === 'All' ? orders.length : (statusCounts[f] || 0)})`
+              )}
             </span>
           </button>
         ))}
@@ -1367,7 +1426,7 @@ export default function OrderDetailsPage() {
       </AnimatePresence>
 
       {/* Table */}
-      {orders.length === 0 ? (
+      {!isInitialLoading && !isSwitchingTab && orders.length === 0 ? (
         <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/30">
           <Package className="h-14 w-14 text-slate-700 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-400">No Order Details Yet</h3>
@@ -1375,7 +1434,7 @@ export default function OrderDetailsPage() {
             Order details will appear here once influencers submit their order verification forms for approved campaigns.
           </p>
         </div>
-      ) : totalFiltered === 0 ? (
+      ) : !isInitialLoading && !isSwitchingTab && totalFiltered === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-white/5 bg-slate-900/30">
           <Search className="h-10 w-10 text-slate-700 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-400">No matching orders</h3>
@@ -1446,25 +1505,9 @@ export default function OrderDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {isInitialLoading ? (
+                {isInitialLoading || isSwitchingTab ? (
                   Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i} className="border-b border-white/[0.03] animate-pulse">
-                      <td className="w-10 px-3 py-3 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
-                          <div className="space-y-1.5">
-                            <div className="w-24 h-3 rounded bg-slate-800" />
-                            <div className="w-16 h-2 rounded bg-slate-800/60" />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-24 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-8 rounded-lg bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
-                    </tr>
+                    <SkeletonRow key={i} visibleCols={visibleCols} densityClass={densityPadding[density]} />
                   ))
                 ) : paginatedData.length === 0 ? (
                   <tr>
@@ -2090,7 +2133,11 @@ export default function OrderDetailsPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-white/[0.05] bg-slate-950/30">
             <div className="flex items-center gap-3 text-xs text-slate-500">
               <span>
-                {startIndex}–{endIndex} of {totalFiltered}
+                {isInitialLoading || isSwitchingTab ? (
+                  <span className="inline-block w-16 h-3 rounded bg-slate-800 animate-pulse align-middle" />
+                ) : (
+                  `${startIndex}–${endIndex} of ${totalFiltered}`
+                )}
               </span>
               <div className="h-3 w-px bg-white/10" />
               <div className="flex items-center gap-1.5">

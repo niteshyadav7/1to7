@@ -539,6 +539,18 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [activeStatus, setActiveStatus] = useState('All')
+  const [isSwitchingTab, setIsSwitchingTab] = useState(false)
+
+  const handleStatusChange = useCallback((status: string) => {
+    if (status === activeStatus) return
+    setIsSwitchingTab(true)
+    setActiveStatus(status)
+    setPage(1)
+    setSelectedIds(new Set())
+    setTimeout(() => {
+      setIsSwitchingTab(false)
+    }, 200)
+  }, [activeStatus])
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -1031,7 +1043,11 @@ export default function PaymentsPage() {
         <div className="flex items-center justify-between gap-4 w-full">
           <div>
             <h1 className="text-xl font-extrabold text-white tracking-tight">Payments</h1>
-            <p className="text-xs text-slate-400">{totalFiltered} payment record{totalFiltered !== 1 ? 's' : ''} across all campaigns</p>
+            {isInitialLoading || isSwitchingTab ? (
+              <div className="h-3 w-32 bg-white/10 rounded animate-pulse mt-1" />
+            ) : (
+              <p className="text-xs text-slate-400">{totalFiltered} payment record{totalFiltered !== 1 ? 's' : ''} across all campaigns</p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
@@ -1071,7 +1087,7 @@ export default function PaymentsPage() {
           const isAppeals = f === 'Active Appeals'
           const count = f === 'All' ? payments.length : (statusCounts[f] || 0)
           return (
-            <button key={f} onClick={() => setActiveStatus(f)}
+            <button key={f} onClick={() => handleStatusChange(f)}
               className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeStatus === f
                   ? isAppeals
@@ -1082,7 +1098,12 @@ export default function PaymentsPage() {
                   : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
               }`}>
               {isAppeals && <AlertCircle className="h-3 w-3 text-rose-400" />}
-              {f} <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isAppeals && count > 0 ? 'bg-rose-500/20 text-rose-300 font-extrabold' : 'opacity-60'}`}>({count})</span>
+              {f}{' '}
+              {isInitialLoading ? (
+                <span className="inline-block w-4 h-3 bg-white/10 rounded-full animate-pulse align-middle" />
+              ) : (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isAppeals && count > 0 ? 'bg-rose-500/20 text-rose-300 font-extrabold' : 'opacity-60'}`}>({count})</span>
+              )}
             </button>
           )
         })}
@@ -1140,13 +1161,13 @@ export default function PaymentsPage() {
       </AnimatePresence>
 
       {/* Table */}
-      {payments.length === 0 ? (
+      {!isInitialLoading && !isSwitchingTab && payments.length === 0 ? (
         <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/30">
           <CreditCard className="h-14 w-14 text-slate-700 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-400">No Payment Records Yet</h3>
           <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Payment records will appear here once influencers submit payment forms or admin updates payment fields.</p>
         </div>
-      ) : totalFiltered === 0 ? (
+      ) : !isInitialLoading && !isSwitchingTab && totalFiltered === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-white/5 bg-slate-900/30">
           <Search className="h-10 w-10 text-slate-700 mx-auto mb-3" />
           <h3 className="text-base font-semibold text-slate-400">No matching payments</h3>
@@ -1181,27 +1202,29 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {isInitialLoading ? (
+                {isInitialLoading || isSwitchingTab ? (
                   Array.from({ length: 8 }).map((_, i) => (
                     <tr key={i} className="border-b border-white/[0.03] animate-pulse">
                       <td className="w-10 px-3 py-3 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
-                          <div className="space-y-1 flex-1">
-                            <div className="w-24 h-3 rounded bg-slate-800" />
-                            <div className="w-16 h-2 rounded bg-slate-800/60" />
+                      {visibleCols.influencer && (
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
+                            <div className="space-y-1 flex-1">
+                              <div className="w-24 h-3 rounded bg-slate-800" />
+                              <div className="w-16 h-2 rounded bg-slate-800/60" />
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
-                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
-                      <td className="px-2 py-3 w-10" />
+                        </td>
+                      )}
+                      {visibleCols.campaign && <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800" /></td>}
+                      {visibleCols.total && <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>}
+                      {visibleCols.pending && <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>}
+                      {visibleCols.totalPaid && <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>}
+                      {visibleCols.paymentRequest && <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>}
+                      {visibleCols.status && <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>}
+                      {visibleCols.date && <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>}
+                      {visibleCols.actions && <td className="px-2 py-3 w-10" />}
                     </tr>
                   ))
                 ) : paginatedData.length === 0 ? (
@@ -1932,7 +1955,11 @@ export default function PaymentsPage() {
           {/* Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-white/[0.05] bg-slate-950/30">
             <div className="flex items-center gap-3 text-xs text-slate-500">
-              <span>{startIndex}–{endIndex} of {totalFiltered}</span>
+              {isInitialLoading || isSwitchingTab ? (
+                <div className="h-3 w-16 bg-white/10 rounded animate-pulse" />
+              ) : (
+                <span>{startIndex}–{endIndex} of {totalFiltered}</span>
+              )}
               <div className="h-3 w-px bg-white/10" />
               <div className="flex items-center gap-1.5">
                 <span>Rows:</span>
