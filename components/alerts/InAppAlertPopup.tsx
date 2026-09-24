@@ -43,9 +43,22 @@ export default function InAppAlertPopup() {
         const data = await res.json()
         const list: BroadcastAlert[] = data.alerts || []
 
-        // Check session storage to see if an alert was closed in this session (unless critical)
-        const sessionDismissed = JSON.parse(sessionStorage.getItem('dismissed_alerts_session') || '[]')
-        const unreadList = list.filter(a => !sessionDismissed.includes(a.id))
+        // Check session storage to see if an alert was closed recently (snoozed for 30 mins, unless critical)
+        let sessionDismissed: Record<string, number> = {}
+        try {
+          const raw = sessionStorage.getItem('dismissed_alerts_snooze')
+          if (raw) sessionDismissed = JSON.parse(raw)
+        } catch { /* ignore */ }
+
+        const now = Date.now()
+        const unreadList = list.filter(a => {
+          if (a.type === 'critical') return true
+          const snoozedAt = sessionDismissed[a.id]
+          if (snoozedAt && now - snoozedAt < 30 * 60 * 1000) {
+            return false
+          }
+          return true
+        })
 
         if (isMounted && unreadList.length > 0) {
           setAlerts(unreadList)
@@ -57,8 +70,8 @@ export default function InAppAlertPopup() {
       }
     }
 
-    // Delay 1.2s after mount for smooth page entrance
-    const timeout = setTimeout(fetchAlerts, 1200)
+    // Delay 200ms after mount so dashboard layout is painted
+    const timeout = setTimeout(fetchAlerts, 200)
     return () => {
       isMounted = false
       clearTimeout(timeout)
@@ -101,14 +114,14 @@ export default function InAppAlertPopup() {
     }
   }
 
-  // Temporary Dismiss ("cut")
+  // Temporary Dismiss ("cut") - snoozes for 30 minutes
   const handleCut = (alertId: string) => {
     try {
-      const sessionDismissed = JSON.parse(sessionStorage.getItem('dismissed_alerts_session') || '[]')
-      if (!sessionDismissed.includes(alertId)) {
-        sessionDismissed.push(alertId)
-        sessionStorage.setItem('dismissed_alerts_session', JSON.stringify(sessionDismissed))
-      }
+      let sessionDismissed: Record<string, number> = {}
+      const raw = sessionStorage.getItem('dismissed_alerts_snooze')
+      if (raw) sessionDismissed = JSON.parse(raw)
+      sessionDismissed[alertId] = Date.now()
+      sessionStorage.setItem('dismissed_alerts_snooze', JSON.stringify(sessionDismissed))
     } catch { /* ignore */ }
 
     handleNextOrClose()
@@ -142,41 +155,41 @@ export default function InAppAlertPopup() {
 
   // Navigate to action URL
   const handleActionClick = (url?: string) => {
-    if (!url) return
+    if (!url || !url.trim()) return
     handleNextOrClose()
-    router.push(url)
+    router.push(url.trim())
   }
 
   if (!visible || !activeAlert) return null
 
   const typeConfig = {
     critical: {
-      border: 'border-rose-500/40',
-      glow: 'shadow-rose-500/20',
+      border: 'border-rose-500/50',
+      glow: 'shadow-rose-500/25',
       badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
       bar: 'bg-rose-500',
       icon: <ShieldAlert className="h-5 w-5 text-rose-400" />,
       label: 'Critical Alert',
     },
     warning: {
-      border: 'border-amber-500/40',
-      glow: 'shadow-amber-500/20',
+      border: 'border-amber-500/50',
+      glow: 'shadow-amber-500/25',
       badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
       bar: 'bg-amber-500',
       icon: <AlertTriangle className="h-5 w-5 text-amber-400" />,
       label: 'Action Required',
     },
     info: {
-      border: 'border-indigo-500/40',
-      glow: 'shadow-indigo-500/20',
+      border: 'border-indigo-500/50',
+      glow: 'shadow-indigo-500/25',
       badge: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
       bar: 'bg-indigo-500',
       icon: <Info className="h-5 w-5 text-indigo-400" />,
       label: 'Notice',
     },
     success: {
-      border: 'border-emerald-500/40',
-      glow: 'shadow-emerald-500/20',
+      border: 'border-emerald-500/50',
+      glow: 'shadow-emerald-500/25',
       badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
       bar: 'bg-emerald-500',
       icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />,
@@ -184,9 +197,11 @@ export default function InAppAlertPopup() {
     },
   }[activeAlert.type || 'warning']
 
+  const secondsRemaining = Math.max(1, Math.ceil((progress / 100) * durationSec))
+
   return (
     <AnimatePresence>
-      <div className="fixed bottom-6 right-6 z-[9999] max-w-md w-[calc(100vw-3rem)]">
+      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-[99999] max-w-md w-[calc(100vw-2.5rem)] sm:w-full pointer-events-auto">
         <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.94 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -194,7 +209,7 @@ export default function InAppAlertPopup() {
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          className={`relative bg-slate-900/95 backdrop-blur-xl border ${typeConfig.border} rounded-2xl p-5 shadow-2xl ${typeConfig.glow} overflow-hidden text-white`}
+          className={`relative bg-slate-900/98 backdrop-blur-2xl border ${typeConfig.border} rounded-2xl p-5 shadow-2xl ${typeConfig.glow} overflow-hidden text-white`}
         >
           {/* Header row: Badge + Title + Close Button */}
           <div className="flex items-start justify-between gap-3">
@@ -203,9 +218,14 @@ export default function InAppAlertPopup() {
                 {typeConfig.icon}
               </div>
               <div>
-                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${typeConfig.badge}`}>
-                  {typeConfig.label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${typeConfig.badge}`}>
+                    {typeConfig.label}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {isPaused ? '⏸ Paused' : `${secondsRemaining}s`}
+                  </span>
+                </div>
                 <h4 className="text-sm font-bold text-white mt-1 leading-snug">
                   {activeAlert.title}
                 </h4>
@@ -217,8 +237,8 @@ export default function InAppAlertPopup() {
               <button
                 type="button"
                 onClick={() => handleCut(activeAlert.id)}
-                title="Dismiss for now"
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                title="Dismiss for now (Cut)"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -226,17 +246,17 @@ export default function InAppAlertPopup() {
           </div>
 
           {/* Message Content */}
-          <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+          <p className="text-xs text-slate-300 mt-3 leading-relaxed whitespace-pre-line">
             {activeAlert.message}
           </p>
 
           {/* Action and Resolution Buttons */}
           <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-white/10">
-            {activeAlert.action_url && (
+            {Boolean(activeAlert.action_url && activeAlert.action_url.trim()) && (
               <button
                 type="button"
                 onClick={() => handleActionClick(activeAlert.action_url)}
-                className="flex-1 min-w-[140px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="flex-1 min-w-[140px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
                 {activeAlert.action_label || 'Resolve Issue'}
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -249,7 +269,7 @@ export default function InAppAlertPopup() {
               disabled={resolving}
               onClick={() => handleMarkResolved(activeAlert.id)}
               title="Mark this issue as resolved so it won't appear again"
-              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold border border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold border border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 active:scale-95"
             >
               <Check className="h-3.5 w-3.5 text-emerald-400" />
               <span>Resolved (Don&apos;t show again)</span>

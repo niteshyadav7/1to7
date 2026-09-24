@@ -66,6 +66,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title and message are required' }, { status: 400 })
     }
 
+    let resolvedUserId: string | null = target_user_id || null
+    let resolvedIdentifier: string | null = target_user_identifier ? String(target_user_identifier).trim() : null
+
+    if (target_type === 'specific_user') {
+      if (!resolvedIdentifier && !resolvedUserId) {
+        return NextResponse.json(
+          { error: 'Creator ID, phone number, email, or user ID is required for specific creator alerts' },
+          { status: 400 }
+        )
+      }
+
+      if (resolvedIdentifier && !resolvedUserId) {
+        const userLookup = await pool.query(
+          `SELECT id, influencer_id, mobile, email FROM public.users 
+           WHERE LOWER(TRIM(influencer_id)) = LOWER(TRIM($1))
+              OR TRIM(mobile) = TRIM($1)
+              OR LOWER(TRIM(email)) = LOWER(TRIM($1))
+              OR id::text = TRIM($1)
+           LIMIT 1`,
+          [resolvedIdentifier]
+        )
+
+        if (userLookup.rows.length === 0) {
+          return NextResponse.json(
+            { error: `No creator found matching "${resolvedIdentifier}". Please verify the Influencer ID, phone, or email.` },
+            { status: 404 }
+          )
+        }
+
+        const matched = userLookup.rows[0]
+        resolvedUserId = matched.id
+        resolvedIdentifier = matched.influencer_id || resolvedIdentifier
+      }
+    } else {
+      resolvedUserId = null
+      resolvedIdentifier = null
+    }
+
     const adminName = admin.name || admin.email || 'Admin'
 
     const insertRes = await pool.query(
@@ -82,10 +120,10 @@ export async function POST(request: Request) {
         message.trim(),
         type,
         target_type,
-        target_user_id || null,
-        target_user_identifier || null,
-        action_label.trim(),
-        action_url.trim(),
+        resolvedUserId,
+        resolvedIdentifier,
+        (action_label || '').trim(),
+        (action_url || '').trim(),
         Number(auto_duration_seconds) || 8,
         Boolean(allow_dismiss),
         Boolean(auto_resolve_on_bank),

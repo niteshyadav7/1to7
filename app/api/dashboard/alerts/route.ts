@@ -12,9 +12,9 @@ export async function GET() {
     const payload = await verifyToken(token)
     if (!payload || !payload.id) return NextResponse.json({ alerts: [] })
 
-    // Check creator's bank details status
+    // Check creator's bank details and profile identifiers
     const userRes = await pool.query(
-      `SELECT id, account_number, ifsc_code FROM public.users WHERE id = $1`,
+      `SELECT id, influencer_id, mobile, email, account_number, ifsc_code FROM public.users WHERE id = $1`,
       [payload.id]
     )
 
@@ -32,6 +32,8 @@ export async function GET() {
         b.message,
         b.type,
         b.target_type,
+        b.target_user_id,
+        b.target_user_identifier,
         b.action_label,
         b.action_url,
         b.auto_duration_seconds,
@@ -47,13 +49,31 @@ export async function GET() {
         AND (
           b.target_type = 'all'
           OR (b.target_type = 'missing_bank' AND $2 = false)
-          OR (b.target_type = 'specific_user' AND b.target_user_id = $1)
+          OR (
+            b.target_type = 'specific_user' AND (
+              b.target_user_id = $1
+              OR (
+                b.target_user_identifier IS NOT NULL AND (
+                  ($3 != '' AND LOWER(TRIM(b.target_user_identifier)) = LOWER(TRIM($3)))
+                  OR ($4 != '' AND TRIM(b.target_user_identifier) = TRIM($4))
+                  OR ($5 != '' AND LOWER(TRIM(b.target_user_identifier)) = LOWER(TRIM($5)))
+                  OR TRIM(b.target_user_identifier) = $1::text
+                )
+              )
+            )
+          )
         )
         AND (ack.resolved IS NULL OR ack.resolved = false)
       ORDER BY b.created_at DESC
       LIMIT 5
       `,
-      [payload.id, hasBankDetails]
+      [
+        payload.id,
+        hasBankDetails,
+        user.influencer_id || '',
+        user.mobile || '',
+        user.email || '',
+      ]
     )
 
     // Filter out alerts where auto_resolve_on_bank is true and the user now has bank details
