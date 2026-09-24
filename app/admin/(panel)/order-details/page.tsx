@@ -22,6 +22,7 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -636,8 +637,14 @@ function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; on
 export default function OrderDetailsPage() {
   const { admin } = useAdminPermissions()
   // Core data
-  const [loading, setLoading] = useState(true)
-  const [orders, setOrders] = useState<OrderEntry[]>([])
+  const [orders, setOrders] = useState<OrderEntry[]>(() => {
+    const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
+    return Array.isArray(cached) ? cached : []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
+    return !Array.isArray(cached) || cached.length === 0
+  })
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('All')
@@ -701,19 +708,33 @@ export default function OrderDetailsPage() {
   )
 
   // ─── Fetch ────────────────────────────────────────────
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (isBackground = false) => {
+    if (!isBackground && orders.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/admin/order-details')
       const data = await res.json()
-      setOrders(data.orders || [])
+      const list = data.orders || []
+      setOrders(list)
+      setFastCache('admin_order_details_cache', list)
     } catch {
-      toast.error('Failed to load order details')
+      if (!isBackground) toast.error('Failed to load order details')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [orders.length])
 
-  useEffect(() => { fetchOrders() }, [fetchOrders])
+  useEffect(() => {
+    const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setOrders(cached)
+      setLoading(false)
+      fetchOrders(true)
+    } else {
+      fetchOrders(false)
+    }
+  }, [fetchOrders])
 
   // Auto-refresh when influencers submit orders
   useRealtime({ table: 'applications', onChange: fetchOrders })

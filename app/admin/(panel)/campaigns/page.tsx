@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { BulkCampaignUploadModal } from '@/components/admin/BulkCampaignUploadModal'
 import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
 import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 interface Campaign {
   id: string
@@ -79,8 +80,14 @@ const filters = ['All', 'Pending Approvals', 'Pilot Campaigns', 'Active', 'Draft
 
 export default function AdminCampaignsPage() {
   const { admin, isSuperAdmin } = useAdminPermissions()
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(true)
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
+    const cached = getFastCache<Campaign[]>('admin_campaigns_cache')
+    return Array.isArray(cached) ? cached : []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<Campaign[]>('admin_campaigns_cache')
+    return !Array.isArray(cached) || cached.length === 0
+  })
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -217,8 +224,39 @@ export default function AdminCampaignsPage() {
     }
   }
 
+  const fetchCampaigns = async (isBackground = false) => {
+    if (!isBackground && campaigns.length === 0) {
+      setLoading(true)
+    }
+    try {
+      const res = await fetch('/api/admin/campaigns')
+      const data = await res.json()
+      const list = data.campaigns || []
+      // Normalize display_order
+      const sorted = list.map((c: Campaign, idx: number) => ({
+        ...c,
+        display_order: typeof c.display_order === 'number' && c.display_order > 0 ? c.display_order : idx + 1
+      }))
+      setCampaigns(sorted)
+      setFastCache('admin_campaigns_cache', sorted)
+    } catch {
+      if (!isBackground) {
+        toast.error('Failed to load campaigns')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetchCampaigns()
+    const cached = getFastCache<Campaign[]>('admin_campaigns_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setCampaigns(cached)
+      setLoading(false)
+      fetchCampaigns(true)
+    } else {
+      fetchCampaigns(false)
+    }
   }, [])
 
   const copyCampaignLink = (c: Campaign) => {
@@ -238,24 +276,6 @@ export default function AdminCampaignsPage() {
       toast.success(`Copied all specifications of "${c.brand_name}" to clipboard & template storage!`)
     } catch {
       toast.error('Failed to copy campaign specifications')
-    }
-  }
-
-  const fetchCampaigns = async () => {
-    try {
-      const res = await fetch('/api/admin/campaigns')
-      const data = await res.json()
-      const list = data.campaigns || []
-      // Normalize display_order
-      const sorted = list.map((c: Campaign, idx: number) => ({
-        ...c,
-        display_order: typeof c.display_order === 'number' && c.display_order > 0 ? c.display_order : idx + 1
-      }))
-      setCampaigns(sorted)
-    } catch {
-      toast.error('Failed to load campaigns')
-    } finally {
-      setLoading(false)
     }
   }
 

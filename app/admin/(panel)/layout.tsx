@@ -27,7 +27,6 @@ import {
   Tags,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
-import AdminTabBar from '@/components/admin/AdminTabBar'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
 import {
   AdminPermissionsProvider,
@@ -186,6 +185,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
               <Link
                 key={link.href}
                 href={link.href}
+                prefetch={true}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 group cursor-pointer ${
                   active
@@ -266,24 +266,21 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           )}
         </header>
 
-        {/* Desktop Top Bar & Workspace Multi-Tab Strip */}
-        <div className="hidden lg:flex flex-col sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl border-b border-white/5">
-          <header className="px-6 py-5 flex items-center justify-between gap-6 min-h-[76px]">
-            <div className="flex-1 min-w-0 py-1">
-              {headerContent || (
-                <div>
-                  <h1 className="text-xl font-extrabold text-white tracking-tight">
-                    {allSidebarLinks.find((link) => isActive(link.href))?.label || 'Admin Panel'}
-                  </h1>
-                </div>
-              )}
-            </div>
-            <div className="shrink-0 flex items-center gap-3">
-              <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
-            </div>
-          </header>
-          <AdminTabBar />
-        </div>
+        {/* Desktop Top Bar */}
+        <header className="hidden lg:flex sticky top-0 z-30 bg-slate-950/85 backdrop-blur-xl border-b border-white/5 px-6 py-6 items-center justify-between gap-6 min-h-[80px]">
+          <div className="flex-1 min-w-0 py-1.5">
+            {headerContent || (
+              <div>
+                <h1 className="text-xl font-extrabold text-white tracking-tight">
+                  {allSidebarLinks.find((link) => isActive(link.href))?.label || 'Admin Panel'}
+                </h1>
+              </div>
+            )}
+          </div>
+          <div className="shrink-0 flex items-center gap-3">
+            <NotificationBell apiEndpoint="/api/admin/notifications" accentColor="indigo" storageKey="admin_notif_read" />
+          </div>
+        </header>
 
         {/* Page Content with Dynamic Route Guard */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">

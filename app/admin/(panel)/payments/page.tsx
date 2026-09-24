@@ -32,6 +32,7 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -535,8 +536,14 @@ function EditableTextField({ value, paymentId, field, onSave }: {
 
 // ─── Main Component ────────────────────────────────────────
 export default function PaymentsPage() {
-  const [loading, setLoading] = useState(true)
-  const [payments, setPayments] = useState<PaymentEntry[]>([])
+  const [payments, setPayments] = useState<PaymentEntry[]>(() => {
+    const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
+    return Array.isArray(cached) ? cached : []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
+    return !Array.isArray(cached) || cached.length === 0
+  })
   const [activeStatus, setActiveStatus] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
@@ -597,14 +604,22 @@ export default function PaymentsPage() {
     return counts
   }, [payments])
 
-  const fetchPayments = useCallback(async () => {
+  const fetchPayments = useCallback(async (isBackground = false) => {
+    if (!isBackground && payments.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
-      setPayments(data.payments || [])
-    } catch { toast.error('Failed to load payments') }
-    finally { setLoading(false) }
-  }, [])
+      const list = data.payments || []
+      setPayments(list)
+      setFastCache('admin_payments_cache', list)
+    } catch {
+      if (!isBackground) toast.error('Failed to load payments')
+    } finally {
+      setLoading(false)
+    }
+  }, [payments.length])
 
     const handleDualApprove = async (appId: string) => {
     setDualApprovingId(appId)
@@ -669,7 +684,16 @@ export default function PaymentsPage() {
     }
   }
 
-  useEffect(() => { fetchPayments() }, [fetchPayments])
+  useEffect(() => {
+    const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setPayments(cached)
+      setLoading(false)
+      fetchPayments(true)
+    } else {
+      fetchPayments(false)
+    }
+  }, [fetchPayments])
 
   // Auto-refresh when influencers request payments
   useRealtime({ table: 'applications', onChange: fetchPayments })

@@ -12,6 +12,7 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
 import { toast } from 'sonner'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 interface Stats {
   totalCampaigns: number
@@ -53,30 +54,68 @@ const statusColors: Record<string, string> = {
   'Payment Initiated': 'bg-amber-500/15 text-amber-300 border-amber-500/20',
 }
 
+interface DashboardCacheData {
+  stats: Stats | null
+  recentPendingApps: RecentApplication[]
+  recentApprovedApps: RecentApplication[]
+}
+
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [recentPendingApps, setRecentPendingApps] = useState<RecentApplication[]>([])
-  const [recentApprovedApps, setRecentApprovedApps] = useState<RecentApplication[]>([])
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<Stats | null>(() => {
+    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
+    return cached?.stats || null
+  })
+  const [recentPendingApps, setRecentPendingApps] = useState<RecentApplication[]>(() => {
+    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
+    return cached?.recentPendingApps || []
+  })
+  const [recentApprovedApps, setRecentApprovedApps] = useState<RecentApplication[]>(() => {
+    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
+    return cached?.recentApprovedApps || []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
+    return !cached || !cached.stats
+  })
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground && !stats) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/admin/dashboard/stats')
       const data = await res.json()
-      setStats(data.stats || null)
-      setRecentPendingApps(data.recentPendingApplications || [])
-      setRecentApprovedApps(data.recentApprovedApplications || [])
+      const newStats = data.stats || null
+      const newPending = data.recentPendingApplications || []
+      const newApproved = data.recentApprovedApplications || []
+      setStats(newStats)
+      setRecentPendingApps(newPending)
+      setRecentApprovedApps(newApproved)
+      setFastCache('admin_dashboard_cache', {
+        stats: newStats,
+        recentPendingApps: newPending,
+        recentApprovedApps: newApproved,
+      })
     } catch {
       console.error('Failed to fetch admin stats')
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
+    if (cached && cached.stats) {
+      setStats(cached.stats)
+      setRecentPendingApps(cached.recentPendingApps || [])
+      setRecentApprovedApps(cached.recentApprovedApps || [])
+      setLoading(false)
+      fetchData(true)
+    } else {
+      fetchData(false)
+    }
+  }, [])
 
   const updateStatus = async (appId: string, newStatus: string) => {
     setUpdatingId(appId)

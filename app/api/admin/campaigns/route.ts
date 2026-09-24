@@ -1,60 +1,34 @@
 import { NextResponse } from 'next/server'
-import { Client } from 'pg'
+import pool from '@/lib/db'
 import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
 
 export async function GET() {
-  if (!process.env.POSTGRES_URL) {
-    console.error('Missing POSTGRES_URL environment variable')
-    return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
-  }
-  const client = new Client({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-  })
   try {
     const admin = await getAdminFromRequest()
     if (!admin || !hasModuleAccess(admin, 'campaigns')) {
       return NextResponse.json({ error: 'Unauthorized: Access to campaigns is restricted' }, { status: 403 })
     }
 
-    await client.connect()
-
-    // Get all campaigns sorted by display order
-    const campaignsRes = await client.query(`
-      SELECT * FROM public.campaigns 
-      ORDER BY COALESCE(display_order, 999999) ASC, created_at DESC
+    // Get all campaigns sorted by display order with application counts in 1 single fast query
+    const campaignsRes = await pool.query(`
+      SELECT c.*, COALESCE(app_counts.cnt, 0)::int AS application_count
+      FROM public.campaigns c
+      LEFT JOIN (
+        SELECT campaign_id, COUNT(*) AS cnt 
+        FROM public.applications 
+        GROUP BY campaign_id
+      ) app_counts ON app_counts.campaign_id = c.id
+      ORDER BY COALESCE(c.display_order, 999999) ASC, c.created_at DESC
     `)
-    const campaigns = campaignsRes.rows
 
-    // Get application counts per campaign
-    const campaignsWithCounts = await Promise.all(
-      campaigns.map(async (campaign) => {
-        const countRes = await client.query(
-          'SELECT COUNT(*) FROM public.applications WHERE campaign_id = $1',
-          [campaign.id]
-        )
-        return { ...campaign, application_count: parseInt(countRes.rows[0].count) || 0 }
-      })
-    )
-
-    return NextResponse.json({ campaigns: campaignsWithCounts })
+    return NextResponse.json({ campaigns: campaignsRes.rows })
   } catch (error) {
     console.error('API /admin/campaigns GET Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  } finally {
-    await client.end()
   }
 }
 
 export async function POST(request: Request) {
-  if (!process.env.POSTGRES_URL) {
-    console.error('Missing POSTGRES_URL environment variable')
-    return NextResponse.json({ error: 'Server configuration error: Database URL not found' }, { status: 500 })
-  }
-  const client = new Client({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-  })
   try {
     const admin = await getAdminFromRequest()
     if (!admin || !hasActionPermission(admin, 'campaigns', 'create')) {
@@ -113,8 +87,6 @@ export async function POST(request: Request) {
         ? campaign_code.trim().toUpperCase()
         : `CAM-${Date.now().toString(36).toUpperCase()}`
 
-    await client.connect()
-
     // Determine Super Admin status
     const isSuperAdmin = admin.role === 'super_admin' || Boolean(admin.is_super_admin)
     const adminName = admin.full_name || admin.name || (isSuperAdmin ? 'Super Admin' : 'Admin')
@@ -123,7 +95,7 @@ export async function POST(request: Request) {
     // Calculate next order if not specified
     let targetOrder = display_order ? parseInt(display_order) : null
     if (!targetOrder) {
-      const orderRes = await client.query('SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM public.campaigns')
+      const orderRes = await pool.query('SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM public.campaigns')
       targetOrder = parseInt(orderRes.rows[0]?.next_order) || 1
     }
 
@@ -210,7 +182,7 @@ export async function POST(request: Request) {
       JSON.stringify(Array.isArray(test_creators) ? test_creators : []),
     ]
 
-    const res = await client.query(query, values)
+    const res = await pool.query(query, values)
     const campaign = res.rows[0]
 
     return NextResponse.json({
@@ -226,7 +198,5 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campaign ID already exists. Please use a unique ID.' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  } finally {
-    await client.end()
   }
 }

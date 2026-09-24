@@ -27,6 +27,7 @@ import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/comp
 import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
 import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -793,8 +794,14 @@ function SkeletonRow() {
 export default function AllApplicationsPage() {
   const { admin } = useAdminPermissions()
   // Core data
-  const [loading, setLoading] = useState(true)
-  const [applications, setApplications] = useState<Application[]>([])
+  const [applications, setApplications] = useState<Application[]>(() => {
+    const cached = getFastCache<Application[]>('admin_applications_cache')
+    return Array.isArray(cached) ? cached : []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<Application[]>('admin_applications_cache')
+    return !Array.isArray(cached) || cached.length === 0
+  })
   const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
 
   // Table state
@@ -999,19 +1006,33 @@ export default function AllApplicationsPage() {
   )
 
   // ─── Fetch ─────────────────────────────────────────────
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (isBackground = false) => {
+    if (!isBackground && applications.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch(`/api/admin/applications`)
       const data = await res.json()
-      setApplications(data.applications || [])
+      const list = data.applications || []
+      setApplications(list)
+      setFastCache('admin_applications_cache', list)
     } catch {
-      toast.error('Failed to load applications')
+      if (!isBackground) toast.error('Failed to load applications')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applications.length])
 
-  useEffect(() => { fetchApplications() }, [fetchApplications])
+  useEffect(() => {
+    const cached = getFastCache<Application[]>('admin_applications_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setApplications(cached)
+      setLoading(false)
+      fetchApplications(true)
+    } else {
+      fetchApplications(false)
+    }
+  }, [fetchApplications])
 
   // Auto-refresh when influencers apply or data changes
   useRealtime({ table: 'applications', onChange: fetchApplications })

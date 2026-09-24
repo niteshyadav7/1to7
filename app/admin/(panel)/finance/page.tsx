@@ -42,6 +42,7 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { GlobalLoader } from '@/components/ui/global-loader'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 interface UserInfo {
   id: string
@@ -74,8 +75,14 @@ interface Application {
 }
 
 export default function FinancePayoutPage() {
-  const [applications, setApplications] = useState<Application[]>([])
-  const [loading, setLoading] = useState(true)
+  const [applications, setApplications] = useState<Application[]>(() => {
+    const cached = getFastCache<Application[]>('admin_finance_cache')
+    return Array.isArray(cached) ? cached : []
+  })
+  const [loading, setLoading] = useState(() => {
+    const cached = getFastCache<Application[]>('admin_finance_cache')
+    return !Array.isArray(cached) || cached.length === 0
+  })
   const [activeTab, setActiveTab] = useState<'finance_queue' | 'dual_approval' | 'disbursed_history'>('finance_queue')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('all')
@@ -123,20 +130,32 @@ export default function FinancePayoutPage() {
     )
   }
 
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (isBackground = false) => {
+    if (!isBackground && applications.length === 0) {
+      setLoading(true)
+    }
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
-      setApplications(data.payments || data.applications || [])
+      const list = data.payments || data.applications || []
+      setApplications(list)
+      setFastCache('admin_finance_cache', list)
     } catch {
-      toast.error('Failed to load payment queue')
+      if (!isBackground) toast.error('Failed to load payment queue')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applications.length])
 
   useEffect(() => {
-    fetchApplications()
+    const cached = getFastCache<Application[]>('admin_finance_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setApplications(cached)
+      setLoading(false)
+      fetchApplications(true)
+    } else {
+      fetchApplications(false)
+    }
   }, [fetchApplications])
 
   // Close modals on Escape key press
