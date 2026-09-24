@@ -536,14 +536,8 @@ function EditableTextField({ value, paymentId, field, onSave }: {
 
 // ─── Main Component ────────────────────────────────────────
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<PaymentEntry[]>(() => {
-    const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
-    return Array.isArray(cached) ? cached : []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
-    return !Array.isArray(cached) || cached.length === 0
-  })
+  const [payments, setPayments] = useState<PaymentEntry[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeStatus, setActiveStatus] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
@@ -585,9 +579,9 @@ export default function PaymentsPage() {
   const summaryStats = useMemo(() => {
     let totalPaid = 0, totalPending = 0, totalPartial = 0, totalFinal = 0
     payments.forEach(p => {
-      totalPartial += p.partial_payment || 0
-      totalFinal += p.final_payment || 0
-      totalPending += p.pending_amount || 0
+      totalPartial += Number(p.partial_payment) || 0
+      totalFinal += Number(p.final_payment) || 0
+      totalPending += Number(p.pending_amount) || 0
     })
     totalPaid = totalPartial + totalFinal
     return { totalPaid, totalPending, totalPartial, totalFinal, totalRevenue: totalPaid + totalPending }
@@ -611,7 +605,13 @@ export default function PaymentsPage() {
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
-      const list = data.payments || []
+      const rawList = data.payments || []
+      const list = rawList.map((p: any) => ({
+        ...p,
+        partial_payment: Number(p.partial_payment) || 0,
+        final_payment: Number(p.final_payment) || 0,
+        pending_amount: Number(p.pending_amount) || 0,
+      }))
       setPayments(list)
       setFastCache('admin_payments_cache', list)
     } catch {
@@ -687,7 +687,13 @@ export default function PaymentsPage() {
   useEffect(() => {
     const cached = getFastCache<PaymentEntry[]>('admin_payments_cache')
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      setPayments(cached)
+      const sanitized = cached.map((p: any) => ({
+        ...p,
+        partial_payment: Number(p.partial_payment) || 0,
+        final_payment: Number(p.final_payment) || 0,
+        pending_amount: Number(p.pending_amount) || 0,
+      }))
+      setPayments(sanitized)
       setLoading(false)
       fetchPayments(true)
     } else {
@@ -1005,10 +1011,10 @@ export default function PaymentsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Paid', value: `₹${summaryStats.totalPaid.toLocaleString()}`, icon: IndianRupee, color: 'from-emerald-600 to-emerald-500', shadow: 'shadow-emerald-500/10' },
-          { label: 'Partial', value: `₹${summaryStats.totalPartial.toLocaleString()}`, icon: Banknote, color: 'from-blue-600 to-blue-500', shadow: 'shadow-blue-500/10' },
-          { label: 'Final', value: `₹${summaryStats.totalFinal.toLocaleString()}`, icon: CheckCircle2, color: 'from-purple-600 to-purple-500', shadow: 'shadow-purple-500/10' },
-          { label: 'Pending', value: `₹${summaryStats.totalPending.toLocaleString()}`, icon: Clock, color: 'from-amber-600 to-amber-500', shadow: 'shadow-amber-500/10' },
+          { label: 'Total Paid', value: `₹${summaryStats.totalPaid.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'from-emerald-600 to-emerald-500', shadow: 'shadow-emerald-500/10' },
+          { label: 'Partial', value: `₹${summaryStats.totalPartial.toLocaleString('en-IN')}`, icon: Banknote, color: 'from-blue-600 to-blue-500', shadow: 'shadow-blue-500/10' },
+          { label: 'Final', value: `₹${summaryStats.totalFinal.toLocaleString('en-IN')}`, icon: CheckCircle2, color: 'from-purple-600 to-purple-500', shadow: 'shadow-purple-500/10' },
+          { label: 'Pending', value: `₹${summaryStats.totalPending.toLocaleString('en-IN')}`, icon: Clock, color: 'from-amber-600 to-amber-500', shadow: 'shadow-amber-500/10' },
         ].map(card => (
           <div key={card.label} className={`rounded-2xl border border-white/[0.06] bg-slate-900/40 p-4 shadow-lg ${card.shadow}`}>
             <div className="flex items-center gap-2 mb-2">
@@ -1017,7 +1023,11 @@ export default function PaymentsPage() {
               </div>
               <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">{card.label}</span>
             </div>
-            <p className="text-xl font-bold text-white">{card.value}</p>
+            {isInitialLoading ? (
+              <div className="h-7 w-28 bg-white/10 rounded animate-pulse" />
+            ) : (
+              <p className="text-xl font-bold text-white">{card.value}</p>
+            )}
           </div>
         ))}
       </div>

@@ -74,14 +74,8 @@ interface Application {
 }
 
 export default function FinancePayoutPage() {
-  const [applications, setApplications] = useState<Application[]>(() => {
-    const cached = getFastCache<Application[]>('admin_finance_cache')
-    return Array.isArray(cached) ? cached : []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<Application[]>('admin_finance_cache')
-    return !Array.isArray(cached) || cached.length === 0
-  })
+  const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'finance_queue' | 'dual_approval' | 'disbursed_history'>('finance_queue')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('all')

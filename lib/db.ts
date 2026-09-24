@@ -1,4 +1,7 @@
-import { Pool, QueryResult, QueryResultRow } from 'pg'
+import { Pool, QueryResult, QueryResultRow, types } from 'pg'
+
+// Parse NUMERIC / DECIMAL (OID 1700) as float automatically so node-postgres doesn't return strings
+types.setTypeParser(1700, (val: string) => (val === null ? 0 : parseFloat(val)))
 
 declare global {
   // Prevent multiple pool instances during Next.js hot-reloads

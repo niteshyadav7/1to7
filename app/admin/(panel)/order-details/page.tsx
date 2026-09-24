@@ -636,15 +636,8 @@ function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; on
 // ─── Main Component ────────────────────────────────────────
 export default function OrderDetailsPage() {
   const { admin } = useAdminPermissions()
-  // Core data
-  const [orders, setOrders] = useState<OrderEntry[]>(() => {
-    const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
-    return Array.isArray(cached) ? cached : []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
-    return !Array.isArray(cached) || cached.length === 0
-  })
+  const [orders, setOrders] = useState<OrderEntry[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('All')
@@ -715,7 +708,13 @@ export default function OrderDetailsPage() {
     try {
       const res = await fetch('/api/admin/order-details')
       const data = await res.json()
-      const list = data.orders || []
+      const rawList = data.orders || []
+      const list = rawList.map((o: any) => ({
+        ...o,
+        partial_payment: Number(o.partial_payment) || 0,
+        final_payment: Number(o.final_payment) || 0,
+        pending_amount: Number(o.pending_amount) || 0,
+      }))
       setOrders(list)
       setFastCache('admin_order_details_cache', list)
     } catch {
@@ -728,7 +727,13 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     const cached = getFastCache<OrderEntry[]>('admin_order_details_cache')
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      setOrders(cached)
+      const sanitized = cached.map((o: any) => ({
+        ...o,
+        partial_payment: Number(o.partial_payment) || 0,
+        final_payment: Number(o.final_payment) || 0,
+        pending_amount: Number(o.pending_amount) || 0,
+      }))
+      setOrders(sanitized)
       setLoading(false)
       fetchOrders(true)
     } else {
