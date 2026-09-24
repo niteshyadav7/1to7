@@ -718,7 +718,7 @@ export default function PaymentsPage() {
         const s = `${p.users?.full_name} ${p.users?.influencer_id} ${p.users?.email} ${p.campaigns?.brand_name} ${p.campaigns?.campaign_code}`.toLowerCase()
         if (s.includes(q)) return true
 
-        const phones = [p.users?.mobile, p.manager_phone].filter(Boolean).map(String)
+        const phones = [p.users?.mobile, p.manager_phone, p.form_data?.phone, p.form_data?.mobile].filter(Boolean).map(String)
         if (phones.some(ph => ph.toLowerCase().includes(q))) return true
         if (qDigits.length >= 3 && phones.some(ph => ph.replace(/\D/g, '').includes(qDigits))) return true
 
@@ -1060,7 +1060,7 @@ export default function PaymentsPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, ID, campaign..." className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full" />
+            placeholder="Search by name, phone, ID, campaign..." className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full" />
           {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><X className="h-3.5 w-3.5" /></button>}
         </div>
         <button onClick={() => setShowFilters(!showFilters)}

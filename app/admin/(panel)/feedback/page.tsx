@@ -103,14 +103,21 @@ export default function AdminFeedbackPage() {
   // Filtered by Search query locally as well for instantaneous responsiveness
   const filteredFeedback = useMemo(() => {
     if (!searchQuery.trim()) return feedback
-    const q = searchQuery.toLowerCase()
-    return feedback.filter(item =>
-      (item.full_name || '').toLowerCase().includes(q) ||
-      (item.email || '').toLowerCase().includes(q) ||
-      (item.influencer_id || '').toLowerCase().includes(q) ||
-      (item.message || '').toLowerCase().includes(q) ||
-      (item.category || '').toLowerCase().includes(q)
-    )
+    const q = searchQuery.toLowerCase().trim()
+    const qDigits = searchQuery.replace(/\D/g, '')
+    return feedback.filter(item => {
+      const matchPhone = (item.mobile && item.mobile.toLowerCase().includes(q)) ||
+        (qDigits.length >= 3 && item.mobile && item.mobile.replace(/\D/g, '').includes(qDigits))
+
+      return (
+        matchPhone ||
+        (item.full_name || '').toLowerCase().includes(q) ||
+        (item.email || '').toLowerCase().includes(q) ||
+        (item.influencer_id || '').toLowerCase().includes(q) ||
+        (item.message || '').toLowerCase().includes(q) ||
+        (item.category || '').toLowerCase().includes(q)
+      )
+    })
   }, [feedback, searchQuery])
 
   // Export CSV
@@ -221,7 +228,7 @@ export default function AdminFeedbackPage() {
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search user, ID, message..."
+                placeholder="Search user, phone, ID, message..."
                 className="pl-10 bg-slate-950/70 border border-slate-800 text-white placeholder:text-slate-500 h-10 text-xs rounded-xl focus:border-amber-500/60 transition-all"
               />
             </div>

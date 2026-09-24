@@ -332,12 +332,21 @@ export default function CompletionDetailsPage() {
       if (selectedPlatform !== 'all' && app.campaigns?.platform?.toLowerCase() !== selectedPlatform.toLowerCase()) return false
 
       if (search.trim()) {
-        const q = search.toLowerCase()
+        const q = search.toLowerCase().trim()
+        const qDigits = search.replace(/\D/g, '')
         const comp = getCompletionDetails(app)
         const matchName = app.users?.full_name?.toLowerCase().includes(q)
         const matchId = app.users?.influencer_id?.toLowerCase().includes(q)
         const matchInsta = app.users?.instagram_username?.toLowerCase().includes(q)
-        const matchPhone = app.users?.mobile?.includes(q)
+        const phones = [
+          app.users?.mobile,
+          app.manager_phone,
+          app.form_data?.phone,
+          app.form_data?.mobile,
+          app.form_data?.whatsapp_number,
+        ].filter(Boolean).map(String)
+        const matchPhone = phones.some(p => p.toLowerCase().includes(q)) ||
+          (qDigits.length >= 3 && phones.some(p => p.replace(/\D/g, '').includes(qDigits)))
         const matchBrand = app.campaigns?.brand_name?.toLowerCase().includes(q)
         const matchCode = app.campaigns?.campaign_code?.toLowerCase().includes(q)
         const matchLink = comp.deliverable_link?.toLowerCase().includes(q)
@@ -766,7 +775,7 @@ export default function CompletionDetailsPage() {
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search by creator name, influencer ID, campaign, deliverable link..."
+            placeholder="Search by name, phone, ID, campaign, deliverable..."
             className="pl-10 h-11 bg-slate-900/60 border-white/10 text-white placeholder:text-slate-500 text-xs rounded-xl focus:ring-indigo-500"
           />
           {search && (

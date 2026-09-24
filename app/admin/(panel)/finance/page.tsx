@@ -59,6 +59,7 @@ interface UserInfo {
 interface Application {
   id: string
   status: string
+  manager_phone?: string
   form_data: Record<string, any>
   pending_amount: number
   partial_payment: number
@@ -230,10 +231,16 @@ export default function FinancePayoutPage() {
 
     // Search query
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
+      const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter((app) => {
         const payout = app.form_data?.finance_payout_completed
+        const phones = [app.users?.mobile, app.manager_phone].filter(Boolean).map(String)
+        const matchPhone = phones.some(p => p.toLowerCase().includes(q)) ||
+          (qDigits.length >= 3 && phones.some(p => p.replace(/\D/g, '').includes(qDigits)))
+
         return (
+          matchPhone ||
           app.users?.full_name?.toLowerCase().includes(q) ||
           app.users?.influencer_id?.toLowerCase().includes(q) ||
           app.users?.account_number?.includes(q) ||
@@ -870,7 +877,7 @@ export default function FinancePayoutPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
-              placeholder={activeTab === 'disbursed_history' ? 'Search UTR, name...' : 'Search payee, A/C...'}
+              placeholder={activeTab === 'disbursed_history' ? 'Search UTR, name, phone...' : 'Search payee, phone, A/C...'}
               className="w-full bg-slate-950/70 border border-white/10 text-white pl-7 pr-6 h-7 text-[11px] rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
             />
             {searchQuery && (

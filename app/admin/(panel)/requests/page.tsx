@@ -373,10 +373,17 @@ export default function RequestsPage() {
     let result = [...requests]
     if (activeStatus !== 'All') result = result.filter(r => r.status === activeStatus)
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
+      const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter(r => {
         const s = `${r.user?.full_name} ${r.user?.influencer_id} ${r.campaign?.brand_name} ${r.campaign?.campaign_code} ${r.reason} ${r.type}`.toLowerCase()
-        return s.includes(q)
+        if (s.includes(q)) return true
+
+        const phones = [r.user?.mobile, r.manager_phone].filter(Boolean).map(String)
+        if (phones.some(p => p.toLowerCase().includes(q))) return true
+        if (qDigits.length >= 3 && phones.some(p => p.replace(/\D/g, '').includes(qDigits))) return true
+
+        return false
       })
     }
     if (sortConfig.column && sortConfig.direction) {
@@ -512,7 +519,7 @@ export default function RequestsPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
         <Input value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-          placeholder="Search by name, campaign, reason..."
+          placeholder="Search by name, phone, campaign, reason..."
           className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full" />
         {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><X className="h-3.5 w-3.5" /></button>}
       </div>

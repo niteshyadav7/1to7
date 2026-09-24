@@ -162,13 +162,19 @@ export default function AdminUserIssuesPage() {
   const filteredIssues = useMemo(() => {
     if (!searchQuery.trim()) return issues
     const q = searchQuery.toLowerCase().trim()
-    return issues.filter((item) =>
-      item.ticket_id.toLowerCase().includes(q) ||
-      item.name.toLowerCase().includes(q) ||
-      item.email.toLowerCase().includes(q) ||
-      item.mobile.includes(q) ||
-      item.description.toLowerCase().includes(q)
-    )
+    const qDigits = searchQuery.replace(/\D/g, '')
+    return issues.filter((item) => {
+      const matchPhone = (item.mobile && item.mobile.toLowerCase().includes(q)) ||
+        (qDigits.length >= 3 && item.mobile && item.mobile.replace(/\D/g, '').includes(qDigits))
+
+      return (
+        matchPhone ||
+        item.ticket_id.toLowerCase().includes(q) ||
+        item.name.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q)
+      )
+    })
   }, [issues, searchQuery])
 
   // Open Drawer and initialize edit form
