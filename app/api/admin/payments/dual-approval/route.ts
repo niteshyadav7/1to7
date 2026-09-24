@@ -158,12 +158,29 @@ export async function POST(request: Request) {
     }
 
     // ──────────────────────────────────────────────
-    // 3. REJECT PAYMENT PREPARATION
+    // 3. REJECT PAYMENT PREPARATION / FINANCE QUEUE
     // ──────────────────────────────────────────────
     if (action === 'reject') {
+      const trimmedReason = typeof notes === 'string' ? notes.trim() : ''
+      if (!trimmedReason) {
+        return NextResponse.json({ error: 'Rejection reason is required. Please provide a clear explanation.' }, { status: 400 })
+      }
+
+      const isFinanceRejection = currentInit?.status === 'approved_for_finance' || application.status === 'Payment Approved'
+      const stage = isFinanceRejection ? 'finance_queue' : 'dual_approval'
+
       const initAmt = Number(currentInit?.prepared_amount || currentFormData.payment_initiated?.amount || 0)
       const revertedPartial = Math.max(0, (Number(application.partial_payment) || 0) - initAmt)
       const revertedPending = (Number(application.pending_amount) || 0) + initAmt
+
+      const rejectionRecord = {
+        rejected_by_id: adminIdentifier,
+        rejected_by_name: adminName,
+        rejected_at: new Date().toISOString(),
+        reason: trimmedReason,
+        stage,
+        rejected_amount: initAmt,
+      }
 
       const updatedInit = {
         ...currentInit,
@@ -171,16 +188,38 @@ export async function POST(request: Request) {
         rejected_by_id: adminIdentifier,
         rejected_by_name: adminName,
         rejected_at: new Date().toISOString(),
-        rejection_notes: notes || '',
+        rejection_notes: trimmedReason,
+        rejection_stage: stage,
+        last_rejection: rejectionRecord,
+      }
+
+      const existingRejections = Array.isArray(currentFormData.payment_rejections)
+        ? currentFormData.payment_rejections
+        : []
+      const updatedRejections = [...existingRejections, rejectionRecord]
+
+      const currentRemark = currentFormData.team_remark || ''
+      const newRemarkNote = `[${isFinanceRejection ? 'Finance Queue Rejection' : 'Payment Desk Rejection'}]: ${trimmedReason} (by ${adminName})`
+      const updatedRemark = currentRemark ? `${currentRemark} | ${newRemarkNote}` : newRemarkNote
+
+      const updatedFormData = {
+        ...currentFormData,
+        payment_initiation: updatedInit,
+        payment_initiated: null,
+        payment_rejections: updatedRejections,
+        team_remark: updatedRemark,
       }
 
       const { error: updateErr } = await supabase
         .from('applications')
         .update({
-          form_data: { ...currentFormData, payment_initiation: updatedInit, payment_initiated: null },
+          form_data: updatedFormData,
           status: 'Payment Requested',
           partial_payment: revertedPartial,
           pending_amount: revertedPending,
+          team_remark: updatedRemark,
+          team_remark_by: adminName,
+          team_remark_updated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', application_id)
@@ -189,7 +228,9 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: 'Payment preparation rejected and returned to Approved status.',
+        message: isFinanceRejection
+          ? `Payout of ₹${initAmt.toLocaleString()} rejected from Finance Queue and returned to Payment Desk.`
+          : `Payout approval rejected and returned to Payment Requested.`,
       })
     }
 

@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, Eye,
   Image, Package, Banknote, IndianRupee, Clock, FileText, AlertCircle,
-  Pencil, Check, Save
+  Pencil, Check, Save, XCircle
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -562,6 +562,11 @@ export default function PaymentsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [activePartialReqId, setActivePartialReqId] = useState<string | null>(null)
 
+  // Reject Dual Approval / Finance Queue Payout state
+  const [rejectDualApp, setRejectDualApp] = useState<PaymentEntry | null>(null)
+  const [rejectDualReason, setRejectDualReason] = useState('')
+  const [rejectDualSubmitting, setRejectDualSubmitting] = useState(false)
+
   // Appeal Resolution popup state
   const [resolveAppealApp, setResolveAppealApp] = useState<{ payment: PaymentEntry; appeal: any } | null>(null)
   const [resolveAppealAction, setResolveAppealAction] = useState<'resolved' | 'rejected'>('resolved')
@@ -661,26 +666,44 @@ export default function PaymentsPage() {
     }
   }
 
-  const handleRejectDualApproval = async (appId: string) => {
-    setDualApprovingId(appId)
+  const handleRejectDualApproval = (appId: string) => {
+    const target = payments.find(p => p.id === appId)
+    if (target) {
+      setRejectDualApp(target)
+      setRejectDualReason('')
+    }
+  }
+
+  const handleConfirmRejectDual = async () => {
+    if (!rejectDualApp) return
+    const trimmed = rejectDualReason.trim()
+    if (!trimmed) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+
+    setRejectDualSubmitting(true)
     try {
       const res = await fetch('/api/admin/payments/dual-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          application_id: appId,
+          application_id: rejectDualApp.id,
           action: 'reject',
+          notes: trimmed,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Rejection failed')
 
-      toast.success(data.message || 'Payment initiation rejected')
+      toast.success(data.message || 'Payment approval rejected and returned to Payment Requested')
+      setRejectDualApp(null)
+      setRejectDualReason('')
       fetchPayments()
     } catch (err: any) {
       toast.error(err.message || 'Rejection failed')
     } finally {
-      setDualApprovingId(null)
+      setRejectDualSubmitting(false)
     }
   }
 
@@ -1316,7 +1339,7 @@ export default function PaymentsPage() {
                         {/* Payment Request */}
                         {visibleCols.paymentRequest && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            {hasPR || hasPartialReqs || hasAppeals ? (
+                            {hasPR || hasPartialReqs || hasAppeals || payment.form_data?.payment_initiation?.last_rejection ? (
                               <div className="flex flex-col gap-1">
                                 {hasPR && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
                                   <FileText className="h-3 w-3" /> Submitted
@@ -1327,6 +1350,14 @@ export default function PaymentsPage() {
                                 {hasAppeals && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/15 text-orange-400 border border-orange-500/25">
                                   <AlertCircle className="h-3 w-3" /> {appealRequests.filter((r: any) => r.status === 'pending').length} Appeal
                                 </span>}
+                                {payment.form_data?.payment_initiation?.last_rejection && (
+                                  <span
+                                    title={`Rejected: "${payment.form_data.payment_initiation.last_rejection.reason}" by ${payment.form_data.payment_initiation.last_rejection.rejected_by_name || 'Admin'}`}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25 cursor-help"
+                                  >
+                                    <XCircle className="h-2.5 w-2.5 text-rose-400" /> Rejected
+                                  </span>
+                                )}
                               </div>
                             ) : (
                               <span className="text-[10px] text-slate-600">None</span>
@@ -1475,6 +1506,42 @@ export default function PaymentsPage() {
                                       </div>
                                       <EditableTextField value={payment.manager_phone || ''} paymentId={payment.id} field="manager_phone" onSave={updatePaymentField} />
                                     </div>
+
+                                    {/* Last Payout Rejection Banner */}
+                                    {(() => {
+                                      const lastRej = payment.form_data?.payment_initiation?.last_rejection || 
+                                                      (payment.form_data?.payment_initiation?.status === 'rejected' && {
+                                                        reason: payment.form_data?.payment_initiation?.rejection_notes,
+                                                        rejected_by_name: payment.form_data?.payment_initiation?.rejected_by_name,
+                                                        rejected_at: payment.form_data?.payment_initiation?.rejected_at,
+                                                        stage: payment.form_data?.payment_initiation?.rejection_stage || 'dual_approval'
+                                                      })
+                                      if (!lastRej || !lastRej.reason) return null
+
+                                      return (
+                                        <div className="mt-4 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1.5">
+                                          <div className="flex items-center justify-between font-bold text-rose-200">
+                                            <span className="flex items-center gap-1.5">
+                                              <AlertCircle className="h-4 w-4 text-rose-400" />
+                                              Last Payout Rejected ({lastRej.stage === 'finance_queue' ? 'Finance Queue' : 'Dual-Approval Desk'})
+                                            </span>
+                                            {lastRej.rejected_at && (
+                                              <span className="text-[10px] text-rose-400/80 font-normal">
+                                                {new Date(lastRej.rejected_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-white text-xs bg-slate-950/70 p-2.5 rounded-lg border border-rose-500/20 font-medium">
+                                            &ldquo;{lastRej.reason}&rdquo;
+                                          </p>
+                                          {lastRej.rejected_by_name && (
+                                            <p className="text-[10px] text-rose-400/90 font-medium">
+                                              Rejected by: <strong>{lastRej.rejected_by_name}</strong>
+                                            </p>
+                                          )}
+                                        </div>
+                                      )
+                                    })()}
                                   </div>
 
                                   {/* Dynamic Payment Request */}
@@ -1735,11 +1802,26 @@ export default function PaymentsPage() {
                                    {/* Action Buttons */}
                                     <div className="flex flex-wrap items-center gap-3 pt-2">
                                       {payment.status === 'Payment Approved' || payment.form_data?.payment_initiation?.status === 'approved_for_finance' ? (
-                                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl">
-                                          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                                          <span>
-                                            Approved by 2 Admins ({payment.form_data?.payment_initiation?.prepared_by_name || 'Admin 1'} &amp; {payment.form_data?.payment_initiation?.second_approved_by_name || 'Admin 2'}) · Ready for Finance Payout
-                                          </span>
+                                        <div className="flex flex-wrap items-center gap-3">
+                                          <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl">
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                            <span>
+                                              Approved by 2 Admins ({payment.form_data?.payment_initiation?.prepared_by_name || 'Admin 1'} &amp; {payment.form_data?.payment_initiation?.second_approved_by_name || 'Admin 2'}) · Ready for Finance Payout
+                                            </span>
+                                          </div>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setRejectDualApp(payment)
+                                              setRejectDualReason('')
+                                            }}
+                                            className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-bold cursor-pointer"
+                                            title="Reject dual approval with reason"
+                                          >
+                                            <XCircle className="mr-1.5 h-4 w-4" />
+                                            Reject Approval
+                                          </Button>
                                         </div>
                                       ) : (payment.status === 'Payment Initiated' || payment.form_data?.payment_initiation?.status === 'pending_second_approval') ? (
                                         (() => {
@@ -1753,11 +1835,26 @@ export default function PaymentsPage() {
 
                                           if (isMaker) {
                                             return (
-                                              <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 rounded-xl">
-                                                <Clock className="h-4 w-4 animate-pulse text-amber-400" />
-                                                <span>
-                                                  Payment of <strong>₹{amt.toLocaleString()}</strong> Initiated by You ({admin?.name || 'Maker'}) · <strong>Awaiting 2nd Admin Approval</strong>
-                                                </span>
+                                              <div className="flex flex-wrap items-center gap-3">
+                                                <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 rounded-xl">
+                                                  <Clock className="h-4 w-4 animate-pulse text-amber-400" />
+                                                  <span>
+                                                    Payment of <strong>₹{amt.toLocaleString()}</strong> Initiated by You ({admin?.name || 'Maker'}) · <strong>Awaiting 2nd Admin Approval</strong>
+                                                  </span>
+                                                </div>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => {
+                                                    setRejectDualApp(payment)
+                                                    setRejectDualReason('')
+                                                  }}
+                                                  className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-bold cursor-pointer"
+                                                  title="Cancel payment initiation"
+                                                >
+                                                  <XCircle className="mr-1.5 h-4 w-4" />
+                                                  Cancel Initiation
+                                                </Button>
                                               </div>
                                             )
                                           }
@@ -1787,11 +1884,14 @@ export default function PaymentsPage() {
                                               <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => handleRejectDualApproval(payment.id)}
+                                                onClick={() => {
+                                                  setRejectDualApp(payment)
+                                                  setRejectDualReason('')
+                                                }}
                                                 disabled={dualApprovingId === payment.id}
-                                                className="h-9 px-3.5 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-bold cursor-pointer"
+                                                className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-bold cursor-pointer"
                                               >
-                                                <X className="mr-1.5 h-4 w-4" />
+                                                <XCircle className="mr-1.5 h-4 w-4" />
                                                 Reject
                                               </Button>
                                             </div>
@@ -2191,6 +2291,164 @@ export default function PaymentsPage() {
                     <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Confirm & Settle</>
                   ) : (
                     <><X className="mr-1.5 h-3.5 w-3.5" /> Confirm Rejection</>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Dual-Approval / Payout Approval Modal */}
+      <AnimatePresence>
+        {rejectDualApp && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              onClick={() => !rejectDualSubmitting && setRejectDualApp(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-lg bg-slate-900 border border-rose-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-white"
+            >
+              {/* Header */}
+              <div className="bg-rose-950/40 p-5 border-b border-rose-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-sm">
+                    <XCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-white">
+                      Reject Payout Approval
+                    </h3>
+                    <p className="text-xs text-rose-300/80">
+                      Amount: ₹{Number(rejectDualApp.form_data?.payment_initiation?.prepared_amount || rejectDualApp.form_data?.payment_initiated?.amount || rejectDualApp.pending_amount || 0).toLocaleString()} will revert to Pending Balance
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !rejectDualSubmitting && setRejectDualApp(null)}
+                  className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Payee Details Summary Card */}
+                <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/10 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Influencer</span>
+                    <p className="font-bold text-white truncate">{rejectDualApp.users?.full_name || '—'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{rejectDualApp.users?.influencer_id || rejectDualApp.users?.mobile || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Campaign &amp; Brand</span>
+                    <p className="font-bold text-white truncate">{rejectDualApp.campaigns?.brand_name || '—'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{rejectDualApp.campaigns?.campaign_code || '—'}</p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Current Status</span>
+                      <p className="text-amber-300 text-xs font-semibold">
+                        {rejectDualApp.status === 'Payment Approved' ? 'Approved by 2 Admins' : 'Awaiting 2nd Approval'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Reverting Amount</span>
+                      <p className="font-black text-rose-400 text-sm">
+                        ₹{Number(rejectDualApp.form_data?.payment_initiation?.prepared_amount || rejectDualApp.form_data?.payment_initiated?.amount || rejectDualApp.pending_amount || 0).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider font-bold text-slate-300 block mb-2">
+                    Quick Preset Reasons
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Bank account / IFSC mismatch',
+                      'Invoice / Order screenshot missing',
+                      'Reel / Deliverables link not verified',
+                      'Amount discrepancy with agreed budget',
+                      'Duplicate payout preparation',
+                      'Guidelines not met by creator',
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRejectDualReason(preset)}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                          rejectDualReason === preset
+                            ? 'bg-rose-500/20 text-rose-200 border-rose-500/50 font-semibold'
+                            : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-white/10'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Textarea */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider font-bold text-slate-300 block mb-1.5">
+                    Rejection Reason <span className="text-rose-400 font-bold">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={rejectDualReason}
+                    onChange={(e) => setRejectDualReason(e.target.value)}
+                    placeholder="Enter a clear reason why this payout approval is rejected so the team can review and correct it..."
+                    className="w-full bg-slate-950/80 border border-white/10 focus:border-rose-500/60 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500/50 resize-none transition-all"
+                  />
+                  <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
+                    <span>This reason will be logged on Payment Desk &amp; Team Remark.</span>
+                    <span>{rejectDualReason.trim().length} chars</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-white/10 bg-slate-950/60 flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={rejectDualSubmitting}
+                  onClick={() => {
+                    setRejectDualApp(null)
+                    setRejectDualReason('')
+                  }}
+                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5 bg-transparent text-xs h-9 px-4 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={rejectDualSubmitting || !rejectDualReason.trim()}
+                  onClick={handleConfirmRejectDual}
+                  className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs h-9 px-4 cursor-pointer shadow-lg shadow-rose-600/30 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {rejectDualSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Rejecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-3.5 w-3.5" />
+                      <span>Confirm Rejection</span>
+                    </>
                   )}
                 </Button>
               </div>

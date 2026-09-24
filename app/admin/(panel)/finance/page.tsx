@@ -34,6 +34,7 @@ import {
   SlidersHorizontal,
   Receipt,
   ShoppingCart,
+  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -103,6 +104,11 @@ export default function FinancePayoutPage() {
   // Dual Approval Modal State
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
+  // Reject Payout / Dual Approval Modal State
+  const [rejectingApp, setRejectingApp] = useState<Application | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejectingSubmitting, setRejectingSubmitting] = useState(false)
+
   // Helper to compute payable amount for an application in finance
   const getPayableAmount = (app: Application) => {
     const init = app.form_data?.payment_initiation
@@ -158,11 +164,15 @@ export default function FinancePayoutPage() {
       if (e.key === 'Escape') {
         if (showExportModal) setShowExportModal(false)
         if (showBulkModal && !disbursing) setShowBulkModal(false)
+        if (rejectingApp && !rejectingSubmitting) {
+          setRejectingApp(null)
+          setRejectReason('')
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showExportModal, showBulkModal, disbursing])
+  }, [showExportModal, showBulkModal, disbursing, rejectingApp, rejectingSubmitting])
 
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
@@ -767,6 +777,41 @@ export default function FinancePayoutPage() {
     }
   }
 
+  // Reject Dual Approval / Finance Queue Payout
+  const handleRejectPayout = async () => {
+    if (!rejectingApp) return
+    const trimmedReason = rejectReason.trim()
+    if (!trimmedReason) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+
+    setRejectingSubmitting(true)
+    try {
+      const res = await fetch('/api/admin/payments/dual-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_id: rejectingApp.id,
+          action: 'reject',
+          notes: trimmedReason,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reject payout')
+
+      toast.success(data.message || 'Payout rejected and returned to Payment Desk')
+      setRejectingApp(null)
+      setRejectReason('')
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reject payout')
+    } finally {
+      setRejectingSubmitting(false)
+    }
+  }
+
   const isInitialLoading = loading && applications.length === 0
 
   const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
@@ -1264,64 +1309,94 @@ export default function FinancePayoutPage() {
                           (() => {
                             const hasBank = Boolean(app.users?.account_number?.trim() && app.users?.ifsc_code?.trim())
                             return (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => handleDualApprove(app.id)}
-                                disabled={approvingId === app.id || !hasBank}
-                                title={!hasBank ? 'Cannot approve: Bank details missing' : 'Approve for Finance Queue'}
-                                className={`h-7 px-2.5 rounded-lg text-white font-bold text-[11px] shadow-sm ${
-                                  !hasBank
-                                    ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
-                                    : 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer'
-                                }`}
-                              >
-                                {approvingId === app.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Approve
-                                  </>
-                                )}
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => handleDualApprove(app.id)}
+                                  disabled={approvingId === app.id || !hasBank}
+                                  title={!hasBank ? 'Cannot approve: Bank details missing' : 'Approve for Finance Queue'}
+                                  className={`h-7 px-2.5 rounded-lg text-white font-bold text-[11px] shadow-sm ${
+                                    !hasBank
+                                      ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                                      : 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer'
+                                  }`}
+                                >
+                                  {approvingId === app.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Approve
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setRejectingApp(app)
+                                    setRejectReason('')
+                                  }}
+                                  className="h-7 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-[11px] cursor-pointer transition-colors"
+                                  title="Reject approval with reason"
+                                >
+                                  <XCircle className="h-3 w-3 mr-1 text-rose-400" />
+                                  Reject
+                                </Button>
+                              </div>
                             )
                           })()
                         ) : (
                           (() => {
                             const hasBank = Boolean(app.users?.account_number?.trim() && app.users?.ifsc_code?.trim())
                             return (
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => {
-                                  if (!hasBank) {
-                                    toast.error('Cannot disburse: Creator has missing bank details.')
-                                    return
-                                  }
-                                  setSelectedIds([app.id])
-                                  setShowBulkModal(true)
-                                }}
-                                disabled={!hasBank}
-                                title={!hasBank ? 'Cannot disburse: Bank details missing' : 'Disburse payout'}
-                                className={`h-7 px-3 rounded-lg text-white font-bold text-[11px] shadow-sm ${
-                                  !hasBank
-                                    ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
-                                    : 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
-                                }`}
-                              >
-                                {!hasBank ? (
-                                  <span className="flex items-center gap-1 text-[10px] text-red-400">
-                                    <AlertCircle className="h-3 w-3" />
-                                    No Bank
-                                  </span>
-                                ) : (
-                                  <>
-                                    <Send className="h-3 w-3 mr-1" />
-                                    Disburse
-                                  </>
-                                )}
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (!hasBank) {
+                                      toast.error('Cannot disburse: Creator has missing bank details.')
+                                      return
+                                    }
+                                    setSelectedIds([app.id])
+                                    setShowBulkModal(true)
+                                  }}
+                                  disabled={!hasBank}
+                                  title={!hasBank ? 'Cannot disburse: Bank details missing' : 'Disburse payout'}
+                                  className={`h-7 px-3 rounded-lg text-white font-bold text-[11px] shadow-sm ${
+                                    !hasBank
+                                      ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                                      : 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
+                                  }`}
+                                >
+                                  {!hasBank ? (
+                                    <span className="flex items-center gap-1 text-[10px] text-red-400">
+                                      <AlertCircle className="h-3 w-3" />
+                                      No Bank
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <Send className="h-3 w-3 mr-1" />
+                                      Disburse
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setRejectingApp(app)
+                                    setRejectReason('')
+                                  }}
+                                  className="h-7 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold text-[11px] cursor-pointer transition-colors"
+                                  title="Reject payout from Finance Queue with reason"
+                                >
+                                  <XCircle className="h-3 w-3 mr-1 text-rose-400" />
+                                  Reject
+                                </Button>
+                              </div>
                             )
                           })()
                         )}
@@ -1945,6 +2020,164 @@ export default function FinancePayoutPage() {
                     <span>Both Sheets</span>
                   </Button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Reject Payout / Dual-Approval Modal */}
+      <AnimatePresence>
+        {rejectingApp && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+              onClick={() => !rejectingSubmitting && setRejectingApp(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-lg bg-slate-900 border border-rose-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-white"
+            >
+              {/* Header */}
+              <div className="bg-rose-950/40 p-5 border-b border-rose-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-sm">
+                    <XCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-white">
+                      Reject Payout from {activeTab === 'finance_queue' ? 'Finance Queue' : 'Approval Queue'}
+                    </h3>
+                    <p className="text-xs text-rose-300/80">
+                      Amount: ₹{getPayableAmount(rejectingApp).toLocaleString()} will be returned to Creator&apos;s pending balance
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => !rejectingSubmitting && setRejectingApp(null)}
+                  className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Payee Details Summary Card */}
+                <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-white/10 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Influencer</span>
+                    <p className="font-bold text-white truncate">{rejectingApp.users?.full_name || '—'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{rejectingApp.users?.influencer_id || rejectingApp.users?.mobile || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Campaign &amp; Brand</span>
+                    <p className="font-bold text-white truncate">{rejectingApp.campaigns?.brand_name || '—'}</p>
+                    <p className="text-[11px] text-slate-400 font-mono">{rejectingApp.campaigns?.campaign_code || '—'}</p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Bank / Account</span>
+                      <p className="font-mono text-slate-300 text-xs">
+                        {rejectingApp.users?.account_number
+                          ? `•••• ${rejectingApp.users.account_number.slice(-4)} (${rejectingApp.users.ifsc_code})`
+                          : 'No Bank Details'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Reverting Amount</span>
+                      <p className="font-black text-rose-400 text-sm">₹{getPayableAmount(rejectingApp).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider font-bold text-slate-300 block mb-2">
+                    Quick Preset Reasons
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Bank account / IFSC mismatch',
+                      'Invoice / Order screenshot missing',
+                      'Reel / Deliverables link not verified',
+                      'Amount discrepancy with agreed budget',
+                      'Duplicate payout preparation',
+                      'Guidelines not met by creator',
+                    ].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRejectReason(preset)}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                          rejectReason === preset
+                            ? 'bg-rose-500/20 text-rose-200 border-rose-500/50 font-semibold'
+                            : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-white/10'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Textarea */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider font-bold text-slate-300 block mb-1.5">
+                    Rejection Reason <span className="text-rose-400 font-bold">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Enter a clear reason why this payout is rejected so the team can review and correct it..."
+                    className="w-full bg-slate-950/80 border border-white/10 focus:border-rose-500/60 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500/50 resize-none transition-all"
+                  />
+                  <div className="flex justify-between items-center mt-1 text-[10px] text-slate-400">
+                    <span>This reason will be logged on Payment Desk &amp; Team Remark.</span>
+                    <span>{rejectReason.trim().length} chars</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-white/10 bg-slate-950/60 flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={rejectingSubmitting}
+                  onClick={() => {
+                    setRejectingApp(null)
+                    setRejectReason('')
+                  }}
+                  className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5 bg-transparent text-xs h-9 px-4 cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={rejectingSubmitting || !rejectReason.trim()}
+                  onClick={handleRejectPayout}
+                  className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold text-xs h-9 px-4 cursor-pointer shadow-lg shadow-rose-600/30 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {rejectingSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Rejecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-3.5 w-3.5" />
+                      <span>Confirm Rejection</span>
+                    </>
+                  )}
+                </Button>
               </div>
             </motion.div>
           </div>
