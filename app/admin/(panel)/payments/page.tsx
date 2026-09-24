@@ -706,10 +706,17 @@ export default function PaymentsPage() {
       result = result.filter(p => p.status === activeStatus)
     }
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
+      const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter(p => {
-        const s = `${p.users?.full_name} ${p.users?.influencer_id} ${p.campaigns?.brand_name} ${p.campaigns?.campaign_code} ${p.manager_phone}`.toLowerCase()
-        return s.includes(q)
+        const s = `${p.users?.full_name} ${p.users?.influencer_id} ${p.users?.email} ${p.campaigns?.brand_name} ${p.campaigns?.campaign_code}`.toLowerCase()
+        if (s.includes(q)) return true
+
+        const phones = [p.users?.mobile, p.manager_phone].filter(Boolean).map(String)
+        if (phones.some(ph => ph.toLowerCase().includes(q))) return true
+        if (qDigits.length >= 3 && phones.some(ph => ph.replace(/\D/g, '').includes(qDigits))) return true
+
+        return false
       })
     }
     if (filters.brand.length > 0) result = result.filter(p => filters.brand.includes(p.campaigns?.brand_name))

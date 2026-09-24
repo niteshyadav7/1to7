@@ -102,6 +102,8 @@ interface SortConfig {
 }
 
 interface Filters {
+  campaign: string[]
+  phone: string
   gender: string[]
   state: string[]
   followerRange: string[]
@@ -245,7 +247,18 @@ function FilterDropdown({
   onClear: () => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
+  const [filterSearch, setFilterSearch] = useState('')
   const count = selected.length
+
+  const filteredOptions = useMemo(() => {
+    if (!filterSearch.trim()) return options
+    const q = filterSearch.toLowerCase().trim()
+    return options.filter(o => o.toLowerCase().includes(q))
+  }, [options, filterSearch])
+
+  useEffect(() => {
+    if (!open) setFilterSearch('')
+  }, [open])
 
   return (
     <div className="relative" ref={popoverRef}>
@@ -274,39 +287,62 @@ function FilterDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 mt-2 z-50 min-w-[200px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+            className="absolute top-full left-0 mt-2 z-50 min-w-[220px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
           >
             <div className="p-2 border-b border-white/5 flex items-center justify-between">
               <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold px-2">{label}</span>
               {count > 0 && (
                 <button onClick={onClear} className="text-[10px] text-indigo-400 hover:text-indigo-300 px-2 py-0.5 cursor-pointer">
-                  Clear
+                  Clear ({count})
                 </button>
               )}
             </div>
+            {options.length > 5 && (
+              <div className="p-1.5 border-b border-white/5">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500" />
+                  <input
+                    type="text"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    placeholder={`Search ${label.toLowerCase()}...`}
+                    className="w-full pl-7 pr-6 py-1 text-[11px] bg-slate-800/70 border border-white/5 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/50"
+                  />
+                  {filterSearch && (
+                    <button onClick={() => setFilterSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="p-1.5 max-h-[240px] overflow-y-auto custom-scrollbar">
-              {options.map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => onToggle(opt)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
-                    selected.includes(opt)
-                      ? 'bg-indigo-500/15 text-indigo-300'
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                    selected.includes(opt)
-                      ? 'bg-indigo-500 border-indigo-500'
-                      : 'border-slate-600 bg-slate-800/50'
-                  }`}>
-                    {selected.includes(opt) && (
-                      <CheckCircle2 className="h-3 w-3 text-white" />
-                    )}
-                  </div>
-                  {opt}
-                </button>
-              ))}
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-2 text-xs text-slate-500 text-center">No {label.toLowerCase()} found</div>
+              ) : (
+                filteredOptions.map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => onToggle(opt)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                      selected.includes(opt)
+                        ? 'bg-indigo-500/15 text-indigo-300'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      selected.includes(opt)
+                        ? 'bg-indigo-500 border-indigo-500'
+                        : 'border-slate-600 bg-slate-800/50'
+                    }`}>
+                      {selected.includes(opt) && (
+                        <CheckCircle2 className="h-3 w-3 text-white" />
+                      )}
+                    </div>
+                    <span className="truncate text-left">{opt}</span>
+                  </button>
+                ))
+              )}
             </div>
           </motion.div>
         )}
@@ -816,6 +852,8 @@ export default function AllApplicationsPage() {
 
   // Advanced filters
   const [filters, setFilters] = useState<Filters>({
+    campaign: [],
+    phone: '',
     gender: [],
     state: [],
     followerRange: [],
@@ -985,6 +1023,10 @@ export default function AllApplicationsPage() {
   }
 
   // ─── Derived data from applications ────────────────────
+  const uniqueCampaigns = useMemo(() =>
+    [...new Set(applications.map(a => a.campaigns?.brand_name).filter(Boolean))].sort(),
+    [applications]
+  )
   const uniqueStates = useMemo(() =>
     [...new Set(applications.map(a => a.users?.state).filter(Boolean))].sort(),
     [applications]
@@ -1000,8 +1042,13 @@ export default function AllApplicationsPage() {
 
   // ─── Active filter count ───────────────────────────────
   const activeFilterCount = useMemo(() =>
-    filters.gender.length + filters.state.length + filters.followerRange.length +
-    filters.platform.length + (filters.dateRange !== 'all' ? 1 : 0),
+    filters.campaign.length +
+    filters.gender.length +
+    filters.state.length +
+    filters.followerRange.length +
+    filters.platform.length +
+    (filters.phone.trim() ? 1 : 0) +
+    (filters.dateRange !== 'all' ? 1 : 0),
     [filters]
   )
 
@@ -1053,16 +1100,63 @@ export default function AllApplicationsPage() {
       result = result.filter(a => !a.form_data?.sent_to_brand?.is_sent)
     }
 
-    // Search
+    // Search (Name, Influencer ID, Instagram, Email, Brand, Campaign Code, Phone / Mobile)
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
+      const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter(a => {
-        const s = `${a.users?.full_name} ${a.users?.influencer_id} ${a.users?.instagram_username} ${a.users?.email} ${a.campaigns?.brand_name} ${a.campaigns?.campaign_code}`.toLowerCase()
-        return s.includes(q)
+        const textFields = `${a.users?.full_name} ${a.users?.influencer_id} ${a.users?.instagram_username} ${a.users?.email} ${a.campaigns?.brand_name} ${a.campaigns?.campaign_code}`.toLowerCase()
+        if (textFields.includes(q)) return true
+
+        const phoneList = [
+          a.users?.mobile,
+          a.manager_phone,
+          a.form_data?.phone,
+          a.form_data?.whatsapp_number,
+          a.form_data?.mobile,
+          a.form_data?.contact_number,
+          a.form_data?.calling_number,
+          a.form_data?.order_details?.phone,
+          a.form_data?.order_details?.mobile,
+          a.form_data?.order_details?.whatsapp,
+        ].filter(Boolean).map(String)
+
+        if (phoneList.some(p => p.toLowerCase().includes(q))) return true
+        if (qDigits.length >= 3 && phoneList.some(p => p.replace(/\D/g, '').includes(qDigits))) return true
+
+        return false
       })
     }
 
     // Advanced filters
+    if (filters.campaign.length > 0) {
+      result = result.filter(a =>
+        filters.campaign.includes(a.campaigns?.brand_name) ||
+        filters.campaign.includes(a.campaigns?.campaign_code)
+      )
+    }
+    if (filters.phone?.trim()) {
+      const pQuery = filters.phone.toLowerCase().trim()
+      const pDigits = filters.phone.replace(/\D/g, '')
+      result = result.filter(a => {
+        const phoneList = [
+          a.users?.mobile,
+          a.manager_phone,
+          a.form_data?.phone,
+          a.form_data?.whatsapp_number,
+          a.form_data?.mobile,
+          a.form_data?.contact_number,
+          a.form_data?.calling_number,
+          a.form_data?.order_details?.phone,
+          a.form_data?.order_details?.mobile,
+          a.form_data?.order_details?.whatsapp,
+        ].filter(Boolean).map(String)
+
+        if (phoneList.some(p => p.toLowerCase().includes(pQuery))) return true
+        if (pDigits.length >= 3 && phoneList.some(p => p.replace(/\D/g, '').includes(pDigits))) return true
+        return false
+      })
+    }
     if (filters.gender.length > 0) {
       result = result.filter(a => filters.gender.includes(a.users?.gender))
     }
@@ -1146,7 +1240,7 @@ export default function AllApplicationsPage() {
   }, [])
 
   // ─── Filter toggle helpers ─────────────────────────────
-  const toggleFilter = useCallback((key: keyof Omit<Filters, 'dateRange'>, val: string) => {
+  const toggleFilter = useCallback((key: 'campaign' | 'gender' | 'state' | 'followerRange' | 'platform', val: string) => {
     setFilters(prev => ({
       ...prev,
       [key]: prev[key].includes(val) ? prev[key].filter((v: string) => v !== val) : [...prev[key], val],
@@ -1154,12 +1248,13 @@ export default function AllApplicationsPage() {
     setSelectedIds(new Set())
   }, [])
 
-  const clearFilter = useCallback((key: keyof Omit<Filters, 'dateRange'>) => {
-    setFilters(prev => ({ ...prev, [key]: [] }))
+  const clearFilter = useCallback((key: keyof Filters) => {
+    setFilters(prev => ({ ...prev, [key]: key === 'phone' ? '' : [] }))
+    setSelectedIds(new Set())
   }, [])
 
   const clearAllFilters = useCallback(() => {
-    setFilters({ gender: [], state: [], followerRange: [], platform: [], dateRange: 'all' })
+    setFilters({ campaign: [], phone: '', gender: [], state: [], followerRange: [], platform: [], dateRange: 'all' })
     setSelectedIds(new Set())
   }, [])
 
@@ -1492,7 +1587,7 @@ export default function AllApplicationsPage() {
             <Input
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearchQuery(e.target.value); setSelectedIds(new Set()) }}
-              placeholder="Search name, email, brand..."
+              placeholder="Search name, phone, email, brand..."
               className="pl-9 bg-slate-900/50 border-white/[0.06] text-white h-9 text-xs focus-visible:ring-indigo-500/50 rounded-xl w-full transition-all hover:border-white/10 placeholder:text-slate-600"
             />
           </div>
@@ -1535,6 +1630,14 @@ export default function AllApplicationsPage() {
             >
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <FilterDropdown
+                  label="Campaign"
+                  icon={Megaphone}
+                  options={uniqueCampaigns}
+                  selected={filters.campaign}
+                  onToggle={(v) => toggleFilter('campaign', v)}
+                  onClear={() => clearFilter('campaign')}
+                />
+                <FilterDropdown
                   label="Gender"
                   icon={Users}
                   options={uniqueGenders}
@@ -1566,6 +1669,33 @@ export default function AllApplicationsPage() {
                   onToggle={(v) => toggleFilter('platform', v)}
                   onClear={() => clearFilter('platform')}
                 />
+                {/* Phone Number Filter */}
+                <div className="relative">
+                  <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={filters.phone}
+                    onChange={(e) => {
+                      setFilters(prev => ({ ...prev, phone: e.target.value }))
+                      setSelectedIds(new Set())
+                    }}
+                    placeholder="Filter phone..."
+                    className={`pl-8 pr-7 py-2 rounded-xl text-xs font-medium border transition-all focus:outline-none ${
+                      filters.phone.trim()
+                        ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25 shadow-lg shadow-indigo-500/5'
+                        : 'bg-slate-800/60 text-slate-300 border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 focus:border-indigo-500/40'
+                    } w-36 placeholder:text-slate-500`}
+                  />
+                  {filters.phone && (
+                    <button
+                      onClick={() => clearFilter('phone')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                      title="Clear phone filter"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
                 <DateRangeDropdown
                   value={filters.dateRange}
                   onChange={(v) => { setFilters(prev => ({ ...prev, dateRange: v })); setSelectedIds(new Set()) }}
@@ -1588,6 +1718,20 @@ export default function AllApplicationsPage() {
         {activeFilterCount > 0 && !showFilters && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] text-slate-600 uppercase tracking-wider font-bold mr-1">Active:</span>
+            {filters.campaign.map(c => (
+              <span key={`c-${c}`} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[11px] border border-indigo-500/15">
+                <Megaphone className="h-3 w-3 text-indigo-400" />
+                {c}
+                <X className="h-2.5 w-2.5 cursor-pointer hover:text-white" onClick={() => toggleFilter('campaign', c)} />
+              </span>
+            ))}
+            {filters.phone && (
+              <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[11px] border border-indigo-500/15">
+                <Phone className="h-3 w-3 text-indigo-400" />
+                {filters.phone}
+                <X className="h-2.5 w-2.5 cursor-pointer hover:text-white" onClick={() => clearFilter('phone')} />
+              </span>
+            )}
             {filters.gender.map(g => (
               <span key={`g-${g}`} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[11px] border border-indigo-500/15">
                 {g}

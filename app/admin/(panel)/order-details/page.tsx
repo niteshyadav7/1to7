@@ -750,12 +750,19 @@ export default function OrderDetailsPage() {
 
     // Search
     if (searchQuery) {
-      const q = searchQuery.toLowerCase()
+      const q = searchQuery.toLowerCase().trim()
+      const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter(o => {
         const details = getOrderDetails(o)
         const allOrderValues = Object.values(details).map(v => String(v)).join(' ')
-        const s = `${o.users?.full_name} ${o.users?.influencer_id} ${o.campaigns?.brand_name} ${o.campaigns?.campaign_code} ${allOrderValues}`.toLowerCase()
-        return s.includes(q)
+        const s = `${o.users?.full_name} ${o.users?.influencer_id} ${o.users?.email} ${o.campaigns?.brand_name} ${o.campaigns?.campaign_code} ${allOrderValues}`.toLowerCase()
+        if (s.includes(q)) return true
+
+        const phones = [o.users?.mobile, o.manager_phone].filter(Boolean).map(String)
+        if (phones.some(p => p.toLowerCase().includes(q))) return true
+        if (qDigits.length >= 3 && phones.some(p => p.replace(/\D/g, '').includes(qDigits))) return true
+
+        return false
       })
     }
 
@@ -1243,7 +1250,7 @@ export default function OrderDetailsPage() {
           <Input
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, ID, campaign, order..."
+            placeholder="Search by name, phone, ID, campaign, order..."
             className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
           />
           {searchQuery && (
