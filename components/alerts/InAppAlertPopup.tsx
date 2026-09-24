@@ -164,35 +164,39 @@ export default function InAppAlertPopup() {
 
   const typeConfig = {
     critical: {
-      border: 'border-rose-500/50',
-      glow: 'shadow-rose-500/25',
-      badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+      border: 'border-rose-200/80',
+      glow: 'shadow-rose-500/10',
+      badge: 'bg-rose-50 text-rose-700 border-rose-200',
+      iconBox: 'bg-rose-50 border-rose-200 text-rose-600',
       bar: 'bg-rose-500',
-      icon: <ShieldAlert className="h-5 w-5 text-rose-400" />,
+      icon: <ShieldAlert className="h-5 w-5 text-rose-600" />,
       label: 'Critical Alert',
     },
     warning: {
-      border: 'border-amber-500/50',
-      glow: 'shadow-amber-500/25',
-      badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      border: 'border-amber-200/80',
+      glow: 'shadow-amber-500/10',
+      badge: 'bg-amber-50 text-amber-800 border-amber-200',
+      iconBox: 'bg-amber-50 border-amber-200 text-amber-600',
       bar: 'bg-amber-500',
-      icon: <AlertTriangle className="h-5 w-5 text-amber-400" />,
+      icon: <AlertTriangle className="h-5 w-5 text-amber-600" />,
       label: 'Action Required',
     },
     info: {
-      border: 'border-indigo-500/50',
-      glow: 'shadow-indigo-500/25',
-      badge: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-      bar: 'bg-indigo-500',
-      icon: <Info className="h-5 w-5 text-indigo-400" />,
+      border: 'border-blue-200/80',
+      glow: 'shadow-blue-500/10',
+      badge: 'bg-blue-50 text-blue-700 border-blue-200',
+      iconBox: 'bg-blue-50 border-blue-200 text-blue-600',
+      bar: 'bg-blue-600',
+      icon: <Info className="h-5 w-5 text-blue-600" />,
       label: 'Notice',
     },
     success: {
-      border: 'border-emerald-500/50',
-      glow: 'shadow-emerald-500/25',
-      badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      bar: 'bg-emerald-500',
-      icon: <CheckCircle2 className="h-5 w-5 text-emerald-400" />,
+      border: 'border-emerald-200/80',
+      glow: 'shadow-emerald-500/10',
+      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      iconBox: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+      bar: 'bg-emerald-600',
+      icon: <CheckCircle2 className="h-5 w-5 text-emerald-600" />,
       label: 'Update',
     },
   }[activeAlert.type || 'warning']
@@ -201,32 +205,39 @@ export default function InAppAlertPopup() {
 
   return (
     <AnimatePresence>
-      <div className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-[99999] max-w-md w-[calc(100vw-2.5rem)] sm:w-full pointer-events-auto">
+      <div className="fixed top-3 left-3 right-3 sm:top-5 sm:right-6 sm:left-auto sm:max-w-md z-[99999] pointer-events-auto">
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.94 }}
+          initial={{ opacity: 0, y: -35, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          exit={{ opacity: 0, y: -25, scale: 0.96 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          className={`relative bg-slate-900/98 backdrop-blur-2xl border ${typeConfig.border} rounded-2xl p-5 shadow-2xl ${typeConfig.glow} overflow-hidden text-white`}
+          className={`relative bg-white/98 backdrop-blur-2xl border ${typeConfig.border} rounded-2xl p-4 sm:p-5 shadow-2xl ${typeConfig.glow} overflow-hidden text-slate-900`}
         >
+          {/* Top colored accent line */}
+          <div className={`absolute top-0 left-0 right-0 h-1 ${typeConfig.bar}`} />
+
           {/* Header row: Badge + Title + Close Button */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-white/5 border border-white/10 shrink-0">
+          <div className="flex items-start justify-between gap-3 pt-1">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className={`p-2 rounded-xl border shrink-0 ${typeConfig.iconBox} shadow-xs`}>
                 {typeConfig.icon}
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${typeConfig.badge}`}>
                     {typeConfig.label}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {isPaused ? '⏸ Paused' : `${secondsRemaining}s`}
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    {isPaused ? (
+                      <span className="text-amber-600 font-bold">⏸ Paused</span>
+                    ) : (
+                      `${secondsRemaining}s`
+                    )}
                   </span>
                 </div>
-                <h4 className="text-sm font-bold text-white mt-1 leading-snug">
+                <h4 className="text-sm font-bold text-slate-900 mt-1 leading-snug break-words">
                   {activeAlert.title}
                 </h4>
               </div>
@@ -238,7 +249,7 @@ export default function InAppAlertPopup() {
                 type="button"
                 onClick={() => handleCut(activeAlert.id)}
                 title="Dismiss for now (Cut)"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0 active:scale-95"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -246,38 +257,38 @@ export default function InAppAlertPopup() {
           </div>
 
           {/* Message Content */}
-          <p className="text-xs text-slate-300 mt-3 leading-relaxed whitespace-pre-line">
+          <p className="text-xs text-slate-600 mt-2.5 leading-relaxed whitespace-pre-line break-words pl-0.5">
             {activeAlert.message}
           </p>
 
           {/* Action and Resolution Buttons */}
-          <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-white/10">
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-100">
             {Boolean(activeAlert.action_url && activeAlert.action_url.trim()) && (
               <button
                 type="button"
                 onClick={() => handleActionClick(activeAlert.action_url)}
-                className="flex-1 min-w-[140px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-bold shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                className="flex-1 min-w-[130px] px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 text-xs font-bold shadow-xs hover:shadow active:scale-95 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
-                {activeAlert.action_label || 'Resolve Issue'}
+                <span>{activeAlert.action_label || 'Resolve Issue'}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
             )}
 
-            {/* Mark as Resolved button: Prevents alert from showing again */}
+            {/* Mark as Resolved button */}
             <button
               type="button"
               disabled={resolving}
               onClick={() => handleMarkResolved(activeAlert.id)}
               title="Mark this issue as resolved so it won't appear again"
-              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold border border-white/10 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 active:scale-95"
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 hover:text-slate-950 text-xs font-semibold border border-slate-200/80 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
             >
-              <Check className="h-3.5 w-3.5 text-emerald-400" />
+              <Check className="h-3.5 w-3.5 text-emerald-600" />
               <span>Resolved (Don&apos;t show again)</span>
             </button>
           </div>
 
           {/* Countdown Progress Bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-100 overflow-hidden">
             <div
               className={`h-full ${typeConfig.bar} transition-all duration-75`}
               style={{ width: `${progress}%` }}

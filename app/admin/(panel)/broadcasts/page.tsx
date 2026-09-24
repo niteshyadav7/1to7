@@ -697,21 +697,23 @@ export default function AdminBroadcastsPage() {
 
                 {/* Live Preview Card */}
                 <div className="mt-3 pt-3 border-t border-white/10">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Live Creator Popup Preview:</p>
-                  <div className="bg-slate-950/80 border border-amber-500/40 rounded-xl p-3.5 shadow-lg space-y-2">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">Live Creator Popup Preview (Top of Dashboard):</p>
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xl space-y-2 text-slate-900 relative overflow-hidden">
                     <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase tracking-wider">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200 uppercase tracking-wider">
                         {formType}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-mono">{formDuration}s timer</span>
+                      <span className="text-[11px] text-slate-500 font-mono font-medium">{formDuration}s timer</span>
                     </div>
-                    <p className="text-xs font-bold text-white">{formTitle || 'Sample Alert Title'}</p>
-                    <p className="text-[11px] text-slate-300 leading-relaxed">{formMessage || 'Sample alert message description...'}</p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-bold">
+                    <p className="text-xs font-bold text-slate-900 leading-snug">{formTitle || 'Sample Alert Title'}</p>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">{formMessage || 'Sample alert message description...'}</p>
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                      <span className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-[10px] font-bold shadow-xs">
                         {formActionLabel || 'Action'}
                       </span>
-                      <span className="text-[10px] text-slate-400">Resolved (Don&apos;t show again)</span>
+                      <span className="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200">
+                        Resolved (Don&apos;t show again)
+                      </span>
                     </div>
                   </div>
                 </div>
