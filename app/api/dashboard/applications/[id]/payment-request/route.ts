@@ -47,6 +47,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Verify creator has valid bank details before accepting payment request
+    const { data: creatorUser } = await supabase
+      .from('users')
+      .select('account_number, ifsc_code')
+      .eq('id', payload.id)
+      .single()
+
+    if (!creatorUser?.account_number?.trim() || !creatorUser?.ifsc_code?.trim()) {
+      return NextResponse.json(
+        { error: 'Bank details missing! Please add your Account Number and IFSC Code in your profile before submitting a payment request.' },
+        { status: 400 }
+      )
+    }
+
     // Merge payment request into form_data
     const currentFormData = application.form_data || {}
     // Calculate and preserve the immutable true Total Deal

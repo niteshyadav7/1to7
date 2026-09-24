@@ -263,6 +263,11 @@ export default function ApprovedCampaignModal({
 
   const handlePartialSubmit = async () => {
     if (!application) return
+    const hasBankDetails = Boolean(user?.account_number?.trim() && user?.ifsc_code?.trim())
+    if (!hasBankDetails) {
+      toast.error('Bank details missing! Please add your Bank Account & IFSC Code in your Profile before requesting payment.')
+      return
+    }
     const amt = parseFloat(partialAmount) || 0
     if (amt <= 0) {
       toast.error('Please enter a valid amount')

@@ -29,6 +29,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to retrieve applications' }, { status: 500 })
     }
 
+    // Validate all applications have valid bank details before proceeding with disbursement
+    const missingBankApps = applications.filter(a => {
+      const u = (a as any).users
+      return !Boolean(u?.account_number?.trim() && u?.ifsc_code?.trim())
+    })
+
+    if (missingBankApps.length > 0) {
+      const names = missingBankApps.map(a => (a as any).users?.full_name || 'Creator').join(', ')
+      return NextResponse.json({
+        error: `Cannot disburse payout: Bank details missing for ${missingBankApps.length} creator(s) (${names}). Please ensure all creators have registered bank details first.`,
+      }, { status: 400 })
+    }
+
     let totalAmountDisbursed = 0
     const processedIds: string[] = []
 

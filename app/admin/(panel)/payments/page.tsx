@@ -786,6 +786,16 @@ export default function PaymentsPage() {
 
   const handleBulkAction = async (newStatus: string) => {
     if (selectedIds.size === 0) return
+    if (newStatus === 'Payment Initiated') {
+      const selectedPayments = payments.filter((p) => selectedIds.has(p.id))
+      const missingBank = selectedPayments.filter(
+        (p) => !p.users?.account_number?.trim() || !p.users?.ifsc_code?.trim()
+      )
+      if (missingBank.length > 0) {
+        toast.error(`Cannot initiate payment: ${missingBank.length} selected creator(s) have missing bank details.`)
+        return
+      }
+    }
     setBulkUpdating(true)
     try {
       const res = await fetch('/api/admin/applications/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1902,6 +1912,17 @@ export default function PaymentsPage() {
                       placeholder="Enter amount" className="w-full bg-slate-800 border border-white/10 text-white text-sm font-semibold rounded-xl px-3 py-3 pl-7 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                   </div>
                 </div>
+                {(!initiatePaymentApp.users?.account_number?.trim() || !initiatePaymentApp.users?.ifsc_code?.trim()) && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-xs flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Bank Details Missing</p>
+                      <p className="text-[11px] text-red-400/80 mt-0.5">
+                        This creator has not registered bank details. Payment cannot be initiated until bank details are added.
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5 block">Internal Note / Remarks (Optional)</label>
                   <input type="text" value={initiateNotes} onChange={e => setInitiateNotes(e.target.value)}
@@ -1911,7 +1932,13 @@ export default function PaymentsPage() {
               <div className="p-5 border-t border-white/5 flex gap-3">
                 <Button variant="outline" onClick={() => setInitiatePaymentApp(null)}
                   className="flex-1 rounded-xl border-white/10 text-slate-400 hover:text-white hover:bg-white/5 cursor-pointer bg-transparent">Cancel</Button>
-                <Button onClick={async () => {
+                <Button 
+                  disabled={!initiatePaymentApp.users?.account_number?.trim() || !initiatePaymentApp.users?.ifsc_code?.trim()}
+                  onClick={async () => {
+                  if (!initiatePaymentApp.users?.account_number?.trim() || !initiatePaymentApp.users?.ifsc_code?.trim()) {
+                    toast.error('Cannot initiate payment: Creator has missing bank details.')
+                    return
+                  }
                   const amt = parseFloat(initiateAmount) || 0
                   if (amt <= 0) { toast.error('Please enter a valid payment amount'); return }
                   const balance = initiatePaymentApp.pending_amount || 0

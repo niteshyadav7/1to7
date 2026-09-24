@@ -18,12 +18,21 @@ export async function POST(request: Request) {
 
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('id, form_data, status, pending_amount, partial_payment, final_payment, updated_at, campaigns(brand_name, campaign_code)')
+      .select('id, form_data, status, pending_amount, partial_payment, final_payment, updated_at, users(full_name, account_number, ifsc_code), campaigns(brand_name, campaign_code)')
       .eq('id', application_id)
       .single()
 
     if (fetchErr || !application) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+    }
+
+    const creatorUser = (application as any).users
+    const hasBankDetails = Boolean(creatorUser?.account_number?.trim() && creatorUser?.ifsc_code?.trim())
+
+    if ((action === 'prepare' || action === 'approve') && !hasBankDetails) {
+      return NextResponse.json({
+        error: `Cannot ${action === 'prepare' ? 'prepare payout' : 'approve payment'}: Creator ${creatorUser?.full_name || 'influencer'} has not added bank details (Account Number or IFSC missing).`,
+      }, { status: 400 })
     }
 
     const currentFormData = application.form_data || {}

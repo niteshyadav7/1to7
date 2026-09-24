@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   IndianRupee,
   Tags,
+  Radio,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -62,6 +63,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/finance', label: 'Finance Payouts', icon: IndianRupee, moduleKey: 'payments' },
   { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart, moduleKey: 'feedback' },
   { href: '/admin/user-issues', label: 'User Issues', icon: AlertTriangle, moduleKey: 'user_issues' },
+  { href: '/admin/broadcasts', label: 'In-App Alerts', icon: Radio, moduleKey: 'broadcasts' },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
   { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
   { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
@@ -80,6 +82,7 @@ function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname.startsWith('/admin/payments')) return 'payments'
   if (pathname.startsWith('/admin/feedback')) return 'feedback'
   if (pathname.startsWith('/admin/user-issues')) return 'user_issues'
+  if (pathname.startsWith('/admin/broadcasts')) return 'broadcasts'
   if (pathname.startsWith('/admin/analytics')) return 'analytics'
   if (pathname.startsWith('/admin/import')) return 'import'
   if (pathname.startsWith('/admin/influencers')) return 'influencers'

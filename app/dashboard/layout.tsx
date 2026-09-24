@@ -24,6 +24,7 @@ import {
 import FeedbackModal from '@/components/modals/FeedbackModal'
 import NotificationBell from '@/components/ui/NotificationBell'
 import Logo from '@/components/ui/Logo'
+import InAppAlertPopup from '@/components/alerts/InAppAlertPopup'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -243,6 +244,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      {/* Global In-App Alert Popup */}
+      <InAppAlertPopup />
     </div>
   )
 }

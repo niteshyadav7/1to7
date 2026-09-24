@@ -101,17 +101,29 @@ export async function POST(request: Request) {
     } else if (status === 'Payment Initiated') {
       const { data: existingApps, error: fetchErr } = await supabase
         .from('applications')
-        .select('id, form_data, pending_amount, partial_payment')
+        .select('id, form_data, pending_amount, partial_payment, users(full_name, account_number, ifsc_code)')
         .in('id', targetApplicationIds)
 
       if (fetchErr) {
         console.error('Fetch error during bulk payment initiation:', fetchErr)
       }
 
+      // Safeguard: Only initiate payments for creators who have provided bank details
+      const appsWithBank = (existingApps || []).filter(app => {
+        const u = (app as any).users
+        return Boolean(u?.account_number?.trim() && u?.ifsc_code?.trim())
+      })
+
+      if (appsWithBank.length === 0 && (existingApps || []).length > 0) {
+        return NextResponse.json({
+          error: 'Cannot initiate payment: Selected creator(s) have missing bank details (Account Number or IFSC missing).',
+        }, { status: 400 })
+      }
+
       const adminId = admin.id || admin.email || 'admin'
       const adminName = admin.name || admin.full_name || 'Operations Admin'
 
-      const updatePromises = (existingApps || []).map(app => {
+      const updatePromises = appsWithBank.map(app => {
         const currForm = (app.form_data && typeof app.form_data === 'object') ? app.form_data : {}
         const amt = Number(currForm.payment_request?.payment_amount || app.pending_amount || app.partial_payment || 0)
         const updatedInit = {

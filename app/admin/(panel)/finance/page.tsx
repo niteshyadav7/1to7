@@ -297,14 +297,20 @@ export default function FinancePayoutPage() {
 
   // Bulk Selection Handlers
   const handleSelectAll = () => {
-    if (selectedIds.length === paginatedApps.length && paginatedApps.length > 0) {
+    const validApps = paginatedApps.filter((a) => Boolean(a.users?.account_number?.trim() && a.users?.ifsc_code?.trim()))
+    if (selectedIds.length >= validApps.length && validApps.length > 0) {
       setSelectedIds([])
     } else {
-      setSelectedIds(paginatedApps.map((a) => a.id))
+      setSelectedIds(validApps.map((a) => a.id))
     }
   }
 
   const toggleSelect = (id: string) => {
+    const targetApp = applications.find((a) => a.id === id)
+    if (targetApp && (!targetApp.users?.account_number?.trim() || !targetApp.users?.ifsc_code?.trim())) {
+      toast.error(`Cannot select: ${targetApp.users?.full_name || 'Creator'} has missing bank details.`)
+      return
+    }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     )
@@ -695,6 +701,13 @@ export default function FinancePayoutPage() {
   const handleExecuteBulkPayout = async () => {
     if (selectedIds.length === 0) {
       toast.error('Please select at least one application')
+      return
+    }
+
+    const selectedApps = applications.filter((a) => selectedIds.includes(a.id))
+    const missingBank = selectedApps.filter((a) => !Boolean(a.users?.account_number?.trim() && a.users?.ifsc_code?.trim()))
+    if (missingBank.length > 0) {
+      toast.error(`Cannot disburse: ${missingBank.length} selected creator(s) have missing bank details.`)
       return
     }
 
@@ -1163,21 +1176,26 @@ export default function FinancePayoutPage() {
                         isSelected ? 'bg-emerald-500/5' : ''
                       }`}
                     >
-                      {activeTab === 'finance_queue' && (
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => toggleSelect(app.id)}
-                            className="p-1 rounded text-slate-400 hover:text-white cursor-pointer"
-                          >
-                            {isSelected ? (
-                              <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
-                            ) : (
-                              <Square className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </td>
-                      )}
+                      {activeTab === 'finance_queue' && (() => {
+                        const hasBank = Boolean(app.users?.account_number?.trim() && app.users?.ifsc_code?.trim())
+                        return (
+                          <td className="px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleSelect(app.id)}
+                              disabled={!hasBank}
+                              title={!hasBank ? 'Cannot select: Bank details missing' : isSelected ? 'Deselect' : 'Select'}
+                              className={`p-1 rounded ${!hasBank ? 'opacity-30 cursor-not-allowed' : 'text-slate-400 hover:text-white cursor-pointer'}`}
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="h-3.5 w-3.5 text-emerald-400" />
+                              ) : (
+                                <Square className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </td>
+                        )
+                      })()}
 
                       <td className="px-3 py-2">
                         <div className="font-bold text-white text-xs">{payeeName}</div>
@@ -1243,35 +1261,69 @@ export default function FinancePayoutPage() {
 
                       <td className="px-3 py-2 text-right">
                         {activeTab === 'dual_approval' ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleDualApprove(app.id)}
-                            disabled={approvingId === app.id}
-                            className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] cursor-pointer shadow-sm"
-                          >
-                            {approvingId === app.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                Approve
-                              </>
-                            )}
-                          </Button>
+                          (() => {
+                            const hasBank = Boolean(app.users?.account_number?.trim() && app.users?.ifsc_code?.trim())
+                            return (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleDualApprove(app.id)}
+                                disabled={approvingId === app.id || !hasBank}
+                                title={!hasBank ? 'Cannot approve: Bank details missing' : 'Approve for Finance Queue'}
+                                className={`h-7 px-2.5 rounded-lg text-white font-bold text-[11px] shadow-sm ${
+                                  !hasBank
+                                    ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                                    : 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer'
+                                }`}
+                              >
+                                {approvingId === app.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                            )
+                          })()
                         ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedIds([app.id])
-                              setShowBulkModal(true)
-                            }}
-                            className="h-7 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] cursor-pointer shadow-sm"
-                          >
-                            <Send className="h-3 w-3 mr-1" />
-                            Disburse
-                          </Button>
+                          (() => {
+                            const hasBank = Boolean(app.users?.account_number?.trim() && app.users?.ifsc_code?.trim())
+                            return (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (!hasBank) {
+                                    toast.error('Cannot disburse: Creator has missing bank details.')
+                                    return
+                                  }
+                                  setSelectedIds([app.id])
+                                  setShowBulkModal(true)
+                                }}
+                                disabled={!hasBank}
+                                title={!hasBank ? 'Cannot disburse: Bank details missing' : 'Disburse payout'}
+                                className={`h-7 px-3 rounded-lg text-white font-bold text-[11px] shadow-sm ${
+                                  !hasBank
+                                    ? 'bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
+                                }`}
+                              >
+                                {!hasBank ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-red-400">
+                                    <AlertCircle className="h-3 w-3" />
+                                    No Bank
+                                  </span>
+                                ) : (
+                                  <>
+                                    <Send className="h-3 w-3 mr-1" />
+                                    Disburse
+                                  </>
+                                )}
+                              </Button>
+                            )
+                          })()
                         )}
                       </td>
                     </tr>

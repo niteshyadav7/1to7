@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { getApplicationCommercialAmount } from '@/lib/utils/commercial-utils'
+import Link from 'next/link'
 
 interface PaymentFormModalProps {
   isOpen: boolean
@@ -23,6 +24,8 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
   const [submitting, setSubmitting] = useState(false)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   
+  const hasBankDetails = Boolean(user?.account_number?.trim() && user?.ifsc_code?.trim())
+
   const isCoreField = (name: string) => {
     const norm = (name || '').toLowerCase().replace(/[\s_-]/g, '')
     return ['amount', 'paymentamount', 'livedate', 'date', 'paymentreason', 'reason', 'supportingdocument', 'document', 'screenshot', 'proof'].includes(norm)
@@ -36,9 +39,9 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
   const [formData, setFormData] = useState<Record<string, string>>({})
 
   // Format the bank details string for the read-only box
-  const bankDetailsString = user 
-    ? `${user.account_name || ''}\n${user.account_number || ''}\n${user.ifsc_code || ''}`
-    : 'No bank details found.'
+  const bankDetailsString = hasBankDetails && user
+    ? `A/C: ${user.account_number}\nIFSC: ${user.ifsc_code}\nName: ${user.account_name || user.full_name || ''}`
+    : 'No bank details registered. Please add bank details in Profile.'
 
   useEffect(() => {
     if (isOpen) {
@@ -88,6 +91,11 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
   }
 
   const handleSubmit = async () => {
+    if (!hasBankDetails) {
+      toast.error('Bank details missing! Please add your Bank Account & IFSC Code in your Profile before requesting payment.')
+      return
+    }
+
     // Validate core required fields
     const coreFields = [
       { name: 'live_date', label: 'Live Date' },
@@ -357,17 +365,42 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
             </div>
 
             {/* Bank Details (Read Only) */}
-            <div className="space-y-1.5 pt-3 border-t border-slate-200/80">
-              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex justify-between">
+            <div className="space-y-2 pt-3 border-t border-slate-200/80">
+              <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex justify-between items-center">
                 <span>Bank Details <span className="text-red-500">*</span></span>
-                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Verified</span>
+                {hasBankDetails ? (
+                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Verified</span>
+                ) : (
+                  <span className="text-[10px] text-red-600 font-bold bg-red-50 border border-red-200 px-2 py-0.5 rounded">Missing Details</span>
+                )}
               </Label>
               <textarea
                 value={bankDetailsString}
                 readOnly
                 rows={3}
-                className="w-full bg-slate-100 border border-slate-200 text-slate-700 text-sm rounded-xl px-4 py-3 resize-none cursor-not-allowed font-mono"
+                className={`w-full border text-sm rounded-xl px-4 py-3 resize-none cursor-not-allowed font-mono ${
+                  hasBankDetails 
+                    ? 'bg-slate-100 border-slate-200 text-slate-700' 
+                    : 'bg-red-50/50 border-red-200 text-red-700'
+                }`}
               />
+              {!hasBankDetails && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-bold">Bank Account & IFSC Required</p>
+                    <p className="text-[11px] text-amber-700 mt-0.5">
+                      You must add your bank details to receive payments. Payments cannot be initiated or disbursed without bank details.
+                    </p>
+                    <Link
+                      href="/dashboard/profile"
+                      className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-amber-900 underline hover:text-amber-950"
+                    >
+                      Update Bank Details in Profile &rarr;
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

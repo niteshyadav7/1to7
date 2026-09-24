@@ -15,6 +15,7 @@ export type ModuleKey =
   | 'staff'
   | 'roles'
   | 'user_issues'
+  | 'broadcasts'
 
 export type ActionKey = 'view' | 'create' | 'edit' | 'delete' | 'export' | 'reset_password'
 
