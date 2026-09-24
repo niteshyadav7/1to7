@@ -161,15 +161,15 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Admin Info & Role Badge */}
-        <div className="p-4 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md">
+        <div className="p-4 border-b border-white/5" suppressHydrationWarning>
+          <div className="flex items-center gap-3" suppressHydrationWarning>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md" suppressHydrationWarning>
               {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{admin?.name || 'Admin'}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]">
+            <div className="flex-1 min-w-0" suppressHydrationWarning>
+              <p className="text-sm font-semibold text-white truncate" suppressHydrationWarning>{admin?.name || 'Admin'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5" suppressHydrationWarning>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]" suppressHydrationWarning>
                   {admin?.roleDisplayName || (isSuperAdmin ? 'Super Admin' : admin?.role || 'Staff')}
                 </span>
               </div>

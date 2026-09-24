@@ -830,14 +830,8 @@ function SkeletonRow() {
 export default function AllApplicationsPage() {
   const { admin } = useAdminPermissions()
   // Core data
-  const [applications, setApplications] = useState<Application[]>(() => {
-    const cached = getFastCache<Application[]>('admin_applications_cache')
-    return Array.isArray(cached) ? cached : []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<Application[]>('admin_applications_cache')
-    return !Array.isArray(cached) || cached.length === 0
-  })
+  const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState(true)
   const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
 
   // Table state

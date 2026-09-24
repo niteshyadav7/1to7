@@ -80,14 +80,8 @@ const filters = ['All', 'Pending Approvals', 'Pilot Campaigns', 'Active', 'Draft
 
 export default function AdminCampaignsPage() {
   const { admin, isSuperAdmin } = useAdminPermissions()
-  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
-    const cached = getFastCache<Campaign[]>('admin_campaigns_cache')
-    return Array.isArray(cached) ? cached : []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<Campaign[]>('admin_campaigns_cache')
-    return !Array.isArray(cached) || cached.length === 0
-  })
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [togglingId, setTogglingId] = useState<string | null>(null)

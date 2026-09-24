@@ -59,22 +59,10 @@ interface DashboardCacheData {
 }
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(() => {
-    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
-    return cached?.stats || null
-  })
-  const [recentPendingApps, setRecentPendingApps] = useState<RecentApplication[]>(() => {
-    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
-    return cached?.recentPendingApps || []
-  })
-  const [recentApprovedApps, setRecentApprovedApps] = useState<RecentApplication[]>(() => {
-    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
-    return cached?.recentApprovedApps || []
-  })
-  const [loading, setLoading] = useState(() => {
-    const cached = getFastCache<DashboardCacheData>('admin_dashboard_cache')
-    return !cached || !cached.stats
-  })
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [recentPendingApps, setRecentPendingApps] = useState<RecentApplication[]>([])
+  const [recentApprovedApps, setRecentApprovedApps] = useState<RecentApplication[]>([])
+  const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const fetchData = async (isBackground = false) => {
