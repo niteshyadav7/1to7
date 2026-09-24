@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
-  Pencil, Save, Upload, Share2
+  Pencil, Save, Upload, Share2, MessageSquareText
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -71,6 +71,9 @@ interface Application {
   is_delay_exempted?: boolean | null
   delay_exemption_reason?: string | null
   completion_submitted_at?: string | null
+  team_remark?: string | null
+  team_remark_by?: string | null
+  team_remark_updated_at?: string | null
   created_at: string
   updated_at: string
   users: UserInfo
@@ -161,6 +164,7 @@ const defaultColumns: Record<string, boolean> = {
   location: true,
   status: true,
   brand_sent: true,
+  team_remark: true,
   date: true,
   actions: true,
 }
@@ -429,6 +433,7 @@ function ColumnToggle({
     location: 'Location',
     status: 'Status',
     brand_sent: 'Brand Shared',
+    team_remark: 'Team Remark',
     date: 'Applied On',
     actions: 'Actions',
   }
@@ -595,6 +600,7 @@ function ActionsDropdown({
   onDeleteApp,
   onOpenNegotiate,
   onSentToBrandToggle,
+  onEditRemark,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -604,6 +610,7 @@ function ActionsDropdown({
   onDeleteApp: (id: string, name?: string) => void
   onOpenNegotiate?: (app: Application) => void
   onSentToBrandToggle?: (action: 'mark_sent' | 'unmark_sent', appId: string) => void
+  onEditRemark?: (app: Application) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -750,6 +757,18 @@ function ActionsDropdown({
                 </button>
               )}
 
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onEditRemark?.(app)
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-cyan-300 hover:bg-cyan-500/15"
+              >
+                <MessageSquareText className="h-3.5 w-3.5 text-cyan-400" />
+                {app.team_remark ? 'Edit Team Remark' : 'Add Team Remark'}
+              </button>
+
               <div className="border-t border-white/10 my-1" />
 
               <button
@@ -820,9 +839,213 @@ function SkeletonRow() {
       <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800 animate-pulse" /></td>
       <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800 animate-pulse" /></td>
       <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800 animate-pulse" /></td>
+      <td className="px-3 py-3"><div className="w-20 h-5 rounded-lg bg-slate-800 animate-pulse" /></td>
       <td className="px-3 py-3"><div className="w-12 h-3 rounded bg-slate-800 animate-pulse" /></td>
       <td className="w-10 px-2 py-3 text-right"><div className="w-6 h-6 rounded-lg bg-slate-800 animate-pulse ml-auto" /></td>
     </tr>
+  )
+}
+
+// ─── TeamRemarkCell Component ──────────────────────────────
+const PRESET_REMARKS = [
+  'Shortlisted',
+  'Hold',
+  'Contacted',
+  'Commercial Issue',
+  'Client Approved',
+  'Sample Sent',
+  'Video Revision',
+  'Call Pending',
+]
+
+function TeamRemarkCell({
+  appId,
+  remark,
+  remarkBy,
+  remarkUpdatedAt,
+  density,
+  onSave,
+}: {
+  appId: string
+  remark?: string | null
+  remarkBy?: string | null
+  remarkUpdatedAt?: string | null
+  density: RowDensity
+  onSave: (appId: string, newRemark: string) => Promise<void>
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [text, setText] = useState(remark || '')
+  const [isSaving, setIsSaving] = useState(false)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setText(remark || '')
+  }, [remark])
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [isOpen])
+
+  const handlePresetClick = (preset: string) => {
+    setText(prev => {
+      const trimmed = prev.trim()
+      if (!trimmed) return preset
+      if (trimmed.includes(preset)) return trimmed
+      return `${trimmed}, ${preset}`
+    })
+  }
+
+  const handleCommit = async (customVal?: string) => {
+    const valueToSave = customVal !== undefined ? customVal : text
+    setIsSaving(true)
+    try {
+      await onSave(appId, valueToSave)
+      setIsOpen(false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleClear = async () => {
+    setIsSaving(true)
+    try {
+      await onSave(appId, '')
+      setText('')
+      setIsOpen(false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <td className={`px-3 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
+      <div className="relative inline-block" ref={popoverRef}>
+        {remark ? (
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="group max-w-[170px] flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 hover:border-cyan-500/40 text-left cursor-pointer transition-all active:scale-95 shadow-sm"
+            title={`Team Remark: "${remark}"\nBy ${remarkBy || 'Team'}${remarkUpdatedAt ? ` • ${new Date(remarkUpdatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}\n(Click to Edit)`}
+          >
+            <MessageSquareText className="h-3 w-3 text-cyan-400 shrink-0" />
+            <span className="text-[11px] font-medium text-cyan-200/90 truncate max-w-[125px]">
+              {remark}
+            </span>
+            <Pencil className="h-2.5 w-2.5 text-cyan-400/60 opacity-0 group-hover:opacity-100 transition-opacity ml-auto shrink-0" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10.5px] font-medium text-slate-500 hover:text-cyan-300 bg-white/[0.02] hover:bg-cyan-500/10 border border-dashed border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer group active:scale-95 whitespace-nowrap"
+            title="Click to add manual team remark"
+          >
+            <span className="text-slate-500 group-hover:text-cyan-400 text-xs leading-none">+</span>
+            <span>Add remark</span>
+          </button>
+        )}
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.96 }}
+              transition={{ duration: 0.12 }}
+              className="absolute left-0 top-full mt-1.5 z-50 w-72 sm:w-80 bg-slate-900/98 backdrop-blur-2xl border border-cyan-500/30 rounded-xl p-3 shadow-2xl shadow-black/80"
+            >
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
+                <div className="flex items-center gap-1.5 text-cyan-400 text-[10.5px] font-bold uppercase tracking-wider">
+                  <MessageSquareText className="h-3 w-3" />
+                  <span>Team Remark</span>
+                </div>
+                {remarkBy && (
+                  <span className="text-[9.5px] text-slate-400 truncate max-w-[130px]" title={`Last updated by ${remarkBy}`}>
+                    By {remarkBy}
+                  </span>
+                )}
+              </div>
+
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleCommit()
+                  } else if (e.key === 'Escape') {
+                    setIsOpen(false)
+                  }
+                }}
+                rows={2}
+                autoFocus
+                placeholder="Type team note (Press Enter to save)..."
+                className="w-full bg-slate-950/80 border border-white/10 rounded-lg p-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 resize-none transition-colors"
+              />
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {PRESET_REMARKS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handlePresetClick(p)}
+                    className="text-[9.5px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer"
+                  >
+                    +{p}
+                  </button>
+                ))}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
+                {remark ? (
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    disabled={isSaving}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="h-2.5 w-2.5" />
+                    Clear
+                  </button>
+                ) : (
+                  <span className="text-[9px] text-slate-500">Press Enter to save</span>
+                )}
+
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    disabled={isSaving}
+                    className="px-2 py-1 rounded text-[11px] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCommit()}
+                    disabled={isSaving}
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Save
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </td>
   )
 }
 
@@ -879,6 +1102,51 @@ export default function AllApplicationsPage() {
   const [sentToBrandBatchLabel, setSentToBrandBatchLabel] = useState('')
   const [sentToBrandNotes, setSentToBrandNotes] = useState('')
   const [sentToBrandSubmitting, setSentToBrandSubmitting] = useState(false)
+
+  // Team Remark Modal state
+  const [remarkModalApp, setRemarkModalApp] = useState<Application | null>(null)
+  const [modalRemarkText, setModalRemarkText] = useState('')
+  const [modalRemarkSaving, setModalRemarkSaving] = useState(false)
+
+  const handleUpdateTeamRemark = async (appId: string, newRemark: string) => {
+    const trimmed = newRemark.trim()
+    const now = new Date().toISOString()
+    const author = admin?.name || admin?.email || 'Admin'
+
+    // Optimistic update
+    setApplications(prev =>
+      prev.map(a =>
+        a.id === appId
+          ? {
+              ...a,
+              team_remark: trimmed || null,
+              team_remark_by: trimmed ? author : null,
+              team_remark_updated_at: trimmed ? now : null,
+              form_data: {
+                ...(a.form_data || {}),
+                team_remark: trimmed || null,
+                team_remark_by: trimmed ? author : null,
+                team_remark_updated_at: trimmed ? now : null,
+              }
+            }
+          : a
+      )
+    )
+
+    try {
+      const res = await fetch(`/api/admin/applications/${appId}/remark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remark: trimmed }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update team remark')
+      toast.success(trimmed ? 'Team remark updated' : 'Team remark cleared')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update team remark')
+      fetchApplications(true)
+    }
+  }
 
   const sentCount = useMemo(() => applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length, [applications])
   const unsharedCount = useMemo(() => applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length, [applications])
@@ -1099,7 +1367,7 @@ export default function AllApplicationsPage() {
       const q = searchQuery.toLowerCase().trim()
       const qDigits = searchQuery.replace(/\D/g, '')
       result = result.filter(a => {
-        const textFields = `${a.users?.full_name} ${a.users?.influencer_id} ${a.users?.instagram_username} ${a.users?.email} ${a.campaigns?.brand_name} ${a.campaigns?.campaign_code}`.toLowerCase()
+        const textFields = `${a.users?.full_name} ${a.users?.influencer_id} ${a.users?.instagram_username} ${a.users?.email} ${a.campaigns?.brand_name} ${a.campaigns?.campaign_code} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
         if (textFields.includes(q)) return true
 
         const phoneList = [
@@ -1183,6 +1451,7 @@ export default function AllApplicationsPage() {
           case 'brand': valA = a.campaigns?.brand_name?.toLowerCase() || ''; valB = b.campaigns?.brand_name?.toLowerCase() || ''; break
           case 'location': valA = a.users?.state?.toLowerCase() || ''; valB = b.users?.state?.toLowerCase() || ''; break
           case 'status': valA = a.status; valB = b.status; break
+          case 'team_remark': valA = a.team_remark?.toLowerCase() || ''; valB = b.team_remark?.toLowerCase() || ''; break
           case 'date': valA = new Date(a.created_at).getTime(); valB = new Date(b.created_at).getTime(); break
           default: return 0
         }
@@ -1415,6 +1684,9 @@ export default function AllApplicationsPage() {
         brand_shared_status: a.form_data?.sent_to_brand?.is_sent ? 'Sent' : 'Not Sent',
         brand_shared_batch: a.form_data?.sent_to_brand?.batch_label || '',
         brand_shared_date: a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
+        team_remark: a.team_remark || '',
+        team_remark_by: a.team_remark_by || '',
+        team_remark_updated_at: a.team_remark_updated_at ? new Date(a.team_remark_updated_at).toLocaleString('en-IN') : '',
         partial_payment: a.partial_payment,
         final_payment: a.final_payment,
         pending_amount: a.pending_amount,
@@ -1818,6 +2090,11 @@ export default function AllApplicationsPage() {
                     </span>
                   </th>
                 )}
+                {visibleCols.team_remark && (
+                  <th className="px-3 py-3 text-left">
+                    <SortableHeader label="Team Remark" column="team_remark" sortConfig={sortConfig} onSort={handleSort} />
+                  </th>
+                )}
                 {visibleCols.date && (
                   <th className="px-3 py-3 text-left">
                     <SortableHeader label="Applied" column="date" sortConfig={sortConfig} onSort={handleSort} />
@@ -2076,6 +2353,18 @@ export default function AllApplicationsPage() {
                           </td>
                         )}
 
+                        {/* Team Remark */}
+                        {visibleCols.team_remark && (
+                          <TeamRemarkCell
+                            appId={app.id}
+                            remark={app.team_remark}
+                            remarkBy={app.team_remark_by}
+                            remarkUpdatedAt={app.team_remark_updated_at}
+                            density={density}
+                            onSave={handleUpdateTeamRemark}
+                          />
+                        )}
+
                         {/* Date */}
                         {visibleCols.date && (
                           <td className={`px-3 ${densityPadding[density]}`}>
@@ -2095,6 +2384,10 @@ export default function AllApplicationsPage() {
                               onRevokeApproval={(app) => setRevokeModalApp(app)}
                               onOpenNegotiate={(app) => setNegotiationModalApp(app)}
                               onSentToBrandToggle={handleSingleSentToBrand}
+                              onEditRemark={(targetApp) => {
+                                setRemarkModalApp(targetApp)
+                                setModalRemarkText(targetApp.team_remark || '')
+                              }}
                               onRejectWithReason={(app) => {
                                 setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
                                 setSelectedRejectReason('Follower count / criteria mismatch')
@@ -3460,6 +3753,128 @@ export default function AllApplicationsPage() {
                     </>
                   )}
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Team Remark Modal ─── */}
+      <AnimatePresence>
+        {remarkModalApp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
+                    <MessageSquareText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Manual Team Remark</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {remarkModalApp.users?.full_name} • {remarkModalApp.campaigns?.brand_name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRemarkModalApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div>
+                <Label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1.5 block">
+                  Internal Team Note / Remark
+                </Label>
+                <textarea
+                  value={modalRemarkText}
+                  onChange={(e) => setModalRemarkText(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Type any internal note, feedback, or remark for this application..."
+                  className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none transition-colors"
+                />
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_REMARKS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setModalRemarkText(prev => {
+                        const trimmed = prev.trim()
+                        if (!trimmed) return p
+                        if (trimmed.includes(p)) return trimmed
+                        return `${trimmed}, ${p}`
+                      })
+                    }}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer"
+                  >
+                    +{p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                {remarkModalApp.team_remark ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setModalRemarkSaving(true)
+                      try {
+                        await handleUpdateTeamRemark(remarkModalApp.id, '')
+                        setRemarkModalApp(null)
+                      } finally {
+                        setModalRemarkSaving(false)
+                      }
+                    }}
+                    disabled={modalRemarkSaving}
+                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Clear Remark
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRemarkModalApp(null)}
+                    disabled={modalRemarkSaving}
+                    className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setModalRemarkSaving(true)
+                      try {
+                        await handleUpdateTeamRemark(remarkModalApp.id, modalRemarkText)
+                        setRemarkModalApp(null)
+                      } finally {
+                        setModalRemarkSaving(false)
+                      }
+                    }}
+                    disabled={modalRemarkSaving}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {modalRemarkSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    Save Remark
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

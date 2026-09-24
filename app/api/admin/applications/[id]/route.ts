@@ -18,7 +18,8 @@ export async function PUT(
 
     const allowedFields = [
       'status', 'partial_payment', 'final_payment',
-      'pending_amount', 'manager_phone', 'form_data'
+      'pending_amount', 'manager_phone', 'form_data',
+      'team_remark', 'team_remark_by', 'team_remark_updated_at'
     ]
 
     const updates: Record<string, any> = {}

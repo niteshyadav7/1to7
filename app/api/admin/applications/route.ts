@@ -39,6 +39,9 @@ export async function GET(request: Request) {
         is_delay_exempted,
         delay_exemption_reason,
         completion_submitted_at,
+        team_remark,
+        team_remark_by,
+        team_remark_updated_at,
         created_at,
         updated_at,
         users (

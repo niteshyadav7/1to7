@@ -9,7 +9,7 @@ import {
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
   IndianRupee, Phone, Save, Search, Clock, RotateCcw, Trash2,
   History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle,
-  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X, Upload
+  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X, Upload, MessageSquareText, Pencil
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,6 +59,9 @@ interface Application {
   is_delay_exempted?: boolean | null
   delay_exemption_reason?: string | null
   completion_submitted_at?: string | null
+  team_remark?: string | null
+  team_remark_by?: string | null
+  team_remark_updated_at?: string | null
   created_at: string
   updated_at: string
   users: UserInfo
@@ -89,6 +92,17 @@ const statusColors: Record<string, string> = {
 }
 
 const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved']
+
+const PRESET_REMARKS = [
+  'Shortlisted',
+  'Hold',
+  'Contacted',
+  'Commercial Issue',
+  'Client Approved',
+  'Sample Sent',
+  'Video Revision',
+  'Call Pending',
+]
 
 export default function AdminApplicationsPage({ params }: { params: Promise<{ campaign_id: string }> }) {
   const { campaign_id } = use(params)
@@ -132,6 +146,51 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   const [batchNotes, setBatchNotes] = useState('')
   const [autoExportBrandCSV, setAutoExportBrandCSV] = useState(true)
   const [markingSent, setMarkingSent] = useState(false)
+
+  // Team Remark Modal state
+  const [remarkModalApp, setRemarkModalApp] = useState<Application | null>(null)
+  const [modalRemarkText, setModalRemarkText] = useState('')
+  const [modalRemarkSaving, setModalRemarkSaving] = useState(false)
+
+  const handleUpdateTeamRemark = async (appId: string, newRemark: string) => {
+    const trimmed = newRemark.trim()
+    const now = new Date().toISOString()
+    const author = admin?.name || admin?.email || 'Admin'
+
+    // Optimistic update
+    setApplications(prev =>
+      prev.map(a =>
+        a.id === appId
+          ? {
+              ...a,
+              team_remark: trimmed || null,
+              team_remark_by: trimmed ? author : null,
+              team_remark_updated_at: trimmed ? now : null,
+              form_data: {
+                ...(a.form_data || {}),
+                team_remark: trimmed || null,
+                team_remark_by: trimmed ? author : null,
+                team_remark_updated_at: trimmed ? now : null,
+              }
+            }
+          : a
+      )
+    )
+
+    try {
+      const res = await fetch(`/api/admin/applications/${appId}/remark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remark: trimmed }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update team remark')
+      toast.success(trimmed ? 'Team remark updated' : 'Team remark cleared')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update team remark')
+      fetchApplications()
+    }
+  }
 
   const handleBatchSentToBrand = async (action: 'mark_sent' | 'unmark_sent' = 'mark_sent', targetIds?: string[]) => {
     const ids = targetIds || selectedAppIds
@@ -194,6 +253,8 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
       'Commercial Quote (INR)': a.form_data?.agreed_commercial || a.form_data?.commercial_amount || a.form_data?.total_deal || '',
       'Sent to Brand Status': a.form_data?.sent_to_brand?.is_sent ? `Sent (${a.form_data.sent_to_brand.batch_label || 'Batch'})` : 'Not Sent',
       'Sent Date': a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
+      'Team Remark': a.team_remark || '',
+      'Remark By': a.team_remark_by || '',
     }))
 
     const csv = Papa.unparse(exportData)
@@ -409,7 +470,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
       !a.form_data?.sent_to_brand?.is_sent
 
     const user = a.users
-    const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email}`.toLowerCase()
+    const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
     const matchesSearch = searchString.includes(searchQuery.toLowerCase())
     return matchesFilter && matchesBrandSent && matchesSearch
   })
@@ -754,6 +815,17 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                         <span>Not Sent to Brand</span>
                       </span>
                     )}
+
+                    {/* Team Remark Badge */}
+                    {app.team_remark ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/25 flex items-center gap-1.5 max-w-[200px] truncate"
+                        title={`Team Remark: "${app.team_remark}"\nBy ${app.team_remark_by || 'Team'}`}
+                      >
+                        <MessageSquareText className="h-3 w-3 text-cyan-400 shrink-0" />
+                        <span className="truncate">{app.team_remark}</span>
+                      </span>
+                    ) : null}
 
                     <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                       {app.status}
@@ -1279,6 +1351,44 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                             Mark as Sent to Brand
                           </Button>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Team Remark Box */}
+                    <div className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="p-2 rounded-lg bg-cyan-500/15 text-cyan-400 mt-0.5">
+                          <MessageSquareText className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-white">Manual Team Remark</p>
+                            {app.team_remark_by && (
+                              <span className="text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+                                By {app.team_remark_by}{app.team_remark_updated_at ? ` • ${new Date(app.team_remark_updated_at).toLocaleDateString('en-IN')}` : ''}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-cyan-100/90 mt-1 italic">
+                            {app.team_remark ? `"${app.team_remark}"` : 'No team remark added yet.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setRemarkModalApp(app)
+                            setModalRemarkText(app.team_remark || '')
+                          }}
+                          className="h-8 text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/15 cursor-pointer"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          {app.team_remark ? 'Edit Remark' : 'Add Remark'}
+                        </Button>
                       </div>
                     </div>
 
@@ -1984,6 +2094,128 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   {updatingId === rejectModalApp.id ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RotateCcw className="h-4 w-4 mr-1.5" />}
                   Confirm Rejection & Comments
                 </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Team Remark Modal ─── */}
+      <AnimatePresence>
+        {remarkModalApp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-slate-900 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
+                    <MessageSquareText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Manual Team Remark</h3>
+                    <p className="text-[11px] text-slate-400">
+                      {remarkModalApp.users?.full_name} • {campaign?.brand_name || 'Campaign'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRemarkModalApp(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div>
+                <Label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1.5 block">
+                  Internal Team Note / Remark
+                </Label>
+                <textarea
+                  value={modalRemarkText}
+                  onChange={(e) => setModalRemarkText(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Type any internal note, feedback, or remark for this application..."
+                  className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none transition-colors"
+                />
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_REMARKS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setModalRemarkText(prev => {
+                        const trimmed = prev.trim()
+                        if (!trimmed) return p
+                        if (trimmed.includes(p)) return trimmed
+                        return `${trimmed}, ${p}`
+                      })
+                    }}
+                    className="text-[10px] px-2 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer"
+                  >
+                    +{p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                {remarkModalApp.team_remark ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setModalRemarkSaving(true)
+                      try {
+                        await handleUpdateTeamRemark(remarkModalApp.id, '')
+                        setRemarkModalApp(null)
+                      } finally {
+                        setModalRemarkSaving(false)
+                      }
+                    }}
+                    disabled={modalRemarkSaving}
+                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Clear Remark
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRemarkModalApp(null)}
+                    disabled={modalRemarkSaving}
+                    className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setModalRemarkSaving(true)
+                      try {
+                        await handleUpdateTeamRemark(remarkModalApp.id, modalRemarkText)
+                        setRemarkModalApp(null)
+                      } finally {
+                        setModalRemarkSaving(false)
+                      }
+                    }}
+                    disabled={modalRemarkSaving}
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {modalRemarkSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    Save Remark
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
