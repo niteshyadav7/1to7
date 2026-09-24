@@ -32,6 +32,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { ADMIN_MODULES } from '@/lib/constants/permissions'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import {
@@ -148,8 +149,8 @@ export default function StaffManagementPage() {
   const [rejecting, setRejecting] = useState(false)
 
   // Fetch staff and roles
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const fetchData = useCallback(async (isBackground = false) => {
+    if (!isBackground && staffList.length === 0) setLoading(true)
     try {
       const [staffRes, rolesRes] = await Promise.all([
         fetch('/api/admin/staff'),
@@ -158,22 +159,35 @@ export default function StaffManagementPage() {
 
       if (staffRes.ok) {
         const staffData = await staffRes.json()
-        setStaffList(staffData.staff || [])
+        const sList = staffData.staff || []
+        setStaffList(sList)
+        setFastCache('admin_staff_list_cache', sList)
       }
 
       if (rolesRes.ok) {
         const rolesData = await rolesRes.json()
-        setRolesList(rolesData.roles || [])
+        const rList = rolesData.roles || []
+        setRolesList(rList)
+        setFastCache('admin_roles_list_cache', rList)
       }
     } catch {
-      toast.error('Failed to load employee management data')
+      if (!isBackground) toast.error('Failed to load employee management data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [staffList.length])
 
   useEffect(() => {
-    fetchData()
+    const cachedStaff = getFastCache<StaffMember[]>('admin_staff_list_cache')
+    const cachedRoles = getFastCache<RoleItem[]>('admin_roles_list_cache')
+    if (cachedStaff && Array.isArray(cachedStaff) && cachedStaff.length > 0) {
+      setStaffList(cachedStaff)
+      if (cachedRoles && Array.isArray(cachedRoles)) setRolesList(cachedRoles)
+      setLoading(false)
+      fetchData(true)
+    } else {
+      fetchData(false)
+    }
   }, [fetchData])
 
   // Helper to generate a secure random password
@@ -619,7 +633,7 @@ export default function StaffManagementPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={fetchData}
+            onClick={() => fetchData()}
             disabled={loading}
             className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-white rounded-xl h-10 px-3.5 cursor-pointer"
           >
@@ -812,13 +826,41 @@ export default function StaffManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-400" />
-                    Loading employee directory...
-                  </td>
-                </tr>
+              {loading && staffList.length === 0 ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse border-b border-white/5">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="w-28 h-3.5 rounded bg-slate-800" />
+                          <div className="w-36 h-2.5 rounded bg-slate-800/60" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="w-20 h-6 rounded-lg bg-slate-800" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex gap-1.5">
+                        <div className="w-14 h-5 rounded-md bg-slate-800" />
+                        <div className="w-14 h-5 rounded-md bg-slate-800" />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="w-16 h-5 rounded-full bg-slate-800" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="w-24 h-6 rounded-md bg-slate-800" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="w-16 h-3 rounded bg-slate-800" />
+                    </td>
+                    <td className="py-4 px-6 text-right">
+                      <div className="w-16 h-7 rounded-lg bg-slate-800 ml-auto" />
+                    </td>
+                  </tr>
+                ))
               ) : filteredStaff.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">

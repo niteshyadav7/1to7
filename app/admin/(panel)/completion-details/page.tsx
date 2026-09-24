@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { GlobalLoader } from '@/components/ui/global-loader'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
@@ -163,6 +163,73 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
+function CompletionSkeletonRow({ densityPadding, visibleCols }: { densityPadding: string; visibleCols: Record<string, boolean> }) {
+  return (
+    <tr className="border-b border-white/[0.03] animate-pulse">
+      <td className={densityPadding}>
+        <div className="w-4 h-4 rounded bg-slate-800" />
+      </td>
+      {visibleCols.influencer && (
+        <td className={densityPadding}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-slate-800 shrink-0" />
+            <div className="space-y-1.5">
+              <div className="w-28 h-3.5 rounded bg-slate-800" />
+              <div className="w-20 h-2.5 rounded bg-slate-800/60" />
+            </div>
+          </div>
+        </td>
+      )}
+      {visibleCols.campaign && (
+        <td className={densityPadding}>
+          <div className="space-y-1.5">
+            <div className="w-24 h-3.5 rounded bg-slate-800" />
+            <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+          </div>
+        </td>
+      )}
+      {visibleCols.liveDate && (
+        <td className={densityPadding}>
+          <div className="w-20 h-4 rounded bg-slate-800" />
+        </td>
+      )}
+      {visibleCols.link && (
+        <td className={densityPadding}>
+          <div className="w-28 h-6 rounded-lg bg-slate-800" />
+        </td>
+      )}
+      {visibleCols.views && (
+        <td className={densityPadding}>
+          <div className="w-16 h-4 rounded bg-slate-800" />
+        </td>
+      )}
+      {visibleCols.proof && (
+        <td className={`${densityPadding} text-center`}>
+          <div className="w-12 h-8 rounded-lg bg-slate-800 mx-auto" />
+        </td>
+      )}
+      {visibleCols.status && (
+        <td className={densityPadding}>
+          <div className="w-24 h-6 rounded-full bg-slate-800" />
+        </td>
+      )}
+      {visibleCols.submitted && (
+        <td className={densityPadding}>
+          <div className="w-16 h-3 rounded bg-slate-800" />
+        </td>
+      )}
+      {visibleCols.actions && (
+        <td className={`${densityPadding} text-right`}>
+          <div className="flex items-center justify-end gap-1.5">
+            <div className="w-7 h-7 rounded-lg bg-slate-800" />
+            <div className="w-7 h-7 rounded-lg bg-slate-800" />
+          </div>
+        </td>
+      )}
+    </tr>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function CompletionDetailsPage() {
   const [completions, setCompletions] = useState<CompletionEntry[]>([])
@@ -209,28 +276,39 @@ export default function CompletionDetailsPage() {
   const [savingEdit, setSavingEdit] = useState(false)
 
   // ─── Fetch Completions ──────────────────────────────────
-  const fetchCompletions = useCallback(async () => {
-    try {
+  const fetchCompletions = useCallback(async (isBackground = false) => {
+    if (!isBackground && completions.length === 0) {
       setLoading(true)
+    }
+    try {
       const res = await fetch('/api/admin/completion-details')
       if (!res.ok) throw new Error('Failed to fetch completion details')
       const data = await res.json()
-      setCompletions(data.completions || [])
+      const list = data.completions || []
+      setCompletions(list)
+      setFastCache('admin_completion_details_cache', list)
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load completion details')
+      if (!isBackground) toast.error(err.message || 'Failed to load completion details')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [completions.length])
 
   useEffect(() => {
-    fetchCompletions()
+    const cached = getFastCache<CompletionEntry[]>('admin_completion_details_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setCompletions(cached)
+      setLoading(false)
+      fetchCompletions(true)
+    } else {
+      fetchCompletions(false)
+    }
   }, [fetchCompletions])
 
   // Realtime updates
   useRealtime({
     table: 'applications',
-    onChange: fetchCompletions,
+    onChange: () => fetchCompletions(true),
   })
 
   // ─── Unique Filter Options ─────────────────────────────
@@ -547,9 +625,7 @@ export default function CompletionDetailsPage() {
     comfortable: 'py-5 px-4',
   }[density]
 
-  if (loading && completions.length === 0) {
-    return <GlobalLoader text="Loading Completion Details..." />
-  }
+  const isInitialLoading = loading && completions.length === 0
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-16">
@@ -563,7 +639,7 @@ export default function CompletionDetailsPage() {
             <div>
               <h1 className="text-xl font-extrabold text-white tracking-tight">Completion Details</h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                {filteredCompletions.length} deliverable submission{filteredCompletions.length !== 1 ? 's' : ''} across all campaigns
+                {isInitialLoading ? 'Loading deliverables...' : `${filteredCompletions.length} deliverable submission${filteredCompletions.length !== 1 ? 's' : ''} across all campaigns`}
               </p>
             </div>
           </div>
@@ -676,7 +752,7 @@ export default function CompletionDetailsPage() {
           >
             {tab.label}
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${tab.color}`}>
-              {tab.count}
+              {isInitialLoading ? <span className="inline-block w-3 h-2 rounded bg-white/20 animate-pulse" /> : tab.count}
             </span>
           </button>
         ))}
@@ -870,7 +946,11 @@ export default function CompletionDetailsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-xs text-slate-300">
-              {paginatedCompletions.length === 0 ? (
+              {isInitialLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <CompletionSkeletonRow key={i} densityPadding={densityPadding} visibleCols={visibleCols} />
+                ))
+              ) : paginatedCompletions.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-16 text-center text-slate-500">
                     <FileCheck className="h-10 w-10 mx-auto mb-3 opacity-30 text-slate-400" />

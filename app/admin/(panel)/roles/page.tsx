@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { ADMIN_MODULES } from '@/lib/constants/permissions'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import {
@@ -59,23 +60,32 @@ export default function RolesManagementPage() {
   const [formPermissions, setFormPermissions] = useState<Record<string, string[]>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchRoles = useCallback(async () => {
-    setLoading(true)
+  const fetchRoles = useCallback(async (isBackground = false) => {
+    if (!isBackground && roles.length === 0) setLoading(true)
     try {
       const res = await fetch('/api/admin/roles')
       if (res.ok) {
         const data = await res.json()
-        setRoles(data.roles || [])
+        const list = data.roles || []
+        setRoles(list)
+        setFastCache('admin_roles_cache', list)
       }
     } catch {
-      toast.error('Failed to load roles')
+      if (!isBackground) toast.error('Failed to load roles')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [roles.length])
 
   useEffect(() => {
-    fetchRoles()
+    const cached = getFastCache<RoleItem[]>('admin_roles_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setRoles(cached)
+      setLoading(false)
+      fetchRoles(true)
+    } else {
+      fetchRoles(false)
+    }
   }, [fetchRoles])
 
   // Open Create Role Modal
@@ -232,7 +242,7 @@ export default function RolesManagementPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={fetchRoles}
+            onClick={() => fetchRoles()}
             disabled={loading}
             className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-white rounded-xl h-10 px-3.5 cursor-pointer"
           >
@@ -253,11 +263,31 @@ export default function RolesManagementPage() {
 
       {/* Roles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {loading ? (
-          <div className="col-span-full py-16 text-center text-slate-400">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-indigo-400" />
-            Loading role configurations...
-          </div>
+        {loading && roles.length === 0 ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-6 flex flex-col justify-between shadow-xl animate-pulse space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="w-20 h-5 rounded-full bg-slate-800" />
+                  <div className="w-16 h-5 rounded-full bg-slate-800" />
+                </div>
+                <div className="w-32 h-6 rounded bg-slate-800 mb-2" />
+                <div className="w-48 h-3 rounded bg-slate-800/60 mb-4" />
+                <div className="space-y-2 pt-3 border-t border-white/5">
+                  <div className="w-24 h-3 rounded bg-slate-800" />
+                  <div className="flex flex-wrap gap-1.5">
+                    <div className="w-16 h-5 rounded-md bg-slate-800" />
+                    <div className="w-16 h-5 rounded-md bg-slate-800" />
+                    <div className="w-16 h-5 rounded-md bg-slate-800" />
+                  </div>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-white/5 flex justify-end gap-2">
+                <div className="w-14 h-8 rounded-xl bg-slate-800" />
+                <div className="w-14 h-8 rounded-xl bg-slate-800" />
+              </div>
+            </div>
+          ))
         ) : (
           roles.map((role) => {
             const isSuper = role.name === 'super_admin'

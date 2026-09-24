@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { GlobalLoader } from '@/components/ui/global-loader'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -262,6 +262,46 @@ function ProcessModal({ request, onClose, onProcess }: {
   )
 }
 
+function RequestSkeletonRow() {
+  return (
+    <tr className="border-b border-white/[0.03] animate-pulse">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
+          <div className="space-y-1">
+            <div className="w-24 h-3.5 rounded bg-slate-800" />
+            <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+          </div>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="space-y-1">
+          <div className="w-20 h-3 rounded bg-slate-800" />
+          <div className="w-16 h-2 rounded bg-slate-800/60" />
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="w-16 h-5 rounded-full bg-slate-800" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="w-16 h-4 rounded bg-slate-800" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="w-28 h-3.5 rounded bg-slate-800" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="w-20 h-5 rounded-full bg-slate-800" />
+      </td>
+      <td className="px-4 py-3">
+        <div className="w-16 h-3 rounded bg-slate-800" />
+      </td>
+      <td className="px-4 py-3 text-right">
+        <div className="w-16 h-6 rounded-lg bg-slate-800 ml-auto" />
+      </td>
+    </tr>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function RequestsPage() {
   const [loading, setLoading] = useState(true)
@@ -286,16 +326,31 @@ export default function RequestsPage() {
     return { totalPending, totalApproved, totalProcessed, totalRejected, totalAmount }
   }, [requests])
 
-  useEffect(() => { fetchRequests() }, [])
-
-  const fetchRequests = async () => {
+  const fetchRequests = async (isBackground = false) => {
+    if (!isBackground && requests.length === 0) setLoading(true)
     try {
       const res = await fetch('/api/admin/requests')
       const json = await res.json()
-      setRequests(json.requests || [])
-    } catch { toast.error('Failed to load requests') }
-    finally { setLoading(false) }
+      const list = json.requests || []
+      setRequests(list)
+      setFastCache('admin_requests_cache', list)
+    } catch {
+      if (!isBackground) toast.error('Failed to load requests')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  useEffect(() => {
+    const cached = getFastCache<RequestEntry[]>('admin_requests_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setRequests(cached)
+      setLoading(false)
+      fetchRequests(true)
+    } else {
+      fetchRequests(false)
+    }
+  }, [])
 
   const handleProcess = async (reqId: string, appId: string, status: string, paymentField: string, amount: number) => {
     try {
@@ -391,7 +446,7 @@ export default function RequestsPage() {
     toast.success(`Exported ${data.length} requests as ${ext.toUpperCase()}`)
   }, [processedData])
 
-  if (loading) return <GlobalLoader text="Loading Requests..." />
+  const isInitialLoading = loading && requests.length === 0
 
   return (
     <div className="space-y-5 pb-24">
@@ -431,7 +486,11 @@ export default function RequestsPage() {
               </div>
               <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">{card.label}</span>
             </div>
-            <p className="text-xl font-bold text-white">{card.value}</p>
+            {isInitialLoading ? (
+              <div className="h-6 w-12 rounded bg-white/10 animate-pulse mt-1" />
+            ) : (
+              <p className="text-xl font-bold text-white">{card.value}</p>
+            )}
           </motion.div>
         ))}
       </div>
@@ -459,7 +518,31 @@ export default function RequestsPage() {
       </div>
 
       {/* Table */}
-      {requests.length === 0 ? (
+      {isInitialLoading ? (
+        <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-sm overflow-hidden shadow-xl shadow-black/10">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/[0.06] bg-slate-950/40">
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Influencer</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Campaign</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Type</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Amount</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Reason</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Status</span></th>
+                  <th className="px-4 py-3 text-left"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Submitted</span></th>
+                  <th className="px-3 py-3 text-center"><span className="text-[11px] uppercase tracking-wider font-bold text-slate-500">Action</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <RequestSkeletonRow key={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : requests.length === 0 ? (
         <div className="text-center py-20 rounded-2xl border border-white/5 bg-slate-900/30">
           <PieChart className="h-14 w-14 text-slate-700 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-400">No Payment Requests Yet</h3>

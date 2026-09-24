@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import {
   AlertDialog,
@@ -115,8 +116,8 @@ export default function AdminUserIssuesPage() {
   const [issueToDelete, setIssueToDelete] = useState<UserIssue | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchIssues = async () => {
-    setLoading(true)
+  const fetchIssues = async (isBackground = false) => {
+    if (!isBackground && issues.length === 0) setLoading(true)
     try {
       const params = new URLSearchParams()
       if (selectedStatus !== 'all') params.set('status', selectedStatus)
@@ -131,12 +132,27 @@ export default function AdminUserIssuesPage() {
 
       setIssues(data.issues || [])
       if (data.stats) setStats(data.stats)
+      if (selectedStatus === 'all' && selectedCategory === 'all' && selectedSource === 'all' && !searchQuery.trim()) {
+        setFastCache('admin_user_issues_cache', data)
+      }
     } catch (err: any) {
-      toast.error(err.message || 'Error loading user issues')
+      if (!isBackground) toast.error(err.message || 'Error loading user issues')
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const cached = getFastCache<any>('admin_user_issues_cache')
+    if (cached && selectedStatus === 'all' && selectedCategory === 'all' && selectedSource === 'all' && !searchQuery.trim()) {
+      setIssues(cached.issues || [])
+      if (cached.stats) setStats(cached.stats)
+      setLoading(false)
+      fetchIssues(true)
+    } else {
+      fetchIssues(false)
+    }
+  }, [selectedStatus, selectedCategory, selectedSource])
 
   useEffect(() => {
     fetchIssues()
@@ -436,7 +452,7 @@ export default function AdminUserIssuesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchIssues}
+                onClick={() => fetchIssues()}
                 disabled={loading}
                 className="bg-slate-950/80 border-slate-800 hover:bg-slate-800 text-slate-300 h-10 px-3.5 rounded-xl cursor-pointer"
               >
@@ -490,10 +506,57 @@ export default function AdminUserIssuesPage() {
 
         {/* Issues List Table */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-pink-400" />
-              <p className="text-sm font-medium text-slate-400">Loading user tickets...</p>
+          {loading && issues.length === 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950/60 text-[11px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-800">
+                  <tr>
+                    <th className="p-4">Ticket & Source</th>
+                    <th className="p-4">User Details</th>
+                    <th className="p-4">Category & Description</th>
+                    <th className="p-4">Screenshot</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Reported</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <tr key={idx} className="animate-pulse border-b border-slate-800/60">
+                      <td className="p-4">
+                        <div className="space-y-1.5">
+                          <div className="w-16 h-3 rounded bg-slate-800" />
+                          <div className="w-20 h-5 rounded-full bg-slate-800" />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-1.5">
+                          <div className="w-28 h-3.5 rounded bg-slate-800" />
+                          <div className="w-20 h-2.5 rounded bg-slate-800/60" />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-1 max-w-xs">
+                          <div className="w-24 h-4 rounded bg-slate-800" />
+                          <div className="w-48 h-3 rounded bg-slate-800/60" />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="w-12 h-12 rounded-lg bg-slate-800" />
+                      </td>
+                      <td className="p-4">
+                        <div className="w-24 h-6 rounded-full bg-slate-800" />
+                      </td>
+                      <td className="p-4">
+                        <div className="w-20 h-3 rounded bg-slate-800" />
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="w-16 h-7 rounded-lg bg-slate-800 ml-auto" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : filteredIssues.length === 0 ? (
             <div className="p-12 text-center flex flex-col items-center justify-center space-y-2">

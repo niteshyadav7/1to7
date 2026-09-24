@@ -8,7 +8,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity, Loader2
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
-import { GlobalLoader } from '@/components/ui/global-loader'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -169,28 +169,119 @@ function TrendChart({ data }: { data: { month: string; count: number }[] }) {
   )
 }
 
+function AnalyticsSkeleton() {
+  return (
+    <div className="space-y-6 pb-24">
+      <SetAdminHeader>
+        <div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">Analytics</h1>
+          <p className="text-xs text-slate-400">Platform overview and performance metrics</p>
+        </div>
+      </SetAdminHeader>
+
+      {/* Stat Cards Skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="rounded-2xl border border-white/[0.06] bg-slate-900/40 p-4 shadow-lg animate-pulse">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-8 h-8 rounded-xl bg-slate-800" />
+              <div className="w-12 h-4 rounded-full bg-slate-800" />
+            </div>
+            <div className="w-20 h-3 rounded bg-slate-800 mb-2" />
+            <div className="w-24 h-6 rounded bg-slate-800" />
+          </div>
+        ))}
+      </div>
+
+      {/* Main Charts Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-slate-900/40 p-5 animate-pulse">
+          <div className="w-32 h-4 rounded bg-slate-800 mb-2" />
+          <div className="w-48 h-3 rounded bg-slate-800/60 mb-6" />
+          <div className="h-64 rounded-xl bg-slate-800/40 flex items-end gap-3 p-4">
+            {[40, 70, 50, 90, 60, 80, 45].map((h, idx) => (
+              <div key={idx} className="flex-1 bg-slate-800 rounded-t" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 p-5 animate-pulse">
+          <div className="w-28 h-4 rounded bg-slate-800 mb-2" />
+          <div className="w-40 h-3 rounded bg-slate-800/60 mb-6" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map(idx => (
+              <div key={idx} className="space-y-1.5">
+                <div className="flex justify-between">
+                  <div className="w-20 h-3 rounded bg-slate-800" />
+                  <div className="w-8 h-3 rounded bg-slate-800" />
+                </div>
+                <div className="h-2 rounded bg-slate-800 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Grid Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 p-5 animate-pulse">
+          <div className="w-36 h-4 rounded bg-slate-800 mb-2" />
+          <div className="w-48 h-3 rounded bg-slate-800/60 mb-6" />
+          <div className="h-48 rounded-xl bg-slate-800/40 flex items-center justify-center">
+            <div className="w-32 h-32 rounded-full border-4 border-slate-800 border-t-slate-700" />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 p-5 animate-pulse">
+          <div className="w-32 h-4 rounded bg-slate-800 mb-2" />
+          <div className="w-44 h-3 rounded bg-slate-800/60 mb-6" />
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map(idx => (
+              <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-slate-800/30">
+                <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <div className="w-24 h-3 rounded bg-slate-800" />
+                  <div className="w-16 h-2 rounded bg-slate-800/60" />
+                </div>
+                <div className="w-12 h-4 rounded bg-slate-800" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<AnalyticsData | null>(null)
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (isBackground = false) => {
+    if (!isBackground && !data) setLoading(true)
     try {
       const res = await fetch('/api/admin/analytics')
       const json = await res.json()
       setData(json)
+      setFastCache('admin_analytics_cache', json)
     } catch {
-      toast.error('Failed to load analytics')
+      if (!isBackground) toast.error('Failed to load analytics')
     } finally {
       setLoading(false)
     }
   }
 
-  if (loading || !data) return <GlobalLoader text="Loading Analytics..." />
+  useEffect(() => {
+    const cached = getFastCache<AnalyticsData>('admin_analytics_cache')
+    if (cached) {
+      setData(cached)
+      setLoading(false)
+      fetchAnalytics(true)
+    } else {
+      fetchAnalytics(false)
+    }
+  }, [])
+
+  if (loading || !data) return <AnalyticsSkeleton />
 
   const { stats, statusCounts, topCampaigns, recentActivity, monthlyTrend } = data
 

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { GlobalLoader } from '@/components/ui/global-loader'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -1101,8 +1101,10 @@ export default function InfluencersDirectoryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchInfluencers = useCallback(async () => {
-    setLoading(true)
+  const fetchInfluencers = useCallback(async (isBackground = false) => {
+    if (!isBackground && influencers.length === 0) {
+      setLoading(true)
+    }
     try {
       const qs = new URLSearchParams({
         page: currentPage.toString(),
@@ -1120,15 +1122,27 @@ export default function InfluencersDirectoryPage() {
       setInfluencers(data.influencers || [])
       setPagination(data.pagination)
       if (data.stats) setStats(data.stats)
+      if (currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All') {
+        setFastCache('admin_influencers_cache', data)
+      }
     } catch {
-      toast.error('Failed to load influencers')
+      if (!isBackground) toast.error('Failed to load influencers')
     } finally {
       setLoading(false)
     }
-  }, [currentPage, pageSize, debouncedSearch, genderFilter, categoryFilter, sortConfig])
+  }, [currentPage, pageSize, debouncedSearch, genderFilter, categoryFilter, sortConfig, influencers.length])
 
   useEffect(() => {
-    fetchInfluencers()
+    const cached = getFastCache<any>('admin_influencers_cache')
+    if (cached && currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All') {
+      setInfluencers(cached.influencers || [])
+      setPagination(cached.pagination)
+      if (cached.stats) setStats(cached.stats)
+      setLoading(false)
+      fetchInfluencers(true)
+    } else {
+      fetchInfluencers(false)
+    }
   }, [fetchInfluencers])
 
   // Reset to page 1 on filter changes
@@ -1206,14 +1220,45 @@ export default function InfluencersDirectoryPage() {
   // Helpers
   const SortIcon = ({ column }: { column: string }) => {
     if (sortConfig.column !== column) return <ChevronDown className="h-3 w-3 opacity-30 group-hover:opacity-100 transition-opacity" />
-    return sortConfig.direction === 'asc' ? <ChevronDown className="h-3 w-3 rotate-180 text-indigo-400" /> : <ChevronDown className="h-3 w-3 text-indigo-400" />
   }
 
   const thClass = "px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500"
 
-  if (loading && !pagination) {
-    return <GlobalLoader text="Loading Influencers Directory..." />
+  function InfluencerSkeletonRow() {
+    return (
+      <tr className="animate-pulse border-b border-white/[0.03]">
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-slate-800 shrink-0" />
+            <div className="space-y-1.5">
+              <div className="w-28 h-3.5 rounded bg-slate-800" />
+              <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="space-y-1.5">
+            <div className="w-32 h-3 rounded bg-slate-800" />
+            <div className="w-24 h-2.5 rounded bg-slate-800/60" />
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-slate-800" />
+            <div className="w-16 h-3 rounded bg-slate-800" />
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="w-20 h-5 rounded-full bg-slate-800" />
+        </td>
+        <td className="px-4 py-3">
+          <div className="w-16 h-3 rounded bg-slate-800" />
+        </td>
+      </tr>
+    )
   }
+
+  const isInitialLoading = loading && influencers.length === 0
 
   return (
     <div className="space-y-5 pb-24 relative">
@@ -1370,7 +1415,9 @@ export default function InfluencersDirectoryPage() {
             </div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Creators</span>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.total.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-white">
+            {isInitialLoading ? <span className="inline-block w-16 h-7 rounded bg-white/10 animate-pulse" /> : stats.total.toLocaleString()}
+          </p>
         </div>
         
         <div className="bg-slate-900/40 border border-white/[0.06] rounded-2xl p-4 shadow-lg shadow-emerald-500/5">
@@ -1381,7 +1428,9 @@ export default function InfluencersDirectoryPage() {
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Verified Emails</span>
           </div>
           <div className="flex items-end gap-2">
-             <p className="text-2xl font-bold text-white">{stats.verified.toLocaleString()}</p>
+             <p className="text-2xl font-bold text-white">
+               {isInitialLoading ? <span className="inline-block w-16 h-7 rounded bg-white/10 animate-pulse" /> : stats.verified.toLocaleString()}
+             </p>
              <p className="text-xs text-slate-500 mb-1">{stats.total > 0 ? Math.round((stats.verified / stats.total) * 100) : 0}% completion</p>
           </div>
         </div>
@@ -1393,7 +1442,9 @@ export default function InfluencersDirectoryPage() {
             </div>
             <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Visible Results</span>
           </div>
-          <p className="text-2xl font-bold text-white">{pagination?.total.toLocaleString() || 0}</p>
+          <p className="text-2xl font-bold text-white">
+            {isInitialLoading ? <span className="inline-block w-12 h-7 rounded bg-white/10 animate-pulse" /> : (pagination?.total.toLocaleString() || 0)}
+          </p>
         </div>
         
         <div className="bg-slate-900/40 border border-white/[0.06] rounded-2xl p-4 shadow-lg shadow-slate-500/5">
@@ -1456,9 +1507,9 @@ export default function InfluencersDirectoryPage() {
 
       {/* Table */}
       <div className="rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-lg overflow-hidden shadow-xl shadow-black/10 relative">
-         {loading && (
-            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <GlobalLoader text="Updating Directory..." />
+         {loading && !isInitialLoading && (
+            <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500/20 overflow-hidden z-10">
+              <div className="h-full bg-indigo-500 animate-pulse w-full" />
             </div>
          )}
          
@@ -1492,7 +1543,11 @@ export default function InfluencersDirectoryPage() {
                  </tr>
                </thead>
                <tbody className="divide-y divide-white/[0.03]">
-                 {influencers.length === 0 && !loading ? (
+                 {isInitialLoading ? (
+                   Array.from({ length: 8 }).map((_, i) => (
+                     <InfluencerSkeletonRow key={i} />
+                   ))
+                 ) : influencers.length === 0 && !loading ? (
                    <tr>
                      <td colSpan={5} className="py-16 text-center">
                         <User className="h-10 w-10 text-slate-700 mx-auto mb-3" />

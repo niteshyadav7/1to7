@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -332,16 +333,26 @@ export default function ImportPage() {
 
   // ─── Fetch campaigns ────────────────────────────────────
   useEffect(() => {
-    fetchCampaigns()
+    const cached = getFastCache<any[]>('admin_campaigns_cache')
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setCampaigns(cached)
+      setLoadingCampaigns(false)
+      fetchCampaigns(true)
+    } else {
+      fetchCampaigns(false)
+    }
   }, [])
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = async (isBackground = false) => {
     try {
+      if (!isBackground) setLoadingCampaigns(true)
       const res = await fetch('/api/admin/campaigns')
       const data = await res.json()
-      setCampaigns(data.campaigns || [])
+      const list = data.campaigns || []
+      setCampaigns(list)
+      setFastCache('admin_campaigns_cache', list)
     } catch {
-      toast.error('Failed to load campaigns')
+      if (!isBackground) toast.error('Failed to load campaigns')
     } finally {
       setLoadingCampaigns(false)
     }

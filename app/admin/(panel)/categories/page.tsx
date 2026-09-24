@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
+import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 interface CategoryItem {
   id: string
@@ -63,9 +64,9 @@ export default function AdminCategoriesPage() {
   const [formName, setFormName] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchData = async () => {
+  const fetchData = async (isBackground = false) => {
     try {
-      setLoading(true)
+      if (!isBackground && niches.length === 0) setLoading(true)
       const res = await fetch('/api/admin/categories')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load categories')
@@ -73,15 +74,25 @@ export default function AdminCategoriesPage() {
       setNiches(data.niches || [])
       setLanguages(data.languages || [])
       setSuggestions(data.suggestions || [])
+      setFastCache('admin_categories_cache', data)
     } catch (err: any) {
-      toast.error(err.message || 'Error loading categories')
+      if (!isBackground) toast.error(err.message || 'Error loading categories')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData()
+    const cached = getFastCache<any>('admin_categories_cache')
+    if (cached) {
+      setNiches(cached.niches || [])
+      setLanguages(cached.languages || [])
+      setSuggestions(cached.suggestions || [])
+      setLoading(false)
+      fetchData(true)
+    } else {
+      fetchData(false)
+    }
   }, [])
 
   const pendingSuggestions = useMemo(() => {
@@ -369,7 +380,7 @@ export default function AdminCategoriesPage() {
             )}
             <Button
               variant="outline"
-              onClick={fetchData}
+              onClick={() => fetchData()}
               className="h-9 px-3 bg-slate-950 border-white/10 text-slate-300 hover:text-white rounded-xl cursor-pointer"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -380,7 +391,25 @@ export default function AdminCategoriesPage() {
         {/* Tab 1: Content Niches */}
         {activeTab === 'niches' && (
           <div className="space-y-3 pt-2">
-            {filteredNiches.length === 0 ? (
+            {loading && niches.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="p-3.5 rounded-xl border border-white/5 bg-slate-950/40 animate-pulse space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1.5 flex-1">
+                        <div className="w-24 h-4 rounded bg-slate-800" />
+                        <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+                      </div>
+                      <div className="w-12 h-4 rounded-full bg-slate-800" />
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-white/5">
+                      <div className="w-12 h-3 rounded bg-slate-800" />
+                      <div className="w-10 h-3 rounded bg-slate-800" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredNiches.length === 0 ? (
               <div className="py-12 text-center text-slate-500 text-xs">
                 No content niches found matching &quot;{searchQuery}&quot;
               </div>
