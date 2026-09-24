@@ -35,7 +35,6 @@ import {
   Receipt,
   ShoppingCart,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -646,43 +645,49 @@ export default function FinancePayoutPage() {
   }
 
   // 3. Download Native Multi-Sheet Excel (.xlsx) matching 1to7_Export_Format.xlsx
-  const handleDownloadExcel = (format: 'refund' | 'order' | 'both') => {
+  const handleDownloadExcel = async (format: 'refund' | 'order' | 'both') => {
     const targetApps = getExportTargetApps()
     if (targetApps.length === 0) {
       toast.error('No applications to export')
       return
     }
 
-    const wb = XLSX.utils.book_new()
+    const toastId = toast.loading('Preparing Excel spreadsheet...')
+    try {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.utils.book_new()
 
-    if (format === 'refund' || format === 'both') {
-      const refundHeaders = refundMode === 'full_18' ? REFUND_HEADERS_18 : REFUND_HEADERS_5
-      const refundData = [
-        refundHeaders,
-        ...targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode)),
-      ]
-      const wsRefund = XLSX.utils.aoa_to_sheet(refundData)
-      XLSX.utils.book_append_sheet(wb, wsRefund, 'Refund')
+      if (format === 'refund' || format === 'both') {
+        const refundHeaders = refundMode === 'full_18' ? REFUND_HEADERS_18 : REFUND_HEADERS_5
+        const refundData = [
+          refundHeaders,
+          ...targetApps.map((app) => getRefundRow(app, refDelimiter, refundMode)),
+        ]
+        const wsRefund = XLSX.utils.aoa_to_sheet(refundData)
+        XLSX.utils.book_append_sheet(wb, wsRefund, 'Refund')
+      }
+
+      if (format === 'order' || format === 'both') {
+        const orderData = [
+          ORDER_HEADERS_12,
+          ...targetApps.map((app) => getOrderRow(app)),
+        ]
+        const wsOrder = XLSX.utils.aoa_to_sheet(orderData)
+        XLSX.utils.book_append_sheet(wb, wsOrder, 'Order')
+      }
+
+      const filename =
+        format === 'both'
+          ? `1to7_Export_Format_${new Date().toISOString().split('T')[0]}.xlsx`
+          : format === 'refund'
+          ? `1to7_Refund_Export_${new Date().toISOString().split('T')[0]}.xlsx`
+          : `1to7_Order_Export_${new Date().toISOString().split('T')[0]}.xlsx`
+
+      XLSX.writeFile(wb, filename)
+      toast.success(`Downloaded ${targetApps.length} records as Excel (.xlsx)!`, { id: toastId })
+    } catch {
+      toast.error('Failed to generate Excel file', { id: toastId })
     }
-
-    if (format === 'order' || format === 'both') {
-      const orderData = [
-        ORDER_HEADERS_12,
-        ...targetApps.map((app) => getOrderRow(app)),
-      ]
-      const wsOrder = XLSX.utils.aoa_to_sheet(orderData)
-      XLSX.utils.book_append_sheet(wb, wsOrder, 'Order')
-    }
-
-    const filename =
-      format === 'both'
-        ? `1to7_Export_Format_${new Date().toISOString().split('T')[0]}.xlsx`
-        : format === 'refund'
-        ? `1to7_Refund_Export_${new Date().toISOString().split('T')[0]}.xlsx`
-        : `1to7_Order_Export_${new Date().toISOString().split('T')[0]}.xlsx`
-
-    XLSX.writeFile(wb, filename)
-    toast.success(`Downloaded ${targetApps.length} records as Excel (.xlsx)!`)
   }
 
   // Bulk Disburse Execution
@@ -748,9 +753,7 @@ export default function FinancePayoutPage() {
     }
   }
 
-  if (loading) {
-    return <GlobalLoader text="Loading Finance Payouts..." />
-  }
+  const isInitialLoading = loading && applications.length === 0
 
   const totalFinanceQueueAmount = financeQueueApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
   const totalDualApprovalAmount = pendingDualApprovalApps.reduce((acc, a) => acc + getPayableAmount(a), 0)
@@ -1010,7 +1013,33 @@ export default function FinancePayoutPage() {
               )}
             </thead>
             <tbody className="divide-y divide-white/5">
-              {paginatedApps.length === 0 ? (
+              {isInitialLoading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-3 py-2.5">
+                      <div className="space-y-1">
+                        <div className="w-28 h-3.5 rounded bg-slate-800" />
+                        <div className="w-20 h-2.5 rounded bg-slate-800/60" />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="space-y-1">
+                        <div className="w-24 h-3.5 rounded bg-slate-800" />
+                        <div className="w-16 h-2 rounded bg-slate-800/60" />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="space-y-1">
+                        <div className="w-24 h-3 rounded bg-slate-800" />
+                        <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-right"><div className="w-16 h-4 rounded bg-slate-800 ml-auto" /></td>
+                    <td className="px-3 py-2.5 text-center"><div className="w-16 h-5 rounded-full bg-slate-800 mx-auto" /></td>
+                    <td className="px-3 py-2.5 text-right"><div className="w-16 h-7 rounded-lg bg-slate-800 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : paginatedApps.length === 0 ? (
                 <tr>
                   <td
                     colSpan={activeTab === 'disbursed_history' ? 8 : (activeTab === 'finance_queue' ? 7 : 6)}

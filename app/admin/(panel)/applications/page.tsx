@@ -1485,10 +1485,8 @@ export default function AllApplicationsPage() {
     return counts
   }, [applications])
 
-  // ─── Loading ───────────────────────────────────────────
-  if (loading) {
-    return <GlobalLoader text="Loading Applications..." />
-  }
+  // ─── Loading State ─────────────────────────────────────
+  const isInitialLoading = loading && applications.length === 0
 
   return (
     <div className="space-y-5 pb-24 relative">
@@ -1841,7 +1839,9 @@ export default function AllApplicationsPage() {
 
             {/* Body */}
             <tbody>
-              {paginatedData.length === 0 ? (
+              {isInitialLoading ? (
+                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+              ) : paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="text-center py-20">
                     <div className="flex flex-col items-center gap-3">

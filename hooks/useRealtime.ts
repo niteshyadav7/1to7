@@ -22,6 +22,7 @@ interface UseRealtimeOptions {
 export function useRealtime({ table, event = '*', filter, onChange }: UseRealtimeOptions) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const onChangeRef = useRef(onChange)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep callback ref fresh without re-subscribing
   useEffect(() => {
@@ -44,13 +45,21 @@ export function useRealtime({ table, event = '*', filter, onChange }: UseRealtim
     const channel = supabaseClient
       .channel(channelName)
       .on('postgres_changes', subscriptionConfig, () => {
-        onChangeRef.current()
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current)
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          onChangeRef.current()
+        }, 350)
       })
       .subscribe()
 
     channelRef.current = channel
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
       if (channelRef.current) {
         supabaseClient.removeChannel(channelRef.current)
         channelRef.current = null

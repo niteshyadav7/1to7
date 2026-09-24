@@ -26,8 +26,23 @@ interface AdminPermissionsContextType {
 const AdminPermissionsContext = createContext<AdminPermissionsContextType | undefined>(undefined)
 
 export function AdminPermissionsProvider({ children }: { children: React.ReactNode }) {
-  const [admin, setAdmin] = useState<AdminUser | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [admin, setAdmin] = useState<AdminUser | null>(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const cached = localStorage.getItem('admin_cache')
+      return cached ? JSON.parse(cached) : null
+    } catch {
+      return null
+    }
+  })
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try {
+      return !localStorage.getItem('admin_cache')
+    } catch {
+      return true
+    }
+  })
 
   const isSuperAdmin = admin?.role === 'super_admin' || !!admin?.is_super_admin
 
@@ -75,15 +90,6 @@ export function AdminPermissionsProvider({ children }: { children: React.ReactNo
   }, [])
 
   useEffect(() => {
-    try {
-      const cached = localStorage.getItem('admin_cache')
-      if (cached) {
-        const parsed = JSON.parse(cached)
-        setAdmin(parsed)
-      }
-    } catch {
-      // ignore
-    }
     refreshAdmin()
   }, [refreshAdmin])
 

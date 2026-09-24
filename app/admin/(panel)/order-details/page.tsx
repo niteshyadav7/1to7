@@ -1199,10 +1199,8 @@ export default function OrderDetailsPage() {
     return counts
   }, [orders])
 
-  // ─── Loading ──────────────────────────────────────────
-  if (loading) {
-    return <GlobalLoader text="Loading Order Details..." />
-  }
+  // ─── Loading State ─────────────────────────────────────
+  const isInitialLoading = loading && orders.length === 0
 
   return (
     <div className="space-y-5 pb-24 relative">
@@ -1443,7 +1441,46 @@ export default function OrderDetailsPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((order, i) => {
+                {isInitialLoading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-b border-white/[0.03] animate-pulse">
+                      <td className="w-10 px-3 py-3 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-slate-800 shrink-0" />
+                          <div className="space-y-1.5">
+                            <div className="w-24 h-3 rounded bg-slate-800" />
+                            <div className="w-16 h-2 rounded bg-slate-800/60" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-24 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-8 rounded-lg bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
+                    </tr>
+                  ))
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="text-center py-20">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-white/5">
+                          <Filter className="h-7 w-7 text-slate-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-400">No order details found</h3>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {activeFilterCount > 0 || activeStatus !== 'All' || searchQuery
+                              ? 'Try adjusting your filters or search'
+                              : 'Order details will appear here when influencers submit orders'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((order, i) => {
                   const user = order.users
                   const camp = order.campaigns
                   const details = getOrderDetails(order)
@@ -2038,7 +2075,8 @@ export default function OrderDetailsPage() {
                       </AnimatePresence>
                     </React.Fragment>
                   )
-                })}
+                })
+              )}
               </tbody>
             </table>
           </div>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import pool from '@/lib/db'
 import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
 
 export async function GET() {
@@ -9,54 +9,50 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized: Access to order details is restricted' }, { status: 403 })
     }
 
-    // Fetch all applications that have order_details in form_data
-    const { data: applications, error } = await supabase
-      .from('applications')
-      .select(`
-        id,
-        status,
-        form_data,
-        partial_payment,
-        final_payment,
-        pending_amount,
-        manager_phone,
-        created_at,
-        updated_at,
-        users (
-          id,
-          full_name,
-          influencer_id,
-          email,
-          mobile,
-          instagram_username,
-          followers,
-          state,
-          city,
-          gender,
-          instagram_profile_pic
-        ),
-        campaigns (
-          brand_name,
-          campaign_code,
-          platform,
-          budget_amount,
-          budget_type
-        )
-      `)
-      .not('form_data->order_details', 'is', null)
-      .order('updated_at', { ascending: false })
+    const res = await pool.query(`
+      SELECT 
+        a.id,
+        a.status,
+        a.form_data,
+        a.partial_payment,
+        a.final_payment,
+        a.pending_amount,
+        a.manager_phone,
+        a.created_at,
+        a.updated_at,
+        json_build_object(
+          'id', u.id,
+          'full_name', u.full_name,
+          'influencer_id', u.influencer_id,
+          'email', u.email,
+          'mobile', u.mobile,
+          'instagram_username', u.instagram_username,
+          'followers', u.followers,
+          'state', u.state,
+          'city', u.city,
+          'gender', u.gender,
+          'instagram_profile_pic', u.instagram_profile_pic
+        ) AS users,
+        json_build_object(
+          'brand_name', c.brand_name,
+          'campaign_code', c.campaign_code,
+          'platform', c.platform,
+          'budget_amount', c.budget_amount,
+          'budget_type', c.budget_type
+        ) AS campaigns
+      FROM public.applications a
+      JOIN public.users u ON a.user_id = u.id
+      JOIN public.campaigns c ON a.campaign_id = c.id
+      WHERE (a.form_data ? 'order_details') 
+        AND a.form_data->'order_details' IS NOT NULL 
+        AND a.form_data->'order_details' != '{}'::jsonb
+      ORDER BY a.updated_at DESC
+    `)
 
-    if (error) throw error
-
-    // Filter out entries where order_details is empty or not an object
-    const orders = (applications || []).filter((app: any) => {
-      const od = app.form_data?.order_details
-      return od && typeof od === 'object' && Object.keys(od).length > 0
-    })
-
-    return NextResponse.json({ orders })
+    return NextResponse.json({ orders: res.rows })
   } catch (error) {
     console.error('API /admin/order-details GET Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

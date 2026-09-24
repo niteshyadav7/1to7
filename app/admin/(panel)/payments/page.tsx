@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, CheckCircle2, CreditCard,
   Instagram, Users, MapPin, ChevronDown,
-  Phone, Search, Megaphone,
+  Phone, Search, Megaphone, Filter,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
   AlignJustify, AlignCenter, AlignStartVertical,
   Calendar, X, MoreHorizontal, SlidersHorizontal,
@@ -983,7 +983,7 @@ export default function PaymentsPage() {
 
   const toggleColumn = useCallback((col: string) => { setVisibleCols(prev => ({ ...prev, [col]: !prev[col] })) }, [])
 
-  if (loading) return <GlobalLoader text="Loading Payments..." />
+  const isInitialLoading = loading && payments.length === 0
 
   return (
     <div className="space-y-5 pb-24 relative">
@@ -1138,7 +1138,49 @@ export default function PaymentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((payment, i) => {
+                {isInitialLoading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-b border-white/[0.03] animate-pulse">
+                      <td className="w-10 px-3 py-3 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-slate-800 shrink-0" />
+                          <div className="space-y-1 flex-1">
+                            <div className="w-24 h-3 rounded bg-slate-800" />
+                            <div className="w-16 h-2 rounded bg-slate-800/60" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3"><div className="w-20 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-5 rounded-full bg-slate-800" /></td>
+                      <td className="px-3 py-3"><div className="w-16 h-3 rounded bg-slate-800" /></td>
+                      <td className="px-2 py-3 w-10" />
+                    </tr>
+                  ))
+                ) : paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={Object.values(visibleCols).filter(Boolean).length + 2} className="text-center py-20">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-white/5">
+                          <Filter className="h-7 w-7 text-slate-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-400">No payment records found</h3>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {activeStatus !== 'All' || searchQuery
+                              ? 'Try adjusting your filters or search'
+                              : 'Payments will appear here when applications progress'}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData.map((payment, i) => {
                   const user = payment.users
                   const camp = payment.campaigns
                   const pr = payment.form_data?.payment_request || {}
@@ -1761,7 +1803,8 @@ export default function PaymentsPage() {
                       </AnimatePresence>
                     </React.Fragment>
                   )
-                })}
+                })
+              )}
               </tbody>
             </table>
           </div>

@@ -9,8 +9,6 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
-import { GlobalLoader } from '@/components/ui/global-loader'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts'
 import { toast } from 'sonner'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
@@ -128,8 +126,7 @@ export default function AdminDashboardPage() {
       if (!res.ok) throw new Error('Failed to update')
 
       toast.success(`Application ${newStatus.toLowerCase()}`)
-      // Refetch stats to keep dashboard updated
-      fetchData()
+      fetchData(true)
     } catch {
       toast.error('Failed to update status')
     } finally {
@@ -137,15 +134,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  if (loading) {
-    return <GlobalLoader text="Loading Dashboard Data..." />
-  }
-
-  const applicationChartData = [
-    { name: 'Approved', value: stats?.approvedApplications || 0, color: '#10b981' },
-    { name: 'Pending', value: stats?.pendingApplications || 0, color: '#f59e0b' },
-    { name: 'Rejected', value: stats?.rejectedApplications || 0, color: '#ef4444' },
-  ].filter(item => item.value > 0)
+  const isInitialLoading = loading && !stats
 
   const statCards = [
     { label: 'Total Campaigns', value: stats?.totalCampaigns || 0, icon: Megaphone, gradient: 'from-indigo-500 to-blue-600', bg: 'bg-indigo-500/10' },
@@ -158,7 +147,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header Injection */}
+      {/* Header Injection - mounts immediately on frame 0 */}
       <SetAdminHeader>
         <div>
           <h1 className="text-xl font-extrabold text-white tracking-tight">Admin Dashboard</h1>
@@ -168,24 +157,35 @@ export default function AdminDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-            className="group relative rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 overflow-hidden hover:bg-slate-800/80 hover:border-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/5 cursor-default hover:-translate-y-1"
-          >
-            <div className={`absolute top-0 right-0 w-24 h-24 rounded-full ${card.bg} blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500`} />
-            <div className="relative">
-              <div className={`inline-flex items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 shadow-lg mb-3`}>
-                <card.icon className="h-5 w-5 text-white" />
+        {isInitialLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 space-y-3 animate-pulse"
+              >
+                <div className="w-10 h-10 rounded-xl bg-slate-800" />
+                <div className="w-20 h-8 rounded bg-slate-800" />
+                <div className="w-28 h-3 rounded bg-slate-800/60" />
               </div>
-              <p className="text-3xl font-bold text-white">{card.value}</p>
-              <p className="text-xs text-slate-400 mt-1 font-medium">{card.label}</p>
-            </div>
-          </motion.div>
-        ))}
+            ))
+          : statCards.map((card, i) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="group relative rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg p-5 overflow-hidden hover:bg-slate-800/80 hover:border-white/10 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/5 cursor-default hover:-translate-y-1"
+              >
+                <div className={`absolute top-0 right-0 w-24 h-24 rounded-full ${card.bg} blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500`} />
+                <div className="relative">
+                  <div className={`inline-flex items-center justify-center rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 shadow-lg mb-3`}>
+                    <card.icon className="h-5 w-5 text-white" />
+                  </div>
+                  <p className="text-3xl font-bold text-white">{card.value}</p>
+                  <p className="text-xs text-slate-400 mt-1 font-medium">{card.label}</p>
+                </div>
+              </motion.div>
+            ))}
       </div>
 
       {/* Split Applications View */}
@@ -201,7 +201,19 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto max-h-[400px]">
-            {recentPendingApps.length === 0 ? (
+            {isInitialLoading ? (
+              <div className="divide-y divide-white/5 p-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="flex items-center gap-4 py-2 animate-pulse">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <div className="w-36 h-3 rounded bg-slate-800" />
+                      <div className="w-24 h-2 rounded bg-slate-800/60" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentPendingApps.length === 0 ? (
               <div className="p-10 text-center">
                 <Send className="h-10 w-10 text-slate-700 mx-auto mb-3" />
                 <p className="text-sm text-slate-400">No pending applications</p>
@@ -273,7 +285,19 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto max-h-[400px]">
-            {recentApprovedApps.length === 0 ? (
+            {isInitialLoading ? (
+              <div className="divide-y divide-white/5 p-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="flex items-center gap-4 py-2 animate-pulse">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <div className="w-36 h-3 rounded bg-slate-800" />
+                      <div className="w-24 h-2 rounded bg-slate-800/60" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentApprovedApps.length === 0 ? (
               <div className="p-10 text-center">
                 <CheckCircle2 className="h-10 w-10 text-slate-700 mx-auto mb-3" />
                 <p className="text-sm text-slate-400">No approved applications</p>

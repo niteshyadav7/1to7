@@ -584,9 +584,7 @@ export default function AdminCampaignsPage() {
     return matchesFilter && matchesSearch
   })
 
-  if (loading) {
-    return <GlobalLoader text="Loading Campaigns..." />
-  }
+  const isInitialLoading = loading && campaigns.length === 0
 
   return (
     <div className="space-y-6">
@@ -819,7 +817,36 @@ export default function AdminCampaignsPage() {
       </div>
 
       {/* Campaign Cards */}
-      {filtered.length === 0 ? (
+      {isInitialLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 space-y-4 animate-pulse min-h-[190px]"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="w-36 h-4 rounded bg-slate-800" />
+                    <div className="w-24 h-2.5 rounded bg-slate-800/60" />
+                  </div>
+                </div>
+                <div className="w-16 h-6 rounded-full bg-slate-800" />
+              </div>
+              <div className="flex gap-2">
+                <div className="w-16 h-5 rounded-md bg-slate-800/50" />
+                <div className="w-16 h-5 rounded-md bg-slate-800/50" />
+                <div className="w-20 h-5 rounded-md bg-slate-800/50" />
+              </div>
+              <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                <div className="w-28 h-3 rounded bg-slate-800/60" />
+                <div className="w-20 h-7 rounded-lg bg-slate-800" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Megaphone className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-400">No campaigns found</h3>
