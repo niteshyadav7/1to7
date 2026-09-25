@@ -961,6 +961,8 @@ export default function OrderDetailsPage() {
         if (!order) continue
         const updatedFormData = {
           ...order.form_data,
+          total_deal: total,
+          agreed_commercial: total,
           order_details_approved: true,
           order_details_approved_by_name: approverName,
           order_details_approved_by_id: approverId,
@@ -1057,6 +1059,8 @@ export default function OrderDetailsPage() {
       // Set order_details_approved flag and approver details so it shows in admin panel
       const updatedFormData = {
         ...initiatePaymentApp.form_data,
+        total_deal: total,
+        agreed_commercial: total,
         order_details_approved: true,
         order_details_approved_by_name: approverName,
         order_details_approved_by_id: approverId,

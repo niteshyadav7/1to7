@@ -170,8 +170,20 @@ export async function POST(request: Request) {
       const stage = isFinanceRejection ? 'finance_queue' : 'dual_approval'
 
       const initAmt = Number(currentInit?.prepared_amount || currentFormData.payment_initiated?.amount || 0)
-      const revertedPartial = Math.max(0, (Number(application.partial_payment) || 0) - initAmt)
-      const revertedPending = (Number(application.pending_amount) || 0) + initAmt
+
+      // Guard against balance mutation on pre-disbursement rejection:
+      // Payout preparation and dual-approval NEVER deduct money from pending_amount
+      // (deduction strictly occurs upon actual disbursement via bulk-payout).
+      // Therefore, reverting an initiation must NEVER add initAmt to pending_amount, as doing so doubles the balance.
+      const currentPartial = Number(application.partial_payment) || 0
+      const currentFinal = Number(application.final_payment) || 0
+      const currentPending = Number(application.pending_amount) || 0
+
+      // If an agreed total_deal or commercial is recorded, ensure pending_amount never exceeds the remaining unpaid balance
+      const knownTotalDeal = Number(currentFormData.total_deal || currentFormData.agreed_commercial || 0)
+      const safePending = knownTotalDeal > 0
+        ? Math.max(0, knownTotalDeal - (currentPartial + currentFinal))
+        : currentPending
 
       const rejectionRecord = {
         rejected_by_id: adminIdentifier,
@@ -215,8 +227,8 @@ export async function POST(request: Request) {
         .update({
           form_data: updatedFormData,
           status: 'Payment Requested',
-          partial_payment: revertedPartial,
-          pending_amount: revertedPending,
+          partial_payment: currentPartial,
+          pending_amount: safePending,
           team_remark: updatedRemark,
           team_remark_by: adminName,
           team_remark_updated_at: new Date().toISOString(),
