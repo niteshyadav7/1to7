@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
+import { openInstagramProfilesInBulk } from '@/lib/bulk-instagram-opener'
 import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
 import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
 import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
@@ -3133,7 +3134,27 @@ export default function AllApplicationsPage() {
                 <span>SENT TO BRAND</span>
               </Button>
 
-              {/* 4. ALLOW RE-APPLY (Rose) */}
+              {/* 4. OPEN INSTAGRAM (Pink) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedApps = applications.filter(a => selectedIds.has(a.id))
+                  const handles = selectedApps.map(a => 
+                    a.users?.instagram_username || 
+                    a.form_data?.applied_instagram_username || 
+                    a.form_data?.instagram_username
+                  )
+                  openInstagramProfilesInBulk(handles)
+                }}
+                className="h-9 px-3.5 rounded-xl border-pink-500/30 text-pink-300 bg-pink-500/10 hover:bg-pink-500/20 font-bold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                title="Open selected creators' Instagram profiles in separate tabs"
+              >
+                <Instagram className="h-3.5 w-3.5 text-pink-400" />
+                <span>OPEN INSTAGRAM ({selectedIds.size})</span>
+              </Button>
+
+              {/* 5. ALLOW RE-APPLY (Rose) */}
               <Button
                 variant="outline"
                 size="sm"

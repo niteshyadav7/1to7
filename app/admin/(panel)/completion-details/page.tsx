@@ -21,6 +21,7 @@ import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
+import { openInstagramProfilesInBulk, openUrlsInBulk } from '@/lib/bulk-instagram-opener'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { checkLiveDateMaturation } from '@/lib/utils/completion-timeline-utils'
 
@@ -1632,6 +1633,99 @@ export default function CompletionDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Floating Bulk Action Bar ───────────────────── */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-5 py-2.5 sm:py-3 w-auto max-w-[95vw] bg-slate-900/95 backdrop-blur-2xl border border-white/15 shadow-[0_12px_45px_rgba(0,0,0,0.6)] rounded-2xl ring-1 ring-white/10 lg:ml-32"
+          >
+            {/* Left Selection Info & Deselect */}
+            <div className="flex items-center gap-2.5 shrink-0 pr-1">
+              <div className="flex h-8 px-2.5 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-extrabold text-xs">
+                {selectedIds.size}
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-bold text-white leading-tight">Selected</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] text-slate-400 hover:text-indigo-300 underline cursor-pointer text-left transition-colors"
+                >
+                  Deselect all
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-7 bg-white/15 shrink-0" />
+
+            {/* Actions Row (Choose: Insta Profiles, Live Deliverables, Analytics Proofs) */}
+            <div className="flex items-center gap-2 shrink-0 overflow-x-auto no-scrollbar scrollbar-none">
+              {/* 1. Insta Profile */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const handles = selectedCompletions.map(c => 
+                    c.users?.instagram_username || 
+                    c.form_data?.applied_instagram_username || 
+                    c.form_data?.instagram_username
+                  )
+                  openInstagramProfilesInBulk(handles)
+                }}
+                className="h-9 px-3.5 rounded-xl border-pink-500/30 text-pink-300 bg-pink-500/10 hover:bg-pink-500/20 font-bold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                title="Open selected creators' Instagram profiles in separate tabs"
+              >
+                <Instagram className="h-3.5 w-3.5 text-pink-400" />
+                <span>Insta Profiles ({selectedIds.size})</span>
+              </Button>
+
+              {/* 2. Live Deliverable */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const links = selectedCompletions.map(c => {
+                    const comp = getCompletionDetails(c)
+                    return comp.deliverable_link
+                  })
+                  openUrlsInBulk(links, { itemLabel: 'live deliverable link' })
+                }}
+                className="h-9 px-3.5 rounded-xl border-indigo-500/30 text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 font-bold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                title="Open selected live deliverable links / posts in separate tabs"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Live Deliverables ({selectedIds.size})</span>
+              </Button>
+
+              {/* 3. Analytics Proof */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const proofs = selectedCompletions.map(c => {
+                    const comp = getCompletionDetails(c)
+                    return comp.supporting_document
+                  })
+                  openUrlsInBulk(proofs, { itemLabel: 'analytics proof screenshot' })
+                }}
+                className="h-9 px-3.5 rounded-xl border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                title="Open selected analytics proof screenshots in separate tabs"
+              >
+                <Image className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Analytics Proofs ({selectedIds.size})</span>
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── MODALS ─────────────────────────────────────────── */}
 

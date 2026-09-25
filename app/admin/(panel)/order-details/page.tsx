@@ -20,6 +20,7 @@ import { GlobalLoader } from '@/components/ui/global-loader'
 import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
+import { openUrlsInBulk } from '@/lib/bulk-instagram-opener'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
@@ -203,6 +204,23 @@ function extractOrderField(details: Record<string, any>, ...candidates: string[]
 function isImageValue(key: string, value: any): boolean {
   if (typeof value !== 'string') return false
   return value.startsWith('http') || key.toLowerCase().includes('screenshot') || key.toLowerCase().includes('image') || key.toLowerCase().includes('photo')
+}
+
+function getOrderScreenshotUrl(order: OrderEntry): string {
+  const details = getOrderDetails(order)
+  for (const [key, value] of Object.entries(details)) {
+    if (isImageValue(key, value) && typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+  if (order.form_data) {
+    for (const [key, value] of Object.entries(order.form_data)) {
+      if (key !== 'order_details' && isImageValue(key, value) && typeof value === 'string' && value.trim()) {
+        return value.trim()
+      }
+    }
+  }
+  return ''
 }
 
 // ─── Popover Hook ──────────────────────────────────────────
@@ -1414,6 +1432,20 @@ export default function OrderDetailsPage() {
             >
               <XCircle className="mr-1 h-3.5 w-3.5" />
               Reject (with reason)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const selectedOrders = orders.filter(o => selectedIds.has(o.id))
+                const screenshotUrls = selectedOrders.map(o => getOrderScreenshotUrl(o))
+                openUrlsInBulk(screenshotUrls, { itemLabel: 'order screenshot' })
+              }}
+              className="h-8 px-3 rounded-lg border-sky-500/30 text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 text-xs font-bold cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+              title="Open selected orders' proof screenshots in separate tabs"
+            >
+              <Image className="h-3.5 w-3.5 text-sky-400" />
+              <span>Open Screenshots ({selectedIds.size})</span>
             </Button>
             <button
               onClick={() => setSelectedIds(new Set())}
