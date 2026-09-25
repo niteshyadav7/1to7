@@ -44,7 +44,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
 import PaymentFormModal from './PaymentFormModal'
 import { getApplicationCommercialAmount, isPaidCollaboration } from '@/lib/utils/commercial-utils'
-import { checkLiveDateMaturation } from '@/lib/utils/completion-timeline-utils'
+import { checkLiveDateMaturation, getRequiredMaturationDays } from '@/lib/utils/completion-timeline-utils'
 
 interface Application {
   id: string
@@ -152,10 +152,14 @@ export default function ApprovedCampaignModal({
   const hasRequested = Boolean(application?.form_data?.payment_request)
   const balance = hasRequested ? (isCompleted ? (application?.pending_amount || 0) : totalAmount - received) : totalAmount - received
 
-  // 7-day maturation check
+  // Dynamic maturation check based on campaign completion window
+  const maturationDays = useMemo(() => {
+    return getRequiredMaturationDays(application?.campaigns)
+  }, [application?.campaigns])
+
   const maturation = useMemo(() => {
-    return checkLiveDateMaturation(liveDate, 7)
-  }, [liveDate])
+    return checkLiveDateMaturation(liveDate, maturationDays)
+  }, [liveDate, maturationDays])
 
   const isCompletionSubmitted = Boolean(
     application?.completion_submitted_at || application?.form_data?.completion_submission
@@ -901,7 +905,9 @@ export default function ApprovedCampaignModal({
                               <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5" />
                               <div>
                                 <h5 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                                  7-Day Maturation Complete
+                                  {maturation.minDaysRequired > 0
+                                    ? `${maturation.minDaysRequired}-Day Maturation Complete`
+                                    : 'Ready for Submission'}
                                 </h5>
                                 <p className="text-xs text-emerald-800 mt-0.5 leading-relaxed">
                                   {maturation.message}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import { checkLiveDateMaturation } from '@/lib/utils/completion-timeline-utils'
+import { checkLiveDateMaturation, getRequiredMaturationDays } from '@/lib/utils/completion-timeline-utils'
 
 export async function PUT(
   request: Request,
@@ -33,16 +33,10 @@ export async function PUT(
       return NextResponse.json({ error: 'At least one deliverable live link or proof document is required' }, { status: 400 })
     }
 
-    // Enforce 7-Day Live Date Maturation Gap
-    const maturation = checkLiveDateMaturation(live_date, 7)
-    if (!maturation.canSubmit) {
-      return NextResponse.json({ error: maturation.message }, { status: 400 })
-    }
-
-    // Verify application ownership
+    // Verify application ownership and fetch campaign timeline settings
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('id, user_id, form_data, status')
+      .select('id, user_id, form_data, status, campaigns(completion_days)')
       .eq('id', id)
       .single()
 
@@ -52,6 +46,16 @@ export async function PUT(
 
     if (application.user_id !== payload.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Enforce Live Date Maturation Gap based on campaign settings
+    const campaignConfig = Array.isArray(application.campaigns)
+      ? application.campaigns[0]
+      : application.campaigns
+    const minMaturationDays = getRequiredMaturationDays(campaignConfig)
+    const maturation = checkLiveDateMaturation(live_date, minMaturationDays)
+    if (!maturation.canSubmit) {
+      return NextResponse.json({ error: maturation.message }, { status: 400 })
     }
 
     const currentFormData = application.form_data || {}

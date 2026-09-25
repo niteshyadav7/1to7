@@ -23,7 +23,7 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { openInstagramProfilesInBulk, openUrlsInBulk } from '@/lib/bulk-instagram-opener'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
-import { checkLiveDateMaturation } from '@/lib/utils/completion-timeline-utils'
+import { checkLiveDateMaturation, getRequiredMaturationDays } from '@/lib/utils/completion-timeline-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -975,7 +975,8 @@ export default function CompletionDetailsPage() {
                   const comp = getCompletionDetails(app)
                   const compStatus = getCompletionStatus(app)
                   const isExpanded = expandedRows.has(app.id)
-                  const maturationInfo = comp.live_date ? checkLiveDateMaturation(comp.live_date, 7) : null
+                  const maturationDays = getRequiredMaturationDays(app.campaigns)
+                  const maturationInfo = comp.live_date ? checkLiveDateMaturation(comp.live_date, maturationDays) : null
 
                   return (
                     <React.Fragment key={app.id}>

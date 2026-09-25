@@ -276,6 +276,29 @@ export function checkLiveDateMaturation(
     minDaysRequired,
     daysRemaining: 0,
     unlockDate,
-    message: `Maturation complete (${daysElapsed} days since live date). You can now submit your deliverables.`,
+    message: minDaysRequired > 0
+      ? `Maturation complete (${daysElapsed} days since live date). You can now submit your deliverables.`
+      : 'Content live date recorded. You can now submit your deliverables.',
   }
 }
+
+/**
+ * Resolves the required live date maturation days for a campaign.
+ * If campaign completion window is less than 7 days (e.g. 1-2 days fast-turnaround),
+ * maturation is 0 so creators are not blocked from submitting deliverables within their deadline.
+ * For standard campaigns (7+ days), requires the standard 7 days.
+ */
+export function getRequiredMaturationDays(
+  campaign?: { completion_days?: number | null } | null
+): number {
+  if (!campaign) return 7
+  const days = typeof campaign.completion_days === 'number' && campaign.completion_days > 0
+    ? campaign.completion_days
+    : 7
+
+  if (days < 7) {
+    return 0
+  }
+  return 7
+}
+
