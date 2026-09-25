@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import ApplicationFormModal from '@/components/campaigns/ApplicationFormModal'
-import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 
@@ -524,12 +524,12 @@ export default function StandaloneCampaignPage({
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Link>
                         </div>
-                      ) : (user && !checkFollowerEligibility(user?.followers, campaign).eligible) ? (
+                      ) : (user && !checkFollowerEligibility(getEffectiveUserFollowers(user), campaign).eligible) ? (
                         <div className="space-y-2">
                           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
                             <Lock className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                             <span className="leading-snug">
-                              {checkFollowerEligibility(user?.followers, campaign).message}
+                              {checkFollowerEligibility(getEffectiveUserFollowers(user), campaign).message}
                             </span>
                           </div>
                           <Button
@@ -537,7 +537,7 @@ export default function StandaloneCampaignPage({
                             className="w-full h-10 rounded-xl bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-xs uppercase tracking-wider shadow-sm cursor-not-allowed opacity-90"
                           >
                             <Lock className="mr-1.5 h-3.5 w-3.5 text-amber-700" />
-                            Min {formatFollowerCount(checkFollowerEligibility(user?.followers, campaign).requiredFollowers)} Followers Required
+                            Min {formatFollowerCount(checkFollowerEligibility(getEffectiveUserFollowers(user), campaign).requiredFollowers)} Followers Required
                           </Button>
                         </div>
                       ) : (user && !checkCampaignLocationEligibility(campaign, user).isEligible) ? (

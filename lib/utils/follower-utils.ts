@@ -155,3 +155,81 @@ export function getFollowerRequirementLabel(
 
   return 'No restriction'
 }
+
+/**
+ * Resolves the effective follower count for a user across:
+ * 1. Selected Instagram profile from `user.instagram_profiles` (if selectedProfileId provided)
+ * 2. Primary Instagram profile from `user.instagram_profiles`
+ * 3. Any connected Instagram profile in `user.instagram_profiles` with a valid count
+ * 4. Direct `user.followers` (number or numeric string)
+ * 5. Fallback `user.instagram_followers_count`
+ */
+export function getEffectiveUserFollowers(
+  user: {
+    followers?: number | string | null
+    instagram_followers_count?: number | string | null
+    instagram_profiles?: Array<{
+      id?: string
+      username?: string
+      followers?: number | string | null
+      is_primary?: boolean
+    }> | null
+  } | null | undefined,
+  selectedProfileId?: string | null
+): number {
+  if (!user) return 0
+
+  const profiles = Array.isArray(user.instagram_profiles) ? user.instagram_profiles : []
+
+  // 1. If a specific profile ID or username is selected, try matching that first
+  if (selectedProfileId && profiles.length > 0) {
+    const selected = profiles.find(
+      p => (p.id && p.id === selectedProfileId) || (p.username && p.username === selectedProfileId)
+    )
+    if (selected && selected.followers !== undefined && selected.followers !== null) {
+      const parsed = typeof selected.followers === 'number'
+        ? selected.followers
+        : parseInt(String(selected.followers).replace(/\D/g, ''), 10)
+      if (!isNaN(parsed) && parsed > 0) return parsed
+    }
+  }
+
+  // 2. Check primary profile from user.instagram_profiles
+  if (profiles.length > 0) {
+    const primary = profiles.find(p => p.is_primary) || profiles[0]
+    if (primary && primary.followers !== undefined && primary.followers !== null) {
+      const parsed = typeof primary.followers === 'number'
+        ? primary.followers
+        : parseInt(String(primary.followers).replace(/\D/g, ''), 10)
+      if (!isNaN(parsed) && parsed > 0) return parsed
+    }
+
+    // Check if any other linked profile has followers
+    for (const p of profiles) {
+      if (p.followers !== undefined && p.followers !== null) {
+        const parsed = typeof p.followers === 'number'
+          ? p.followers
+          : parseInt(String(p.followers).replace(/\D/g, ''), 10)
+        if (!isNaN(parsed) && parsed > 0) return parsed
+      }
+    }
+  }
+
+  // 3. Direct user.followers column
+  if (user.followers !== undefined && user.followers !== null) {
+    const parsed = typeof user.followers === 'number'
+      ? user.followers
+      : parseInt(String(user.followers).replace(/\D/g, ''), 10)
+    if (!isNaN(parsed) && parsed > 0) return parsed
+  }
+
+  // 4. Fallback user.instagram_followers_count column
+  if (user.instagram_followers_count !== undefined && user.instagram_followers_count !== null) {
+    const parsed = typeof user.instagram_followers_count === 'number'
+      ? user.instagram_followers_count
+      : parseInt(String(user.instagram_followers_count).replace(/\D/g, ''), 10)
+    if (!isNaN(parsed) && parsed > 0) return parsed
+  }
+
+  return 0
+}

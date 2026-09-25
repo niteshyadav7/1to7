@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Instagram, Youtube, ShoppingBag, Users, ArrowRight, MapPin, Sparkles, CheckCircle2, ShieldCheck, Tag, Share2, Check, Copy, XCircle, Lock, Clock, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 
 interface Campaign {
@@ -81,13 +81,16 @@ function getBrandInitial(brandName: string): string {
 export default function CampaignCard({ 
   campaign, 
   index, 
-  onViewDetails 
+  onViewDetails,
+  user: propUser,
 }: { 
   campaign: Campaign
   index: number 
   onViewDetails: (campaign: Campaign) => void 
+  user?: any
 }) {
-  const { user } = useAuth()
+  const { user: authUser } = useAuth()
+  const user = propUser || authUser
   const [copied, setCopied] = useState(false)
   const gradient = categoryGradients[campaign.category] || defaultGradient
   const platform = platformConfig[campaign.platform] || { 
@@ -96,7 +99,8 @@ export default function CampaignCard({
     badge: 'bg-slate-800 text-white'
   }
   const brandInitial = getBrandInitial(campaign.brand_name)
-  const eligibility = checkFollowerEligibility(user?.followers, campaign)
+  const effectiveFollowers = getEffectiveUserFollowers(user)
+  const eligibility = checkFollowerEligibility(effectiveFollowers, campaign)
   const locationEligibility = checkCampaignLocationEligibility(campaign, user)
 
   const handleCopyLink = (e: React.MouseEvent) => {

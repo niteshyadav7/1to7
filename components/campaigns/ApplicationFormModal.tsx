@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
-import { checkFollowerEligibility, formatFollowerCount } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
@@ -91,7 +91,7 @@ export default function ApplicationFormModal({
   }, [userProfiles, selectedProfileId])
 
   const activeSelectedProfile = userProfiles.find(p => (p.id || p.username) === selectedProfileId) || userProfiles[0]
-  const effectiveFollowers = activeSelectedProfile?.followers ?? user?.followers ?? 0
+  const effectiveFollowers = getEffectiveUserFollowers(user, selectedProfileId) || (activeSelectedProfile?.followers ?? user?.followers ?? 0)
 
   // Guest flow state
   const [guestStep, setGuestStep] = useState<GuestStep>('mobile')
@@ -561,7 +561,7 @@ export default function ApplicationFormModal({
                       </Button>
                     </div>
                   </div>
-                ) : (user && !checkFollowerEligibility(user?.followers, campaign).eligible) ? (
+                ) : (user && !checkFollowerEligibility(effectiveFollowers, campaign).eligible) ? (
                   <div className="text-center space-y-4 py-6">
                     <div className="mx-auto h-16 w-16 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-lg shadow-amber-500/10">
                       <Lock className="h-8 w-8" />
@@ -569,7 +569,7 @@ export default function ApplicationFormModal({
                     <div className="space-y-1.5">
                       <h3 className="text-xl font-bold text-slate-900">Follower Requirement Not Met</h3>
                       <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
-                        {checkFollowerEligibility(user?.followers, campaign).message}
+                        {checkFollowerEligibility(effectiveFollowers, campaign).message}
                       </p>
                     </div>
                     <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center max-w-sm mx-auto">

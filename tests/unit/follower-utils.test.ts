@@ -3,6 +3,7 @@ import {
   parseMinFollowers,
   formatFollowerCount,
   checkFollowerEligibility,
+  getEffectiveUserFollowers,
 } from '@/lib/utils/follower-utils'
 
 describe('follower-utils', () => {
@@ -104,4 +105,47 @@ describe('follower-utils', () => {
       expect(result.shortfall).toBe(3500)
     })
   })
+
+  describe('getEffectiveUserFollowers', () => {
+    it('returns 0 for null or undefined user', () => {
+      expect(getEffectiveUserFollowers(null)).toBe(0)
+      expect(getEffectiveUserFollowers(undefined)).toBe(0)
+    })
+
+    it('resolves direct numeric user.followers', () => {
+      expect(getEffectiveUserFollowers({ followers: 15000 })).toBe(15000)
+    })
+
+    it('resolves string user.followers', () => {
+      expect(getEffectiveUserFollowers({ followers: '25,000' })).toBe(25000)
+    })
+
+    it('resolves primary profile from user.instagram_profiles when user.followers is 0 or null', () => {
+      const user = {
+        followers: 0,
+        instagram_profiles: [
+          { id: 'p1', username: 'ekkahanimeribhi', followers: 33000, is_primary: true }
+        ]
+      }
+      expect(getEffectiveUserFollowers(user)).toBe(33000)
+    })
+
+    it('resolves selected profile when selectedProfileId matches', () => {
+      const user = {
+        followers: 1000,
+        instagram_profiles: [
+          { id: 'p1', username: 'profile1', followers: 5000, is_primary: true },
+          { id: 'p2', username: 'profile2', followers: 50000, is_primary: false }
+        ]
+      }
+      expect(getEffectiveUserFollowers(user, 'p2')).toBe(50000)
+      expect(getEffectiveUserFollowers(user, 'profile2')).toBe(50000)
+      expect(getEffectiveUserFollowers(user, 'p1')).toBe(5000)
+    })
+
+    it('falls back to instagram_followers_count if followers and profiles are empty', () => {
+      expect(getEffectiveUserFollowers({ followers: 0, instagram_followers_count: 8500 })).toBe(8500)
+    })
+  })
 })
+

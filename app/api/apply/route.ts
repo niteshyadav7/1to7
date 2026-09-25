@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { sendApplicationSubmittedEmail } from '@/lib/mailer'
-import { checkFollowerEligibility } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import { generateSequentialInfluencerId } from '@/lib/user-utils'
@@ -266,12 +266,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determine effective followers based on creator's selected Instagram account
-    let effectiveFollowers = user.followers || 0
+    // Determine effective followers based on creator's selected Instagram account or profile
+    let effectiveFollowers = getEffectiveUserFollowers(
+      user,
+      selectedInstagramProfile?.id || selectedInstagramProfile?.username
+    )
     if (selectedInstagramProfile && selectedInstagramProfile.followers !== undefined && selectedInstagramProfile.followers !== null) {
-      effectiveFollowers = typeof selectedInstagramProfile.followers === 'number'
+      const parsedSelected = typeof selectedInstagramProfile.followers === 'number'
         ? selectedInstagramProfile.followers
-        : (parseInt(String(selectedInstagramProfile.followers), 10) || 0)
+        : (parseInt(String(selectedInstagramProfile.followers).replace(/\D/g, ''), 10) || 0)
+      if (parsedSelected > 0) {
+        effectiveFollowers = parsedSelected
+      }
     }
 
     // Check follower requirements if campaign strictly enforces follower minimum

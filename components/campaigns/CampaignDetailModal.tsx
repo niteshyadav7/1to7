@@ -25,7 +25,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
-import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel } from '@/lib/utils/follower-utils'
+import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
@@ -110,12 +110,14 @@ export default function CampaignDetailModal({
   onClose,
   onApply,
   isLoggedIn,
+  user: propUser,
 }: {
   campaign: Campaign | null
   isOpen: boolean
   onClose: () => void
   onApply: (campaign: Campaign) => void
   isLoggedIn: boolean
+  user?: any
 }) {
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [showProfileInline, setShowProfileInline] = useState(false)
@@ -132,7 +134,8 @@ export default function CampaignDetailModal({
   const [hasAttemptedCustomSubmit, setHasAttemptedCustomSubmit] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [quickAddressModalOpen, setQuickAddressModalOpen] = useState(false)
-  const { user, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
+  const { user: authUser, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
+  const user = propUser || authUser
   const router = useRouter()
 
   // Multi-Instagram Profile Support
@@ -179,7 +182,7 @@ export default function CampaignDetailModal({
   }, [userProfiles, selectedProfileId])
 
   const activeSelectedProfile = userProfiles.find(p => (p.id || p.username) === selectedProfileId) || userProfiles[0]
-  const effectiveFollowers = activeSelectedProfile?.followers ?? user?.followers ?? 0
+  const effectiveFollowers = getEffectiveUserFollowers(user, selectedProfileId) || (activeSelectedProfile?.followers ?? user?.followers ?? 0)
   const locationEligibility = campaign
     ? checkCampaignLocationEligibility(campaign, user)
     : { isEligible: true, isStrict: false, requiredLocationText: '', locationType: 'PAN_INDIA' as const, matchedAddress: undefined, matchingAddresses: [], userAddresses: [], targetStates: [], targetCities: [], storeLocations: [], matchingStores: [], reason: '' }

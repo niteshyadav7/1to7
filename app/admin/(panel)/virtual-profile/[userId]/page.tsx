@@ -23,6 +23,7 @@ export default function VirtualProfileOverviewPage() {
   const { userId } = useParams<{ userId: string }>()
   const [stats, setStats] = useState<Stats | null>(null)
   const [campaigns, setCampaigns] = useState<any[]>([])
+  const [virtualUser, setVirtualUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null)
@@ -36,10 +37,12 @@ export default function VirtualProfileOverviewPage() {
     Promise.all([
       fetch(`/api/admin/virtual-profile/${userId}?action=stats`).then(r => r.json()),
       fetch('/api/campaigns').then(r => r.json()),
+      fetch(`/api/admin/virtual-profile/${userId}?action=profile`).then(r => r.json()),
     ])
-      .then(([statsData, campaignsData]) => {
+      .then(([statsData, campaignsData, profileData]) => {
         setStats(statsData.stats || null)
         setCampaigns(campaignsData.campaigns || [])
+        setVirtualUser(profileData.user || null)
       })
       .catch(() => toast.error('Failed to fetch dashboard data'))
       .finally(() => setLoading(false))
@@ -176,6 +179,7 @@ export default function VirtualProfileOverviewPage() {
                 campaign={campaign}
                 index={index}
                 onViewDetails={handleViewDetails}
+                user={virtualUser}
               />
             ))}
           </div>
@@ -189,6 +193,7 @@ export default function VirtualProfileOverviewPage() {
         onClose={() => setDetailOpen(false)}
         onApply={() => toast.info('Admin mode: Apply is disabled on behalf of creators')}
         isLoggedIn={true}
+        user={virtualUser}
       />
     </div>
   )
