@@ -16,6 +16,7 @@ import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
+import { PocMultiSelect } from '@/components/admin/PocMultiSelect'
 import { StoreLocation } from '@/lib/utils/location-utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -68,6 +69,7 @@ export default function AdminCreateCampaignPage() {
     is_test_mode: false,
     test_user_ids: [] as string[],
     test_creators: [] as PilotCreator[],
+    poc_admin_ids: [] as string[],
   })
 
   const [customFields, setCustomFields] = useState<FormField[]>([])
@@ -124,6 +126,7 @@ export default function AdminCreateCampaignPage() {
       is_test_mode: Boolean(source.is_test_mode),
       test_user_ids: Array.isArray(source.test_user_ids) ? source.test_user_ids : [],
       test_creators: Array.isArray(source.test_creators) ? source.test_creators : [],
+      poc_admin_ids: Array.isArray(source.poc_admin_ids) ? source.poc_admin_ids : [],
     })
 
     if (Array.isArray(source.form_fields) && source.form_fields.length > 0) {
@@ -296,6 +299,7 @@ export default function AdminCreateCampaignPage() {
       is_test_mode: false,
       test_user_ids: [],
       test_creators: [],
+      poc_admin_ids: [],
     })
     setLastSavedTime(null)
     toast.success('Draft cleared. Starting fresh!')
@@ -634,6 +638,14 @@ export default function AdminCreateCampaignPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Point of Contact (POC) Assignment */}
+          <div className="p-4.5 rounded-xl bg-slate-950/60 border border-blue-500/20 shadow-inner">
+            <PocMultiSelect
+              selectedIds={formData.poc_admin_ids}
+              onChange={(ids) => setFormData({ ...formData, poc_admin_ids: ids })}
+            />
           </div>
 
           {/* Location & Geographic Targeting Card */}

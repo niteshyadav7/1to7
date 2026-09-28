@@ -44,6 +44,21 @@ describe('admin-auth RBAC', () => {
       expect(hasModuleAccess(regularAdmin, 'campaigns')).toBe(true)
       expect(hasModuleAccess(regularAdmin, 'payments')).toBe(false)
       expect(hasModuleAccess(regularAdmin, 'roles')).toBe(false)
+      // Grants poc_dashboard via campaigns fallback
+      expect(hasModuleAccess(regularAdmin, 'poc_dashboard')).toBe(true)
+    })
+
+    it('denies poc_dashboard if admin has neither poc_dashboard nor campaigns/dashboard permission', () => {
+      const restrictedAdmin: AdminPayload = {
+        id: 'admin-4',
+        email: 'feedback_only@1to7.com',
+        role: 'staff',
+        is_super_admin: false,
+        permissions: {
+          feedback: ['view'],
+        },
+      }
+      expect(hasModuleAccess(restrictedAdmin, 'poc_dashboard')).toBe(false)
     })
   })
 

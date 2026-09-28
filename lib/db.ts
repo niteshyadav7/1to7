@@ -6,6 +6,7 @@ types.setTypeParser(1700, (val: string) => (val === null ? 0 : parseFloat(val)))
 declare global {
   // Prevent multiple pool instances during Next.js hot-reloads
   var _postgresPool: Pool | undefined
+  var _pocMigrationDone: boolean | undefined
 }
 
 if (!global._postgresPool) {
@@ -28,6 +29,43 @@ if (!global._postgresPool) {
 const pool = global._postgresPool
 
 export default pool
+
+/**
+ * Automatically ensures required POC columns and indexes exist in Supabase/PostgreSQL.
+ * Purely additive and idempotent with zero downtime impact.
+ */
+let autoMigrationRunning = false
+
+export async function ensurePocMigration(): Promise<void> {
+  if (global._pocMigrationDone || !pool || autoMigrationRunning) return
+  autoMigrationRunning = true
+  try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'poc_admin_ids'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN poc_admin_ids UUID[] DEFAULT '{}';
+          CREATE INDEX IF NOT EXISTS idx_campaigns_poc_admin_ids ON public.campaigns USING GIN (poc_admin_ids);
+        END IF;
+      END $$;
+    `)
+    global._pocMigrationDone = true
+  } catch (err) {
+    console.warn('[DB Auto-Migration] Non-fatal check during POC auto-migration:', err)
+  } finally {
+    autoMigrationRunning = false
+  }
+}
+
+// Automatically trigger migration check on server load
+if (typeof window === 'undefined' && pool && process.env.POSTGRES_URL) {
+  ensurePocMigration().catch(() => {})
+}
 
 /**
  * Helper to run a query using the shared connection pool.

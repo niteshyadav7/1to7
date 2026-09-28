@@ -19,6 +19,16 @@ export const ADMIN_MODULES: ModuleDefinition[] = [
     actions: [{ key: 'view', name: 'View Dashboard', description: 'Can view summary metrics and graphs' }],
   },
   {
+    key: 'poc_dashboard',
+    name: 'POC Performance',
+    href: '/admin/poc-dashboard',
+    description: 'Point of Contact performance metrics, days-wise and weeks-wise accountability tracking.',
+    actions: [
+      { key: 'view', name: 'View POC Dashboard', description: 'Can view assigned campaigns and personal stats' },
+      { key: 'view_all', name: 'View Team Overview', description: 'Can view all team members and comparative analytics' },
+    ],
+  },
+  {
     key: 'campaigns',
     name: 'Campaigns',
     href: '/admin/campaigns',

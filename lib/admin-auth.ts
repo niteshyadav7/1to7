@@ -14,6 +14,10 @@ export function hasModuleAccess(admin: AdminPayload | null | undefined, moduleKe
   if (Array.isArray(modulePerms) && modulePerms.length > 0) {
     return modulePerms.includes('view') || modulePerms.includes('create') || modulePerms.includes('edit')
   }
+  if (moduleKey === 'poc_dashboard') {
+    const campPerms = perms['campaigns'] || perms['dashboard']
+    if (Array.isArray(campPerms) && campPerms.length > 0) return true
+  }
   return false
 }
 

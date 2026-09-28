@@ -58,7 +58,8 @@ export async function PUT(
       'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
       'display_order', 'brief_document_url',
-      'is_test_mode', 'test_user_ids', 'test_creators'
+      'is_test_mode', 'test_user_ids', 'test_creators',
+      'poc_admin_ids'
     ]
 
     const updates: Record<string, any> = {}
@@ -103,11 +104,19 @@ export async function PUT(
     // Strict Maker-Checker Rule for Public Campaigns:
     // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live.
     // In Pilot Test Mode, campaign stays active so test creators can continue end-to-end verification.
+    // POC assignment changes alone do NOT revoke live status, ensuring production campaigns remain operational.
     const adminName = admin.full_name || admin.name || 'Admin'
     const adminEmail = admin.email || ''
 
+    const isPocOnlyEdit = Object.keys(updates).every(k => k === 'poc_admin_ids')
     const isPilot = updates.is_test_mode !== undefined ? Boolean(updates.is_test_mode) : Boolean(existingCampaign.is_test_mode)
-    if (isPilot) {
+
+    if (isPocOnlyEdit) {
+      // Retain existing approval status when only updating assigned POCs
+      updates.approval_status = existingCampaign.approval_status
+      updates.status = existingCampaign.status
+      updates.is_live = existingCampaign.is_live
+    } else if (isPilot) {
       updates.approval_status = 'Approved'
       updates.status = 'Active'
       updates.is_live = true

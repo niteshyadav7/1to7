@@ -60,6 +60,7 @@ interface Campaign {
   is_test_mode?: boolean
   test_user_ids?: string[]
   test_creators?: any[]
+  poc_admin_ids?: string[]
 }
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -88,6 +89,7 @@ export default function AdminCampaignsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [pocMap, setPocMap] = useState<Record<string, { name: string; email: string; roleDisplayName: string }>>({})
 
   // Launch from Pilot Modal States
   const [launchModalCampaign, setLaunchModalCampaign] = useState<Campaign | null>(null)
@@ -251,6 +253,19 @@ export default function AdminCampaignsPage() {
     } else {
       fetchCampaigns(false)
     }
+
+    fetch('/api/admin/staff/poc-list')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.pocs)) {
+          const map: Record<string, { name: string; email: string; roleDisplayName: string }> = {}
+          data.pocs.forEach((p: any) => {
+            map[p.id] = { name: p.name, email: p.email, roleDisplayName: p.roleDisplayName }
+          })
+          setPocMap(map)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const copyCampaignLink = (c: Campaign) => {
@@ -574,7 +589,8 @@ export default function AdminCampaignsPage() {
       (c.created_by_admin_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.created_by_admin_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.approved_by_admin_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.approved_by_admin_email || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (c.approved_by_admin_email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.poc_admin_ids || []).some(id => (pocMap[id]?.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesFilter && matchesSearch
   })
 
@@ -1076,6 +1092,29 @@ export default function AdminCampaignsPage() {
                         <div className="text-rose-300 text-[10px] pt-1.5 border-t border-white/5 flex items-start gap-1">
                           <AlertTriangle className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
                           <span><strong>Rejection Reason:</strong> {campaign.rejection_reason}</span>
+                        </div>
+                      )}
+
+                      {/* Assigned POC (Point of Contact) */}
+                      {campaign.poc_admin_ids && campaign.poc_admin_ids.length > 0 && (
+                        <div className="flex items-center justify-between gap-2 text-slate-400 pt-1.5 border-t border-white/5 flex-wrap">
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            <UserCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                            <span className="text-slate-500 font-medium">Assigned POC:</span>
+                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {campaign.poc_admin_ids.map(pocId => {
+                              const poc = pocMap[pocId]
+                              return (
+                                <span
+                                  key={pocId}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-semibold"
+                                >
+                                  {poc?.name || 'Operations Admin'}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>

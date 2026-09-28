@@ -19,6 +19,7 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-utils'
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
+import { PocMultiSelect } from '@/components/admin/PocMultiSelect'
 import { StoreLocation } from '@/lib/utils/location-utils'
 import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
 import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
@@ -77,6 +78,7 @@ interface CampaignData {
   is_test_mode?: boolean
   test_user_ids?: string[]
   test_creators?: PilotCreator[]
+  poc_admin_ids?: string[]
 }
 
 export default function AdminEditCampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -122,6 +124,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     is_test_mode: false,
     test_user_ids: [] as string[],
     test_creators: [] as PilotCreator[],
+    poc_admin_ids: [] as string[],
   })
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
@@ -181,6 +184,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         is_test_mode: Boolean(data.campaign.is_test_mode),
         test_user_ids: Array.isArray(data.campaign.test_user_ids) ? data.campaign.test_user_ids : [],
         test_creators: Array.isArray(data.campaign.test_creators) ? data.campaign.test_creators : [],
+        poc_admin_ids: Array.isArray(data.campaign.poc_admin_ids) ? data.campaign.poc_admin_ids : [],
       })
       setCustomFields(data.campaign.form_fields || [])
       setOrderFormFields(data.campaign.order_form_fields || [])
@@ -490,6 +494,14 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Point of Contact (POC) Assignment */}
+            <div className="p-4.5 rounded-xl bg-slate-950/60 border border-blue-500/20 shadow-inner">
+              <PocMultiSelect
+                selectedIds={formData.poc_admin_ids}
+                onChange={(ids) => setFormData({ ...formData, poc_admin_ids: ids })}
+              />
             </div>
 
             {/* Location & Geographic Targeting Card */}

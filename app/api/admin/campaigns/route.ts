@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       is_test_mode,
       test_user_ids,
       test_creators,
+      poc_admin_ids,
     } = body
 
     if (!brand_name || !platform) {
@@ -122,9 +123,9 @@ export async function POST(request: Request) {
         approval_status, created_by_admin_id, created_by_admin_name, created_by_admin_email,
         last_edited_by_admin_id, last_edited_by_admin_name, last_edited_by_admin_email, last_edited_at,
         approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at,
-        is_test_mode, test_user_ids, test_creators
+        is_test_mode, test_user_ids, test_creators, poc_admin_ids
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53
       ) RETURNING *
     `
     const values = [
@@ -180,6 +181,7 @@ export async function POST(request: Request) {
       isPilot,
       Array.isArray(test_user_ids) ? test_user_ids : [],
       JSON.stringify(Array.isArray(test_creators) ? test_creators : []),
+      Array.isArray(poc_admin_ids) ? poc_admin_ids : [],
     ]
 
     const res = await pool.query(query, values)

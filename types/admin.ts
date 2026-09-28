@@ -16,8 +16,9 @@ export type ModuleKey =
   | 'roles'
   | 'user_issues'
   | 'broadcasts'
+  | 'poc_dashboard'
 
-export type ActionKey = 'view' | 'create' | 'edit' | 'delete' | 'export' | 'reset_password'
+export type ActionKey = 'view' | 'create' | 'edit' | 'delete' | 'export' | 'reset_password' | 'view_all'
 
 export type PermissionsMap = Record<string, string[]>
 
