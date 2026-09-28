@@ -14,6 +14,7 @@ import {
   Legend,
 } from 'recharts'
 import { TrendingUp, BarChart2, Layers, Sparkles } from 'lucide-react'
+import { PocChartSkeleton } from './PocSkeletons'
 
 interface TrendItem {
   bucket: string
@@ -30,6 +31,7 @@ interface PocTrendChartProps {
   granularity: 'day' | 'week'
   onGranularityChange: (g: 'day' | 'week') => void
   memberNames?: string[]
+  loading?: boolean
 }
 
 const POC_COLORS = [
@@ -48,8 +50,13 @@ export function PocTrendChart({
   granularity,
   onGranularityChange,
   memberNames = [],
+  loading = false,
 }: PocTrendChartProps) {
   const [viewMode, setViewMode] = useState<'area' | 'bar' | 'by_poc'>('area')
+
+  if (loading) {
+    return <PocChartSkeleton />
+  }
 
   if (!data || data.length === 0) {
     return (

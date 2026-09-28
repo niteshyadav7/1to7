@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Award, Zap, Target, Flame, ArrowUpRight, CheckCircle2, ChevronRight, User } from 'lucide-react'
+import { PocPodiumSkeleton } from './PocSkeletons'
 
 interface PodiumMember {
   id: string
@@ -33,6 +34,7 @@ interface PocLeaderboardProps {
   topVolume: PodiumMember | null
   peakDay: PeakDayInfo | null
   onSelectPoc?: (pocId: string) => void
+  loading?: boolean
 }
 
 export function PocLeaderboard({
@@ -41,7 +43,12 @@ export function PocLeaderboard({
   topVolume,
   peakDay,
   onSelectPoc,
+  loading = false,
 }: PocLeaderboardProps) {
+  if (loading) {
+    return <PocPodiumSkeleton />
+  }
+
   return (
     <div className="space-y-4">
       {/* 1. Peak Performance Day Banner */}

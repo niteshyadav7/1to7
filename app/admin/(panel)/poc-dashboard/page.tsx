@@ -29,6 +29,7 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { PocTrendChart } from '@/components/admin/poc/PocTrendChart'
 import { PocLeaderboard } from '@/components/admin/poc/PocLeaderboard'
+import { PocTableSkeleton, PocIndividualSkeleton } from '@/components/admin/poc/PocSkeletons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -309,6 +310,7 @@ export default function PocDashboardPage() {
             topVolume={teamData.podium?.topVolume}
             peakDay={teamData.podium?.peakDay}
             onSelectPoc={handleDrilldown}
+            loading={loadingTeam}
           />
 
           {/* Days-Wise & Weeks-Wise Interactive Recharts Timeline */}
@@ -317,6 +319,7 @@ export default function PocDashboardPage() {
             granularity={granularity}
             onGranularityChange={setGranularity}
             memberNames={memberNames}
+            loading={loadingTeam}
           />
 
           {/* Team Members Comparative Leaderboard Table */}
@@ -369,11 +372,7 @@ export default function PocDashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
                   {loadingTeam ? (
-                    <tr>
-                      <td colSpan={11} className="py-12 text-center text-slate-500">
-                        Loading team ledger...
-                      </td>
-                    </tr>
+                    <PocTableSkeleton rows={6} />
                   ) : filteredMembers.length === 0 ? (
                     <tr>
                       <td colSpan={11} className="py-12 text-center text-slate-500">
@@ -536,7 +535,10 @@ export default function PocDashboardPage() {
 
       {/* ─── TAB 2: INDIVIDUAL POC DESK & CAMPAIGNS BREAKDOWN ─── */}
       {activeTab === 'individual' && (
-        <div className="space-y-6">
+        loadingIndividual ? (
+          <PocIndividualSkeleton />
+        ) : (
+          <div className="space-y-6">
           {/* Header Switcher if Super Admin */}
           <div className="rounded-2xl border border-white/[0.08] bg-slate-900/60 p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl">
             <div className="flex items-center gap-3">
@@ -811,7 +813,7 @@ export default function PocDashboardPage() {
             </div>
           </div>
         </div>
-      )}
+      ))}
     </div>
   )
 }
