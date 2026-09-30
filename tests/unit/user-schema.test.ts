@@ -17,6 +17,18 @@ describe('user validation schemas', () => {
       expect(result.success).toBe(true)
     })
 
+    it('accepts Other as a valid gender option', () => {
+      const payloadWithOther = {
+        full_name: 'Alex Jordan',
+        gender: 'Other',
+      }
+      const result = updateCreatorProfileSchema.safeParse(payloadWithOther)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.gender).toBe('Other')
+      }
+    })
+
     it('rejects malformed email formats', () => {
       const invalidEmail = {
         email: 'not-an-email',

@@ -822,8 +822,8 @@ function CustomExportModal({
 
                   <div>
                     <label className="text-[11px] font-medium text-slate-400 mb-1 block">Gender</label>
-                    <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-white/10">
-                      {['All', 'Male', 'Female'].map(g => (
+                    <div className="grid grid-cols-4 gap-1 bg-slate-900 p-1 rounded-xl border border-white/10">
+                      {['All', 'Male', 'Female', 'Other'].map(g => (
                         <button
                           key={g}
                           type="button"
@@ -1471,7 +1471,7 @@ export default function InfluencersDirectoryPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 items-center">
-           {['All', 'Male', 'Female'].map(g => (
+           {['All', 'Male', 'Female', 'Other'].map(g => (
              <button key={g} onClick={() => setGenderFilter(g)}
               className={`px-3.5 h-11 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                 genderFilter === g ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
