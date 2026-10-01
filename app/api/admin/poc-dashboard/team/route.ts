@@ -56,6 +56,10 @@ function getDateRange(rangeParam: string, customStart?: string, customEnd?: stri
       start.setDate(1)
       start.setHours(0, 0, 0, 0)
       break
+    case '30d':
+      start.setDate(now.getDate() - 30)
+      start.setHours(0, 0, 0, 0)
+      break
     case 'custom':
       if (customStart) start = new Date(customStart)
       if (customEnd) end = new Date(customEnd)

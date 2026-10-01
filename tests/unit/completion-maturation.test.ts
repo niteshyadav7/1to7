@@ -41,16 +41,23 @@ describe('completion-maturation', () => {
       expect(res.message).toBe('Invalid live date format.')
     })
 
+    const formatLocalDate = (d: Date) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
     it('rejects future live dates', () => {
       const future = new Date()
       future.setDate(future.getDate() + 2)
-      const res = checkLiveDateMaturation(future.toISOString().split('T')[0], 7)
+      const res = checkLiveDateMaturation(formatLocalDate(future), 7)
       expect(res.canSubmit).toBe(false)
       expect(res.message).toBe('Live date cannot be in the future.')
     })
 
     it('allows immediate submission when minDaysRequired is 0 for past or today dates', () => {
-      const today = new Date().toISOString().split('T')[0]
+      const today = formatLocalDate(new Date())
       const resToday = checkLiveDateMaturation(today, 0)
       expect(resToday.canSubmit).toBe(true)
       expect(resToday.minDaysRequired).toBe(0)
@@ -59,7 +66,7 @@ describe('completion-maturation', () => {
 
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const resYesterday = checkLiveDateMaturation(yesterday.toISOString().split('T')[0], 0)
+      const resYesterday = checkLiveDateMaturation(formatLocalDate(yesterday), 0)
       expect(resYesterday.canSubmit).toBe(true)
       expect(resYesterday.daysElapsed).toBeGreaterThanOrEqual(1)
     })
@@ -67,7 +74,7 @@ describe('completion-maturation', () => {
     it('enforces 7-day wait when minDaysRequired is 7', () => {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const res = checkLiveDateMaturation(yesterday.toISOString().split('T')[0], 7)
+      const res = checkLiveDateMaturation(formatLocalDate(yesterday), 7)
       expect(res.canSubmit).toBe(false)
       expect(res.minDaysRequired).toBe(7)
       expect(res.daysRemaining).toBe(6)
@@ -75,7 +82,7 @@ describe('completion-maturation', () => {
 
       const eightDaysAgo = new Date()
       eightDaysAgo.setDate(eightDaysAgo.getDate() - 8)
-      const resMatured = checkLiveDateMaturation(eightDaysAgo.toISOString().split('T')[0], 7)
+      const resMatured = checkLiveDateMaturation(formatLocalDate(eightDaysAgo), 7)
       expect(resMatured.canSubmit).toBe(true)
       expect(resMatured.daysRemaining).toBe(0)
       expect(resMatured.message).toContain('Maturation complete')

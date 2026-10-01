@@ -128,6 +128,11 @@ export function PocTableSkeleton({ rows = 6 }: { rows?: number }) {
     <>
       {Array.from({ length: rows }).map((_, idx) => (
         <tr key={idx} className={`border-b border-white/[0.03] ${shimmerClass}`}>
+          {/* Chevron */}
+          <td className="py-3 px-3 w-8">
+            <div className="h-4 w-4 rounded bg-slate-800/60" />
+          </td>
+
           {/* Rank */}
           <td className="py-3 px-4">
             <div className="h-5 w-6 rounded bg-slate-800/80" />
