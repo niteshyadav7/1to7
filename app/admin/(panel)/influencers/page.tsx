@@ -1502,6 +1502,51 @@ export default function InfluencersDirectoryPage() {
              </select>
              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
            </div>
+
+           {/* Top Rows Per Page & Pagination Info */}
+           {pagination && (
+             <div className="flex items-center gap-2.5 px-3 rounded-xl bg-slate-800/60 border border-white/5 text-xs h-11 ml-auto">
+               <span className="text-[11px] text-slate-400 whitespace-nowrap">Rows:</span>
+               <div className="relative flex items-center">
+                 <select
+                   value={pageSize}
+                   onChange={e => setPageSize(Number(e.target.value))}
+                   className="bg-slate-900/80 hover:bg-slate-900 border border-white/10 text-white font-medium text-[11px] rounded-lg pl-2 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors appearance-none"
+                   title="Rows per page"
+                 >
+                   {[10, 20, 50, 100].map(s => (
+                     <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
+                   ))}
+                 </select>
+                 <ChevronDown className="h-3 w-3 text-slate-400 absolute right-1.5 pointer-events-none" />
+               </div>
+               <span className="text-[11px] text-slate-400 whitespace-nowrap pl-2 border-l border-white/10 font-mono">
+                 Total: {pagination.total.toLocaleString()}
+               </span>
+               {pagination.totalPages > 1 && (
+                 <div className="flex items-center gap-0.5 ml-0.5">
+                   <button
+                     type="button"
+                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                     disabled={pagination.page <= 1}
+                     className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                     title="Previous page"
+                   >
+                     <ChevronLeft className="h-3.5 w-3.5" />
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                     disabled={pagination.page >= pagination.totalPages}
+                     className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                     title="Next page"
+                   >
+                     <ChevronRight className="h-3.5 w-3.5" />
+                   </button>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
       </div>
 

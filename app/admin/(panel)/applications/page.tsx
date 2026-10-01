@@ -860,89 +860,25 @@ const PRESET_REMARKS = [
 ]
 
 function TeamRemarkCell({
-  appId,
-  remark,
-  remarkBy,
-  remarkUpdatedAt,
+  app,
   density,
-  onSave,
+  onEdit,
 }: {
-  appId: string
-  remark?: string | null
-  remarkBy?: string | null
-  remarkUpdatedAt?: string | null
+  app: Application
   density: RowDensity
-  onSave: (appId: string, newRemark: string) => Promise<void>
+  onEdit: (app: Application) => void
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [openAbove, setOpenAbove] = useState(false)
-  const [text, setText] = useState(remark || '')
-  const [isSaving, setIsSaving] = useState(false)
-  const popoverRef = useRef<HTMLDivElement>(null)
-
-  const handleToggleOpen = () => {
-    if (!isOpen && popoverRef.current) {
-      const rect = popoverRef.current.getBoundingClientRect()
-      const spaceBelow = window.innerHeight - rect.bottom
-      setOpenAbove(spaceBelow < 280 && rect.top > 280)
-    }
-    setIsOpen(!isOpen)
-  }
-
-  useEffect(() => {
-    setText(remark || '')
-  }, [remark])
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClick)
-      return () => document.removeEventListener('mousedown', handleClick)
-    }
-  }, [isOpen])
-
-  const handlePresetClick = (preset: string) => {
-    setText(prev => {
-      const trimmed = prev.trim()
-      if (!trimmed) return preset
-      if (trimmed.includes(preset)) return trimmed
-      return `${trimmed}, ${preset}`
-    })
-  }
-
-  const handleCommit = async (customVal?: string) => {
-    const valueToSave = customVal !== undefined ? customVal : text
-    setIsSaving(true)
-    try {
-      await onSave(appId, valueToSave)
-      setIsOpen(false)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleClear = async () => {
-    setIsSaving(true)
-    try {
-      await onSave(appId, '')
-      setText('')
-      setIsOpen(false)
-    } finally {
-      setIsSaving(false)
-    }
-  }
+  const remark = app.team_remark
+  const remarkBy = app.team_remark_by
+  const remarkUpdatedAt = app.team_remark_updated_at
 
   return (
     <td className={`px-2.5 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
-      <div className="relative inline-block" ref={popoverRef}>
+      <div className="inline-block">
         {remark ? (
           <button
             type="button"
-            onClick={handleToggleOpen}
+            onClick={() => onEdit(app)}
             className="group max-w-[130px] flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 hover:border-cyan-500/40 text-left cursor-pointer transition-all active:scale-95 shadow-sm"
             title={`Team Remark: "${remark}"\nBy ${remarkBy || 'Team'}${remarkUpdatedAt ? ` • ${new Date(remarkUpdatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}\n(Click to Edit)`}
           >
@@ -955,7 +891,7 @@ function TeamRemarkCell({
         ) : (
           <button
             type="button"
-            onClick={handleToggleOpen}
+            onClick={() => onEdit(app)}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium text-slate-500 hover:text-cyan-300 bg-white/[0.02] hover:bg-cyan-500/10 border border-dashed border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer group active:scale-95 whitespace-nowrap"
             title="Click to add manual team remark"
           >
@@ -963,102 +899,11 @@ function TeamRemarkCell({
             <span>Remark</span>
           </button>
         )}
-
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: openAbove ? -4 : 4, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: openAbove ? -4 : 4, scale: 0.96 }}
-              transition={{ duration: 0.12 }}
-              className={`absolute right-0 ${openAbove ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-slate-900/98 backdrop-blur-2xl border border-cyan-500/30 rounded-xl p-3 shadow-2xl shadow-black/80`}
-            >
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/5">
-                <div className="flex items-center gap-1.5 text-cyan-400 text-[10.5px] font-bold uppercase tracking-wider">
-                  <MessageSquareText className="h-3 w-3" />
-                  <span>Team Remark</span>
-                </div>
-                {remarkBy && (
-                  <span className="text-[9.5px] text-slate-400 truncate max-w-[130px]" title={`Last updated by ${remarkBy}`}>
-                    By {remarkBy}
-                  </span>
-                )}
-              </div>
-
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleCommit()
-                  } else if (e.key === 'Escape') {
-                    setIsOpen(false)
-                  }
-                }}
-                rows={2}
-                autoFocus
-                placeholder="Type team note (Press Enter to save)..."
-                className="w-full bg-slate-950/80 border border-white/10 rounded-lg p-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 resize-none transition-colors"
-              />
-
-              {/* Quick Presets */}
-              <div className="flex flex-wrap gap-1 mt-2">
-                {PRESET_REMARKS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handlePresetClick(p)}
-                    className="text-[9.5px] px-1.5 py-0.5 rounded bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer"
-                  >
-                    +{p}
-                  </button>
-                ))}
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
-                {remark ? (
-                  <button
-                    type="button"
-                    onClick={handleClear}
-                    disabled={isSaving}
-                    className="text-[10px] text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                  >
-                    <Trash2 className="h-2.5 w-2.5" />
-                    Clear
-                  </button>
-                ) : (
-                  <span className="text-[9px] text-slate-500">Press Enter to save</span>
-                )}
-
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <button
-                    type="button"
-                    onClick={() => setIsOpen(false)}
-                    disabled={isSaving}
-                    className="px-2 py-1 rounded text-[11px] text-slate-400 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleCommit()}
-                    disabled={isSaving}
-                    className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                    Save
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </td>
   )
 }
+
 
 // ─── Main Component ────────────────────────────────────────
 export default function AllApplicationsPage() {
@@ -1888,6 +1733,51 @@ export default function AllApplicationsPage() {
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* Top Rows Per Page & Pagination Info */}
+          <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs">
+            <span className="text-[11px] text-slate-400 whitespace-nowrap">Rows per page</span>
+            <div className="relative flex items-center">
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-slate-900/80 hover:bg-slate-900 border border-white/10 text-white font-medium text-[11px] rounded-lg pl-2 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors appearance-none"
+                title="Rows per page"
+              >
+                {pageSizes.map(s => (
+                  <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
+                ))}
+              </select>
+              <ChevronDown className="h-3 w-3 text-slate-400 absolute right-1.5 pointer-events-none" />
+            </div>
+            {totalFiltered > 0 && (
+              <span className="text-[11px] text-slate-400 whitespace-nowrap pl-2 border-l border-white/10 font-mono">
+                {startIndex}–{endIndex} of {totalFiltered}
+              </span>
+            )}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-0.5 ml-0.5">
+                <button
+                  type="button"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Previous page"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Next page"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Right-side controls */}
           <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
           <DensityToggle density={density} onChange={setDensity} />
@@ -2367,12 +2257,12 @@ export default function AllApplicationsPage() {
                         {/* Team Remark */}
                         {visibleCols.team_remark && (
                           <TeamRemarkCell
-                            appId={app.id}
-                            remark={app.team_remark}
-                            remarkBy={app.team_remark_by}
-                            remarkUpdatedAt={app.team_remark_updated_at}
+                            app={app}
                             density={density}
-                            onSave={handleUpdateTeamRemark}
+                            onEdit={(targetApp) => {
+                              setRemarkModalApp(targetApp)
+                              setModalRemarkText(targetApp.team_remark || '')
+                            }}
                           />
                         )}
 
@@ -3793,11 +3683,15 @@ export default function AllApplicationsPage() {
       {/* ─── Team Remark Modal ─── */}
       <AnimatePresence>
         {remarkModalApp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+            onClick={() => setRemarkModalApp(null)}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
               className="w-full max-w-md bg-slate-900 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-4"
             >
               <div className="flex items-center justify-between">
@@ -3828,11 +3722,30 @@ export default function AllApplicationsPage() {
                 <textarea
                   value={modalRemarkText}
                   onChange={(e) => setModalRemarkText(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (!modalRemarkSaving && remarkModalApp) {
+                        setModalRemarkSaving(true)
+                        try {
+                          await handleUpdateTeamRemark(remarkModalApp.id, modalRemarkText)
+                          setRemarkModalApp(null)
+                        } finally {
+                          setModalRemarkSaving(false)
+                        }
+                      }
+                    } else if (e.key === 'Escape') {
+                      setRemarkModalApp(null)
+                    }
+                  }}
                   rows={3}
                   autoFocus
                   placeholder="Type any internal note, feedback, or remark for this application..."
                   className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none transition-colors"
                 />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Press Enter to save • Shift+Enter for new line
+                </span>
               </div>
 
               {/* Quick Presets */}

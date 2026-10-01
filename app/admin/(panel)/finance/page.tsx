@@ -1039,6 +1039,51 @@ export default function FinancePayoutPage() {
           </div>
         </div>
 
+        {/* Top Rows Per Page & Pagination Info */}
+        <div className="flex items-center gap-2 px-2.5 h-7 rounded-lg bg-slate-950/70 border border-white/10 text-xs shrink-0">
+          <span className="text-[10px] text-slate-400 whitespace-nowrap">Rows:</span>
+          <div className="relative flex items-center">
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="bg-slate-900 border border-white/10 text-white font-medium text-[10px] rounded px-1.5 pr-4 h-5 cursor-pointer focus:outline-none appearance-none"
+              title="Rows per page"
+            >
+              {[10, 15, 25, 50, 100].map(s => (
+                <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
+              ))}
+            </select>
+            <ChevronDown className="h-2.5 w-2.5 text-slate-400 absolute right-1 pointer-events-none" />
+          </div>
+          {processedApps.length > 0 && (
+            <span className="text-[10px] text-slate-400 whitespace-nowrap pl-1.5 border-l border-white/10 font-mono">
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, processedApps.length)} of {processedApps.length}
+            </span>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-0.5 ml-0.5">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-0.5 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-0.5 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next page"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
@@ -1454,12 +1499,26 @@ export default function FinancePayoutPage() {
         {/* Pagination Footer */}
         {processedApps.length > pageSize && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-slate-950/60 border-t border-white/5">
-            <div className="text-xs text-slate-400">
-              Showing <span className="font-bold text-white">{(page - 1) * pageSize + 1}</span> to{' '}
-              <span className="font-bold text-white">
-                {Math.min(page * pageSize, processedApps.length)}
-              </span>{' '}
-              of <span className="font-bold text-white">{processedApps.length}</span> applications
+            <div className="flex items-center gap-3 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+                  className="bg-slate-900 border border-white/10 text-white rounded px-2 py-1 cursor-pointer focus:outline-none"
+                >
+                  {[10, 15, 25, 50, 100].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <span>
+                Showing <span className="font-bold text-white">{(page - 1) * pageSize + 1}</span> to{' '}
+                <span className="font-bold text-white">
+                  {Math.min(page * pageSize, processedApps.length)}
+                </span>{' '}
+                of <span className="font-bold text-white">{processedApps.length}</span> applications
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button

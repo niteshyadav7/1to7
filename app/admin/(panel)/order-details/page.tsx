@@ -1360,6 +1360,53 @@ export default function OrderDetailsPage() {
             </span>
           )}
         </button>
+
+        <div className="hidden sm:block flex-1" />
+
+        {/* Top Rows Per Page & Pagination Info */}
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs">
+          <span className="text-[11px] text-slate-400 whitespace-nowrap">Rows per page</span>
+          <div className="relative flex items-center">
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-white/10 text-white font-medium text-[11px] rounded-lg pl-2 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors appearance-none"
+              title="Rows per page"
+            >
+              {pageSizes.map(s => (
+                <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
+              ))}
+            </select>
+            <ChevronDown className="h-3 w-3 text-slate-400 absolute right-1.5 pointer-events-none" />
+          </div>
+          {totalFiltered > 0 && (
+            <span className="text-[11px] text-slate-400 whitespace-nowrap pl-2 border-l border-white/10 font-mono">
+              {startIndex}–{endIndex} of {totalFiltered}
+            </span>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-0.5 ml-0.5">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next page"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Advanced Filter Bar */}

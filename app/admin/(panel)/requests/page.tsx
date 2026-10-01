@@ -515,13 +515,62 @@ export default function RequestsPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-        <Input value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-          placeholder="Search by name, phone, campaign, reason..."
-          className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full" />
-        {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><X className="h-3.5 w-3.5" /></button>}
+      {/* Search + Top Rows Per Page Row */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Input value={searchQuery} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, phone, campaign, reason..."
+            className="pl-10 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full" />
+          {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><X className="h-3.5 w-3.5" /></button>}
+        </div>
+
+        <div className="hidden sm:block flex-1" />
+
+        {/* Top Rows Per Page & Pagination Info */}
+        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-white/5 text-xs">
+          <span className="text-[11px] text-slate-400 whitespace-nowrap">Rows per page</span>
+          <div className="relative flex items-center">
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-slate-900/80 hover:bg-slate-900 border border-white/10 text-white font-medium text-[11px] rounded-lg pl-2 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-colors appearance-none"
+              title="Rows per page"
+            >
+              {pageSizes.map(s => (
+                <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
+              ))}
+            </select>
+            <ChevronDown className="h-3 w-3 text-slate-400 absolute right-1.5 pointer-events-none" />
+          </div>
+          {totalFiltered > 0 && (
+            <span className="text-[11px] text-slate-400 whitespace-nowrap pl-2 border-l border-white/10 font-mono">
+              {startIndex}–{endIndex} of {totalFiltered}
+            </span>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-0.5 ml-0.5">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next page"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
