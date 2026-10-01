@@ -830,16 +830,26 @@ export default function PaymentsPage() {
         toast.error(`Cannot initiate payment: ${missingBank.length} selected creator(s) have missing bank details.`)
         return
       }
+      const alreadyPaid = selectedPayments.filter((p) => {
+        const pending = Number(p.pending_amount) || 0
+        const hasPayout = Boolean(p.form_data?.finance_payout_completed || (p.form_data?.payment_transactions?.length > 0))
+        return hasPayout && pending <= 0
+      })
+      if (alreadyPaid.length === selectedPayments.length) {
+        toast.error('Cannot initiate payment: All selected creators are already fully paid.')
+        return
+      }
     }
     setBulkUpdating(true)
     try {
       const res = await fetch('/api/admin/applications/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ applicationIds: Array.from(selectedIds), status: newStatus }) })
-      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
       setPayments(prev => prev.map(p => selectedIds.has(p.id) ? { ...p, status: newStatus } : p))
       toast.success(`${selectedIds.size} payments updated to ${newStatus}`)
       setSelectedIds(new Set())
-    } catch { toast.error('Failed to perform bulk action') }
+    } catch (err: any) { toast.error(err.message || 'Failed to perform bulk action') }
     finally { setBulkUpdating(false) }
   }
 
@@ -1390,22 +1400,45 @@ export default function PaymentsPage() {
                         {/* Status */}
                         {visibleCols.status && (
                           <td className={`px-3 ${densityPadding[density]}`}>
-                            {payment.form_data?.payment_initiation?.status === 'approved_for_finance' || payment.status === 'Payment Approved' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-emerald-500/15 text-emerald-300 border-emerald-500/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                Approved by 2 Admins
-                              </span>
-                            ) : payment.status === 'Payment Initiated' || payment.form_data?.payment_initiation?.status === 'pending_second_approval' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                Awaiting 2nd Approval
-                              </span>
-                            ) : (
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[payment.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${statusDots[payment.status] || 'bg-slate-400'}`} />
-                                {payment.status}
-                              </span>
-                            )}
+                            {(() => {
+                              const pending = Number(payment.pending_amount) || 0
+                              const hasPayout = Boolean(payment.form_data?.finance_payout_completed || (payment.form_data?.payment_transactions?.length > 0))
+                              const isCompleted = payment.status === 'Completed' || (hasPayout && pending <= 0)
+
+                              if (isCompleted) {
+                                return (
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors['Completed'] || 'bg-blue-500/15 text-blue-300 border-blue-500/20'}`}>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                                    Completed
+                                  </span>
+                                )
+                              }
+
+                              if (payment.form_data?.payment_initiation?.status === 'approved_for_finance' || payment.status === 'Payment Approved') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-emerald-500/15 text-emerald-300 border-emerald-500/25">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                    Approved by 2 Admins
+                                  </span>
+                                )
+                              }
+
+                              if (payment.status === 'Payment Initiated' || payment.form_data?.payment_initiation?.status === 'pending_second_approval') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border bg-amber-500/15 text-amber-300 border-amber-500/25">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                    Awaiting 2nd Approval
+                                  </span>
+                                )
+                              }
+
+                              return (
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[payment.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusDots[payment.status] || 'bg-slate-400'}`} />
+                                  {payment.status}
+                                </span>
+                              )
+                            })()}
                           </td>
                         )}
                         {/* Date */}

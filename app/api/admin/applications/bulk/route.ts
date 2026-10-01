@@ -108,24 +108,49 @@ export async function POST(request: Request) {
         console.error('Fetch error during bulk payment initiation:', fetchErr)
       }
 
-      // Safeguard: Only initiate payments for creators who have provided bank details
-      const appsWithBank = (existingApps || []).filter(app => {
+      // Safeguard: Only initiate payments for creators who have provided bank details AND have a pending balance
+      const appsEligible = (existingApps || []).filter(app => {
         const u = (app as any).users
-        return Boolean(u?.account_number?.trim() && u?.ifsc_code?.trim())
+        const hasBank = Boolean(u?.account_number?.trim() && u?.ifsc_code?.trim())
+        if (!hasBank) return false
+
+        const currForm = (app.form_data && typeof app.form_data === 'object') ? (app.form_data as any) : {}
+        const pendingAmt = Number(app.pending_amount) || 0
+        const hasPriorPayout = Boolean(currForm.finance_payout_completed || (currForm.payment_transactions?.length > 0))
+
+        // If creator is already fully paid, skip re-initiating!
+        if (hasPriorPayout && pendingAmt <= 0) {
+          return false
+        }
+
+        const amt = Number(currForm.payment_request?.payment_amount || pendingAmt || 0)
+        return amt > 0
       })
 
-      if (appsWithBank.length === 0 && (existingApps || []).length > 0) {
+      if (appsEligible.length === 0 && (existingApps || []).length > 0) {
+        const allAlreadyPaid = (existingApps || []).every(app => {
+          const currForm = (app.form_data && typeof app.form_data === 'object') ? (app.form_data as any) : {}
+          const pendingAmt = Number(app.pending_amount) || 0
+          const hasPriorPayout = Boolean(currForm.finance_payout_completed || (currForm.payment_transactions?.length > 0))
+          return hasPriorPayout && pendingAmt <= 0
+        })
+        if (allAlreadyPaid) {
+          return NextResponse.json({
+            error: 'Selected creator(s) are already fully paid (0 pending amount). No payment initiation needed.',
+          }, { status: 400 })
+        }
         return NextResponse.json({
-          error: 'Cannot initiate payment: Selected creator(s) have missing bank details (Account Number or IFSC missing).',
+          error: 'Cannot initiate payment: Selected creator(s) have missing bank details or zero pending balance.',
         }, { status: 400 })
       }
 
       const adminId = admin.id || admin.email || 'admin'
       const adminName = admin.name || admin.full_name || 'Operations Admin'
 
-      const updatePromises = appsWithBank.map(app => {
-        const currForm = (app.form_data && typeof app.form_data === 'object') ? app.form_data : {}
-        const amt = Number(currForm.payment_request?.payment_amount || app.pending_amount || app.partial_payment || 0)
+      const updatePromises = appsEligible.map(app => {
+        const currForm = (app.form_data && typeof app.form_data === 'object') ? (app.form_data as any) : {}
+        const pendingAmt = Number(app.pending_amount) || 0
+        const amt = Number(currForm.payment_request?.payment_amount || pendingAmt || 0)
         const updatedInit = {
           prepared_amount: amt,
           prepared_by_id: adminId,
