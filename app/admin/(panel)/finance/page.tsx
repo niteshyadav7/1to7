@@ -113,21 +113,54 @@ export default function FinancePayoutPage() {
   const getPayableAmount = (app: Application) => {
     const init = app.form_data?.payment_initiation
     const initiated = app.form_data?.payment_initiated
-    return Number(
-      init?.prepared_amount ||
-      initiated?.amount ||
-      (Number(app.pending_amount) > 0 ? app.pending_amount : (app.partial_payment || 0))
-    )
+    const pending = Number(app.pending_amount) || 0
+    const hasPriorPayout = Boolean(app.form_data?.finance_payout_completed || (app.form_data?.payment_transactions?.length > 0))
+
+    // If there is a prior payout and pending amount is 0, they are fully paid
+    if (hasPriorPayout && pending <= 0) {
+      return 0
+    }
+
+    if (init?.prepared_amount && Number(init.prepared_amount) > 0) {
+      if (hasPriorPayout && pending > 0) {
+        return Math.min(Number(init.prepared_amount), pending)
+      }
+      return Number(init.prepared_amount)
+    }
+    if (initiated?.amount && Number(initiated.amount) > 0) {
+      if (hasPriorPayout && pending > 0) {
+        return Math.min(Number(initiated.amount), pending)
+      }
+      return Number(initiated.amount)
+    }
+    return pending
   }
 
   // Helper to compute disbursed amount
   const getDisbursedAmount = (app: Application) => {
+    const totalPaid = (Number(app.partial_payment) || 0) + (Number(app.final_payment) || 0)
+    if (totalPaid > 0) return totalPaid
     return Number(
       app.form_data?.finance_payout_completed?.amount_paid ||
       app.form_data?.payment_initiation?.prepared_amount ||
       app.form_data?.payment_initiated?.amount ||
-      (Number(app.partial_payment) || 0) + (Number(app.final_payment) || 0)
+      0
     )
+  }
+
+  // Helper to determine if an initiation has already been disbursed by finance
+  const isInitiationDisbursed = (app: Application) => {
+    const init = app.form_data?.payment_initiation
+    if (!init) return false
+    if (init.status === 'disbursed') return true
+
+    const executedAt = app.form_data?.finance_payout_completed?.executed_at
+    const approvedAt = init.second_approved_at || init.prepared_at
+    if (executedAt && approvedAt) {
+      // If executed_at is after approved_at, this specific initiation was already paid
+      return new Date(executedAt).getTime() >= new Date(approvedAt).getTime()
+    }
+    return false
   }
 
   const fetchApplications = useCallback(async (isBackground = false) => {
@@ -186,16 +219,18 @@ export default function FinancePayoutPage() {
   const financeQueueApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
-      const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
-      if (isCompleted) return false
+      const payableAmt = getPayableAmount(app)
+      if (payableAmt <= 0) return false
 
       const isDualApproved =
         (app.status === 'Payment Approved' || init?.status === 'approved_for_finance') &&
         init?.status !== 'pending_second_approval' &&
         app.status !== 'Payment Requested'
 
-      const payableAmt = getPayableAmount(app)
-      return isDualApproved && payableAmt > 0
+      if (!isDualApproved) return false
+      if (isInitiationDisbursed(app)) return false
+
+      return true
     })
   }, [applications])
 
@@ -203,19 +238,26 @@ export default function FinancePayoutPage() {
   const pendingDualApprovalApps = useMemo(() => {
     return applications.filter((app) => {
       const init = app.form_data?.payment_initiation
-      const isCompleted = app.status === 'Completed' || !!app.form_data?.finance_payout_completed
-      if (isCompleted) return false
-      return (
+      const payableAmt = getPayableAmount(app)
+      if (payableAmt <= 0) return false
+      if (isInitiationDisbursed(app)) return false
+
+      const isPendingSecondApproval =
         init?.status === 'pending_second_approval' ||
         (app.status === 'Payment Initiated' && init?.status !== 'approved_for_finance')
-      )
+
+      return isPendingSecondApproval
     })
   }, [applications])
 
   // 3. Disbursed / Completed Payout History
   const disbursedApps = useMemo(() => {
     return applications
-      .filter((app) => app.status === 'Completed' || !!app.form_data?.finance_payout_completed)
+      .filter((app) => {
+        const hasPayout = !!app.form_data?.finance_payout_completed || (app.form_data?.payment_transactions?.length > 0)
+        const isCompleted = app.status === 'Completed'
+        return hasPayout || isCompleted
+      })
       .sort((a, b) => {
         const timeA = new Date(a.form_data?.finance_payout_completed?.executed_at || a.updated_at || 0).getTime()
         const timeB = new Date(b.form_data?.finance_payout_completed?.executed_at || b.updated_at || 0).getTime()

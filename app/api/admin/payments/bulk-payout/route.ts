@@ -47,11 +47,17 @@ export async function POST(request: Request) {
 
     for (const app of applications) {
       const currentFormData = app.form_data || {}
-      const payoutAmount = Number(
+      const pendingAmt = Number(app.pending_amount) || 0
+      const hasPriorPayout = Boolean(currentFormData.finance_payout_completed || (currentFormData.payment_transactions?.length > 0))
+      
+      let payoutAmount = Number(
         currentFormData.payment_initiation?.prepared_amount ||
         currentFormData.payment_initiated?.amount ||
-        (Number(app.pending_amount) > 0 ? app.pending_amount : (app.partial_payment || 0))
+        pendingAmt
       )
+      if (hasPriorPayout && pendingAmt > 0) {
+        payoutAmount = Math.min(payoutAmount, pendingAmt)
+      }
       totalAmountDisbursed += payoutAmount
 
       const newTransaction = {
@@ -69,6 +75,13 @@ export async function POST(request: Request) {
       const updatedFormData = {
         ...currentFormData,
         payment_transactions: [...existingTransactions, newTransaction],
+        payment_initiation: {
+          ...(currentFormData.payment_initiation || {}),
+          status: 'disbursed',
+          disbursed_at: executedAt,
+          disbursed_batch_id: generatedBatchId,
+          disbursed_amount: payoutAmount,
+        },
         payment_initiated: {
           ...(currentFormData.payment_initiated || {}),
           bank_code: utr_number || currentFormData.payment_initiated?.bank_code || '',
@@ -82,9 +95,8 @@ export async function POST(request: Request) {
         },
       }
 
-      const pendingAmt = Number(app.pending_amount) || 0
       const newPartial = pendingAmt > 0 ? (Number(app.partial_payment) || 0) + payoutAmount : (Number(app.partial_payment) || payoutAmount)
-      const newPending = Math.max(0, pendingAmt - (pendingAmt > 0 ? payoutAmount : 0))
+      const newPending = Math.max(0, pendingAmt - payoutAmount)
 
       const { error: updateErr } = await supabase
         .from('applications')
@@ -92,7 +104,7 @@ export async function POST(request: Request) {
           form_data: updatedFormData,
           partial_payment: newPartial,
           pending_amount: newPending,
-          status: 'Completed',
+          status: newPending > 0 ? 'Payment Requested' : 'Completed',
           updated_at: executedAt,
         })
         .eq('id', app.id)
