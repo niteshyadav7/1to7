@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
-import { generateSequentialInfluencerId } from '@/lib/user-utils'
+import { generateSequentialInfluencerId, generateSequentialInfluencerIdBatch } from '@/lib/user-utils'
 
 // Default password hash for imported users ('12345') - they can change it later
 const DEFAULT_PASSWORD_HASH = '$2b$10$rgMNYfe45OpevM8273RF2uFRjsAxq4ScGzgGOBtaywvDNKpqFJ7Wm'
@@ -135,43 +135,6 @@ export async function POST(request: Request) {
     const toCreateUsers: { rowItem: typeof validRows[0]; userData: any }[] = []
     const inBatchCreatedMobiles = new Map<string, any>()
 
-    // Helper for generating sequential IDs for new users without a specified ID
-    let currentSequence = 0
-    const needsNewSequentialId = validRows.length > 0
-
-    if (needsNewSequentialId) {
-      // 1. Fetch counter from influencer_id_counter
-      const { data: counter } = await supabase
-        .from('influencer_id_counter')
-        .select('last_number')
-        .eq('id', 1)
-        .single()
-      
-      const counterNum = counter?.last_number || 10000
-
-      // 2. Fetch the latest registered users to ensure counter is NEVER behind actual database max
-      const { data: latestUsers } = await supabase
-        .from('users')
-        .select('influencer_id')
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      let latestUserMaxNum = 0
-      if (latestUsers && latestUsers.length > 0) {
-        for (const u of latestUsers) {
-          if (u.influencer_id && u.influencer_id.startsWith('HY')) {
-            const parsed = parseInt(u.influencer_id.replace('HY', ''), 10)
-            // Filter out timestamp-based outliers (> 1,000,000)
-            if (!isNaN(parsed) && parsed > latestUserMaxNum && parsed < 1000000) {
-              latestUserMaxNum = parsed
-            }
-          }
-        }
-      }
-
-      const safeCounter = (counterNum > 0 && counterNum < 1000000) ? counterNum : 24642
-      currentSequence = Math.max(safeCounter, latestUserMaxNum, 10000)
-    }
 
     for (const item of validRows) {
       const { row, mobile, influencerId } = item
@@ -243,11 +206,7 @@ export async function POST(request: Request) {
         }
       } else {
         // Brand new user
-        let finalInfluencerId = influencerId
-        if (!finalInfluencerId) {
-          currentSequence++
-          finalInfluencerId = `HY${currentSequence}`
-        }
+        const finalInfluencerId = influencerId || ''
 
         const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
         const email = row.email?.trim() || `${finalMobile}@import.1to7.com`
@@ -274,6 +233,15 @@ export async function POST(request: Request) {
         if (mobile) inBatchCreatedMobiles.set(mobile, newUserData)
         toCreateUsers.push({ rowItem: item, userData: newUserData })
       }
+    }
+
+    // Atomically generate consecutive sequential IDs for new creators without an explicit ID
+    const usersNeedingId = toCreateUsers.filter(u => !u.userData.influencer_id)
+    if (usersNeedingId.length > 0) {
+      const generatedIds = await generateSequentialInfluencerIdBatch(usersNeedingId.length)
+      usersNeedingId.forEach((u, i) => {
+        u.userData.influencer_id = generatedIds[i]
+      })
     }
 
     // 4. Batch insert new users with graceful conflict recovery
@@ -350,13 +318,6 @@ export async function POST(request: Request) {
         insertedUsers.forEach((u, i) => {
           userMapForApps.set(String(toCreateUsers[i].rowItem.rowIndex), u.id)
         })
-      }
-
-      // Update sequence counter if new sequential IDs were generated
-      if (needsNewSequentialId && currentSequence > 0) {
-        await supabase
-          .from('influencer_id_counter')
-          .upsert({ id: 1, last_number: currentSequence }, { onConflict: 'id' })
       }
     }
 

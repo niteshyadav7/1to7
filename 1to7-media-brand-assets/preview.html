@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1to7 Media — Brand Assets & Logo Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090D16;
+      --card-bg: #111827;
+      --card-border: #1F2937;
+      --text-main: #F9FAFB;
+      --text-muted: #9CA3AF;
+      --accent: #F50057;
+      --amber: #FFB800;
+      --coral: #FF5E36;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: linear-gradient(135deg, rgba(255, 184, 0, 0.15), rgba(245, 0, 87, 0.15));
+      border: 1px solid rgba(245, 0, 87, 0.3);
+      color: #FF5E36;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #FFB800, #FF5E36, #F50057);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.lead {
+      color: var(--text-muted);
+      font-size: 17px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 28px;
+      margin-bottom: 48px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #374151;
+    }
+    .card-preview {
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      position: relative;
+    }
+    .preview-transparent {
+      background-color: #1a2233;
+      background-image: 
+        linear-gradient(45deg, #131926 25%, transparent 25%), 
+        linear-gradient(-45deg, #131926 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #131926 75%), 
+        linear-gradient(-45deg, transparent 75%, #131926 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+    .preview-light {
+      background: #FFFFFF;
+    }
+    .preview-dark {
+      background: #0F172A;
+    }
+    .card-preview img {
+      max-width: 90%;
+      max-height: 85%;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+    }
+    .card-body {
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-title {
+      font-size: 19px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .asset-list {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #1F2937;
+      color: #F9FAFB;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s ease, transform 0.15s ease;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .btn:hover {
+      background: #374151;
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #FF5E36, #F50057);
+      border: none;
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #FF6B47, #FA1A6D);
+    }
+    .palette-section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      margin-bottom: 48px;
+    }
+    .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .swatch {
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      height: 120px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .swatch:hover {
+      transform: scale(1.03);
+    }
+    .swatch-hex {
+      font-size: 13px;
+      font-weight: 800;
+      font-family: monospace;
+      letter-spacing: 0.5px;
+    }
+    .swatch-name {
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10B981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      pointer-events: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    footer {
+      text-align: center;
+      color: #6B7280;
+      font-size: 14px;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Official Brand Package</div>
+      <h1>1to7 Media Brand Assets</h1>
+      <p class="lead">Complete high-definition logo package prepared for presentations, web, mobile, marketing decks, and print.</p>
+    </header>
+
+    <div class="grid">
+      <!-- 1. Full Horizontal Logo (Transparent) -->
+      <div class="card">
+        <div class="card-preview preview-transparent">
+          <img src="01-Full-Logo/PNG-Transparent/1to7media-logo-2k.png" alt="1to7 Media Full Logo">
+        </div>
+        <div class="card-body">
+          <h2 class="card-title">Full Horizontal Logo</h2>
+          <p class="card-desc">Primary brand identity lockup featuring the circular badge and brand typography. Transparent background.</p>
+          <div class="asset-list">
+            <a href="01-Full-Logo/SVG/1to7media-logo.svg" download class="btn btn-primary">Download SVG (Vector)</a>
+            <a href="01-Full-Logo/PNG-Transparent/1to7media-logo-4k.png" download class="btn">Download Ultra-HD 4K PNG</a>
+            <a href="01-Full-Logo/PNG-Transparent/1to7media-logo-2k.png" download class="btn">Download Presentation 2K PNG</a>
+            <a href="01-Full-Logo/PNG-Transparent/1to7media-logo-1080p.png" download class="btn">Download Web 1080p PNG</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Logo Icon / Monogram (Transparent) -->
+      <div class="card">
+        <div class="card-preview preview-transparent">
+          <img src="02-Logo-Icon/PNG-Transparent/1to7media-icon-512x512.png" alt="1to7 Media Icon">
+        </div>
+        <div class="card-body">
+          <h2 class="card-title">Brand Icon & Monogram</h2>
+          <p class="card-desc">Circular monogram badge with glowing lightning bolt and star. Ideal for app icon, favicon, and social profiles.</p>
+          <div class="asset-list">
+            <a href="02-Logo-Icon/SVG/1to7media-icon.svg" download class="btn btn-primary">Download SVG (Vector)</a>
+            <a href="02-Logo-Icon/PNG-Transparent/1to7media-icon-1024x1024.png" download class="btn">Download 1024x1024 PNG (Retina)</a>
+            <a href="02-Logo-Icon/PNG-Transparent/1to7media-icon-512x512.png" download class="btn">Download 512x512 PNG (App Icon)</a>
+            <a href="02-Logo-Icon/PNG-Transparent/1to7media-icon-256x256.png" download class="btn">Download 256x256 PNG (Avatar)</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Full Logo (Light Card / White BG) -->
+      <div class="card">
+        <div class="card-preview preview-light">
+          <img src="01-Full-Logo/PNG-White-Background/1to7media-logo-white-bg-2k.png" alt="1to7 Media White Background">
+        </div>
+        <div class="card-body">
+          <h2 class="card-title">Full Logo (Light Decks / Word)</h2>
+          <p class="card-desc">With comfortable crisp white padding, ready to paste straight into Word, PowerPoint, pitch decks, and PDFs.</p>
+          <div class="asset-list">
+            <a href="01-Full-Logo/PNG-White-Background/1to7media-logo-white-bg-4k.png" download class="btn">Download 4K White BG PNG</a>
+            <a href="01-Full-Logo/PNG-White-Background/1to7media-logo-white-bg-2k.png" download class="btn">Download 2K White BG PNG</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Full Logo (Dark Card / Navy BG) -->
+      <div class="card">
+        <div class="card-preview preview-dark">
+          <img src="01-Full-Logo/PNG-Dark-Background/1to7media-logo-dark-bg-2k.png" alt="1to7 Media Dark Background">
+        </div>
+        <div class="card-body">
+          <h2 class="card-title">Full Logo (Dark Mode Decks)</h2>
+          <p class="card-desc">Optimized on Slate Midnight (#0F172A) for sleek dark-themed keynote slides, websites, and displays.</p>
+          <div class="asset-list">
+            <a href="01-Full-Logo/PNG-Dark-Background/1to7media-logo-dark-bg-4k.png" download class="btn">Download 4K Dark BG PNG</a>
+            <a href="01-Full-Logo/PNG-Dark-Background/1to7media-logo-dark-bg-2k.png" download class="btn">Download 2K Dark BG PNG</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Palette Section -->
+    <div class="palette-section">
+      <h2 style="font-size: 22px; font-weight: 800;">Official Color Palette (Click to Copy HEX)</h2>
+      <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Click any color swatch to instantly copy its color code to your clipboard.</p>
+      
+      <div class="palette-grid">
+        <div class="swatch" style="background: #FFB800; color: #000;" onclick="copyHex('#FFB800')">
+          <span class="swatch-hex">#FFB800</span>
+          <span class="swatch-name">Amber Gold</span>
+        </div>
+        <div class="swatch" style="background: #FF5E36; color: #FFF;" onclick="copyHex('#FF5E36')">
+          <span class="swatch-hex">#FF5E36</span>
+          <span class="swatch-name">Coral Orange</span>
+        </div>
+        <div class="swatch" style="background: #F50057; color: #FFF;" onclick="copyHex('#F50057')">
+          <span class="swatch-hex">#F50057</span>
+          <span class="swatch-name">Hot Pink</span>
+        </div>
+        <div class="swatch" style="background: #FFC107; color: #000;" onclick="copyHex('#FFC107')">
+          <span class="swatch-hex">#FFC107</span>
+          <span class="swatch-name">Gold Yellow</span>
+        </div>
+        <div class="swatch" style="background: #FF2E63; color: #FFF;" onclick="copyHex('#FF2E63')">
+          <span class="swatch-hex">#FF2E63</span>
+          <span class="swatch-name">Electric Pink</span>
+        </div>
+        <div class="swatch" style="background: #0F172A; color: #FFF; border: 1px solid #334155;" onclick="copyHex('#0F172A')">
+          <span class="swatch-hex">#0F172A</span>
+          <span class="swatch-name">Midnight Navy</span>
+        </div>
+        <div class="swatch" style="background: #94A3B8; color: #000;" onclick="copyHex('#94A3B8')">
+          <span class="swatch-hex">#94A3B8</span>
+          <span class="swatch-name">Slate Gray</span>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      1to7 Media Brand Guidelines & Identity Assets • Ready to share with team & management
+    </footer>
+  </div>
+
+  <div id="toast" class="toast">Copied to clipboard!</div>
+
+  <script>
+    function copyHex(hex) {
+      navigator.clipboard.writeText(hex).then(() => {
+        const toast = document.getElementById('toast');
+        toast.textContent = 'Copied ' + hex + ' to clipboard!';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2000);
+      });
+    }
+  </script>
+</body>
+</html>

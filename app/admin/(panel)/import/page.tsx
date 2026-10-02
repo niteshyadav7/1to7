@@ -508,20 +508,11 @@ export default function ImportPage() {
 
         const rawRows = result.data as Record<string, string>[]
         const seenUserIds = new Set<string>()
-        let maxIdNum = 25000
-
         const extractValidInfluencerId = (val?: any): string => {
           if (!val) return ''
           const trimmed = String(val).trim()
           return /^HY\d+$/i.test(trimmed) ? trimmed.toUpperCase() : ''
         }
-
-        // Find initial max user ID from rows
-        rawRows.forEach(r => {
-          const rawId = extractValidInfluencerId(r['User ID'] || r['User Id'] || r['user_id'] || r['influencer_id'] || r['Influencer ID'])
-          const num = parseInt(rawId.replace(/\D/g, ''), 10)
-          if (!isNaN(num) && num > maxIdNum && num < 1000000) maxIdNum = num
-        })
 
         let validPhones = 0
         let validHandles = 0
@@ -558,8 +549,7 @@ export default function ImportPage() {
           if (accNum || ifsc) withBank++
 
           if (uid && seenUserIds.has(uid)) {
-            maxIdNum++
-            uid = `HY${maxIdNum}`
+            uid = '' // Clear duplicate in file so backend assigns true sequential ID
           } else if (uid) {
             seenUserIds.add(uid)
           }

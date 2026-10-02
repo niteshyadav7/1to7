@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Loader2, CheckCircle2, XCircle, ClipboardList,
+  Loader2, Check, CheckCircle2, XCircle, ClipboardList,
   Instagram, Users, MapPin, ChevronDown,
   IndianRupee, Phone, Search, Filter, Megaphone,
   ArrowUpDown, ArrowUp, ArrowDown, Columns3, Download,
@@ -862,25 +862,131 @@ const PRESET_REMARKS = [
 function TeamRemarkCell({
   app,
   density,
-  onEdit,
+  isEditing,
+  onStartEdit,
+  onCancelEdit,
+  onSave,
 }: {
   app: Application
   density: RowDensity
-  onEdit: (app: Application) => void
+  isEditing: boolean
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onSave: (appId: string, remark: string) => Promise<void> | void
 }) {
   const remark = app.team_remark
   const remarkBy = app.team_remark_by
   const remarkUpdatedAt = app.team_remark_updated_at
 
+  const [text, setText] = useState(remark || '')
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isEditing) {
+      setText(remark || '')
+    } else {
+      setText(remark || '')
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }, 20)
+    }
+  }, [isEditing, remark])
+
+  const handleSave = async (customVal?: string) => {
+    if (saving) return
+    const val = customVal !== undefined ? customVal : text
+    const trimmed = val.trim()
+    if (trimmed === (remark || '')) {
+      onCancelEdit()
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(app.id, trimmed)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setText(remark || '')
+    onCancelEdit()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleSave()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleCancel()
+    }
+  }
+
   return (
     <td className={`px-2.5 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
       <div className="inline-block">
-        {remark ? (
+        {isEditing ? (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <input
+              ref={inputRef}
+              type="text"
+              list={`remark-presets-${app.id}`}
+              value={text}
+              disabled={saving}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={() => handleSave()}
+              placeholder="Type remark..."
+              className="h-6.5 w-36 px-2 py-0.5 text-[11px] rounded-md bg-slate-900 border border-cyan-500/70 text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 shadow-lg"
+            />
+            <datalist id={`remark-presets-${app.id}`}>
+              {PRESET_REMARKS.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+
+            <button
+              type="button"
+              disabled={saving}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleSave()
+              }}
+              className="p-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              title="Save (Enter)"
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+            </button>
+
+            <button
+              type="button"
+              disabled={saving}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                handleCancel()
+              }}
+              className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              title="Cancel (Esc)"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : remark ? (
           <button
             type="button"
-            onClick={() => onEdit(app)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onStartEdit()
+            }}
             className="group max-w-[130px] flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/25 hover:border-cyan-500/40 text-left cursor-pointer transition-all active:scale-95 shadow-sm"
-            title={`Team Remark: "${remark}"\nBy ${remarkBy || 'Team'}${remarkUpdatedAt ? ` • ${new Date(remarkUpdatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}\n(Click to Edit)`}
+            title={`Team Remark: "${remark}"\nBy ${remarkBy || 'Team'}${remarkUpdatedAt ? ` • ${new Date(remarkUpdatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}\n(Click to edit directly)`}
           >
             <MessageSquareText className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
             <span className="text-[10px] font-medium text-cyan-200/90 truncate max-w-[95px]">
@@ -891,9 +997,12 @@ function TeamRemarkCell({
         ) : (
           <button
             type="button"
-            onClick={() => onEdit(app)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onStartEdit()
+            }}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium text-slate-500 hover:text-cyan-300 bg-white/[0.02] hover:bg-cyan-500/10 border border-dashed border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer group active:scale-95 whitespace-nowrap"
-            title="Click to add manual team remark"
+            title="Click to type remark inline"
           >
             <span className="text-slate-500 group-hover:text-cyan-400 text-xs leading-none">+</span>
             <span>Remark</span>
@@ -959,10 +1068,8 @@ export default function AllApplicationsPage() {
   const [sentToBrandNotes, setSentToBrandNotes] = useState('')
   const [sentToBrandSubmitting, setSentToBrandSubmitting] = useState(false)
 
-  // Team Remark Modal state
-  const [remarkModalApp, setRemarkModalApp] = useState<Application | null>(null)
-  const [modalRemarkText, setModalRemarkText] = useState('')
-  const [modalRemarkSaving, setModalRemarkSaving] = useState(false)
+  // Inline Team Remark editing state
+  const [editingRemarkAppId, setEditingRemarkAppId] = useState<string | null>(null)
 
   const handleUpdateTeamRemark = async (appId: string, newRemark: string) => {
     const trimmed = newRemark.trim()
@@ -2259,9 +2366,12 @@ export default function AllApplicationsPage() {
                           <TeamRemarkCell
                             app={app}
                             density={density}
-                            onEdit={(targetApp) => {
-                              setRemarkModalApp(targetApp)
-                              setModalRemarkText(targetApp.team_remark || '')
+                            isEditing={editingRemarkAppId === app.id}
+                            onStartEdit={() => setEditingRemarkAppId(app.id)}
+                            onCancelEdit={() => setEditingRemarkAppId(null)}
+                            onSave={async (appId, newRemark) => {
+                              await handleUpdateTeamRemark(appId, newRemark)
+                              setEditingRemarkAppId(null)
                             }}
                           />
                         )}
@@ -2286,8 +2396,7 @@ export default function AllApplicationsPage() {
                               onOpenNegotiate={(app) => setNegotiationModalApp(app)}
                               onSentToBrandToggle={handleSingleSentToBrand}
                               onEditRemark={(targetApp) => {
-                                setRemarkModalApp(targetApp)
-                                setModalRemarkText(targetApp.team_remark || '')
+                                setEditingRemarkAppId(targetApp.id)
                               }}
                               onRejectWithReason={(app) => {
                                 setRejectModalApps([{ id: app.id, name: app.users?.full_name, campaign: app.campaigns?.brand_name }])
@@ -3680,150 +3789,7 @@ export default function AllApplicationsPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── Team Remark Modal ─── */}
-      <AnimatePresence>
-        {remarkModalApp && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-            onClick={() => setRemarkModalApp(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-slate-900 border border-cyan-500/30 rounded-2xl p-6 shadow-2xl space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
-                    <MessageSquareText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Manual Team Remark</h3>
-                    <p className="text-[11px] text-slate-400">
-                      {remarkModalApp.users?.full_name} • {remarkModalApp.campaigns?.brand_name}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRemarkModalApp(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
 
-              <div>
-                <Label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1.5 block">
-                  Internal Team Note / Remark
-                </Label>
-                <textarea
-                  value={modalRemarkText}
-                  onChange={(e) => setModalRemarkText(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      if (!modalRemarkSaving && remarkModalApp) {
-                        setModalRemarkSaving(true)
-                        try {
-                          await handleUpdateTeamRemark(remarkModalApp.id, modalRemarkText)
-                          setRemarkModalApp(null)
-                        } finally {
-                          setModalRemarkSaving(false)
-                        }
-                      }
-                    } else if (e.key === 'Escape') {
-                      setRemarkModalApp(null)
-                    }
-                  }}
-                  rows={3}
-                  autoFocus
-                  placeholder="Type any internal note, feedback, or remark for this application..."
-                  className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/60 resize-none transition-colors"
-                />
-                <span className="text-[10px] text-slate-500 mt-1 block">
-                  Press Enter to save • Shift+Enter for new line
-                </span>
-              </div>
-
-              {/* Quick Presets */}
-              <div className="flex flex-wrap gap-1.5">
-                {PRESET_REMARKS.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => {
-                      setModalRemarkText(prev => {
-                        const trimmed = prev.trim()
-                        if (!trimmed) return p
-                        if (trimmed.includes(p)) return trimmed
-                        return `${trimmed}, ${p}`
-                      })
-                    }}
-                    className="text-[10px] px-2 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/5 hover:border-cyan-500/30 transition-all cursor-pointer"
-                  >
-                    +{p}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                {remarkModalApp.team_remark ? (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setModalRemarkSaving(true)
-                      try {
-                        await handleUpdateTeamRemark(remarkModalApp.id, '')
-                        setRemarkModalApp(null)
-                      } finally {
-                        setModalRemarkSaving(false)
-                      }
-                    }}
-                    disabled={modalRemarkSaving}
-                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                    Clear Remark
-                  </button>
-                ) : (
-                  <div />
-                )}
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRemarkModalApp(null)}
-                    disabled={modalRemarkSaving}
-                    className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setModalRemarkSaving(true)
-                      try {
-                        await handleUpdateTeamRemark(remarkModalApp.id, modalRemarkText)
-                        setRemarkModalApp(null)
-                      } finally {
-                        setModalRemarkSaving(false)
-                      }
-                    }}
-                    disabled={modalRemarkSaving}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    {modalRemarkSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    Save Remark
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ─── Custom Scrollbar Styles ─────────────────────── */}
       <style jsx global>{`

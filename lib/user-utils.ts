@@ -1,86 +1,109 @@
 import { supabase } from '@/lib/supabase'
 
 /**
- * Generates a sequential unique influencer ID (e.g. HY12345).
- * It finds the most recent ID, adds 1, and securely retries if there's a race condition.
+ * Generates a sequential unique influencer ID (e.g. HY24790).
+ * Uses an atomic PostgreSQL function (UPDATE ... RETURNING) to eliminate
+ * all race conditions, randomness, and gaps.
  */
 export async function generateSequentialInfluencerId(): Promise<string> {
-  let attempts = 0
-  let isUnique = false
-  let nextId = ''
+  try {
+    // 1. Primary: Atomic PostgreSQL increment via RPC
+    const { data, error } = await supabase.rpc('get_next_influencer_id')
 
-  while (!isUnique && attempts < 5) {
-    // 1. Fetch both latest user and counter to find the true max sequence
-    const [{ data: latestUser }, { data: counter }] = await Promise.all([
-      supabase
-        .from('users')
-        .select('influencer_id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single(),
-      supabase
-        .from('influencer_id_counter')
-        .select('last_number')
-        .eq('id', 1)
-        .single()
-    ])
-
-    let maxNum = (counter?.last_number && counter.last_number < 1000000) ? counter.last_number : 24642
-    if (latestUser && latestUser.influencer_id && latestUser.influencer_id.startsWith('HY')) {
-      const parsed = parseInt(latestUser.influencer_id.replace('HY', ''), 10)
-      if (!isNaN(parsed) && parsed > maxNum && parsed < 1000000) {
-        maxNum = parsed
-      }
+    if (!error && data && typeof data === 'number') {
+      const nextId = `HY${data}`
+      console.log(`[InfluencerID] Generated atomic sequential ID: ${nextId}`)
+      return nextId
     }
 
-    // Add 1 to max. If retrying due to race condition, add attempts to jump ahead
-    const nextNum = maxNum + 1 + attempts
-    nextId = `HY${nextNum}`
-
-    // 2. Verify that this specific ID hasn't been taken
-    const { data: checkData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('influencer_id', nextId)
-      .single()
-
-    if (!checkData) {
-      isUnique = true
+    if (error) {
+      console.warn('[InfluencerID] RPC get_next_influencer_id failed, using deterministic fallback:', error.message)
     }
-    attempts++
+  } catch (err: any) {
+    console.warn('[InfluencerID] Exception in atomic ID generation, falling back:', err?.message)
   }
 
-  // 3. Absolute failsafe for massive unhandled traffic spikes
-  if (!isUnique) {
-    const { data: highest } = await supabase
-      .from('users')
-      .select('influencer_id')
-      .like('influencer_id', 'HY%')
-      .order('created_at', { ascending: false })
-      .limit(20)
+  // 2. Deterministic Fallback: query highest actual ID from users table and add 1
+  return await getDeterministicFallbackId()
+}
 
-    let trueMax = 24642
-    if (highest) {
-      for (const u of highest) {
+/**
+ * Generates a batch of consecutive influencer IDs (e.g. ['HY24790', 'HY24791', 'HY24792']).
+ * Atomically reserves N numbers at once with zero gaps between them.
+ */
+export async function generateSequentialInfluencerIdBatch(count: number): Promise<string[]> {
+  if (count <= 0) return []
+
+  try {
+    const { data, error } = await supabase.rpc('get_next_influencer_id_batch', { batch_count: count })
+
+    if (!error && data && typeof data === 'number') {
+      const startNum = data
+      const ids: string[] = []
+      for (let i = 0; i < count; i++) {
+        ids.push(`HY${startNum + i}`)
+      }
+      console.log(`[InfluencerID] Generated atomic batch of ${count} IDs: ${ids[0]} to ${ids[ids.length - 1]}`)
+      return ids
+    }
+
+    if (error) {
+      console.warn('[InfluencerID] RPC get_next_influencer_id_batch failed, using deterministic fallback:', error.message)
+    }
+  } catch (err: any) {
+    console.warn('[InfluencerID] Exception in batch atomic ID generation, falling back:', err?.message)
+  }
+
+  // Fallback: one-by-one deterministic
+  const ids: string[] = []
+  for (let i = 0; i < count; i++) {
+    ids.push(await generateSequentialInfluencerId())
+  }
+  return ids
+}
+
+/**
+ * Deterministic fallback to find the true max HY number in the database + 1.
+ * Guaranteed: NO Math.random(), NO skipping numbers.
+ */
+async function getDeterministicFallbackId(): Promise<string> {
+  const { data: counter } = await supabase
+    .from('influencer_id_counter')
+    .select('last_number')
+    .eq('id', 1)
+    .maybeSingle()
+
+  let maxNum = counter?.last_number && counter.last_number < 1000000 ? counter.last_number : 24789
+
+  // Query highest registered user
+  const { data: highestUsers } = await supabase
+    .from('users')
+    .select('influencer_id')
+    .like('influencer_id', 'HY%')
+    .order('created_at', { ascending: false })
+    .limit(30)
+
+  if (highestUsers) {
+    for (const u of highestUsers) {
+      if (u.influencer_id && u.influencer_id.startsWith('HY')) {
         const p = parseInt(u.influencer_id.replace('HY', ''), 10)
-        if (!isNaN(p) && p > trueMax && p < 1000000) trueMax = p
+        if (!isNaN(p) && p > maxNum && p < 1000000) {
+          maxNum = p
+        }
       }
     }
-    nextId = `HY${trueMax + 1 + Math.floor(Math.random() * 5)}`
   }
 
-  // 4. Fire-and-forget sync to influencer_id_counter (only for numbers < 1M)
-  if (nextId.startsWith('HY')) {
-    const num = parseInt(nextId.replace('HY', ''), 10)
-    if (!isNaN(num) && num < 1000000) {
-      ;(async () => {
-        try {
-          await supabase
-            .from('influencer_id_counter')
-            .upsert({ id: 1, last_number: num }, { onConflict: 'id' })
-        } catch {}
-      })()
-    }
+  const nextNum = maxNum + 1
+  const nextId = `HY${nextNum}`
+
+  // Resync counter
+  try {
+    await supabase
+      .from('influencer_id_counter')
+      .upsert({ id: 1, last_number: nextNum }, { onConflict: 'id' })
+  } catch (err: any) {
+    console.error('[InfluencerID] Counter fallback upsert error:', err?.message)
   }
 
   return nextId
