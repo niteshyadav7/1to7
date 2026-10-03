@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
-import { generateSequentialInfluencerId, generateSequentialInfluencerIdBatch } from '@/lib/user-utils'
 
 // Default password hash for imported users ('12345') - they can change it later
 const DEFAULT_PASSWORD_HASH = '$2b$10$rgMNYfe45OpevM8273RF2uFRjsAxq4ScGzgGOBtaywvDNKpqFJ7Wm'
@@ -206,17 +205,14 @@ export async function POST(request: Request) {
         }
       } else {
         // Brand new user
-        const finalInfluencerId = influencerId || ''
-
         const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
         const email = row.email?.trim() || `${finalMobile}@import.1to7.com`
 
-        const newUserData = {
+        const newUserData: Record<string, any> = {
           full_name: row.full_name?.trim() || 'Imported Creator',
           mobile: finalMobile,
           email: email,
           password_hash: DEFAULT_PASSWORD_HASH,
-          influencer_id: finalInfluencerId,
           is_mobile_verified: false,
           is_email_verified: false,
           instagram_username: row.instagram_username?.trim() || null,
@@ -230,18 +226,14 @@ export async function POST(request: Request) {
           category: row.category?.trim() || null,
         }
 
+        // If explicit influencer ID provided from CSV, preserve it; otherwise DB trigger assigns sequentially
+        if (influencerId) {
+          newUserData.influencer_id = influencerId
+        }
+
         if (mobile) inBatchCreatedMobiles.set(mobile, newUserData)
         toCreateUsers.push({ rowItem: item, userData: newUserData })
       }
-    }
-
-    // Atomically generate consecutive sequential IDs for new creators without an explicit ID
-    const usersNeedingId = toCreateUsers.filter(u => !u.userData.influencer_id)
-    if (usersNeedingId.length > 0) {
-      const generatedIds = await generateSequentialInfluencerIdBatch(usersNeedingId.length)
-      usersNeedingId.forEach((u, i) => {
-        u.userData.influencer_id = generatedIds[i]
-      })
     }
 
     // 4. Batch insert new users with graceful conflict recovery
@@ -289,12 +281,12 @@ export async function POST(request: Request) {
             }
           }
 
-          // If influencer_id conflict, dynamically generate a fresh verified unique ID and retry
+          // If influencer_id conflict, omit influencer_id to let DB trigger assign a fresh unique sequential ID
           if (singleError && (singleError.message?.toLowerCase().includes('influencer_id') || singleError.message?.includes('users_influencer_id_key'))) {
-            const freshInfluencerId = await generateSequentialInfluencerId()
+            const { influencer_id: _, ...userDataWithoutId } = item.userData
             const retryRes = await supabase
               .from('users')
-              .insert([{ ...item.userData, influencer_id: freshInfluencerId }])
+              .insert([userDataWithoutId])
               .select('id')
               .single()
             singleUser = retryRes.data

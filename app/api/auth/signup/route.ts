@@ -4,7 +4,6 @@ import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import nodemailer from 'nodemailer'
-import { generateSequentialInfluencerId } from '@/lib/user-utils'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 
 export async function POST(request: Request) {
@@ -43,10 +42,7 @@ export async function POST(request: Request) {
     // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 4. Generate Influencer ID
-    const newInfluencerId = await generateSequentialInfluencerId()
-
-    // 5. Insert into users table
+    // 4. Insert into users table (influencer_id is automatically assigned by PostgreSQL BEFORE INSERT trigger)
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert([
@@ -57,7 +53,6 @@ export async function POST(request: Request) {
           password_hash: hashedPassword,
           instagram_username: cleanedInsta || null, 
           gender, 
-          influencer_id: newInfluencerId,
           is_email_verified: true,
           is_mobile_verified: true
         }
@@ -133,7 +128,7 @@ export async function POST(request: Request) {
         await transporter.sendMail({
           from: `"1to7" <${gmailUser}>`,
           to: email,
-          subject: `Welcome to 1to7! Your Influencer ID: ${newInfluencerId}`,
+          subject: `Welcome to 1to7! Your Influencer ID: ${newUser.influencer_id}`,
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px; overflow: hidden;">
               <div style="background-color: #0f172a; padding: 20px; text-align: center;">
@@ -144,7 +139,7 @@ export async function POST(request: Request) {
                 <p style="font-size: 16px; color: #333;">Your creator account has been successfully created. Here is your unique Influencer ID:</p>
                 
                 <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 15px 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
-                  <span style="font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 5px; color: #4f46e5;">${newInfluencerId}</span>
+                  <span style="font-size: 32px; font-weight: bold; font-family: monospace; letter-spacing: 5px; color: #4f46e5;">${newUser.influencer_id}</span>
                 </div>
 
                 <p style="font-size: 14px; color: #64748b;">Use this ID to log in or share it with brands for collaborations. Keep it safe!</p>
@@ -156,7 +151,7 @@ export async function POST(request: Request) {
             </div>
           `
         })
-        console.log(`Welcome email with ID ${newInfluencerId} sent to ${email}`)
+        console.log(`Welcome email with ID ${newUser.influencer_id} sent to ${email}`)
       }
     } catch (emailError) {
       // Don't fail signup if welcome email fails

@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import { generateSequentialInfluencerId } from '@/lib/user-utils'
 import { extractInstagramUsername, normalizeInstagramUsername, syncUserInstagramState } from '@/lib/instagram-utils'
 
 export interface UserLinkInput {
@@ -229,8 +228,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
     return { user: updatedUser || existingUser, isNewUser: false }
   }
 
-  // CREATE NEW USER
-  const newInfluencerId = await generateSequentialInfluencerId()
+  // CREATE NEW USER (influencer_id is automatically assigned by PostgreSQL BEFORE INSERT trigger)
   const defaultEmail = cleanEmail || `${input.instagramUsername || 'user'}_${Date.now()}@instagram.1to7.com`
 
   const insertPayload = {
@@ -238,7 +236,6 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
     email: defaultEmail,
     mobile: cleanMobile || null,
     password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
-    influencer_id: newInfluencerId,
     instagram_id: input.instagramId || null,
     instagram_username: input.instagramUsername || null,
     instagram_access_token: input.instagramAccessToken || null,

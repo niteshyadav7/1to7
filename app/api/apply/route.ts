@@ -6,7 +6,6 @@ import { sendApplicationSubmittedEmail } from '@/lib/mailer'
 import { checkFollowerEligibility, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
 import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
-import { generateSequentialInfluencerId } from '@/lib/user-utils'
 import { extractProfileUpdatesFromFormData } from '@/lib/utils/profile-sync-utils'
 
 export async function POST(request: Request) {
@@ -80,9 +79,6 @@ export async function POST(request: Request) {
       if (existingUser) {
         userId = existingUser.id
       } else {
-        // Generate a sequential, unique influencer ID checking against the DB
-        const newInfluencerId = await generateSequentialInfluencerId()
-        
         // Check Instagram handle availability if provided
         let cleanedInsta = ''
         let normalizedInsta = ''
@@ -100,6 +96,7 @@ export async function POST(request: Request) {
           }
         }
 
+        // Insert into users table (influencer_id is automatically assigned by PostgreSQL BEFORE INSERT trigger)
         const { data: newUser, error: insertError } = await supabase
           .from('users')
           .insert([{
@@ -107,7 +104,6 @@ export async function POST(request: Request) {
              mobile: mobile,
              email: guestProfile?.email || `${mobile}@guest.1to7.com`,
              password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
-             influencer_id: newInfluencerId,
              is_mobile_verified: false,
              is_email_verified: false,
              instagram_username: cleanedInsta || null,
