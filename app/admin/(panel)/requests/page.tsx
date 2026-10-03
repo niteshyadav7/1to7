@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
+import { getInstagramUrl } from '@/lib/instagram-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface RequestEntry {
@@ -33,7 +34,7 @@ interface RequestEntry {
   manager_phone: string
   user: {
     id: string; full_name: string; influencer_id: string
-    email: string; mobile: string
+    email: string; mobile: string; instagram_username?: string
     account_name: string; account_number: string; ifsc_code: string
   }
   campaign: {
@@ -436,6 +437,8 @@ export default function RequestsPage() {
       status: r.status, submitted_at: r.submitted_at,
       influencer: r.user?.full_name || '', influencer_id: r.user?.influencer_id || '',
       email: r.user?.email || '', mobile: r.user?.mobile || '',
+      instagram: r.user?.instagram_username || '',
+      instagram_url: r.user?.instagram_username ? getInstagramUrl(r.user.instagram_username) : '',
       campaign: r.campaign?.brand_name || '', campaign_code: r.campaign?.campaign_code || '',
       bank_name: r.user?.account_name || '', bank_account: r.user?.account_number || '', ifsc: r.user?.ifsc_code || '',
       partial_payment: r.partial_payment, final_payment: r.final_payment, pending_amount: r.pending_amount,

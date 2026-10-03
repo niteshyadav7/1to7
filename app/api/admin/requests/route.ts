@@ -27,6 +27,7 @@ export async function GET() {
           influencer_id,
           email,
           mobile,
+          instagram_username,
           account_name,
           account_number,
           ifsc_code

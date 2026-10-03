@@ -32,7 +32,7 @@ import { toast } from 'sonner'
 import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
-import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
+import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -965,6 +965,7 @@ export default function PaymentsPage() {
         email: p.users?.email || '',
         mobile: p.users?.mobile || '',
         instagram: p.users?.instagram_username || '',
+        instagram_url: p.users?.instagram_username ? getInstagramUrl(p.users.instagram_username) : '',
         followers: p.users?.followers || '',
         city: p.users?.city || '',
         state: p.users?.state || '',

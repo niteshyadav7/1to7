@@ -1182,6 +1182,8 @@ export default function OrderDetailsPage() {
         influencer_id: o.users?.influencer_id || '',
         email: o.users?.email || '',
         mobile: o.users?.mobile || '',
+        instagram: o.users?.instagram_username || '',
+        instagram_url: o.users?.instagram_username ? getInstagramUrl(o.users.instagram_username) : '',
         brand: o.campaigns?.brand_name || '',
         campaign_code: o.campaigns?.campaign_code || '',
         platform: o.campaigns?.platform || '',

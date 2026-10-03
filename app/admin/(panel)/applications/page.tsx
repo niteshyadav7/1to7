@@ -1636,6 +1636,7 @@ export default function AllApplicationsPage() {
         email: a.users?.email || '',
         mobile: a.users?.mobile || '',
         instagram: a.users?.instagram_username || '',
+        instagram_url: a.users?.instagram_username ? getInstagramUrl(a.users.instagram_username) : '',
         followers: a.users?.followers || 0,
         gender: a.users?.gender || '',
         state: a.users?.state || '',

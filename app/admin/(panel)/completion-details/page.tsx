@@ -590,6 +590,7 @@ export default function CompletionDetailsPage() {
         'Influencer Name': c.users?.full_name || '',
         'Influencer ID': c.users?.influencer_id || '',
         'Instagram': c.users?.instagram_username || '',
+        'Instagram URL': c.users?.instagram_username ? getInstagramUrl(c.users.instagram_username) : '',
         'Followers': c.users?.followers || '',
         'Mobile': c.users?.mobile || '',
         'Brand': c.campaigns?.brand_name || '',

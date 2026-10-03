@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Client } from 'pg'
 import { supabase } from '@/lib/supabase'
 import { getAdminFromRequest, hasModuleAccess } from '@/lib/admin-auth'
+import { getInstagramUrl } from '@/lib/instagram-utils'
 
 // Helper to escape CSV values safely following RFC 4180
 function escapeCSV(val: any): string {
@@ -212,6 +213,7 @@ export async function GET(request: Request) {
       'Phone',
       'Email',
       'Instagram ID',
+      'Instagram URL',
       'Followers',
       'Gender',
       'State',
@@ -257,6 +259,7 @@ export async function GET(request: Request) {
         escapeCSV(app.mobile || ''),
         escapeCSV(app.email || ''),
         escapeCSV(app.instagram_username || ''),
+        escapeCSV(app.instagram_username ? getInstagramUrl(app.instagram_username) : ''),
         escapeCSV(app.followers || ''),
         escapeCSV(app.gender || ''),
         escapeCSV(app.state || ''),
