@@ -12,8 +12,9 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX,
   Image, ExternalLink, Package, Eye, Clock,
-  Pencil, Save, AlertCircle
+  Pencil, Save, AlertCircle, ZoomIn
 } from 'lucide-react'
+import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
@@ -652,41 +653,6 @@ function SkeletonRow({
   )
 }
 
-// ─── Image Preview Modal ───────────────────────────────────
-function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="relative max-w-3xl max-h-[85vh] z-10"
-        >
-          <button
-            onClick={onClose}
-            className="absolute -top-3 -right-3 z-20 p-1.5 rounded-full bg-slate-800 border border-white/10 text-white hover:bg-red-500 transition-colors cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-          <img
-            src={src}
-            alt={alt}
-            className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-white/10 shadow-2xl"
-          />
-        </motion.div>
-      </div>
-    </AnimatePresence>
-  )
-}
-
 // ─── Main Component ────────────────────────────────────────
 export default function OrderDetailsPage() {
   const { admin } = useAdminPermissions()
@@ -734,8 +700,13 @@ export default function OrderDetailsPage() {
   const [bulkPaymentCommission, setBulkPaymentCommission] = useState('')
   const [bulkRejectReason, setBulkRejectReason] = useState('')
 
-  // Image preview
-  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
+  // Image preview modal state
+  const [previewImage, setPreviewImage] = useState<{
+    src: string
+    alt: string
+    title?: string
+    subtitle?: string
+  } | null>(null)
 
   // Action Modals State
   const [initiatePaymentApp, setInitiatePaymentApp] = useState<OrderEntry | null>(null)
@@ -1728,12 +1699,20 @@ export default function OrderDetailsPage() {
                           <td className={`px-3 ${densityPadding[density]}`} onClick={(e) => e.stopPropagation()}>
                             {screenshotUrl ? (
                               <button
-                                onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
+                                onClick={() =>
+                                  setPreviewImage({
+                                    src: screenshotUrl,
+                                    alt: `${order.users?.full_name || 'Creator'} - Order Screenshot`,
+                                    title: `${order.users?.full_name || 'Creator'} (${order.users?.influencer_id || 'ID'})`,
+                                    subtitle: `${order.campaigns?.brand_name || 'Campaign'} • ${order.campaigns?.campaign_code || ''}`
+                                  })
+                                }
                                 className="relative w-10 h-8 rounded-md overflow-hidden border border-white/10 hover:border-indigo-400 transition-all group/img cursor-pointer bg-black"
+                                title="Click to zoom & inspect proof"
                               >
                                 <img src={screenshotUrl} alt="order" className="w-full h-full object-cover opacity-80 group-hover/img:opacity-100 transition-opacity" />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity">
-                                  <Eye className="h-3 w-3 text-white" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                  <ZoomIn className="h-3.5 w-3.5 text-indigo-400" />
                                 </div>
                               </button>
                             ) : (
@@ -1936,10 +1915,21 @@ export default function OrderDetailsPage() {
                                                     </p>
                                                     {isImg(key, value) ? (
                                                       <button
-                                                        onClick={() => setPreviewImage({ src: String(value), alt: key })}
+                                                        onClick={() =>
+                                                          setPreviewImage({
+                                                            src: String(value),
+                                                            alt: key,
+                                                            title: `${key.replace(/[_-]/g, ' ')} - ${order.users?.full_name || 'Creator'}`,
+                                                            subtitle: `${order.campaigns?.brand_name || 'Campaign'} • ${order.users?.influencer_id || ''}`
+                                                          })
+                                                        }
                                                         className="block relative group overflow-hidden rounded-md border border-white/10 hover:border-purple-400 transition-colors bg-black cursor-pointer w-full mt-1"
+                                                        title="Click to zoom & inspect"
                                                       >
                                                         <img src={String(value)} alt={key} className="h-16 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                          <ZoomIn className="h-3.5 w-3.5 text-purple-300" />
+                                                        </div>
                                                       </button>
                                                     ) : (
                                                       <p className="text-xs font-semibold text-white break-words">
@@ -2052,17 +2042,25 @@ export default function OrderDetailsPage() {
                                           <div className="flex-1 flex flex-col min-h-[140px]">
                                             <p className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold mb-1.5">Order Screenshot</p>
                                             <button
-                                              onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
+                                              onClick={() =>
+                                                setPreviewImage({
+                                                  src: screenshotUrl,
+                                                  alt: `${order.users?.full_name || 'Creator'} - Order Screenshot`,
+                                                  title: `${order.users?.full_name || 'Creator'} (${order.users?.influencer_id || 'ID'})`,
+                                                  subtitle: `${order.campaigns?.brand_name || 'Campaign'} • ${order.campaigns?.campaign_code || ''}`
+                                                })
+                                              }
                                               className="w-full flex-1 min-h-[130px] max-h-52 relative group overflow-hidden rounded-xl border border-white/10 hover:border-indigo-400 transition-all bg-slate-950/90 cursor-pointer flex items-center justify-center p-1.5"
+                                              title="Click to zoom & inspect screenshot"
                                             >
                                               <img
                                                 src={screenshotUrl}
                                                 alt="Order Screenshot"
                                                 className="w-full h-full object-contain rounded-lg opacity-95 group-hover:opacity-100 transition-opacity"
                                               />
-                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
+                                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[1px]">
                                                 <span className="text-xs font-bold text-white bg-black/80 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1.5 shadow-xl">
-                                                  <Eye className="h-3.5 w-3.5" /> View Full Image
+                                                  <ZoomIn className="h-3.5 w-3.5 text-indigo-400" /> Zoom & Inspect
                                                 </span>
                                               </div>
                                             </button>
@@ -2297,11 +2295,13 @@ export default function OrderDetailsPage() {
         </div>
       )}
 
-      {/* Image Preview Modal */}
+      {/* Interactive Image Zoom & Inspection Modal */}
       {previewImage && (
-        <ImagePreviewModal
+        <ImageZoomModal
           src={previewImage.src}
           alt={previewImage.alt}
+          title={previewImage.title || previewImage.alt || 'Order Proof Screenshot'}
+          subtitle={previewImage.subtitle}
           onClose={() => setPreviewImage(null)}
         />
       )}
@@ -2337,11 +2337,19 @@ export default function OrderDetailsPage() {
                   <div className="relative w-full h-48 bg-black">
                     <img src={screenshotUrl} alt="Order Screenshot" className="w-full h-full object-contain" />
                     <button
-                      onClick={() => setPreviewImage({ src: screenshotUrl, alt: 'Order Screenshot' })}
-                      className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-medium hover:bg-black/80 transition-colors cursor-pointer border border-white/10"
+                      onClick={() =>
+                        setPreviewImage({
+                          src: screenshotUrl,
+                          alt: `${initiatePaymentApp.users?.full_name || 'Creator'} - Order Screenshot`,
+                          title: `${initiatePaymentApp.users?.full_name || 'Creator'} (${initiatePaymentApp.users?.influencer_id || 'ID'})`,
+                          subtitle: `${initiatePaymentApp.campaigns?.brand_name || 'Campaign'} • ${initiatePaymentApp.campaigns?.campaign_code || ''}`
+                        })
+                      }
+                      className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/75 text-white text-[10px] font-semibold hover:bg-black transition-colors cursor-pointer border border-white/20 shadow-md backdrop-blur-xs"
+                      title="Click to zoom & inspect screenshot"
                     >
-                      <Eye className="h-3 w-3" />
-                      View Full
+                      <ZoomIn className="h-3 w-3 text-indigo-400" />
+                      Zoom & Inspect
                     </button>
                   </div>
                 ) : null

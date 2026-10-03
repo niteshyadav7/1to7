@@ -13,8 +13,9 @@ import {
   FileSpreadsheet, FileJson, UserCheck, UserX,
   Image, ExternalLink, Package, Eye, Clock,
   FileCheck, Link2, Sparkles, Pencil, Save, AlertCircle,
-  RotateCcw, CheckSquare, EyeOff, History
+  RotateCcw, CheckSquare, EyeOff, History, ZoomIn
 } from 'lucide-react'
+import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
@@ -257,8 +258,13 @@ export default function CompletionDetailsPage() {
   const [page, setPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(25)
 
-  // Lightbox Preview
-  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
+  // Interactive Image Zoom & Inspection
+  const [previewImage, setPreviewImage] = useState<{
+    src: string
+    alt: string
+    title?: string
+    subtitle?: string
+  } | null>(null)
 
   // Verification & Review Modals
   const [approveModalApp, setApproveModalApp] = useState<CompletionEntry | null>(null)
@@ -1176,17 +1182,23 @@ export default function CompletionDetailsPage() {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setPreviewImage({ src: comp.supporting_document!, alt: `${app.users?.full_name} Analytics Proof` })
+                                  setPreviewImage({
+                                    src: comp.supporting_document!,
+                                    alt: `${app.users?.full_name || 'Creator'} - Analytics Proof`,
+                                    title: `${app.users?.full_name || 'Creator'} (${app.users?.influencer_id || 'ID'})`,
+                                    subtitle: `${app.campaigns?.brand_name || 'Campaign'} • Analytics Proof`
+                                  })
                                 }}
                                 className="relative group inline-block rounded-md overflow-hidden border border-white/10 hover:border-indigo-400 transition-all cursor-pointer shadow-sm"
+                                title="Click to zoom & inspect analytics screenshot"
                               >
                                 <img
                                   src={comp.supporting_document}
                                   alt="Proof"
                                   className="h-7 w-10 object-cover opacity-90 group-hover:opacity-100 transition-opacity"
                                 />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Eye className="h-3 w-3 text-white" />
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <ZoomIn className="h-3 w-3 text-indigo-400" />
                                 </div>
                               </button>
                             ) : (
@@ -1447,11 +1459,19 @@ export default function CompletionDetailsPage() {
                                           />
                                           <button
                                             type="button"
-                                            onClick={() => setPreviewImage({ src: comp.supporting_document!, alt: 'Analytics Proof' })}
-                                            className="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/75 text-white text-[10px] font-bold hover:bg-black transition-colors cursor-pointer border border-white/15 shadow-md"
+                                            onClick={() =>
+                                              setPreviewImage({
+                                                src: comp.supporting_document!,
+                                                alt: `${app.users?.full_name || 'Creator'} - Analytics Proof`,
+                                                title: `${app.users?.full_name || 'Creator'} (${app.users?.influencer_id || 'ID'})`,
+                                                subtitle: `${app.campaigns?.brand_name || 'Campaign'} • Analytics Proof`
+                                              })
+                                            }
+                                            className="absolute bottom-2 right-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/80 text-white text-[10px] font-bold hover:bg-black transition-colors cursor-pointer border border-white/20 shadow-md backdrop-blur-xs"
+                                            title="Click to zoom & inspect screenshot"
                                           >
-                                            <Eye className="h-3 w-3" />
-                                            View Full Screen
+                                            <ZoomIn className="h-3 w-3 text-indigo-400" />
+                                            Zoom & Inspect
                                           </button>
                                         </div>
                                       </div>
@@ -1589,10 +1609,19 @@ export default function CompletionDetailsPage() {
                                                   </div>
                                                   <button
                                                     type="button"
-                                                    onClick={() => setPreviewImage({ src: hist.supporting_document, alt: `Attempt #${attemptNum} Proof` })}
-                                                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded cursor-pointer"
+                                                    onClick={() =>
+                                                      setPreviewImage({
+                                                        src: hist.supporting_document,
+                                                        alt: `${app.users?.full_name || 'Creator'} - Attempt #${attemptNum} Proof`,
+                                                        title: `Attempt #${attemptNum} Proof - ${app.users?.full_name || 'Creator'}`,
+                                                        subtitle: `${app.campaigns?.brand_name || 'Campaign'} • ${app.users?.influencer_id || ''}`
+                                                      })
+                                                    }
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                                                    title="Click to zoom & inspect attempt proof"
                                                   >
-                                                    View Image
+                                                    <ZoomIn className="h-3 w-3" />
+                                                    Inspect
                                                   </button>
                                                 </div>
                                               )}
@@ -2065,54 +2094,16 @@ export default function CompletionDetailsPage() {
         )}
       </AnimatePresence>
 
-      {/* 4. Fullscreen Lightbox Image Preview */}
-      <AnimatePresence>
-        {previewImage && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md cursor-pointer"
-              onClick={() => setPreviewImage(null)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-white/15 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-            >
-              <div className="p-3 bg-slate-950/80 border-b border-white/10 flex items-center justify-between">
-                <p className="text-xs font-bold text-white truncate">{previewImage.alt}</p>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={previewImage.src}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                    title="Open original in new tab"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                  <button
-                    onClick={() => setPreviewImage(null)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-2 bg-black/80 overflow-auto flex items-center justify-center flex-1">
-                <img
-                  src={previewImage.src}
-                  alt={previewImage.alt}
-                  className="max-w-full max-h-[75vh] object-contain rounded-lg"
-                />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* 4. Interactive Image Zoom & Inspection Modal */}
+      {previewImage && (
+        <ImageZoomModal
+          src={previewImage.src}
+          alt={previewImage.alt}
+          title={previewImage.title || previewImage.alt}
+          subtitle={previewImage.subtitle}
+          onClose={() => setPreviewImage(null)}
+        />
+      )}
 
       {/* Custom Scrollbar CSS */}
       <style jsx global>{`

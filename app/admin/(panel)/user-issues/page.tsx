@@ -28,6 +28,7 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react'
+import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -957,45 +958,16 @@ export default function AdminUserIssuesPage() {
         )}
       </AnimatePresence>
 
-      {/* Lightbox Modal for Screenshot Preview */}
-      <AnimatePresence>
-        {previewImage && (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-zoom-out"
-            onClick={() => setPreviewImage(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative max-w-5xl max-h-[90vh] overflow-hidden rounded-2xl border border-slate-700 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={previewImage}
-                alt="Enlarged Screenshot"
-                className="max-h-[85vh] w-auto object-contain mx-auto"
-              />
-              <div className="absolute top-3 right-3 flex items-center gap-2">
-                <a
-                  href={previewImage}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="h-9 px-3 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-white text-xs flex items-center gap-1.5 border border-slate-700 backdrop-blur-sm"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" /> Open Tab
-                </a>
-                <button
-                  onClick={() => setPreviewImage(null)}
-                  className="h-9 w-9 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-white flex items-center justify-center border border-slate-700 cursor-pointer backdrop-blur-sm"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Interactive Image Zoom & Inspection Modal */}
+      {previewImage && (
+        <ImageZoomModal
+          src={previewImage}
+          alt="Reported Issue Screenshot"
+          title={selectedIssue?.ticket_id ? `Issue Ticket #${selectedIssue.ticket_id}` : 'Issue Screenshot Proof'}
+          subtitle={selectedIssue?.name ? `Reported by ${selectedIssue.name} • ${selectedIssue.issue_type || ''}` : undefined}
+          onClose={() => setPreviewImage(null)}
+        />
+      )}
 
       {/* Delete Confirmation Alert Dialog */}
       <AlertDialog open={!!issueToDelete} onOpenChange={(open) => !open && setIssueToDelete(null)}>

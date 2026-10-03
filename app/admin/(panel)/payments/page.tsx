@@ -12,8 +12,9 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, Eye,
   Image, Package, Banknote, IndianRupee, Clock, FileText, AlertCircle,
-  Pencil, Check, Save, XCircle
+  Pencil, Check, Save, XCircle, ZoomIn
 } from 'lucide-react'
+import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { GlobalLoader } from '@/components/ui/global-loader'
@@ -360,18 +361,6 @@ function SortableHeader({ label, column, sortConfig, onSort }: {
   )
 }
 
-// ─── Image Preview Modal ───────────────────────────────────
-function ImagePreviewModal({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative max-w-3xl max-h-[85vh] z-10">
-        <button onClick={onClose} className="absolute -top-3 -right-3 z-20 p-1.5 rounded-full bg-slate-800 border border-white/10 text-white hover:bg-red-500 cursor-pointer"><X className="h-4 w-4" /></button>
-        <img src={src} alt={alt} className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-white/10 shadow-2xl" />
-      </motion.div>
-    </div>
-  )
-}
 
 // ─── EditableAmountCell (Inline Click-to-Edit) ─────────────
 function EditableAmountCell({ value, paymentId, field, color, onSave, confirmMessage, textSize = 'text-lg font-bold' }: {
@@ -562,7 +551,7 @@ export default function PaymentsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
-  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string; title?: string; subtitle?: string } | null>(null)
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null)
   const [editValue, setEditValue] = useState('')
   // Initiate Payment popup state
@@ -1662,11 +1651,23 @@ export default function PaymentsPage() {
                                             <div key={key} className="bg-slate-900/50 p-3 rounded-xl border border-white/5">
                                               <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">{key.replace(/[_-]/g, ' ')}</p>
                                               {isImg ? (
-                                                <button onClick={() => setPreviewImage({ src: String(value), alt: key })}
-                                                  className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-indigo-400 bg-black cursor-pointer w-full">
+                                                <button
+                                                  onClick={() =>
+                                                    setPreviewImage({
+                                                      src: String(value),
+                                                      alt: key,
+                                                      title: `${key.replace(/[_-]/g, ' ')} - ${payment.users?.full_name || 'Creator'}`,
+                                                      subtitle: `${payment.campaigns?.brand_name || 'Campaign'} • ${payment.users?.influencer_id || ''}`
+                                                    })
+                                                  }
+                                                  className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-indigo-400 bg-black cursor-pointer w-full"
+                                                  title="Click to zoom & inspect screenshot"
+                                                >
                                                   <img src={String(value)} alt={key} className="h-28 w-full object-cover opacity-90 group-hover:opacity-100" />
-                                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                                                    <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">View</span>
+                                                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <span className="flex items-center gap-1.5 text-xs font-bold text-white bg-black/75 px-2.5 py-1 rounded-lg border border-white/20 shadow-md">
+                                                      <ZoomIn className="h-3.5 w-3.5 text-indigo-400" /> Zoom & Inspect
+                                                    </span>
                                                   </div>
                                                 </button>
                                               ) : isUrl ? (
@@ -1849,7 +1850,13 @@ export default function PaymentsPage() {
                                                {req.screenshot && (
                                                  <div>
                                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1.5">Creator Proof Screenshot</p>
-                                                   <button onClick={() => setPreviewImage({ src: req.screenshot, alt: 'Appeal Screenshot' })}
+                                                   <button onClick={() => setPreviewImage({
+                                                     src: req.screenshot,
+                                                     alt: `${payment.users?.full_name || 'Creator'} - Appeal Proof`,
+                                                     title: `Appeal Proof - ${payment.users?.full_name || 'Creator'}`,
+                                                     subtitle: `${payment.campaigns?.brand_name || 'Campaign'} • ${payment.users?.influencer_id || ''}`
+                                                   })}
+                                                     title="Click to zoom & inspect appeal screenshot"
                                                      className="block relative group overflow-hidden rounded-lg border border-white/10 hover:border-orange-400 bg-black cursor-pointer w-full max-w-xs">
                                                      <img src={req.screenshot} alt="Appeal Screenshot" className="h-24 w-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2074,7 +2081,15 @@ export default function PaymentsPage() {
         </div>
       )}
 
-      {previewImage && <ImagePreviewModal src={previewImage.src} alt={previewImage.alt} onClose={() => setPreviewImage(null)} />}
+      {previewImage && (
+        <ImageZoomModal
+          src={previewImage.src}
+          alt={previewImage.alt}
+          title={previewImage.title || previewImage.alt}
+          subtitle={previewImage.subtitle}
+          onClose={() => setPreviewImage(null)}
+        />
+      )}
 
       {/* Initiate Payment Modal */}
       <AnimatePresence>
