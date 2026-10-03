@@ -32,11 +32,9 @@ export function openUrlsInBulk(
     return { totalOpened: 0, missingCount }
   }
 
-  // Reverse URLs for dispatch so Chrome's adjacent tab insertion
-  // creates tabs in left-to-right top-to-bottom order [Row 1, Row 2, Row 3, Row 4...]
-  // and finishes with Row 1 focused.
-  const urlsToOpen = [...validUrls].reverse()
-  urlsToOpen.forEach((url, index) => {
+  // Open tabs in forward order so that tabs appear from left to right
+  // matching the top-to-bottom order of the table (leftmost tab = top row).
+  validUrls.forEach((url, index) => {
     setTimeout(() => {
       window.open(url, '_blank', 'noopener,noreferrer')
     }, index * 85)
