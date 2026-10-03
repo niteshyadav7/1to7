@@ -1461,7 +1461,7 @@ export default function OrderDetailsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                const selectedOrders = orders.filter(o => selectedIds.has(o.id))
+                const selectedOrders = processedData.filter(o => selectedIds.has(o.id))
                 const screenshotUrls = selectedOrders.map(o => getOrderScreenshotUrl(o))
                 openUrlsInBulk(screenshotUrls, { itemLabel: 'order screenshot' })
               }}

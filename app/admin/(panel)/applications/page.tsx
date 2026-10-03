@@ -3139,7 +3139,7 @@ export default function AllApplicationsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const selectedApps = applications.filter(a => selectedIds.has(a.id))
+                  const selectedApps = processedData.filter(a => selectedIds.has(a.id))
                   const handles = selectedApps.map(a => 
                     a.users?.instagram_username || 
                     a.form_data?.applied_instagram_username || 

@@ -32,8 +32,11 @@ export function openUrlsInBulk(
     return { totalOpened: 0, missingCount }
   }
 
-  // Open tabs with a staggered 85ms interval to bypass Chrome single-click pop-up limitations
-  validUrls.forEach((url, index) => {
+  // Reverse URLs for dispatch so Chrome's adjacent tab insertion
+  // creates tabs in left-to-right top-to-bottom order [Row 1, Row 2, Row 3, Row 4...]
+  // and finishes with Row 1 focused.
+  const urlsToOpen = [...validUrls].reverse()
+  urlsToOpen.forEach((url, index) => {
     setTimeout(() => {
       window.open(url, '_blank', 'noopener,noreferrer')
     }, index * 85)

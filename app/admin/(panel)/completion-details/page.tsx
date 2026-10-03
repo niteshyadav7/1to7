@@ -1748,7 +1748,7 @@ export default function CompletionDetailsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const selectedCompletions = filteredCompletions.filter(c => selectedIds.has(c.id))
                   const handles = selectedCompletions.map(c => 
                     c.users?.instagram_username || 
                     c.form_data?.applied_instagram_username || 
@@ -1768,7 +1768,7 @@ export default function CompletionDetailsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const selectedCompletions = filteredCompletions.filter(c => selectedIds.has(c.id))
                   const links = selectedCompletions.map(c => {
                     const comp = getCompletionDetails(c)
                     return comp.deliverable_link
@@ -1787,7 +1787,7 @@ export default function CompletionDetailsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const selectedCompletions = completions.filter(c => selectedIds.has(c.id))
+                  const selectedCompletions = filteredCompletions.filter(c => selectedIds.has(c.id))
                   const proofs = selectedCompletions.map(c => {
                     const comp = getCompletionDetails(c)
                     return comp.supporting_document
