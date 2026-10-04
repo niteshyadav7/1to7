@@ -399,7 +399,13 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content with Dynamic Route Guard */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
+        <main
+          className={`flex-1 min-w-0 overflow-x-hidden ${
+            pathname === '/admin/profile'
+              ? 'p-3 sm:p-4 lg:p-5 pt-2 sm:pt-2.5 lg:pt-3'
+              : 'p-4 sm:p-6 lg:p-8'
+          }`}
+        >
           {!loading && !isAuthorized ? (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 mb-6 shadow-xl shadow-amber-500/5">

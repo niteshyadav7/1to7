@@ -23,7 +23,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import BrandLoader from '@/components/ui/BrandLoader'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 
@@ -48,6 +47,107 @@ interface AssignedCampaign {
   platform: string
   status: string
   is_live: boolean
+}
+
+/**
+ * Premium shimmer effect utility class
+ */
+const shimmerClass =
+  'relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.6s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/[0.07] before:to-transparent'
+
+/**
+ * Full-width Profile Skeleton Shimmer Component (No Spinner Loader)
+ */
+function ProfileShimmer() {
+  return (
+    <div className="w-full space-y-5 pb-16 animate-pulse">
+      {/* Header Shimmer */}
+      <SetAdminHeader>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <div className={`h-9 w-9 rounded-xl bg-slate-800/80 ${shimmerClass}`} />
+            <div className="space-y-1.5">
+              <div className={`h-4 w-48 rounded-md bg-slate-800/90 ${shimmerClass}`} />
+              <div className={`h-2.5 w-64 rounded-md bg-slate-800/60 ${shimmerClass}`} />
+            </div>
+          </div>
+          <div className={`h-9 w-28 rounded-xl bg-slate-800/80 ${shimmerClass}`} />
+        </div>
+      </SetAdminHeader>
+
+      {/* Main Grid Shimmer */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
+        {/* Left Column Shimmer */}
+        <div className={`lg:col-span-4 xl:col-span-3.5 rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 flex flex-col items-center text-center space-y-4 backdrop-blur-xl ${shimmerClass}`}>
+          <div className="w-20 h-20 rounded-2xl bg-slate-800/80 ring-4 ring-white/5" />
+          <div className="space-y-2 w-full flex flex-col items-center">
+            <div className="h-4 w-36 rounded-md bg-slate-800/90" />
+            <div className="h-3 w-44 rounded-md bg-slate-800/60" />
+          </div>
+          <div className="h-6 w-28 rounded-full bg-slate-800/60" />
+          <div className="w-full border-t border-white/[0.06] pt-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="h-3 w-24 rounded bg-slate-800/60" />
+              <div className="h-3 w-16 rounded bg-slate-800/80" />
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="h-3 w-28 rounded bg-slate-800/60" />
+              <div className="h-3 w-8 rounded bg-slate-800/80" />
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="h-3 w-20 rounded bg-slate-800/60" />
+              <div className="h-3 w-20 rounded bg-slate-800/80" />
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column Shimmer */}
+        <div className="lg:col-span-8 xl:col-span-8.5 space-y-5">
+          {/* Main Details Card Shimmer */}
+          <div className={`rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 space-y-5 backdrop-blur-xl ${shimmerClass}`}>
+            <div className="space-y-1.5">
+              <div className="h-4 w-64 rounded-md bg-slate-800/90" />
+              <div className="h-3 w-80 rounded-md bg-slate-800/60" />
+            </div>
+
+            {/* Banner Shimmer */}
+            <div className="h-20 rounded-xl bg-slate-800/40 border border-white/[0.04]" />
+
+            {/* Inputs Shimmer */}
+            <div className="space-y-4 pt-1">
+              <div className="space-y-2">
+                <div className="h-3 w-24 rounded bg-slate-800/60" />
+                <div className="h-11 rounded-xl bg-slate-800/50 border border-white/[0.04]" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-28 rounded bg-slate-800/60" />
+                <div className="h-11 rounded-xl bg-slate-800/50 border border-white/[0.04]" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-40 rounded bg-slate-800/60" />
+                <div className="h-11 rounded-xl bg-slate-800/50 border border-white/[0.04]" />
+              </div>
+              <div className="pt-2 flex justify-end">
+                <div className="h-10 w-44 rounded-xl bg-slate-800/70" />
+              </div>
+            </div>
+          </div>
+
+          {/* Assigned Campaigns Card Shimmer */}
+          <div className={`rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 space-y-4 backdrop-blur-xl ${shimmerClass}`}>
+            <div className="flex justify-between items-center">
+              <div className="h-4 w-44 rounded bg-slate-800/80" />
+              <div className="h-3 w-16 rounded bg-slate-800/60" />
+            </div>
+            <div className="space-y-2.5">
+              <div className="h-14 rounded-xl bg-slate-800/40 border border-white/[0.04]" />
+              <div className="h-14 rounded-xl bg-slate-800/40 border border-white/[0.04]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AdminProfilePage() {
@@ -118,49 +218,41 @@ export default function AdminProfilePage() {
       return
     }
 
-    // Phone validation
-    const cleanDigits = phone.replace(/\D/g, '')
-    if (phone.trim() && cleanDigits.length < 10) {
-      toast.error('Please enter a valid 10-digit mobile number')
-      return
-    }
-
+    setSaving(true)
     try {
-      setSaving(true)
       const res = await fetch('/api/admin/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          phone: cleanDigits || '',
+          phone: phone.trim() || null,
         }),
       })
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to save profile')
+        throw new Error(data.error || 'Failed to update profile')
       }
 
-      setProfile(prev => (prev ? { ...prev, name: data.profile.name, phone: data.profile.phone } : null))
-      await refreshAdmin()
-      toast.success('Profile and Brand Manager mobile number saved successfully!')
+      toast.success('Profile details updated successfully!')
+      setProfile((prev) => (prev ? { ...prev, ...data.profile } : null))
+      if (refreshAdmin) {
+        refreshAdmin()
+      }
     } catch (err: any) {
-      toast.error(err.message || 'Error updating profile')
+      toast.error(err.message || 'Failed to save profile')
     } finally {
       setSaving(false)
     }
   }
 
+  // Display Shimmer instead of loader while loading
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <BrandLoader />
-      </div>
-    )
+    return <ProfileShimmer />
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="w-full space-y-5 pb-16">
       <SetAdminHeader>
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2">
@@ -183,13 +275,13 @@ export default function AdminProfilePage() {
         </div>
       </SetAdminHeader>
 
-      {/* Main Profile Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Profile Grid - Full Width without max-w restriction */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
         {/* Left Column: Account Overview Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-1 rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 flex flex-col items-center text-center space-y-4 backdrop-blur-xl"
+          className="lg:col-span-4 xl:col-span-3.5 rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 flex flex-col items-center text-center space-y-4 backdrop-blur-xl h-fit"
         >
           {/* Large Avatar */}
           <div className="relative">
@@ -237,15 +329,15 @@ export default function AdminProfilePage() {
           </div>
         </motion.div>
 
-        {/* Right Column: Editable Details Form */}
+        {/* Right Column: Editable Details Form & Campaigns */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="lg:col-span-2 space-y-6"
+          transition={{ delay: 0.05 }}
+          className="lg:col-span-8 xl:col-span-8.5 space-y-5"
         >
-          {/* Card: Contact Details */}
-          <div className="rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 space-y-6 backdrop-blur-xl">
+          {/* Card: POC Contact Information */}
+          <div className="rounded-2xl bg-slate-900/60 border border-white/[0.08] p-6 space-y-5 backdrop-blur-xl">
             <div>
               <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
                 <Phone className="h-4 w-4 text-emerald-400" />
@@ -362,7 +454,10 @@ export default function AdminProfilePage() {
             </div>
 
             {loadingCampaigns ? (
-              <div className="py-6 text-center text-xs text-slate-500">Loading assigned campaigns...</div>
+              <div className="space-y-2 py-2">
+                <div className={`h-14 rounded-xl bg-slate-950/40 border border-white/5 ${shimmerClass}`} />
+                <div className={`h-14 rounded-xl bg-slate-950/40 border border-white/5 ${shimmerClass}`} />
+              </div>
             ) : assignedCampaigns.length === 0 ? (
               <div className="py-8 text-center rounded-xl bg-slate-950/40 border border-white/5 space-y-1">
                 <Megaphone className="h-8 w-8 text-slate-600 mx-auto mb-2" />
