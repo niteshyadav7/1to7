@@ -28,6 +28,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { PocActionTrackerSkeleton } from '@/components/admin/poc/PocSkeletons'
 import {
   CampaignPendingItem,
   AssignedPocInfo,
@@ -161,6 +162,10 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
     setCopiedSummary(true)
     toast.success('Summary copied to clipboard for WhatsApp / Slack!')
     setTimeout(() => setCopiedSummary(false), 2500)
+  }
+
+  if (loading && !data) {
+    return <PocActionTrackerSkeleton />
   }
 
   const summary = data?.summary || {
@@ -468,9 +473,39 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
 
         {/* Table Content */}
         {loading ? (
-          <div className="py-16 text-center space-y-3">
-            <RefreshCw className="h-6 w-6 text-indigo-400 animate-spin mx-auto" />
-            <p className="text-xs text-slate-400">Loading campaign action tracker...</p>
+          <div className="space-y-2 pt-2 animate-pulse">
+            {[1, 2, 3, 4, 5].map((row) => (
+              <div
+                key={row}
+                className="h-14 w-full rounded-xl bg-slate-950/40 border border-white/[0.03] flex items-center justify-between px-3 gap-2"
+              >
+                <div className="w-1/4 space-y-1.5">
+                  <div className="h-3.5 w-28 rounded bg-slate-800/90" />
+                  <div className="flex items-center gap-1">
+                    <div className="h-2.5 w-16 rounded bg-slate-800/60" />
+                    <div className="h-2.5 w-10 rounded bg-slate-800/50" />
+                  </div>
+                </div>
+                <div className="w-1/6">
+                  <div className="h-5 w-24 rounded-full bg-slate-800/80" />
+                </div>
+                <div className="w-1/8 flex justify-center">
+                  <div className="h-6 w-16 rounded-md bg-slate-800/70" />
+                </div>
+                <div className="w-1/8 flex justify-center">
+                  <div className="h-6 w-16 rounded-md bg-slate-800/70" />
+                </div>
+                <div className="w-1/8 flex justify-center">
+                  <div className="h-6 w-16 rounded-md bg-slate-800/70" />
+                </div>
+                <div className="w-1/12 flex justify-center">
+                  <div className="h-4 w-8 rounded bg-slate-800/60" />
+                </div>
+                <div className="w-1/8 flex justify-end">
+                  <div className="h-7 w-20 rounded-lg bg-slate-800/90" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="py-12 text-center rounded-xl bg-slate-950/40 border border-white/5 space-y-2">
