@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   ExternalLink,
   AlertTriangle,
+  ClipboardList,
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -35,6 +36,7 @@ import { PocLeaderboard } from '@/components/admin/poc/PocLeaderboard'
 import { PocTableSkeleton, PocIndividualSkeleton } from '@/components/admin/poc/PocSkeletons'
 import { PocCampaignMatrix } from '@/components/admin/poc/PocCampaignMatrix'
 import { PocCampaignCreatorsChittha } from '@/components/admin/poc/PocCampaignCreatorsChittha'
+import { PocActionTracker } from '@/components/admin/poc/PocActionTracker'
 import { CampaignPocSummary } from '@/app/api/admin/poc-dashboard/campaigns/route'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -56,7 +58,7 @@ const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
 
 export default function PocDashboardPage() {
   const { admin, isSuperAdmin } = useAdminPermissions()
-  const [activeTab, setActiveTab] = useState<'team' | 'campaigns' | 'individual'>('team')
+  const [activeTab, setActiveTab] = useState<'tracker' | 'team' | 'campaigns' | 'individual'>('tracker')
   const [range, setRange] = useState<RangeKey>('all')
   const [granularity, setGranularity] = useState<'day' | 'week'>('day')
   const [loadingTeam, setLoadingTeam] = useState(true)
@@ -309,6 +311,21 @@ export default function PocDashboardPage() {
         <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-white/[0.08] text-xs font-semibold shrink-0 whitespace-nowrap overflow-x-auto gap-0.5">
           <button
             type="button"
+            onClick={() => setActiveTab('tracker')}
+            className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+              activeTab === 'tracker'
+                ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-lg shadow-rose-500/20 font-bold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            <span>Daily Action Tracker</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 text-amber-200 border border-white/10 font-mono font-bold">
+              Screenshot Ready
+            </span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('team')}
             className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               activeTab === 'team'
@@ -354,28 +371,30 @@ export default function PocDashboardPage() {
           </button>
         </div>
 
-        {/* Range Selector Pills */}
-        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto shrink-0 pb-1 xl:pb-0">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
-            <Calendar className="w-3 h-3" /> Range:
-          </span>
-          <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-white/[0.08] text-xs gap-0.5 shrink-0">
-            {RANGE_OPTIONS.map(opt => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setRange(opt.key)}
-                className={`px-2.5 py-1 rounded-xl text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  range === opt.key
-                    ? 'bg-slate-800 text-white font-bold border border-white/20 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        {/* Range Selector Pills (hidden for live Action Tracker) */}
+        {activeTab !== 'tracker' && (
+          <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto shrink-0 pb-1 xl:pb-0">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
+              <Calendar className="w-3 h-3" /> Range:
+            </span>
+            <div className="flex items-center bg-slate-900/90 p-1 rounded-2xl border border-white/[0.08] text-xs gap-0.5 shrink-0">
+              {RANGE_OPTIONS.map(opt => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setRange(opt.key)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    range === opt.key
+                      ? 'bg-slate-800 text-white font-bold border border-white/20 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ─── Contextual Early Month Alert if This Month has 0 data ─── */}
@@ -416,6 +435,14 @@ export default function PocDashboardPage() {
             </div>
           </div>
         )}
+
+      {/* ─── TAB 0: DAILY ACTION TRACKER (SCREENSHOT-READY CAMPAIGN BACKLOG) ─── */}
+      {activeTab === 'tracker' && (
+        <PocActionTracker
+          currentAdminId={admin?.id}
+          isSuperAdmin={isSuperAdmin}
+        />
+      )}
 
       {/* ─── TAB 1: TEAM OVERVIEW (SUPER ADMIN & COMPARATIVE VIEW) ─── */}
       {activeTab === 'team' && (
