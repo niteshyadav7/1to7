@@ -86,6 +86,7 @@ export interface CampaignPocSummary {
   assignedPocs: AssignedPoc[]
   totalApplications: number
   approvedCount: number
+  pendingCount: number
   completedCount: number
   completionRate: number
   totalPaid: number
@@ -161,8 +162,9 @@ export async function GET(request: Request) {
         c.poc_admin_ids,
         c.created_at,
         COUNT(app.id) AS total_applications,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) AS approved_count,
-        COUNT(app.id) FILTER (WHERE app.completion_submitted_at IS NOT NULL) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review')) AS approved_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL) AS pending_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS total_paid
       FROM public.campaigns c
       LEFT JOIN public.applications app 
@@ -201,6 +203,7 @@ export async function GET(request: Request) {
       const totalApplications = parseInt(row.total_applications) || 0
       const approvedCount = parseInt(row.approved_count) || 0
       const completedCount = parseInt(row.completed_count) || 0
+      const pendingCount = parseInt(row.pending_count) || Math.max(0, approvedCount - completedCount)
       const totalPaid = parseFloat(row.total_paid) || 0
 
       totalAppsSum += totalApplications
@@ -226,6 +229,7 @@ export async function GET(request: Request) {
         assignedPocs,
         totalApplications,
         approvedCount,
+        pendingCount,
         completedCount,
         completionRate,
         totalPaid,

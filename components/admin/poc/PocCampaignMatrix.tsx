@@ -473,7 +473,12 @@ export function PocCampaignMatrix({
 
                         {/* Approved */}
                         <td className="py-2.5 px-2 text-right font-bold text-blue-400 whitespace-nowrap">
-                          {campaign.approvedCount}
+                          <div>{campaign.approvedCount}</div>
+                          {(campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount)) > 0 && (
+                            <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                              {campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount)} pending
+                            </div>
+                          )}
                         </td>
 
                         {/* Completed */}

@@ -867,8 +867,13 @@ export default function PocDashboardPage() {
                                                       <td className="py-2.5 px-3 text-right font-medium text-slate-300">
                                                         {c.totalApplications}
                                                       </td>
-                                                      <td className="py-2.5 px-3 text-right font-bold text-blue-400">
-                                                        {c.approvedCount}
+                                                      <td className="py-2.5 px-3 text-right font-bold text-blue-400 whitespace-nowrap">
+                                                        <div>{c.approvedCount}</div>
+                                                        {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)) > 0 && (
+                                                          <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                                                            {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)} pending
+                                                          </div>
+                                                        )}
                                                       </td>
                                                       <td className="py-2.5 px-3 text-right font-bold text-emerald-400">
                                                         {c.completedCount}
@@ -1139,8 +1144,13 @@ export default function PocDashboardPage() {
                         <td className="py-3 px-4 text-right text-slate-300 font-medium">
                           {c.totalApplications}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-blue-400">
-                          {c.approvedCount}
+                        <td className="py-3 px-4 text-right font-bold text-blue-400 whitespace-nowrap">
+                          <div>{c.approvedCount}</div>
+                          {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)) > 0 && (
+                            <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                              {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)} pending
+                            </div>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-emerald-400">
                           {c.completedCount}

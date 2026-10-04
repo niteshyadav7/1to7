@@ -35,8 +35,9 @@ export interface CampaignCreatorsResponse {
   statusCounts: {
     all: number
     approved: number
-    applied: number
+    pending: number
     completed: number
+    applied: number
     rejected: number
     paymentApproved: number
   }
@@ -116,6 +117,7 @@ export async function GET(req: NextRequest) {
     )
 
     let approvedCount = 0
+    let pendingCount = 0
     let appliedCount = 0
     let completedCount = 0
     let rejectedCount = 0
@@ -123,11 +125,26 @@ export async function GET(req: NextRequest) {
 
     const creators: CampaignCreatorDetail[] = appsRes.rows.map(row => {
       const status = row.status || 'Applied'
-      if (status === 'Approved') approvedCount++
-      else if (status === 'Applied' || status === 'Under Process') appliedCount++
-      else if (status === 'Completed') completedCount++
-      else if (status === 'Rejected') rejectedCount++
-      else if (status === 'Payment Approved' || status === 'Payment Initiated' || status === 'Payment Requested') {
+      const hasCompletion = Boolean(row.completion_submitted_at)
+      const isCompleted = status === 'Completed' || hasCompletion
+      const isUnderReview = status === 'Applied' || status === 'Under Process' || status === 'Under Review'
+      const isRejected = status === 'Rejected'
+      const isApproved = !isUnderReview && !isRejected
+
+      if (isApproved) {
+        approvedCount++
+        if (isCompleted) {
+          completedCount++
+        } else {
+          pendingCount++
+        }
+      } else if (isUnderReview) {
+        appliedCount++
+      } else if (isRejected) {
+        rejectedCount++
+      }
+
+      if (status === 'Payment Approved' || status === 'Payment Initiated' || status === 'Payment Requested') {
         paymentApprovedCount++
       }
 
@@ -169,6 +186,7 @@ export async function GET(req: NextRequest) {
       statusCounts: {
         all: creators.length,
         approved: approvedCount,
+        pending: pendingCount,
         applied: appliedCount,
         completed: completedCount,
         rejected: rejectedCount,

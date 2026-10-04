@@ -71,12 +71,23 @@ export function PocCampaignCreatorsChittha({
     // 1. Status Filter
     if (selectedStatus !== 'all') {
       if (selectedStatus === 'approved') {
-        list = list.filter(c => c.status === 'Approved' || c.status === 'Payment Approved')
-      } else if (selectedStatus === 'applied') {
-        list = list.filter(c => c.status === 'Applied' || c.status === 'Under Process')
+        // All Approved creators (matches top table: 80)
+        list = list.filter(c => !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status))
+      } else if (selectedStatus === 'pending') {
+        // Pending Deliverables: Approved creators who have NOT completed yet (34)
+        list = list.filter(c => 
+          !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status) &&
+          c.status !== 'Completed' &&
+          !c.completionSubmittedAt
+        )
       } else if (selectedStatus === 'completed') {
-        list = list.filter(c => c.status === 'Completed')
+        // Completed: deliverable submitted or marked completed (46)
+        list = list.filter(c => c.status === 'Completed' || Boolean(c.completionSubmittedAt))
+      } else if (selectedStatus === 'applied') {
+        // Under review / applied (78)
+        list = list.filter(c => ['Applied', 'Under Process', 'Under Review'].includes(c.status))
       } else if (selectedStatus === 'rejected') {
+        // Rejected (2)
         list = list.filter(c => c.status === 'Rejected')
       }
     }
@@ -103,38 +114,58 @@ export function PocCampaignCreatorsChittha({
     return count.toString()
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Approved':
-      case 'Payment Approved':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            {status}
-          </span>
-        )
-      case 'Completed':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
-            <CheckCircle2 className="w-3 h-3" />
-            Completed
-          </span>
-        )
-      case 'Rejected':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-            <XCircle className="w-3 h-3" />
-            Rejected
-          </span>
-        )
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-            <Clock className="w-3 h-3" />
-            {status}
-          </span>
-        )
+  const getStatusBadge = (status: string, completionSubmittedAt?: string | null) => {
+    if (status === 'Completed' || Boolean(completionSubmittedAt)) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">
+          <Sparkles className="w-3 h-3 text-purple-400" />
+          Completed
+        </span>
+      )
     }
+
+    if (status === 'Approved') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <Clock className="w-3 h-3 text-emerald-400" />
+          Approved (Pending Post)
+        </span>
+      )
+    }
+
+    if (status === 'Payment Approved') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+          <CheckCircle2 className="w-3 h-3" />
+          Payment Approved
+        </span>
+      )
+    }
+
+    if (status === 'Payment Initiated') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+          <IndianRupee className="w-3 h-3" />
+          Payment Initiated
+        </span>
+      )
+    }
+
+    if (status === 'Rejected') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+          <XCircle className="w-3 h-3" />
+          Rejected
+        </span>
+      )
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+        <Clock className="w-3 h-3" />
+        {status}
+      </span>
+    )
   }
 
   return (
@@ -217,6 +248,7 @@ export function PocCampaignCreatorsChittha({
             </span>
           </button>
 
+          {/* Approved (Total) */}
           <button
             type="button"
             onClick={() => setSelectedStatus('approved')}
@@ -225,6 +257,7 @@ export function PocCampaignCreatorsChittha({
                 ? 'bg-emerald-600 text-white shadow-md'
                 : 'bg-slate-900 text-emerald-400/90 hover:text-emerald-300 hover:bg-slate-800 border border-emerald-500/20'
             }`}
+            title="All creators approved into this campaign (matches top table)"
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Approved</span>
@@ -233,22 +266,25 @@ export function PocCampaignCreatorsChittha({
             </span>
           </button>
 
+          {/* Pending Deliverables */}
           <button
             type="button"
-            onClick={() => setSelectedStatus('applied')}
+            onClick={() => setSelectedStatus('pending')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-              selectedStatus === 'applied'
+              selectedStatus === 'pending'
                 ? 'bg-amber-600 text-white shadow-md'
                 : 'bg-slate-900 text-amber-300/90 hover:text-amber-200 hover:bg-slate-800 border border-amber-500/20'
             }`}
+            title="Approved creators who have not yet submitted their deliverables"
           >
             <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>Under Review / Applied</span>
+            <span>Pending Deliverables</span>
             <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-200 text-[10px]">
-              {data?.statusCounts.applied || 0}
+              {data?.statusCounts.pending || 0}
             </span>
           </button>
 
+          {/* Completed */}
           <button
             type="button"
             onClick={() => setSelectedStatus('completed')}
@@ -257,11 +293,29 @@ export function PocCampaignCreatorsChittha({
                 ? 'bg-purple-600 text-white shadow-md'
                 : 'bg-slate-900 text-purple-300/90 hover:text-purple-200 hover:bg-slate-800 border border-purple-500/20'
             }`}
+            title="Creators who have completed their deliverables"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             <span>Completed</span>
             <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-200 text-[10px]">
               {data?.statusCounts.completed || 0}
+            </span>
+          </button>
+
+          {/* Under Review / Applied */}
+          <button
+            type="button"
+            onClick={() => setSelectedStatus('applied')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              selectedStatus === 'applied'
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'bg-slate-900 text-sky-300/90 hover:text-sky-200 hover:bg-slate-800 border border-sky-500/20'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-sky-400" />
+            <span>Under Review / Applied</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-sky-500/20 text-sky-200 text-[10px]">
+              {data?.statusCounts.applied || 0}
             </span>
           </button>
 
@@ -400,7 +454,7 @@ export function PocCampaignCreatorsChittha({
 
                     {/* Status Badge */}
                     <td className="py-3 px-3 text-center whitespace-nowrap">
-                      {getStatusBadge(creator.status)}
+                      {getStatusBadge(creator.status, creator.completionSubmittedAt)}
                     </td>
 
                     {/* Accountability & Review Chittha (Rejection reason / remarks / pitch) */}
