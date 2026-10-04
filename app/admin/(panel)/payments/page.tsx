@@ -728,6 +728,44 @@ export default function PaymentsPage() {
   // Auto-refresh when influencers request payments
   useRealtime({ table: 'applications', onChange: fetchPayments })
 
+  // Sync query parameters on initial page load (e.g. ?status=Payment+Requested&brand=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const statusParam = params.get('status')
+    const brandParam = params.get('brand')
+    const searchParam = params.get('search')
+    const campaignCodeParam = params.get('campaignCode')
+
+    if (statusParam) {
+      const lower = statusParam.toLowerCase()
+      if (lower.includes('requested')) {
+        setActiveStatus('Payment Requested')
+      } else if (lower.includes('initiated')) {
+        setActiveStatus('Payment Initiated')
+      } else if (lower.includes('approved')) {
+        setActiveStatus('Payment Approved')
+      } else if (lower.includes('completed')) {
+        setActiveStatus('Completed')
+      } else if (statusFilters.includes(statusParam)) {
+        setActiveStatus(statusParam)
+      }
+    }
+
+    if (brandParam) {
+      setFilters(prev => ({
+        ...prev,
+        brand: prev.brand.includes(brandParam) ? prev.brand : [...prev.brand, brandParam]
+      }))
+    }
+
+    if (searchParam) {
+      setSearchQuery(searchParam)
+    } else if (campaignCodeParam) {
+      setSearchQuery(campaignCodeParam)
+    }
+  }, [])
+
   const processedData = useMemo(() => {
     let result = [...payments]
     if (activeStatus === 'Active Appeals') {

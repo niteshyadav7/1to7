@@ -245,10 +245,10 @@ export async function GET(request: Request) {
         totalCriticalPending,
         isClear,
         quickLinks: {
-          ordersUrl: `/admin/order-details?campaignId=${row.id}`,
-          completionUrl: `/admin/completion-details?search=${encodeURIComponent(row.campaign_code || row.brand_name)}`,
-          paymentsUrl: `/admin/payments?search=${encodeURIComponent(row.campaign_code || row.brand_name)}`,
-          applicationsUrl: `/admin/applications/${row.id}`,
+          ordersUrl: `/admin/order-details?status=Pending&brand=${encodeURIComponent(row.brand_name || '')}&campaignCode=${encodeURIComponent(row.campaign_code || '')}`,
+          completionUrl: `/admin/completion-details?tab=pending&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
+          paymentsUrl: `/admin/payments?status=Payment+Requested&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
+          applicationsUrl: `/admin/applications?status=Applied&campaign=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
         }
       }
     })

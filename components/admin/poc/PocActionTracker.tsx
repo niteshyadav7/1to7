@@ -314,7 +314,7 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
         <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-3 pt-5">
           {/* 1. Order Forms Pending */}
           <Link
-            href="/admin/order-details"
+            href="/admin/order-details?status=Pending"
             className="group rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-white/5 hover:border-amber-500/30 p-3.5 transition-all shadow-sm flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
@@ -342,7 +342,7 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
 
           {/* 2. Completion Deliverables Pending */}
           <Link
-            href="/admin/completion-details"
+            href="/admin/completion-details?tab=pending"
             className="group rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-white/5 hover:border-indigo-500/30 p-3.5 transition-all shadow-sm flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
@@ -370,7 +370,7 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
 
           {/* 3. Payment Forms Pending */}
           <Link
-            href="/admin/payments"
+            href="/admin/payments?status=Payment+Requested"
             className="group rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-white/5 hover:border-purple-500/30 p-3.5 transition-all shadow-sm flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
@@ -398,7 +398,7 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
 
           {/* 4. New Applications to Shortlist */}
           <Link
-            href="/admin/campaigns"
+            href="/admin/applications?status=Applied"
             className="group rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-white/5 hover:border-blue-500/30 p-3.5 transition-all shadow-sm flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">

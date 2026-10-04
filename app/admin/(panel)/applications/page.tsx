@@ -1309,6 +1309,30 @@ export default function AllApplicationsPage() {
   // Auto-refresh when influencers apply or data changes
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
+  // Sync query parameters on initial page load (e.g. ?status=Applied&campaign=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const statusParam = params.get('status')
+    const campaignParam = params.get('campaign')
+    const searchParam = params.get('search')
+
+    if (statusParam) {
+      setActiveStatus(statusParam)
+    }
+
+    if (campaignParam) {
+      setFilters(prev => ({
+        ...prev,
+        campaign: prev.campaign.includes(campaignParam) ? prev.campaign : [...prev.campaign, campaignParam]
+      }))
+    }
+
+    if (searchParam) {
+      setSearchQuery(searchParam)
+    }
+  }, [])
+
   // ─── Filter + Sort + Paginate ──────────────────────────
   const processedData = useMemo(() => {
     let result = [...applications]

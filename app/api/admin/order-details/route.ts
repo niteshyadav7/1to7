@@ -34,6 +34,7 @@ export async function GET() {
           'instagram_profile_pic', u.instagram_profile_pic
         ) AS users,
         json_build_object(
+          'id', c.id,
           'brand_name', c.brand_name,
           'campaign_code', c.campaign_code,
           'platform', c.platform,

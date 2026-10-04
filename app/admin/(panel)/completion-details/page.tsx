@@ -431,6 +431,37 @@ export default function CompletionDetailsPage() {
     onChange: () => fetchCompletions(true),
   })
 
+  // Sync query parameters on initial page load (e.g. ?tab=pending&search=Jiotag)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab') || params.get('status')
+    const searchParam = params.get('search')
+    const brandParam = params.get('brand')
+    const campaignCodeParam = params.get('campaignCode')
+
+    if (tabParam) {
+      const lower = tabParam.toLowerCase()
+      if (lower === 'pending' || lower.includes('review')) {
+        setActiveTab('pending')
+      } else if (lower === 'completed') {
+        setActiveTab('completed')
+      } else if (lower === 'revision') {
+        setActiveTab('revision')
+      }
+    }
+
+    if (brandParam && brandParam !== 'all') {
+      setSelectedBrand(brandParam)
+    }
+
+    if (searchParam) {
+      setSearch(searchParam)
+    } else if (campaignCodeParam) {
+      setSearch(campaignCodeParam)
+    }
+  }, [])
+
   // ─── Unique Filter Options ─────────────────────────────
   const uniqueBrands = useMemo(() => {
     return Array.from(new Set(completions.map(c => c.campaigns?.brand_name).filter(Boolean)))

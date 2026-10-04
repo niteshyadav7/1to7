@@ -43,6 +43,7 @@ interface UserInfo {
 }
 
 interface CampaignInfo {
+  id?: string
   brand_name: string
   campaign_code: string
   platform: string
@@ -682,6 +683,7 @@ export default function OrderDetailsPage() {
   const [pageSize, setPageSize] = useState(25)
 
   // Advanced filters
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   const [filters, setFilters] = useState<Filters>({
     brand: [],
     platform: [],
@@ -781,6 +783,45 @@ export default function OrderDetailsPage() {
   // Auto-refresh when influencers submit orders
   useRealtime({ table: 'applications', onChange: fetchOrders })
 
+  // Sync query parameters on initial page load (e.g. ?status=Pending&brand=Deconstruct)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const statusParam = params.get('status')
+    const brandParam = params.get('brand')
+    const searchParam = params.get('search')
+    const campaignCodeParam = params.get('campaignCode')
+    const campaignIdParam = params.get('campaignId')
+
+    if (statusParam) {
+      const lower = statusParam.toLowerCase()
+      if (lower === 'pending' || lower.includes('review')) {
+        setActiveStatus('Pending')
+      } else if (lower === 'approved' || lower === 'verified') {
+        setActiveStatus('Approved')
+      } else if (lower === 'rejected') {
+        setActiveStatus('Rejected')
+      }
+    }
+
+    if (brandParam) {
+      setFilters(prev => ({
+        ...prev,
+        brand: prev.brand.includes(brandParam) ? prev.brand : [...prev.brand, brandParam]
+      }))
+    }
+
+    if (campaignIdParam) {
+      setSelectedCampaignId(campaignIdParam)
+    }
+
+    if (searchParam) {
+      setSearchQuery(searchParam)
+    } else if (campaignCodeParam) {
+      setSearchQuery(campaignCodeParam)
+    }
+  }, [])
+
   // ─── Filter + Sort + Paginate ─────────────────────────
   const processedData = useMemo(() => {
     let result = [...orders]
@@ -788,6 +829,11 @@ export default function OrderDetailsPage() {
     // Status filter (by order verification status)
     if (activeStatus !== 'All') {
       result = result.filter(o => getOrderVerificationStatus(o) === activeStatus)
+    }
+
+    // Campaign ID filter (from deep link)
+    if (selectedCampaignId) {
+      result = result.filter(o => o.campaigns?.id === selectedCampaignId)
     }
 
     // Search
