@@ -13,7 +13,8 @@ import {
   FileSpreadsheet, FileJson, UserCheck, UserX,
   Image, ExternalLink, Package, Eye, Clock,
   FileCheck, Link2, Sparkles, Pencil, Save, AlertCircle,
-  RotateCcw, CheckSquare, EyeOff, History, ZoomIn
+  RotateCcw, CheckSquare, EyeOff, History, ZoomIn,
+  Heart, MessageCircle, Share2, Bookmark, BadgeIndianRupee
 } from 'lucide-react'
 import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
@@ -59,8 +60,14 @@ export interface CompletionSubmission {
   live_date?: string
   deliverable_link?: string
   supporting_document?: string
-  views_count?: string
+  views_count?: string | number
+  likes_count?: string | number
+  comments_count?: string | number
+  shares_count?: string | number
+  saves_count?: string | number
   notes?: string
+  bank_details?: string
+  payment_amount?: string | number
   custom_responses?: Record<string, any>
   submitted_at?: string
   attempt?: number
@@ -73,12 +80,7 @@ export interface CompletionEntry {
     order_details?: Record<string, any>
     completion_submission?: CompletionSubmission
     completion_history?: any[]
-    payment_request?: {
-      live_date?: string
-      supporting_document?: string
-      amount?: number
-      reason?: string
-    }
+    payment_request?: Record<string, any>
     rejection_reason?: string
     completion_approved?: boolean
     order_history?: any[]
@@ -98,6 +100,60 @@ export interface CompletionEntry {
   campaigns: CampaignInfo
 }
 
+const INTERNAL_FORM_KEYS = new Set([
+  'order_details',
+  'completion_submission',
+  'completion_history',
+  'rejection_reason',
+  'completion_approved',
+  'order_history',
+  'payment_requests',
+  'payment_request',
+  'payment_request_amount',
+  'payment_request_reason',
+  'supporting_document',
+  'live_date',
+  'payment_reason',
+  'payment_amount',
+  'payment_initiated',
+  'payment_rejection',
+  'payment_rejections',
+  'payment_initiation',
+  'payment_transactions',
+  'finance_payout_completed',
+  'requests',
+  'order_details_approved',
+  'order_details_approved_at',
+  'order_details_approved_by_id',
+  'order_details_approved_by_name',
+  'order_rejected_by_name',
+  'team_remark_by',
+  'team_remark_updated_at',
+  'Campaign ID user id',
+  'FINAL APPROVEL',
+  'PROFILE APPROVEL',
+  'sent_to_brand',
+  'agreed_commercial',
+  'commercial_amount',
+  'total_deal',
+  '-Mobile Number',
+  'User id',
+  'Campaign ID',
+  'ORDER SS IF REQ',
+  'ORDER ID',
+  'REFUND AMOUNT',
+  '_edited_by_admin',
+  'revoked_at',
+  'revocation_note',
+  'Post Link',
+  'Live Link',
+  'Views',
+  'Likes',
+  'Comments',
+  'Shares',
+  'Saves'
+])
+
 type SortField = 'date' | 'name' | 'campaign' | 'status' | 'views' | 'live_date'
 type SortDir = 'asc' | 'desc'
 type RowDensity = 'compact' | 'default' | 'comfortable'
@@ -116,17 +172,70 @@ const defaultColumns: Record<string, boolean> = {
 
 // ─── Helpers ───────────────────────────────────────────────
 function getCompletionDetails(app: CompletionEntry): CompletionSubmission {
-  if (app.form_data?.completion_submission) {
-    return app.form_data.completion_submission
-  }
-  if (app.form_data?.payment_request) {
-    return {
-      live_date: app.form_data.payment_request.live_date,
-      supporting_document: app.form_data.payment_request.supporting_document,
-      notes: app.form_data.payment_request.reason,
+  const fd = app.form_data || {}
+  const cs = (fd.completion_submission && typeof fd.completion_submission === 'object') ? fd.completion_submission : {}
+  const pr = (fd.payment_request && typeof fd.payment_request === 'object') ? fd.payment_request : {}
+
+  // 1. Live Date
+  const live_date = cs.live_date || pr.live_date || fd.live_date || ''
+
+  // 2. Deliverable / Post / Reel Link
+  let deliverable_link = cs.deliverable_link || pr['Post Link'] || pr['Live Link'] || pr.post_link || pr.deliverable_link || fd['Post Link'] || fd['Live Link'] || fd.deliverable_link || ''
+  
+  // If deliverable_link is empty, check if creator embedded a URL inside remarks / notes / payment_reason!
+  const candidateText = cs.notes || pr.payment_reason || pr.reason || fd.payment_reason || fd.notes || ''
+  if (!deliverable_link && candidateText) {
+    const urlMatch = candidateText.match(/(https?:\/\/[^\s]+)/i)
+    if (urlMatch) {
+      deliverable_link = urlMatch[1]
     }
   }
-  return {}
+
+  // 3. Views
+  const views_count = cs.views_count || pr['Views'] || pr.views || pr.views_count || fd.views || ''
+
+  // 4. Social Engagement Metrics
+  const likes_count = cs.likes_count || pr['Likes'] || pr.likes || ''
+  const comments_count = cs.comments_count || pr['Comments'] || pr.comments || ''
+  const shares_count = cs.shares_count || pr['Shares'] || pr.shares || ''
+  const saves_count = cs.saves_count || pr['Saves'] || pr.saves || ''
+
+  // 5. Supporting Document / Screenshot Proof
+  const supporting_document = cs.supporting_document || pr.supporting_document || pr.proof_url || pr.screenshot || fd.supporting_document || ''
+
+  // 6. Notes / Creator Remarks
+  const notes = cs.notes || pr.payment_reason || pr.reason || fd.payment_reason || fd.notes || ''
+
+  // 7. Bank Details & Payment Amount
+  const bank_details = cs.bank_details || pr.bank_details || ''
+  const payment_amount = cs.payment_amount || pr.payment_amount || ''
+
+  // 8. Attempt & Submitted At
+  const attempt = cs.attempt || 1
+  const submitted_at = cs.submitted_at || pr.submitted_at || app.completion_submitted_at || app.updated_at || ''
+
+  // 9. Custom Responses (merge any custom fields)
+  const custom_responses = {
+    ...(pr.custom_responses || {}),
+    ...(cs.custom_responses || {})
+  }
+
+  return {
+    live_date,
+    deliverable_link,
+    supporting_document,
+    views_count,
+    likes_count,
+    comments_count,
+    shares_count,
+    saves_count,
+    notes,
+    bank_details,
+    payment_amount,
+    attempt,
+    submitted_at,
+    custom_responses,
+  }
 }
 
 function getCompletionStatus(app: CompletionEntry): 'Completed' | 'Pending Review' | 'Revision Needed' {
@@ -277,6 +386,10 @@ export default function CompletionDetailsPage() {
   const [editLiveDate, setEditLiveDate] = useState('')
   const [editDeliverableLink, setEditDeliverableLink] = useState('')
   const [editViewsCount, setEditViewsCount] = useState('')
+  const [editLikes, setEditLikes] = useState('')
+  const [editComments, setEditComments] = useState('')
+  const [editShares, setEditShares] = useState('')
+  const [editSaves, setEditSaves] = useState('')
   const [editProofUrl, setEditProofUrl] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [editFormResponses, setEditFormResponses] = useState<Record<string, any>>({})
@@ -447,11 +560,10 @@ export default function CompletionDetailsPage() {
   // ─── Edit Submission Modal Open & Save ──────────────────
   const openEditModal = (app: CompletionEntry) => {
     const comp = getCompletionDetails(app)
-    const internalKeys = ['order_details', 'completion_submission', 'completion_history', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
     const customResponses: Record<string, any> = {}
     if (app.form_data) {
       Object.entries(app.form_data).forEach(([k, v]) => {
-        if (!internalKeys.includes(k) && !k.startsWith('_')) {
+        if (!INTERNAL_FORM_KEYS.has(k) && !k.startsWith('_') && typeof v !== 'object') {
           customResponses[k] = v
         }
       })
@@ -461,6 +573,10 @@ export default function CompletionDetailsPage() {
     setEditLiveDate(comp.live_date || '')
     setEditDeliverableLink(comp.deliverable_link || '')
     setEditViewsCount(String(comp.views_count || ''))
+    setEditLikes(String(comp.likes_count || ''))
+    setEditComments(String(comp.comments_count || ''))
+    setEditShares(String(comp.shares_count || ''))
+    setEditSaves(String(comp.saves_count || ''))
     setEditProofUrl(comp.supporting_document || '')
     setEditNotes(comp.notes || '')
     setEditFormResponses(customResponses)
@@ -478,14 +594,33 @@ export default function CompletionDetailsPage() {
         live_date: editLiveDate.trim(),
         deliverable_link: editDeliverableLink.trim(),
         views_count: editViewsCount.trim(),
+        likes_count: editLikes.trim(),
+        comments_count: editComments.trim(),
+        shares_count: editShares.trim(),
+        saves_count: editSaves.trim(),
         supporting_document: editProofUrl.trim(),
         notes: editNotes.trim(),
       }
+
+      // Also update payment_request if it exists so both stay 100% in sync
+      const updatedPaymentRequest = currentFormData.payment_request ? {
+        ...currentFormData.payment_request,
+        live_date: editLiveDate.trim(),
+        'Post Link': editDeliverableLink.trim(),
+        'Views': editViewsCount.trim(),
+        'Likes': editLikes.trim(),
+        'Comments': editComments.trim(),
+        'Shares': editShares.trim(),
+        'Saves': editSaves.trim(),
+        supporting_document: editProofUrl.trim(),
+        payment_reason: editNotes.trim(),
+      } : undefined
 
       const updatedFormData = {
         ...currentFormData,
         ...editFormResponses,
         completion_submission: updatedCompletionSubmission,
+        ...(updatedPaymentRequest ? { payment_request: updatedPaymentRequest } : {}),
         _edited_by_admin: {
           at: new Date().toISOString(),
         }
@@ -589,20 +724,27 @@ export default function CompletionDetailsPage() {
       return {
         'Influencer Name': c.users?.full_name || '',
         'Influencer ID': c.users?.influencer_id || '',
-        'Instagram': c.users?.instagram_username || '',
+        'Instagram Handle': c.users?.instagram_username || '',
         'Instagram URL': c.users?.instagram_username ? getInstagramUrl(c.users.instagram_username) : '',
         'Followers': c.users?.followers || '',
         'Mobile': c.users?.mobile || '',
         'Brand': c.campaigns?.brand_name || '',
         'Campaign Code': c.campaigns?.campaign_code || '',
-        'Live Date': comp.live_date || '',
+        'Content Live Date': comp.live_date || '',
         'Deliverable Link': comp.deliverable_link || '',
         'Views / Reach': comp.views_count || '',
-        'Screenshot URL': comp.supporting_document || '',
-        'Notes': comp.notes || '',
+        'Likes': comp.likes_count || '',
+        'Comments': comp.comments_count || '',
+        'Shares': comp.shares_count || '',
+        'Saves': comp.saves_count || '',
+        'Analytics Proof URL': comp.supporting_document || '',
+        'Creator Remarks': comp.notes || '',
+        'Bank Details': comp.bank_details ? comp.bank_details.replace(/\n/g, ' | ') : '',
+        'Requested Amount': comp.payment_amount || '',
         'Completion Status': getCompletionStatus(c),
         'Application Status': c.status,
-        'Submitted At': c.completion_submitted_at || c.updated_at,
+        'Attempt': comp.attempt || 1,
+        'Submitted At': comp.submitted_at || c.completion_submitted_at || c.updated_at || '',
       }
     })
 
@@ -1319,8 +1461,11 @@ export default function CompletionDetailsPage() {
 
                                   {/* Application Form Responses */}
                                   {app.form_data && (() => {
-                                    const internalKeys = ['order_details', 'completion_submission', 'completion_history', 'rejection_reason', 'completion_approved', 'order_history', 'payment_requests', 'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date', 'payment_reason', 'payment_amount']
-                                    const customEntries = Object.entries(app.form_data).filter(([k]) => !internalKeys.includes(k) && !k.startsWith('_'))
+                                    const customEntries = Object.entries(app.form_data).filter(([k, val]) => {
+                                      if (INTERNAL_FORM_KEYS.has(k) || k.startsWith('_')) return false
+                                      if (typeof val === 'object' && val !== null) return false
+                                      return true
+                                    })
                                     if (customEntries.length === 0) return null
 
                                     return (
@@ -1390,22 +1535,37 @@ export default function CompletionDetailsPage() {
                                           type="button"
                                           onClick={() => openEditModal(app)}
                                           className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 hover:text-emerald-200 bg-emerald-500/15 px-2 py-0.5 rounded-lg border border-emerald-500/25 transition-all cursor-pointer shadow-sm"
-                                          title="Edit deliverable link, views, notes"
+                                          title="Edit deliverable link, views, notes, metrics"
                                         >
                                           <Pencil className="h-3 w-3" />
                                           Edit
                                         </button>
                                       </div>
-                                      {compStatus === 'Completed' ? (
-                                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Verified</span>
-                                      ) : compStatus === 'Revision Needed' ? (
-                                        <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">Needs Revision</span>
-                                      ) : (
-                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30 animate-pulse">Action Required</span>
-                                      )}
+                                      <div className="flex items-center gap-1.5">
+                                        {comp.attempt && comp.attempt > 1 && (
+                                          <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                                            Attempt #{comp.attempt}
+                                          </span>
+                                        )}
+                                        {compStatus === 'Completed' ? (
+                                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">Verified</span>
+                                        ) : compStatus === 'Revision Needed' ? (
+                                          <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold border border-rose-500/30">Needs Revision</span>
+                                        ) : (
+                                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30 animate-pulse">Action Required</span>
+                                        )}
+                                      </div>
                                     </div>
 
-                                    {/* Deliverable Fields */}
+                                    {/* Submission Date Header if present */}
+                                    {comp.submitted_at && (
+                                      <div className="flex items-center justify-between text-[10px] text-slate-400 -mt-1 px-0.5">
+                                        <span>Submitted: {new Date(comp.submitted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                        {comp.attempt === 1 && <span className="text-slate-500 font-medium">Attempt #1</span>}
+                                      </div>
+                                    )}
+
+                                    {/* Deliverable Core Fields */}
                                     <div className="grid grid-cols-2 gap-2.5">
                                       <div className="bg-slate-900/80 p-2.5 rounded-xl border border-white/5">
                                         <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Content Live Date</p>
@@ -1421,6 +1581,43 @@ export default function CompletionDetailsPage() {
                                       </div>
                                     </div>
 
+                                    {/* Social Engagement Metrics Bar (Likes, Comments, Shares, Saves) */}
+                                    {(comp.likes_count || comp.comments_count || comp.shares_count || comp.saves_count) ? (
+                                      <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-2">
+                                        <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Social Engagement Metrics</p>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                          <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2 text-center">
+                                            <div className="flex items-center justify-center gap-1 text-[10px] text-rose-400 font-bold mb-0.5">
+                                              <Heart className="h-3 w-3" />
+                                              <span>Likes</span>
+                                            </div>
+                                            <p className="text-xs font-extrabold text-white">{comp.likes_count ? formatFollowers(comp.likes_count) : '—'}</p>
+                                          </div>
+                                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center">
+                                            <div className="flex items-center justify-center gap-1 text-[10px] text-blue-400 font-bold mb-0.5">
+                                              <MessageCircle className="h-3 w-3" />
+                                              <span>Comments</span>
+                                            </div>
+                                            <p className="text-xs font-extrabold text-white">{comp.comments_count ? formatFollowers(comp.comments_count) : '—'}</p>
+                                          </div>
+                                          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
+                                            <div className="flex items-center justify-center gap-1 text-[10px] text-emerald-400 font-bold mb-0.5">
+                                              <Share2 className="h-3 w-3" />
+                                              <span>Shares</span>
+                                            </div>
+                                            <p className="text-xs font-extrabold text-white">{comp.shares_count ? formatFollowers(comp.shares_count) : '—'}</p>
+                                          </div>
+                                          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 text-center">
+                                            <div className="flex items-center justify-center gap-1 text-[10px] text-amber-400 font-bold mb-0.5">
+                                              <Bookmark className="h-3 w-3" />
+                                              <span>Saves</span>
+                                            </div>
+                                            <p className="text-xs font-extrabold text-white">{comp.saves_count ? formatFollowers(comp.saves_count) : '—'}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : null}
+
                                     {/* Live Content Link */}
                                     {comp.deliverable_link && (
                                       <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1.5">
@@ -1432,10 +1629,10 @@ export default function CompletionDetailsPage() {
                                           href={comp.deliverable_link}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1 break-all"
+                                          className="text-xs font-bold text-indigo-300 hover:text-indigo-200 hover:underline flex items-center gap-1.5 break-all bg-indigo-500/10 hover:bg-indigo-500/20 p-2.5 rounded-lg border border-indigo-500/20 transition-colors"
                                         >
-                                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                                          {comp.deliverable_link}
+                                          <ExternalLink className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                                          <span className="truncate">{comp.deliverable_link}</span>
                                         </a>
                                       </div>
                                     )}
@@ -1443,8 +1640,30 @@ export default function CompletionDetailsPage() {
                                     {/* Creator Remarks / Notes */}
                                     {comp.notes && (
                                       <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1">
-                                        <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Creator Remarks</p>
+                                        <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Creator Remarks / Notes</p>
                                         <p className="text-xs text-slate-300 italic whitespace-pre-line leading-relaxed">{comp.notes}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Bank Details & Payment Request (if available) */}
+                                    {(comp.bank_details || comp.payment_amount) && (
+                                      <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold flex items-center gap-1">
+                                            <BadgeIndianRupee className="h-3 w-3 text-emerald-400" />
+                                            Payment / Bank Details
+                                          </p>
+                                          {comp.payment_amount && (
+                                            <span className="text-[11px] font-extrabold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                                              Req: ₹{Number(comp.payment_amount).toLocaleString()}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {comp.bank_details && (
+                                          <p className="text-[11px] text-slate-300 font-mono whitespace-pre-line leading-relaxed bg-black/40 p-2.5 rounded-lg border border-white/5">
+                                            {comp.bank_details}
+                                          </p>
+                                        )}
                                       </div>
                                     )}
 
@@ -1876,6 +2095,58 @@ export default function CompletionDetailsPage() {
                         value={editViewsCount}
                         onChange={(e) => setEditViewsCount(e.target.value)}
                         placeholder="e.g. 250000"
+                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Social Engagement Metrics */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Likes
+                      </label>
+                      <Input
+                        type="text"
+                        value={editLikes}
+                        onChange={(e) => setEditLikes(e.target.value)}
+                        placeholder="e.g. 1500"
+                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Comments
+                      </label>
+                      <Input
+                        type="text"
+                        value={editComments}
+                        onChange={(e) => setEditComments(e.target.value)}
+                        placeholder="e.g. 85"
+                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Shares
+                      </label>
+                      <Input
+                        type="text"
+                        value={editShares}
+                        onChange={(e) => setEditShares(e.target.value)}
+                        placeholder="e.g. 40"
+                        className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-1 block">
+                        Saves
+                      </label>
+                      <Input
+                        type="text"
+                        value={editSaves}
+                        onChange={(e) => setEditSaves(e.target.value)}
+                        placeholder="e.g. 25"
                         className="bg-slate-800 border-white/10 text-white text-xs focus:ring-emerald-500 font-bold"
                       />
                     </div>

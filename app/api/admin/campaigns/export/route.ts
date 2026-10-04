@@ -195,12 +195,29 @@ export async function GET(request: Request) {
     const appsRes = await client.query(appsQuery, appParams)
     const applications = appsRes.rows || []
 
+    // Internal keys that should never be exported as raw custom keys
+    const internalKeys = new Set([
+      'order_details', 'completion_submission', 'completion_history', 'rejection_reason',
+      'completion_approved', 'order_history', 'payment_requests', 'payment_request',
+      'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date',
+      'payment_reason', 'payment_amount', 'payment_initiated', 'payment_rejection',
+      'payment_rejections', 'payment_initiation', 'payment_transactions', 'finance_payout_completed',
+      'requests', 'order_details_approved', 'order_details_approved_at', 'order_details_approved_by_id',
+      'order_details_approved_by_name', 'order_rejected_by_name', 'team_remark_by',
+      'team_remark_updated_at', 'Campaign ID user id', 'FINAL APPROVEL', 'PROFILE APPROVEL',
+      'sent_to_brand', 'agreed_commercial', 'commercial_amount', 'total_deal', '-Mobile Number',
+      'User id', 'Campaign ID', 'ORDER SS IF REQ', 'ORDER ID', 'REFUND AMOUNT', '_edited_by_admin',
+      'revoked_at', 'revocation_note'
+    ])
+
     // Collect all dynamic custom field keys across applications
     const customKeysSet = new Set<string>()
     applications.forEach(app => {
       if (app.form_data && typeof app.form_data === 'object') {
         Object.keys(app.form_data).forEach(k => {
-          if (k && !k.startsWith('_')) customKeysSet.add(k)
+          if (k && !k.startsWith('_') && !internalKeys.has(k) && typeof app.form_data[k] !== 'object') {
+            customKeysSet.add(k)
+          }
         })
       }
     })
@@ -231,7 +248,12 @@ export async function GET(request: Request) {
       'IFSC',
       'Store Location',
       'Shipping Address',
-      'Applied Date'
+      'Applied Date',
+      'Completion Live Date',
+      'Completion Link',
+      'Completion Views',
+      'Completion Proof URL',
+      'Completion Notes'
     ]
 
     const allHeaders = [...baseHeaders, ...customKeys]
@@ -252,6 +274,22 @@ export async function GET(request: Request) {
           ? [app.selected_store.name, app.selected_store.city, app.selected_store.area, app.selected_store.address].filter(Boolean).join(' - ')
           : String(app.selected_store)
       }
+
+      // Resolve completion fields
+      const fd = app.form_data || {}
+      const cs = (fd.completion_submission && typeof fd.completion_submission === 'object') ? fd.completion_submission : {}
+      const pr = (fd.payment_request && typeof fd.payment_request === 'object') ? fd.payment_request : {}
+
+      const compLiveDate = cs.live_date || pr.live_date || fd.live_date || ''
+      let compLink = cs.deliverable_link || pr['Post Link'] || pr['Live Link'] || pr.post_link || pr.deliverable_link || fd['Post Link'] || fd['Live Link'] || fd.deliverable_link || ''
+      const candidateNotes = cs.notes || pr.payment_reason || pr.reason || fd.payment_reason || fd.notes || ''
+      if (!compLink && candidateNotes) {
+        const m = candidateNotes.match(/(https?:\/\/[^\s]+)/i)
+        if (m) compLink = m[1]
+      }
+      const compViews = cs.views_count || pr['Views'] || pr.views || pr.views_count || fd.views || ''
+      const compProof = cs.supporting_document || pr.supporting_document || pr.proof_url || pr.screenshot || fd.supporting_document || ''
+      const compNotes = candidateNotes
 
       const rowValues = [
         escapeCSV(app.influencer_id || ''),
@@ -277,7 +315,12 @@ export async function GET(request: Request) {
         escapeCSV(app.ifsc_code || ''),
         escapeCSV(storeStr),
         escapeCSV(shipStr),
-        escapeCSV(app.applied_at ? new Date(app.applied_at).toISOString() : '')
+        escapeCSV(app.applied_at ? new Date(app.applied_at).toISOString() : ''),
+        escapeCSV(compLiveDate),
+        escapeCSV(compLink),
+        escapeCSV(compViews),
+        escapeCSV(compProof),
+        escapeCSV(compNotes)
       ]
 
       // Append custom form answers
