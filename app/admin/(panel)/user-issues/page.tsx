@@ -208,6 +208,7 @@ export default function AdminUserIssuesPage() {
         prev.map((i) => (i.id === selectedIssue.id ? { ...i, ...data.issue } : i))
       )
       setSelectedIssue(data.issue)
+      window.dispatchEvent(new Event('admin-counters-refresh'))
       fetchIssues()
     } catch (err: any) {
       toast.error(err.message || 'Failed to update issue')
@@ -232,6 +233,7 @@ export default function AdminUserIssuesPage() {
       setIssues((prev) =>
         prev.map((i) => (i.id === issueId ? { ...i, status: newStatus as any } : i))
       )
+      window.dispatchEvent(new Event('admin-counters-refresh'))
       fetchIssues()
     } catch (err: any) {
       toast.error(err.message || 'Failed to update status')
@@ -253,6 +255,7 @@ export default function AdminUserIssuesPage() {
       toast.success('Ticket deleted successfully')
       setIssues((prev) => prev.filter((i) => i.id !== issueToDelete.id))
       if (selectedIssue?.id === issueToDelete.id) setSelectedIssue(null)
+      window.dispatchEvent(new Event('admin-counters-refresh'))
       fetchIssues()
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete issue')

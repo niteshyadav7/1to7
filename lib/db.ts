@@ -73,6 +73,20 @@ export async function ensurePocMigration(): Promise<void> {
         ) THEN
           ALTER TABLE public.campaigns ADD COLUMN manager_phone TEXT;
         END IF;
+
+        -- 4. status and resolution tracking on feedback
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'feedback' 
+            AND column_name = 'status'
+        ) THEN
+          ALTER TABLE public.feedback ADD COLUMN status TEXT DEFAULT 'pending';
+          ALTER TABLE public.feedback ADD COLUMN admin_notes TEXT;
+          ALTER TABLE public.feedback ADD COLUMN resolved_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE public.feedback ADD COLUMN resolved_by TEXT;
+          UPDATE public.feedback SET status = 'pending' WHERE status IS NULL;
+        END IF;
       END $$;
     `)
     global._pocMigrationDone = true

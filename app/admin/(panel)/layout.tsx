@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -109,6 +109,41 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const { headerContent } = useAdminHeader()
   const { admin, loading, isSuperAdmin, canAccessModule } = useAdminPermissions()
 
+  // Sidebar dynamic badge counters (unresolved issues & pending feedback)
+  const [sidebarCounters, setSidebarCounters] = useState<{
+    user_issues?: { unresolved: number; total: number }
+    feedback?: { unresolved: number; total: number }
+  }>({})
+
+  const fetchCounters = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/sidebar-counters')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.counters) {
+          setSidebarCounters(data.counters)
+        }
+      }
+    } catch {
+      // ignore network errors silently
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCounters()
+    const interval = setInterval(fetchCounters, 30000)
+
+    const handleRefresh = () => fetchCounters()
+    window.addEventListener('admin-counters-refresh', handleRefresh)
+    window.addEventListener('focus', handleRefresh)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('admin-counters-refresh', handleRefresh)
+      window.removeEventListener('focus', handleRefresh)
+    }
+  }, [fetchCounters])
+
   const handleLogout = async () => {
     try {
       await fetch('/api/admin/logout', { method: 'POST' })
@@ -207,6 +242,19 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {visibleLinks.map((link) => {
             const active = isActive(link.href)
+
+            // Check for unaddressed counter badge
+            let counterCount = 0
+            let counterType: 'issues' | 'feedback' | null = null
+
+            if (link.href === '/admin/user-issues' && sidebarCounters.user_issues) {
+              counterCount = sidebarCounters.user_issues.unresolved
+              counterType = 'issues'
+            } else if (link.href === '/admin/feedback' && sidebarCounters.feedback) {
+              counterCount = sidebarCounters.feedback.unresolved
+              counterType = 'feedback'
+            }
+
             return (
               <Link
                 key={link.href}
@@ -225,7 +273,30 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                   }`}
                 />
                 <span className="truncate">{link.label}</span>
-                {active && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />}
+
+                {/* Unresolved Issues Counter Badge */}
+                {counterCount > 0 && counterType === 'issues' && (
+                  <span
+                    title={`${counterCount} unresolved user issue${counterCount > 1 ? 's' : ''}`}
+                    className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0 shadow-sm shadow-rose-500/10"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                    {counterCount}
+                  </span>
+                )}
+
+                {/* Pending Feedback Counter Badge */}
+                {counterCount > 0 && counterType === 'feedback' && (
+                  <span
+                    title={`${counterCount} pending feedback submission${counterCount > 1 ? 's' : ''}`}
+                    className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm shadow-amber-500/10"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    {counterCount}
+                  </span>
+                )}
+
+                {active && counterCount === 0 && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />}
               </Link>
             )
           })}
