@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import pool from '@/lib/db'
 import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
 import { computeCampaignDiff, CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
 
@@ -59,13 +60,27 @@ export async function PUT(
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
       'display_order', 'brief_document_url',
       'is_test_mode', 'test_user_ids', 'test_creators',
-      'poc_admin_ids'
+      'poc_admin_ids', 'manager_phone'
     ]
 
     const updates: Record<string, any> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updates[field] = body[field]
+      }
+    }
+
+    // Auto-sync manager_phone if poc_admin_ids changed and manager_phone was not explicitly specified
+    if (updates.poc_admin_ids !== undefined && body.manager_phone === undefined) {
+      if (Array.isArray(updates.poc_admin_ids) && updates.poc_admin_ids.length > 0) {
+        try {
+          const pocRes = await pool.query('SELECT phone FROM public.admins WHERE id = $1', [updates.poc_admin_ids[0]])
+          if (pocRes.rows[0]?.phone) {
+            updates.manager_phone = pocRes.rows[0].phone
+          }
+        } catch (err) {
+          console.warn('Non-fatal error resolving POC phone during campaign update:', err)
+        }
       }
     }
 
@@ -108,7 +123,7 @@ export async function PUT(
     const adminName = admin.full_name || admin.name || 'Admin'
     const adminEmail = admin.email || ''
 
-    const isPocOnlyEdit = Object.keys(updates).every(k => k === 'poc_admin_ids')
+    const isPocOnlyEdit = Object.keys(updates).every(k => k === 'poc_admin_ids' || k === 'manager_phone')
     const isPilot = updates.is_test_mode !== undefined ? Boolean(updates.is_test_mode) : Boolean(existingCampaign.is_test_mode)
 
     if (isPocOnlyEdit) {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles } from 'lucide-react'
+import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles, Phone, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
 import { useRealtime } from '@/hooks/useRealtime'
@@ -16,6 +16,13 @@ interface Application {
   partial_payment: number
   final_payment: number
   pending_amount: number
+  manager_phone?: string | null
+  manager?: {
+    name?: string
+    phone?: string | null
+    email?: string | null
+    avatarUrl?: string | null
+  }
   created_at: string
   updated_at: string
   campaigns: {
@@ -26,6 +33,7 @@ interface Application {
     category: string
     budget_type: string
     deliverables: string
+    manager_phone?: string | null
     order_form?: boolean
     payment_form_fields?: any[]
   }
@@ -172,6 +180,61 @@ export default function ApprovedCampaignsPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Brand Manager Contact Strip */}
+                  {(() => {
+                    const mgrPhone = app.manager?.phone || app.manager_phone || app.campaigns?.manager_phone
+                    const mgrName = app.manager?.name || 'Brand Manager'
+                    const cleanPhone = mgrPhone ? String(mgrPhone).replace(/\D/g, '') : ''
+                    const phone10 = cleanPhone ? (cleanPhone.length === 12 && cleanPhone.startsWith('91') ? cleanPhone.slice(2) : cleanPhone) : ''
+
+                    return (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="mb-3.5 p-2 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {mgrName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-[11px] font-bold text-slate-800 truncate block">
+                              {mgrName}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-medium">
+                              Brand Manager {phone10 ? `• +91 ${phone10}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        {phone10 ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <a
+                              href={`https://wa.me/91${phone10}?text=${encodeURIComponent(
+                                `Hi ${mgrName}, I am collaborating on ${brandName} (${campCode}). I have a query regarding my collaboration.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                              title="WhatsApp Brand Manager"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              WhatsApp
+                            </a>
+                            <a
+                              href={`tel:+91${phone10}`}
+                              className="p-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+                              title="Call Brand Manager"
+                            >
+                              <Phone className="h-3 w-3" />
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-slate-400 italic shrink-0">Assigned POC</span>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Financials Row */}
                   <div className="grid grid-cols-3 gap-2 mb-3 mt-auto">

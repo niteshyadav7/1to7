@@ -27,6 +27,7 @@ import {
   Tags,
   Radio,
   Award,
+  User,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -166,22 +167,41 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        {/* Admin Info & Role Badge */}
-        <div className="p-4 border-b border-white/5" suppressHydrationWarning>
+        {/* Admin Info & Role Badge - Clickable to /admin/profile */}
+        <Link
+          href="/admin/profile"
+          onClick={() => setSidebarOpen(false)}
+          className={`block p-4 border-b border-white/5 transition-all hover:bg-white/[0.04] group cursor-pointer ${
+            pathname === '/admin/profile' ? 'bg-indigo-500/10' : ''
+          }`}
+          suppressHydrationWarning
+        >
           <div className="flex items-center gap-3" suppressHydrationWarning>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md" suppressHydrationWarning>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md group-hover:scale-105 transition-transform" suppressHydrationWarning>
               {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0" suppressHydrationWarning>
-              <p className="text-sm font-semibold text-white truncate" suppressHydrationWarning>{admin?.name || 'Admin'}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors" suppressHydrationWarning>{admin?.name || 'Admin'}</p>
+                <User className="h-3.5 w-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors shrink-0" />
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5" suppressHydrationWarning>
                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]" suppressHydrationWarning>
                   {admin?.roleDisplayName || (isSuperAdmin ? 'Super Admin' : admin?.role || 'Staff')}
                 </span>
+                {admin?.phone ? (
+                  <span className="text-[10px] text-emerald-400 font-mono" title={`Phone linked: ${admin.phone}`}>
+                    📞
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-amber-400/80 font-medium" title="Add phone in profile">
+                    +Phone
+                  </span>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Dynamic Nav Links */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -211,10 +231,29 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="p-3 border-t border-white/5">
+        {/* Profile & Logout Footer */}
+        <div className="p-3 border-t border-white/5 space-y-1">
+          <Link
+            href="/admin/profile"
+            onClick={() => setSidebarOpen(false)}
+            className={`flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all cursor-pointer ${
+              pathname === '/admin/profile'
+                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5'
+                : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <User className="h-4.5 w-4.5 text-indigo-400" />
+            <span>My Profile</span>
+            {admin?.phone ? (
+              <span className="ml-auto text-[10px] text-emerald-400 font-mono font-medium">Linked</span>
+            ) : (
+              <span className="ml-auto text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-semibold">
+                Add Phone
+              </span>
+            )}
+          </Link>
           <AlertDialog>
-            <AlertDialogTrigger className="flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer">
+            <AlertDialogTrigger className="flex items-center gap-3 w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer">
               <LogOut className="h-4.5 w-4.5" />
               Sign Out
             </AlertDialogTrigger>

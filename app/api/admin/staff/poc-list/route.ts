@@ -32,6 +32,7 @@ export async function GET() {
         a.id, 
         a.name, 
         a.email, 
+        a.phone,
         a.role, 
         a.avatar_url,
         COALESCE(r.display_name, a.role) AS role_display_name
@@ -55,6 +56,7 @@ export async function GET() {
         id: row.id,
         name: row.name || 'Team Member',
         email: row.email,
+        phone: row.phone || null,
         role: row.role,
         roleDisplayName: row.role_display_name || 'Operations Admin',
         avatarUrl: row.avatar_url || null,

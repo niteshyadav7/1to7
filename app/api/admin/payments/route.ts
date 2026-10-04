@@ -17,7 +17,7 @@ export async function GET() {
         COALESCE(a.partial_payment, 0)::float AS partial_payment,
         COALESCE(a.final_payment, 0)::float AS final_payment,
         COALESCE(a.pending_amount, 0)::float AS pending_amount,
-        a.manager_phone,
+        COALESCE(a.manager_phone, c.manager_phone, '') AS manager_phone,
         a.created_at,
         a.updated_at,
         json_build_object(

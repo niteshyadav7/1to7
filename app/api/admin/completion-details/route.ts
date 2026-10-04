@@ -45,7 +45,8 @@ export async function GET() {
           budget_type,
           deliverables,
           completion_days,
-          collab_date
+          collab_date,
+          manager_phone
         )
       `)
       .or('completion_submitted_at.not.is.null,form_data->completion_submission.not.is.null,form_data->payment_request.not.is.null')
@@ -60,7 +61,10 @@ export async function GET() {
       const hasDirectCompletion = Boolean(app.completion_submitted_at || sub)
       const hasLiveProof = Boolean(sub?.live_date || sub?.deliverable_link || sub?.supporting_document || payReq?.live_date || payReq?.supporting_document)
       return hasDirectCompletion || hasLiveProof
-    })
+    }).map((app: any) => ({
+      ...app,
+      manager_phone: app.manager_phone || app.campaigns?.manager_phone || '',
+    }))
 
     return NextResponse.json({ completions })
   } catch (error: any) {

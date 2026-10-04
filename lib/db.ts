@@ -43,6 +43,7 @@ export async function ensurePocMigration(): Promise<void> {
     await pool.query(`
       DO $$
       BEGIN
+        -- 1. poc_admin_ids array on campaigns
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
           WHERE table_schema = 'public' 
@@ -51,6 +52,26 @@ export async function ensurePocMigration(): Promise<void> {
         ) THEN
           ALTER TABLE public.campaigns ADD COLUMN poc_admin_ids UUID[] DEFAULT '{}';
           CREATE INDEX IF NOT EXISTS idx_campaigns_poc_admin_ids ON public.campaigns USING GIN (poc_admin_ids);
+        END IF;
+
+        -- 2. phone column on admins for POC profile contact
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'admins' 
+            AND column_name = 'phone'
+        ) THEN
+          ALTER TABLE public.admins ADD COLUMN phone TEXT;
+        END IF;
+
+        -- 3. manager_phone column on campaigns for auto-linked brand manager phone
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'manager_phone'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN manager_phone TEXT;
         END IF;
       END $$;
     `)

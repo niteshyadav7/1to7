@@ -317,7 +317,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
           partial_payment: app.partial_payment || 0,
           final_payment: app.final_payment || 0,
           pending_amount: app.pending_amount || 0,
-          manager_phone: app.manager_phone || '',
+          manager_phone: app.manager_phone || data.campaign?.manager_phone || '',
         }
       }
       setPaymentEdits(edits)

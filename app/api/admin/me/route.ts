@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const res = await pool.query(
-      `SELECT a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.avatar_url, a.approval_status,
+      `SELECT a.id, a.email, a.name, a.phone, a.role, a.permissions, a.is_active, a.last_login, a.avatar_url, a.approval_status,
               r.display_name as role_display_name, r.permissions as role_permissions 
        FROM public.admins a 
        LEFT JOIN public.roles r ON a.role = r.name 
@@ -35,6 +35,7 @@ export async function GET() {
         id: row.id,
         email: row.email,
         name: row.name || 'Admin',
+        phone: row.phone || null,
         role: row.role,
         roleDisplayName: row.role_display_name || row.role,
         is_active: row.is_active,

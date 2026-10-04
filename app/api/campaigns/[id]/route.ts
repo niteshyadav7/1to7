@@ -84,9 +84,33 @@ export async function GET(
       }
     }
 
+    // Resolve primary brand manager details if POC is assigned
+    let manager: { name: string; phone: string | null; email: string; avatarUrl: string | null } | null = null
+    if (Array.isArray(campaign.poc_admin_ids) && campaign.poc_admin_ids.length > 0) {
+      try {
+        const pool = (await import('@/lib/db')).default
+        const pocRes = await pool.query(
+          `SELECT name, email, phone, avatar_url FROM public.admins WHERE id = $1`,
+          [campaign.poc_admin_ids[0]]
+        )
+        if (pocRes.rows[0]) {
+          const row = pocRes.rows[0]
+          manager = {
+            name: row.name || 'Brand Manager',
+            phone: campaign.manager_phone || row.phone || null,
+            email: row.email,
+            avatarUrl: row.avatar_url || null,
+          }
+        }
+      } catch (err) {
+        console.warn('Non-fatal error resolving manager for campaign route:', err)
+      }
+    }
+
     return NextResponse.json({
       campaign: {
         ...campaign,
+        manager,
         applied,
         application_status,
         application_id,

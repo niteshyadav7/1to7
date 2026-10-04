@@ -28,6 +28,7 @@ import {
   Check,
   ChevronDown,
   UserCheck,
+  Phone,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,7 @@ interface StaffMember {
   id: string
   name: string
   email: string
+  phone?: string | null
   role: string
   roleDisplayName: string
   permissions: Record<string, string[]>
@@ -122,6 +124,7 @@ export default function StaffManagementPage() {
   // Form states (Create / Edit)
   const [formName, setFormName] = useState('')
   const [formEmail, setFormEmail] = useState('')
+  const [formPhone, setFormPhone] = useState('')
   const [formPassword, setFormPassword] = useState('')
   const [formShowPassword, setFormShowPassword] = useState(false)
   const [formRole, setFormRole] = useState('admin')
@@ -204,6 +207,7 @@ export default function StaffManagementPage() {
   const openCreateModal = () => {
     setFormName('')
     setFormEmail('')
+    setFormPhone('')
     setFormPassword(generateRandomPassword())
     setFormShowPassword(true)
     setFormRole('admin')
@@ -220,6 +224,7 @@ export default function StaffManagementPage() {
     setSelectedStaff(staff)
     setFormName(staff.name)
     setFormEmail(staff.email)
+    setFormPhone(staff.phone || '')
     setFormRole(staff.role)
     setFormIsActive(staff.is_active)
 
@@ -371,6 +376,7 @@ export default function StaffManagementPage() {
         body: JSON.stringify({
           name: formName,
           email: formEmail,
+          phone: formPhone.trim() || null,
           password: formPassword,
           role: formRole,
           is_active: formIsActive,
@@ -404,6 +410,7 @@ export default function StaffManagementPage() {
         body: JSON.stringify({
           name: formName,
           email: formEmail,
+          phone: formPhone.trim() || null,
           role: formRole,
           is_active: formIsActive,
           permissions: customPermissionsEnabled ? formPermissions : {},
@@ -912,8 +919,14 @@ export default function StaffManagementPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                               <p className="text-xs text-slate-400 truncate">{staff.email}</p>
+                              {staff.phone && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                  <Phone className="h-2.5 w-2.5" />
+                                  +91 {staff.phone}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1490,8 +1503,8 @@ export default function StaffManagementPage() {
               </div>
 
               <form onSubmit={handleCreateStaff} className="flex-1 overflow-y-auto py-5 space-y-5 custom-scrollbar pr-1">
-                {/* Name & Email */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name, Email & Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Name</label>
                     <div className="relative">
@@ -1518,6 +1531,22 @@ export default function StaffManagementPage() {
                         onChange={(e) => setFormEmail(e.target.value)}
                         placeholder="staff@1to7media.in"
                         className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Mobile / Phone (POC)
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Input
+                        type="tel"
+                        value={formPhone}
+                        onChange={(e) => setFormPhone(e.target.value)}
+                        placeholder="10-digit number"
+                        className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm font-mono"
                       />
                     </div>
                   </div>
@@ -1766,8 +1795,8 @@ export default function StaffManagementPage() {
               </div>
 
               <form onSubmit={handleUpdateStaff} className="flex-1 overflow-y-auto py-5 space-y-5 custom-scrollbar pr-1">
-                {/* Name & Email */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name, Email & Phone */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Full Name</label>
                     <div className="relative">
@@ -1793,6 +1822,22 @@ export default function StaffManagementPage() {
                         value={formEmail}
                         onChange={(e) => setFormEmail(e.target.value)}
                         className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      Mobile / Phone (POC)
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Input
+                        type="tel"
+                        value={formPhone}
+                        onChange={(e) => setFormPhone(e.target.value)}
+                        placeholder="10-digit number"
+                        className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm font-mono"
                       />
                     </div>
                   </div>

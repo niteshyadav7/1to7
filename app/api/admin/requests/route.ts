@@ -35,7 +35,8 @@ export async function GET() {
         campaigns (
           brand_name,
           campaign_code,
-          platform
+          platform,
+          manager_phone
         )
       `)
       .order('updated_at', { ascending: false })
@@ -54,9 +55,9 @@ export async function GET() {
           partial_payment: app.partial_payment,
           final_payment: app.final_payment,
           pending_amount: app.pending_amount,
-          manager_phone: app.manager_phone,
+          manager_phone: app.manager_phone || (Array.isArray(app.campaigns) ? (app.campaigns[0] as any)?.manager_phone : (app.campaigns as any)?.manager_phone) || '',
           user: app.users,
-          campaign: app.campaigns,
+          campaign: Array.isArray(app.campaigns) ? app.campaigns[0] : app.campaigns,
         })
       }
     }

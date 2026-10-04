@@ -6,6 +6,7 @@ export interface AdminUser {
   id: string
   name: string
   email: string
+  phone?: string | null
   role: string
   roleDisplayName?: string
   is_active?: boolean

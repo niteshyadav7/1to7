@@ -29,6 +29,7 @@ export async function GET(request: Request) {
         partial_payment,
         final_payment,
         pending_amount,
+        manager_phone,
         created_at,
         updated_at,
         campaigns (
@@ -60,7 +61,9 @@ export async function GET(request: Request) {
           order_form,
           order_form_fields,
           payment_form_fields,
-          form_fields
+          form_fields,
+          poc_admin_ids,
+          manager_phone
         )
       `)
       .eq('user_id', payload.id)
@@ -74,7 +77,59 @@ export async function GET(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ applications: applications || [] })
+    // Collect all unique POC admin IDs across all returned campaigns
+    const pocIds = new Set<string>()
+    for (const app of (applications || [])) {
+      const c = app.campaigns as any
+      if (Array.isArray(c?.poc_admin_ids)) {
+        for (const pid of c.poc_admin_ids) {
+          if (pid) pocIds.add(pid)
+        }
+      }
+    }
+
+    // Batch fetch POC admins from pool
+    const pocMap = new Map<string, { name: string; email: string; phone: string | null; avatar_url: string | null }>()
+    if (pocIds.size > 0) {
+      try {
+        const pool = (await import('@/lib/db')).default
+        const idList = Array.from(pocIds)
+        const pocRes = await pool.query(
+          `SELECT id, name, email, phone, avatar_url FROM public.admins WHERE id = ANY($1::uuid[])`,
+          [idList]
+        )
+        for (const row of pocRes.rows) {
+          pocMap.set(row.id, row)
+        }
+      } catch (pocErr) {
+        console.warn('Non-fatal error resolving POCs for applications:', pocErr)
+      }
+    }
+
+    // Enrich applications with resolved manager details
+    const enrichedApplications = (applications || []).map((app: any) => {
+      const c = app.campaigns || {}
+      const primaryPocId = Array.isArray(c.poc_admin_ids) && c.poc_admin_ids.length > 0 ? c.poc_admin_ids[0] : null
+      const pocData = primaryPocId ? pocMap.get(primaryPocId) : null
+
+      const resolvedPhone = app.manager_phone || c.manager_phone || pocData?.phone || null
+      const resolvedName = pocData?.name || 'Campaign Manager'
+      const resolvedEmail = pocData?.email || null
+      const resolvedAvatar = pocData?.avatar_url || null
+
+      return {
+        ...app,
+        manager_phone: resolvedPhone,
+        manager: {
+          name: resolvedName,
+          phone: resolvedPhone,
+          email: resolvedEmail,
+          avatarUrl: resolvedAvatar,
+        },
+      }
+    })
+
+    return NextResponse.json({ applications: enrichedApplications })
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || 'Failed to fetch applications' },

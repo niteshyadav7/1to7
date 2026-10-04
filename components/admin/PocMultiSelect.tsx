@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Check, ChevronsUpDown, X, Search, UserCheck, Shield, Sparkles } from 'lucide-react'
+import { Check, ChevronsUpDown, X, Search, UserCheck, Shield, Sparkles, Phone } from 'lucide-react'
 
 export interface PocStaff {
   id: string
   name: string
   email: string
+  phone?: string | null
   role: string
   roleDisplayName: string
   avatarUrl: string | null
@@ -198,6 +199,37 @@ export function PocMultiSelect({
         )}
       </div>
 
+      {/* Auto-Linked Brand Manager Contact Preview */}
+      {selectedStaffMembers.length > 0 && (
+        <div className="p-2.5 rounded-xl bg-slate-950/70 border border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+              <Phone className="w-3.5 h-3.5" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider block">
+                Auto-Linked Brand Manager Contact:
+              </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs mt-0.5">
+                {selectedStaffMembers.map(staff => (
+                  <span key={staff.id} className="inline-flex items-center gap-1 font-medium text-slate-300">
+                    <strong className="text-white">{staff.name}</strong>
+                    {staff.phone ? (
+                      <span className="text-emerald-300 font-mono font-semibold">(+91 {staff.phone})</span>
+                    ) : (
+                      <span className="text-amber-400/90 text-[11px] italic">(No mobile set in profile)</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] text-slate-500 shrink-0 font-medium hidden sm:inline">
+            Auto-shared with creators & orders
+          </span>
+        </div>
+      )}
+
       {/* Floating Dropdown Popover */}
       {open && (
         <div className="absolute z-50 left-0 right-0 top-full mt-2 bg-slate-900 border border-white/[0.12] rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
@@ -285,7 +317,14 @@ export function PocMultiSelect({
                             {staff.roleDisplayName}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">{staff.email}</p>
+                        <p className="text-[11px] text-slate-500 truncate flex items-center gap-1.5">
+                          <span>{staff.email}</span>
+                          {staff.phone && (
+                            <span className="text-emerald-400 font-mono font-medium">
+                              • 📞 +91 {staff.phone}
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </div>
 

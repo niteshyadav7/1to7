@@ -7,7 +7,7 @@ import {
   ArrowLeft, Copy, Check, Instagram, Youtube, ShoppingBag,
   Sparkles, Users, MapPin, Calendar, CheckCircle2, ShieldCheck,
   ExternalLink, FileText, Gift, AlertCircle, Loader2, ArrowRight,
-  Globe, Lock, Store, Clock
+  Globe, Lock, Store, Clock, Phone, MessageCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -52,6 +52,13 @@ interface Campaign {
   applied_at?: string
   is_test_mode?: boolean
   test_user_ids?: string[]
+  manager_phone?: string | null
+  manager?: {
+    name?: string
+    phone?: string | null
+    email?: string | null
+    avatarUrl?: string | null
+  }
 }
 
 const platformConfig: Record<string, { icon: React.ReactNode; bg: string; text: string }> = {
@@ -434,6 +441,68 @@ export default function StandaloneCampaignPage({
 
                 {/* Target Criteria Sidebar (1 col) */}
                 <div className="space-y-3.5 min-w-0">
+                  {/* Brand Manager Contact Card */}
+                  {(() => {
+                    const mgrPhone = campaign.manager?.phone || campaign.manager_phone
+                    const mgrName = campaign.manager?.name || 'Brand Manager'
+                    const cleanPhone = mgrPhone ? String(mgrPhone).replace(/\D/g, '') : ''
+                    const phone10 = cleanPhone ? (cleanPhone.length === 12 && cleanPhone.startsWith('91') ? cleanPhone.slice(2) : cleanPhone) : ''
+                    const waUrl = phone10 ? `https://wa.me/91${phone10}?text=${encodeURIComponent(
+                      `Hi ${mgrName}, I am ${user?.full_name || 'Creator'} inquiring about ${campaign.brand_name} (${campaign.campaign_code}).`
+                    )}` : null
+
+                    if (!mgrPhone && !campaign.manager) return null
+
+                    return (
+                      <div className="rounded-2xl bg-gradient-to-br from-emerald-950/10 via-white to-slate-50 border border-emerald-500/30 p-3.5 sm:p-4 space-y-3 shadow-sm min-w-0">
+                        <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
+                          <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                            Brand Manager POC
+                          </span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
+                            Direct Connect
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                            {mgrName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">{mgrName}</p>
+                            <p className="text-[11px] text-slate-500 font-medium truncate">
+                              Campaign POC {phone10 ? `• +91 ${phone10}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          {waUrl && (
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              WhatsApp
+                            </a>
+                          )}
+                          {phone10 && (
+                            <a
+                              href={`tel:+91${phone10}`}
+                              className="h-8 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <Phone className="h-3 w-3 text-emerald-600" />
+                              Call
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   <div className="rounded-2xl bg-white border border-slate-200/80 p-3.5 sm:p-4 space-y-3.5 shadow-sm min-w-0">
                     <h3 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest pb-2 border-b border-slate-100 flex items-center justify-between">
                       <span>Target Criteria</span>

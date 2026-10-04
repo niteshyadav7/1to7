@@ -110,6 +110,19 @@ export async function POST(request: Request) {
     const approvedByName = isSuperAdmin || isPilot ? adminName : null
     const approvedByEmail = isSuperAdmin || isPilot ? adminEmail : null
 
+    // Auto-resolve brand manager phone from primary assigned POC if not explicitly provided
+    let resolvedManagerPhone = body.manager_phone || null
+    if (!resolvedManagerPhone && Array.isArray(poc_admin_ids) && poc_admin_ids.length > 0) {
+      try {
+        const pocRes = await pool.query('SELECT phone FROM public.admins WHERE id = $1', [poc_admin_ids[0]])
+        if (pocRes.rows[0]?.phone) {
+          resolvedManagerPhone = pocRes.rows[0].phone
+        }
+      } catch (err) {
+        console.warn('Non-fatal error resolving POC phone for new campaign:', err)
+      }
+    }
+
     const query = `
       INSERT INTO public.campaigns (
         campaign_code, brand_name, category, platform, budget_type, 
@@ -123,9 +136,9 @@ export async function POST(request: Request) {
         approval_status, created_by_admin_id, created_by_admin_name, created_by_admin_email,
         last_edited_by_admin_id, last_edited_by_admin_name, last_edited_by_admin_email, last_edited_at,
         approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at,
-        is_test_mode, test_user_ids, test_creators, poc_admin_ids
+        is_test_mode, test_user_ids, test_creators, poc_admin_ids, manager_phone
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54
       ) RETURNING *
     `
     const values = [
@@ -182,6 +195,7 @@ export async function POST(request: Request) {
       Array.isArray(test_user_ids) ? test_user_ids : [],
       JSON.stringify(Array.isArray(test_creators) ? test_creators : []),
       Array.isArray(poc_admin_ids) ? poc_admin_ids : [],
+      resolvedManagerPhone,
     ]
 
     const res = await pool.query(query, values)

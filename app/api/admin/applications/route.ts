@@ -77,7 +77,8 @@ export async function GET(request: Request) {
           store_locations,
           completion_days,
           completion_deadline,
-          enforce_completion_deadline
+          enforce_completion_deadline,
+          manager_phone
         )
       `)
 
@@ -211,6 +212,7 @@ export async function GET(request: Request) {
 
       return {
         ...app,
+        manager_phone: app.manager_phone || app.campaigns?.manager_phone || '',
         influencer_history: influencerHistory,
       }
     })

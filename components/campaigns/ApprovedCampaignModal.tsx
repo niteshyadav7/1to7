@@ -35,7 +35,9 @@ import {
   Users,
   Globe,
   RotateCcw,
-  History
+  History,
+  Phone,
+  MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,6 +54,13 @@ interface Application {
   partial_payment: number
   final_payment: number
   pending_amount: number
+  manager_phone?: string | null
+  manager?: {
+    name?: string
+    phone?: string | null
+    email?: string | null
+    avatarUrl?: string | null
+  }
   created_at: string
   updated_at: string
   completion_submitted_at?: string | null
@@ -64,6 +73,7 @@ interface Application {
     platform: string
     category?: string
     deliverables: string
+    manager_phone?: string | null
     budget_type?: string
     budget_amount?: number | null
     commercial_amount?: number | null
@@ -528,6 +538,68 @@ export default function ApprovedCampaignModal({
                         </p>
                       </div>
                     </div>
+
+                    {/* Brand Manager / Point of Contact (POC) Dedicated Card */}
+                    {(() => {
+                      const mgrPhone = application.manager?.phone || application.manager_phone || application.campaigns?.manager_phone
+                      const mgrName = application.manager?.name || 'Brand Operations Manager'
+                      const cleanDigits = mgrPhone ? String(mgrPhone).replace(/\D/g, '') : ''
+                      const phone10 = cleanDigits ? (cleanDigits.length === 12 && cleanDigits.startsWith('91') ? cleanDigits.slice(2) : cleanDigits) : ''
+                      const waUrl = phone10 ? `https://wa.me/91${phone10}?text=${encodeURIComponent(
+                        `Hi ${mgrName}, I am ${user?.full_name || 'Creator'} collaborating on ${application.campaigns?.brand_name} (${application.campaigns?.campaign_code}). I have a query regarding my collaboration.`
+                      )}` : null
+
+                      return (
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/30 via-slate-900 to-indigo-950/40 border border-emerald-500/25 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-base font-black flex items-center justify-center shrink-0 shadow-md ring-2 ring-emerald-400/20">
+                              {mgrName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-extrabold text-white truncate">
+                                  {mgrName}
+                                </h4>
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                                  Brand Manager
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-300 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                <span>Assigned Campaign POC</span>
+                                {phone10 ? (
+                                  <span className="font-mono text-emerald-300 font-semibold">• +91 {phone10}</span>
+                                ) : (
+                                  <span className="text-slate-400 italic">• Direct WhatsApp support</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {waUrl ? (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-900/40 transition-all cursor-pointer"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                WhatsApp Manager
+                              </a>
+                            ) : null}
+                            {phone10 ? (
+                              <a
+                                href={`tel:+91${phone10}`}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-semibold transition-all cursor-pointer"
+                              >
+                                <Phone className="h-3.5 w-3.5 text-emerald-400" />
+                                Call
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* 2. Official Campaign Brief Document Banner (if attached) */}
                     {application.campaigns?.brief_document_url && (

@@ -16,6 +16,7 @@ export async function GET() {
         a.id, 
         a.email, 
         a.name, 
+        a.phone,
         a.role, 
         a.permissions, 
         a.is_active, 
@@ -47,6 +48,7 @@ export async function GET() {
         id: row.id,
         email: row.email,
         name: row.name || 'Employee',
+        phone: row.phone || null,
         role: row.role || 'staff',
         roleDisplayName: row.role_display_name || row.role,
         permissions: row.permissions || {},
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, email, password, role = 'admin', permissions = {}, is_active = true } = body
+    const { name, email, password, phone, role = 'admin', permissions = {}, is_active = true } = body
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
@@ -96,6 +98,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
     }
 
+    // Clean phone number if provided
+    const cleanPhone = phone ? String(phone).replace(/[^\d+]/g, '').trim() : null
+
     // Hash password
     const salt = await bcrypt.genSalt(10)
     const passwordHash = await bcrypt.hash(password, salt)
@@ -104,14 +109,15 @@ export async function POST(request: Request) {
     // Insert staff
     const insertRes = await pool.query(
       `INSERT INTO public.admins 
-        (name, email, password_hash, plain_password, role, permissions, is_active, approval_status, auth_provider, approved_by, approved_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', 'credentials', $8, NOW())
-       RETURNING id, name, email, role, permissions, is_active, created_at, plain_password, auth_provider, avatar_url, approval_status`,
+        (name, email, password_hash, plain_password, phone, role, permissions, is_active, approval_status, auth_provider, approved_by, approved_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', 'credentials', $9, NOW())
+       RETURNING id, name, email, phone, role, permissions, is_active, created_at, plain_password, auth_provider, avatar_url, approval_status`,
       [
         name?.trim() || 'Employee',
         email.toLowerCase().trim(),
         passwordHash,
         plainPassToStore,
+        cleanPhone,
         role,
         JSON.stringify(permissions),
         is_active,

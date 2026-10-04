@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: Params) {
 
     const res = await pool.query(
       `SELECT 
-        a.id, a.email, a.name, a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
+        a.id, a.email, a.name, a.phone, a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
         a.auth_provider, a.avatar_url, a.approval_status, a.approved_at, a.approved_by,
         r.display_name as role_display_name, r.permissions as role_permissions
        FROM public.admins a
@@ -54,7 +54,9 @@ export async function PUT(request: Request, { params }: Params) {
 
     const { id } = await params
     const body = await request.json()
-    const { name, email, role, permissions, is_active } = body
+    const { name, email, phone, role, permissions, is_active } = body
+    const phoneProvided = phone !== undefined
+    const cleanPhone = phone ? String(phone).replace(/[^\d+]/g, '').trim() : null
 
     // Verify staff exists
     const existing = await pool.query('SELECT * FROM public.admins WHERE id = $1', [id])
@@ -101,9 +103,10 @@ export async function PUT(request: Request, { params }: Params) {
          is_active = COALESCE($5, is_active),
          plain_password = CASE WHEN $6 = true THEN NULL ELSE plain_password END,
          approval_status = COALESCE($7, approval_status),
+         phone = CASE WHEN $8::boolean = true THEN $9 ELSE phone END,
          updated_at = NOW()
-       WHERE id = $8
-       RETURNING id, name, email, role, permissions, is_active, plain_password, auth_provider, avatar_url, approval_status, updated_at`,
+       WHERE id = $10
+       RETURNING id, name, email, phone, role, permissions, is_active, plain_password, auth_provider, avatar_url, approval_status, updated_at`,
       [
         name?.trim() ?? null,
         email ? email.toLowerCase().trim() : null,
@@ -112,6 +115,8 @@ export async function PUT(request: Request, { params }: Params) {
         is_active !== undefined ? is_active : null,
         shouldClearPlainPass,
         body.approval_status ?? null,
+        phoneProvided,
+        cleanPhone,
         id,
       ]
     )

@@ -185,7 +185,7 @@ export async function POST(request: Request) {
         .single(),
       supabase
         .from('campaigns')
-        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location, form_fields, is_test_mode, test_user_ids')
+        .select('id, status, is_live, brand_name, campaign_code, min_followers, enforce_followers, followers, location, location_type, target_states, target_cities, enforce_location, form_fields, is_test_mode, test_user_ids, manager_phone')
         .eq('id', campaignId)
         .single(),
       supabase
@@ -367,7 +367,8 @@ export async function POST(request: Request) {
         campaign_id: campaignId,
         form_data: enrichedFormData,
         selected_store: selectedStore || (formData?.preferred_store ? { name: formData.preferred_store } : null),
-        status: 'Applied'
+        status: 'Applied',
+        manager_phone: campaign?.manager_phone || null,
       })
       .select('id')
       .single()

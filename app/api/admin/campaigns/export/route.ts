@@ -140,7 +140,7 @@ export async function GET(request: Request) {
         a.partial_payment,
         a.final_payment,
         a.pending_amount,
-        a.manager_phone,
+        COALESCE(a.manager_phone, c.manager_phone, '') as manager_phone,
         a.selected_store,
         a.form_data,
         a.created_at as applied_at,
