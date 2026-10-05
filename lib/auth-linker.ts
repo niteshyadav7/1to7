@@ -229,12 +229,17 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   }
 
   // CREATE NEW USER (influencer_id is automatically assigned by PostgreSQL BEFORE INSERT trigger)
-  const defaultEmail = cleanEmail || `${input.instagramUsername || 'user'}_${Date.now()}@instagram.1to7.com`
+  if (!cleanEmail || cleanEmail.endsWith('@instagram.1to7.com')) {
+    throw new Error('A valid email address is required to create a creator account.')
+  }
+  if (!cleanMobile) {
+    throw new Error('A verified 10-digit mobile number is required to create a creator account.')
+  }
 
   const insertPayload = {
     full_name: input.fullName || input.instagramUsername || 'Creator',
-    email: defaultEmail,
-    mobile: cleanMobile || null,
+    email: cleanEmail,
+    mobile: cleanMobile,
     password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
     instagram_id: input.instagramId || null,
     instagram_username: input.instagramUsername || null,

@@ -75,6 +75,18 @@ export default function LoginPage() {
     }
   }, [emailCountdown])
 
+  // Check for error params from OAuth callbacks (e.g. Instagram redirect)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const err = params.get('error')
+      if (err) {
+        toast.error(decodeURIComponent(err), { duration: 6000 })
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [])
+
   // Helper to get or re-initialize a safe RecaptchaVerifier
   const getOrCreateRecaptchaVerifier = () => {
     if (window.recaptchaVerifier) {
@@ -363,10 +375,9 @@ export default function LoginPage() {
   //  FLOW 3: INSTAGRAM LOGIN
   // ═══════════════════════════════════════════
   const handleInstagramStart = () => {
-    toast.info('Instagram Sign-In is currently in process. Please sign in using Password, Email OTP, or Google.', {
-      duration: 5000,
-      icon: <Instagram className="h-4 w-4 text-pink-500" />
-    })
+    setPendingFlow('instagram')
+    setMobile('')
+    setView('verify-mobile')
   }
 
   // ─── Shared Mobile Submit for Social Logins (Google & Instagram) ───
@@ -464,11 +475,32 @@ export default function LoginPage() {
     }
   }
 
-  const handleInstagramRedirect = () => {
-    toast.info('Instagram Sign-In is currently in process. Please sign in using Password, Email OTP, or Google.', {
-      duration: 5000,
-      icon: <Instagram className="h-4 w-4 text-pink-500" />
-    })
+  const handleInstagramRedirect = async () => {
+    const cleanMobile = mobile.replace(/\D/g, '')
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/instagram/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile: cleanMobile }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to start Instagram Sign-In')
+        setLoading(false)
+        return
+      }
+
+      window.location.href = data.redirectUrl || '/api/auth/instagram/login'
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to start Instagram Sign-In')
+      setLoading(false)
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -870,18 +902,16 @@ export default function LoginPage() {
                   </div>
                 </Button>
 
-                {/* Continue with Instagram Button (In Process) */}
+                {/* Continue with Instagram Button */}
                 <Button
                   type="button"
                   onClick={handleInstagramStart}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600/75 via-pink-600/75 to-amber-500/75 hover:from-purple-600/85 hover:via-pink-600/85 hover:to-amber-500/85 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm mt-3 uppercase tracking-wider relative overflow-hidden group"
+                  disabled={loading}
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-700 hover:via-pink-700 hover:to-amber-600 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm mt-3 uppercase tracking-wider relative overflow-hidden group"
                 >
                   <div className="flex items-center justify-center gap-2.5">
-                    <Instagram className="h-5 w-5 text-white/90" />
+                    <Instagram className="h-5 w-5 text-white" />
                     <span>CONTINUE WITH INSTAGRAM</span>
-                    <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-black/25 text-white/95 border border-white/20 tracking-normal">
-                      In Process
-                    </span>
                   </div>
                 </Button>
 
@@ -1048,16 +1078,27 @@ export default function LoginPage() {
                 </div>
                 <Button
                   onClick={handleInstagramRedirect}
-                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600/75 via-pink-600/75 to-amber-500/75 hover:from-purple-600/85 hover:via-pink-600/85 hover:to-amber-500/85 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm uppercase tracking-wider relative overflow-hidden group"
+                  disabled={loading}
+                  className="w-full h-13 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-700 hover:via-pink-700 hover:to-amber-600 text-white font-extrabold text-sm border-0 transition-all active:scale-[0.98] cursor-pointer shadow-sm uppercase tracking-wider relative overflow-hidden group"
                 >
-                  <div className="flex items-center justify-center gap-2.5">
-                    <Instagram className="h-5 w-5 text-white/90" />
-                    <span>CONTINUE WITH INSTAGRAM</span>
-                    <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-black/25 text-white/95 border border-white/20 tracking-normal">
-                      In Process
-                    </span>
-                  </div>
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <div className="flex items-center justify-center gap-2.5">
+                      <Instagram className="h-5 w-5 text-white" />
+                      <span>AUTHORIZE WITH INSTAGRAM</span>
+                    </div>
+                  )}
                 </Button>
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    className="text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                  >
+                    Change Number
+                  </button>
+                </div>
               </motion.div>
             )}
 

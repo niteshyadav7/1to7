@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { encrypt, verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
-import { resolveOrCreateUserIdentity } from '@/lib/auth-linker'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -133,8 +132,11 @@ export async function GET(request: Request) {
         instaUsername = existingUser.instagram_username
       }
     }
+
+    // STRICT: Never generate dummy insta_12345 handles!
     if (!instaUsername) {
-      instaUsername = `insta_${instaId}`
+      console.error('[Instagram Callback] No valid username returned from Meta API')
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent('Could not retrieve your Instagram username. Please ensure your account is an Instagram Creator or Business account.')}`)
     }
 
     const metaName = profileData.name || instaUsername
@@ -144,59 +146,128 @@ export async function GET(request: Request) {
     const instaBio = profileData.biography || ''
     const instaWebsite = profileData.website || ''
     const instaAccountType = profileData.account_type || ''
-    const metaEmail = `${instaUsername}@instagram.1to7.com`
 
     console.log('\n======================================================')
-    console.log('📸 [RAW INSTAGRAM OAUTH DATA RECEIVED]:')
+    console.log('📸 [INSTAGRAM OAUTH PROFILE RESOLVED]:')
     console.log(JSON.stringify({
-      step1_token_response: tokenData,
-      step3_profile_response: profileData,
-      parsed_identity: {
-        instaId,
-        instaUsername,
-        metaName,
-        instaPic,
-        instaFollowers,
-        instaMediaCount,
-        instaBio,
-        instaWebsite,
-        instaAccountType,
-        metaEmail
-      }
+      instaId,
+      instaUsername,
+      metaName,
+      instaFollowers,
+      instaMediaCount,
+      instaAccountType
     }, null, 2))
     console.log('======================================================\n')
 
-    // Read pending verified mobile from cookie if user verified mobile before Instagram OAuth
-    const pendingMobile = cookieStore.get('pending_mobile')?.value || null
+    // Read pending verified mobile from cookie (from /login flow)
+    const pendingMobile = cookieStore.get('pending_instagram_mobile')?.value || cookieStore.get('pending_mobile')?.value || null
     if (pendingMobile) {
+      cookieStore.delete('pending_instagram_mobile')
       cookieStore.delete('pending_mobile')
     }
 
-    // 4. Resolve or Link identity across login methods
-    const { user, isNewUser } = await resolveOrCreateUserIdentity({
-      currentUserId,
-      fullName: metaName,
-      email: metaEmail,
-      mobile: pendingMobile,
-      instagramId: instaId,
-      instagramUsername: instaUsername,
-      instagramAccessToken: accessToken,
-      instagramProfilePic: instaPic,
-      instagramBiography: instaBio,
-      instagramWebsite: instaWebsite,
-      instagramFollowersCount: instaFollowers,
-      instagramMediaCount: instaMediaCount,
-      instagramAccountType: instaAccountType,
-      isInstagramVerified: true,
-      isEmailVerified: true,
-      isMobileVerified: !!pendingMobile
-    })
+    // STRICT: Require either an active logged-in user or a verified mobile session
+    if (!currentUserId && !pendingMobile) {
+      console.warn('[Instagram Callback] Neither currentUserId nor verified mobile cookie found')
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent('Please enter and verify your mobile number on the login page before continuing with Instagram.')}`)
+    }
 
-    // 5. Encrypt session token & set httpOnly cookie
+    // Find the real target user in database
+    let targetUser: any = null
+    if (currentUserId) {
+      const { data: userById } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', currentUserId)
+        .maybeSingle()
+      targetUser = userById
+    } else if (pendingMobile) {
+      const { data: userByMobile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('mobile', pendingMobile)
+        .maybeSingle()
+      targetUser = userByMobile
+    }
+
+    if (!targetUser) {
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent('No registered creator account found for this mobile number. Please sign up first.')}`)
+    }
+
+    // Check if this Instagram username is already registered to a DIFFERENT user
+    const { checkInstagramHandleAvailability, syncUserInstagramState } = await import('@/lib/instagram-utils')
+    const avail = await checkInstagramHandleAvailability(instaUsername, targetUser.id)
+    if (!avail.available) {
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent(avail.message || `Instagram @${instaUsername} is already registered with another account.`)}`)
+    }
+
+    // Update the real existing user with authentic Instagram data (never touches mobile, email, or influencer_id!)
+    const updates: Record<string, any> = {
+      instagram_id: instaId,
+      instagram_username: instaUsername,
+      instagram_access_token: accessToken,
+      instagram_profile_pic: instaPic,
+      instagram_biography: instaBio,
+      instagram_website: instaWebsite,
+      instagram_followers_count: instaFollowers,
+      followers: instaFollowers,
+      instagram_media_count: instaMediaCount,
+      instagram_account_type: instaAccountType,
+      is_instagram_verified: true,
+      updated_at: new Date().toISOString()
+    }
+
+    if ((!targetUser.full_name || targetUser.full_name === 'Guest Creator' || targetUser.full_name === 'Creator') && profileData.name) {
+      updates.full_name = profileData.name
+    }
+
+    await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', targetUser.id)
+
+    // Update user_instagram_profiles table and synchronize state
+    const { data: existingProfile } = await supabase
+      .from('user_instagram_profiles')
+      .select('id')
+      .eq('user_id', targetUser.id)
+      .eq('normalized_username', instaUsername.toLowerCase())
+      .maybeSingle()
+
+    if (existingProfile) {
+      await supabase
+        .from('user_instagram_profiles')
+        .update({
+          username: instaUsername,
+          normalized_username: instaUsername.toLowerCase(),
+          followers: instaFollowers,
+          profile_pic: instaPic,
+          is_verified: true,
+          is_primary: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingProfile.id)
+    } else {
+      await supabase
+        .from('user_instagram_profiles')
+        .insert([{
+          user_id: targetUser.id,
+          username: instaUsername,
+          normalized_username: instaUsername.toLowerCase(),
+          followers: instaFollowers,
+          profile_pic: instaPic,
+          is_verified: true,
+          is_primary: true
+        }])
+    }
+
+    await syncUserInstagramState(targetUser.id)
+
+    // Issue standard session JWT token & set httpOnly auth_token cookie
     const token = await encrypt({
-      id: user.id,
-      mobile: user.mobile || '',
-      influencer_id: user.influencer_id
+      id: targetUser.id,
+      mobile: targetUser.mobile || '',
+      influencer_id: targetUser.influencer_id
     })
 
     cookieStore.set('auth_token', token, {
@@ -204,25 +275,10 @@ export async function GET(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 30
+      maxAge: 60 * 60 * 24 * 30 // 30 days
     })
 
-    // 6. Store Instagram raw debug cookie
-    const igDebugData = JSON.stringify({
-      raw_profile_from_instagram: profileData,
-      parsed: { instaId, instaUsername, metaName, instaPic, instaFollowers, metaEmail },
-      fields_available: Object.keys(profileData),
-      timestamp: new Date().toISOString()
-    })
-    cookieStore.set('instagram_debug', igDebugData, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 5
-    })
-
-    return NextResponse.redirect(`${appUrl}/dashboard?login=success&provider=instagram${isNewUser ? '&new=true' : ''}`)
+    return NextResponse.redirect(`${appUrl}/dashboard?login=success&provider=instagram`)
   } catch (err: any) {
     console.error('API /auth/instagram/callback Error:', err)
     return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent(err.message || 'Instagram authentication failed')}`)
