@@ -11,7 +11,8 @@ export async function GET(request: Request) {
 
   const host = request.headers.get('host') || 'localhost:3000'
   const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https')
-  const appUrl = `${protocol}://${host}`
+  const baseUrl = host.includes('localhost') ? `${protocol}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`)
+  const appUrl = baseUrl
 
   if (error || !code) {
     console.error('Instagram OAuth Error:', error, errorDescription)
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   try {
     const appId = process.env.NEXT_PUBLIC_META_APP_ID || '1371798394383152'
     const appSecret = process.env.META_APP_SECRET || 'f4dfcefc05f4174cba89a792d2251541'
-    const redirectUri = `${protocol}://${host}/api/auth/instagram/callback`
+    const redirectUri = `${baseUrl}/api/auth/instagram/callback`
 
     // Check if user is currently logged in via session cookie
     const cookieStore = await cookies()
@@ -35,12 +36,13 @@ export async function GET(request: Request) {
     }
 
     // 1. Exchange code for short-lived access token via Instagram API
+    const cleanCode = code ? code.replace(/#_.*$/, '').trim() : ''
     const formData = new URLSearchParams()
     formData.append('client_id', appId || '')
     formData.append('client_secret', appSecret || '')
     formData.append('grant_type', 'authorization_code')
     formData.append('redirect_uri', redirectUri)
-    formData.append('code', code)
+    formData.append('code', cleanCode)
 
     const tokenRes = await fetch('https://api.instagram.com/oauth/access_token', {
       method: 'POST',
