@@ -114,9 +114,9 @@ export async function POST(request: Request) {
     let resolvedManagerPhone = body.manager_phone || null
     if (!resolvedManagerPhone && Array.isArray(poc_admin_ids) && poc_admin_ids.length > 0) {
       try {
-        const pocRes = await pool.query('SELECT phone FROM public.admins WHERE id = $1', [poc_admin_ids[0]])
-        if (pocRes.rows[0]?.phone) {
-          resolvedManagerPhone = pocRes.rows[0].phone
+        const pocRes = await pool.query('SELECT phone, creator_view_phone FROM public.admins WHERE id = $1', [poc_admin_ids[0]])
+        if (pocRes.rows[0]?.creator_view_phone || pocRes.rows[0]?.phone) {
+          resolvedManagerPhone = pocRes.rows[0].creator_view_phone || pocRes.rows[0].phone
         }
       } catch (err) {
         console.warn('Non-fatal error resolving POC phone for new campaign:', err)

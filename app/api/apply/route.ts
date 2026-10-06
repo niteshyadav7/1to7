@@ -7,6 +7,7 @@ import { checkFollowerEligibility, getEffectiveUserFollowers } from '@/lib/utils
 import { checkCampaignLocationEligibility } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import { extractProfileUpdatesFromFormData } from '@/lib/utils/profile-sync-utils'
+import { InstagramLogService } from '@/lib/services/instagram-log.service'
 
 export async function POST(request: Request) {
   try {
@@ -211,7 +212,7 @@ export async function POST(request: Request) {
           )
         `)
         .eq('user_id', userId)
-        .in('status', ['Approved', 'Order Placed']),
+        .in('status', ['Approved', 'Under Process', 'In Progress']),
       supabase
         .from('applications')
         .select('id, status')
@@ -262,8 +263,55 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determine effective followers based on creator's selected Instagram account or profile
-    let effectiveFollowers = getEffectiveUserFollowers(
+    // 1. Resolve and validate the creator's Instagram profile
+    let verifiedSelectedProfile: { id?: string | null; username: string; followers: number } | null = null
+
+    const { data: dbUserProfiles } = await supabase
+      .from('user_instagram_profiles')
+      .select('id, username, followers, is_primary')
+      .eq('user_id', userId)
+
+    if (selectedInstagramProfile) {
+      const targetUser = String(selectedInstagramProfile.username || '').replace(/^@/, '').trim().toLowerCase()
+      const match = dbUserProfiles?.find(
+        p => (selectedInstagramProfile.id && p.id === selectedInstagramProfile.id) ||
+             (targetUser && p.username.toLowerCase() === targetUser)
+      )
+      if (match) {
+        verifiedSelectedProfile = {
+          id: match.id,
+          username: match.username,
+          followers: match.followers || 0
+        }
+      } else if (selectedInstagramProfile.username) {
+        if (user.instagram_username && user.instagram_username.toLowerCase() === targetUser) {
+          verifiedSelectedProfile = {
+            id: null,
+            username: user.instagram_username,
+            followers: user.followers || 0
+          }
+        }
+      }
+    }
+
+    // Default fallback to primary profile if none selected
+    if (!verifiedSelectedProfile && dbUserProfiles && dbUserProfiles.length > 0) {
+      const primary = dbUserProfiles.find(p => p.is_primary) || dbUserProfiles[0]
+      verifiedSelectedProfile = {
+        id: primary.id,
+        username: primary.username,
+        followers: primary.followers || 0
+      }
+    } else if (!verifiedSelectedProfile && user.instagram_username) {
+      verifiedSelectedProfile = {
+        id: null,
+        username: user.instagram_username,
+        followers: user.followers || 0
+      }
+    }
+
+    // Determine effective followers based on creator's verified selected Instagram account
+    let effectiveFollowers = verifiedSelectedProfile?.followers ?? getEffectiveUserFollowers(
       user,
       selectedInstagramProfile?.id || selectedInstagramProfile?.username
     )
@@ -298,12 +346,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // Enrich form_data with selected Instagram profile details for admin and brand visibility
+    // Enrich form_data with locked Instagram profile details
+    const lockedAt = new Date().toISOString()
     const enrichedFormData = {
       ...(formData || {}),
-      ...(selectedInstagramProfile ? {
-        applied_instagram_username: selectedInstagramProfile.username,
-        applied_instagram_followers: selectedInstagramProfile.followers,
+      ...(verifiedSelectedProfile ? {
+        applied_instagram_username: verifiedSelectedProfile.username,
+        applied_instagram_profile_id: verifiedSelectedProfile.id || null,
+        applied_instagram_followers: verifiedSelectedProfile.followers,
+        applied_instagram_locked_at: lockedAt,
       } : {})
     }
 
@@ -322,6 +373,29 @@ export async function POST(request: Request) {
           .eq('id', existing.id)
 
         if (updateError) throw updateError
+
+        if (verifiedSelectedProfile) {
+          InstagramLogService.log({
+            event_type: 'APPLICATION_PROFILE_LOCKED',
+            user_id: userId,
+            application_id: existing.id,
+            campaign_id: campaignId,
+            profile_id: verifiedSelectedProfile.id || null,
+            new_username: verifiedSelectedProfile.username,
+            actor: {
+              type: 'creator',
+              id: userId,
+              name: user.full_name || 'Creator'
+            },
+            metadata: {
+              followers: verifiedSelectedProfile.followers,
+              campaign_code: campaign.campaign_code,
+              brand_name: campaign.brand_name,
+              is_reapply: true
+            },
+            request
+          }).catch(err => console.error('[Apply] Failed to log profile lock:', err))
+        }
 
         // Background non-blocking: Auto-sync answers to Creator Profile & send email
         Promise.resolve().then(async () => {
@@ -374,6 +448,29 @@ export async function POST(request: Request) {
       .single()
 
     if (error) throw error
+
+    if (verifiedSelectedProfile) {
+      InstagramLogService.log({
+        event_type: 'APPLICATION_PROFILE_LOCKED',
+        user_id: userId,
+        application_id: application.id,
+        campaign_id: campaignId,
+        profile_id: verifiedSelectedProfile.id || null,
+        new_username: verifiedSelectedProfile.username,
+        actor: {
+          type: 'creator',
+          id: userId,
+          name: user.full_name || 'Creator'
+        },
+        metadata: {
+          followers: verifiedSelectedProfile.followers,
+          campaign_code: campaign.campaign_code,
+          brand_name: campaign.brand_name,
+          is_reapply: false
+        },
+        request
+      }).catch(err => console.error('[Apply] Failed to log profile lock:', err))
+    }
 
     // Background non-blocking: Auto-sync answers to Creator Profile & send confirmation email
     Promise.resolve().then(async () => {

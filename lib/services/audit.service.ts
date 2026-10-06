@@ -29,7 +29,10 @@ export class AuditService {
       }
 
       if (logEntries.length > 0) {
-        await supabase.from('profile_logs').insert(logEntries)
+        const { error } = await supabase.from('profile_logs').insert(logEntries)
+        if (error) {
+          console.error('AuditService: Failed to insert profile_logs:', error)
+        }
       }
     } catch (err) {
       console.error('AuditService: Failed to insert profile_logs:', err)

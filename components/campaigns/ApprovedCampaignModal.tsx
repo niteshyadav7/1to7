@@ -140,6 +140,12 @@ export default function ApprovedCampaignModal({
   const [appealScreenshot, setAppealScreenshot] = useState('')
   const [uploadingAppealImg, setUploadingAppealImg] = useState(false)
 
+  // Instagram Profile Consistency & Override States
+  const [mismatchError, setMismatchError] = useState<string | null>(null)
+  const [confirmHandleCheckbox, setConfirmHandleCheckbox] = useState(true)
+  const [acknowledgingOverride, setAcknowledgingOverride] = useState(false)
+  const [overrideAcknowledged, setOverrideAcknowledged] = useState(false)
+
   // Populate existing completion data if submitted previously
   useEffect(() => {
     if (application?.form_data?.completion_submission) {
@@ -232,6 +238,39 @@ export default function ApprovedCampaignModal({
     }
   }
 
+  const appliedHandle = useMemo(() => {
+    return (
+      application?.form_data?.applied_instagram_username ||
+      application?.form_data?.instagram_username ||
+      user?.instagram_username ||
+      ''
+    ).replace(/^@/, '')
+  }, [application, user])
+
+  const pendingOverride = application?.form_data?.profile_override
+  const showOverrideBanner = Boolean(
+    pendingOverride && !pendingOverride.acknowledged_at && !overrideAcknowledged
+  )
+
+  const handleAcknowledgeOverride = async () => {
+    if (!application) return
+    try {
+      setAcknowledgingOverride(true)
+      const res = await fetch(`/api/dashboard/applications/${application.id}/acknowledge-profile`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        setOverrideAcknowledged(true)
+        toast.success('Profile change acknowledged!')
+        onRefresh?.()
+      }
+    } catch (err) {
+      console.error('Failed to acknowledge profile override:', err)
+    } finally {
+      setAcknowledgingOverride(false)
+    }
+  }
+
   const handleCompletionSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!application) return
@@ -251,6 +290,12 @@ export default function ApprovedCampaignModal({
       return
     }
 
+    if (appliedHandle && !confirmHandleCheckbox) {
+      toast.error(`Please confirm that your deliverable was posted from @${appliedHandle}`)
+      return
+    }
+
+    setMismatchError(null)
     setSubmittingCompletion(true)
     try {
       const res = await fetch(`/api/dashboard/applications/${application.id}/completion`, {
@@ -262,10 +307,18 @@ export default function ApprovedCampaignModal({
           supporting_document: proofUrl,
           views_count: viewsCount.trim(),
           notes: completionNotes.trim(),
+          confirmed_instagram_username: appliedHandle
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit')
+      if (!res.ok) {
+        if (data.code === 'PROFILE_MISMATCH') {
+          setMismatchError(data.error)
+          toast.error(data.error)
+          return
+        }
+        throw new Error(data.error || 'Failed to submit')
+      }
       toast.success('Campaign deliverables submitted successfully! Admin will review.')
       onRefresh?.()
     } catch (err: any) {
@@ -987,6 +1040,87 @@ export default function ApprovedCampaignModal({
                               </div>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Admin Override Notification Banner */}
+                      {showOverrideBanner && (
+                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200/80 shadow-xs flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <Sparkles className="h-5 w-5 text-pink-600 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-xs font-bold text-pink-950 flex items-center gap-1.5">
+                                Instagram Profile Updated by Team 1to7
+                              </h5>
+                              <p className="text-xs text-pink-900/90 mt-0.5">
+                                Your campaign profile was updated to <strong className="font-semibold text-pink-950">@{pendingOverride?.new_username}</strong>.
+                              </p>
+                              {pendingOverride?.reason && (
+                                <p className="text-[11px] text-pink-800/80 italic mt-0.5">
+                                  "{pendingOverride.reason}"
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={acknowledgingOverride}
+                            onClick={handleAcknowledgeOverride}
+                            className="bg-pink-600 hover:bg-pink-500 text-white text-[11px] h-7 px-3 rounded-lg shrink-0 cursor-pointer shadow-xs"
+                          >
+                            {acknowledgingOverride ? 'Saving...' : 'Got it'}
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Profile Mismatch Error Alert with WhatsApp Manager Contact */}
+                      {mismatchError && (
+                        <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-900 space-y-2.5">
+                          <div className="flex items-start gap-2.5">
+                            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <h5 className="text-xs font-bold text-red-950">Profile Mismatch Detected</h5>
+                              <p className="text-xs text-red-800 mt-0.5 leading-relaxed">{mismatchError}</p>
+                            </div>
+                          </div>
+                          {(application?.manager_phone || application?.campaigns?.manager_phone) && (
+                            <div className="pt-1 flex items-center justify-end">
+                              <a
+                                href={`https://wa.me/91${(application.manager_phone || application.campaigns?.manager_phone || '').replace(/\D/g, '')}?text=Hi%20Manager%2C%20I%20need%20assistance%20with%20my%20Instagram%20profile%20for%20campaign%20${application.campaigns?.campaign_code || ''}%20(Application%20ID%3A%20${application.id})`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-xs transition-colors"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                <span>Contact Manager on WhatsApp</span>
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Locked Submission Instagram Profile Card */}
+                      {appliedHandle && (
+                        <div className="p-3 rounded-xl border border-indigo-100 bg-indigo-50/40 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700 flex items-center gap-1.5">
+                              <Instagram className="h-4 w-4 text-pink-600" />
+                              Posting From Instagram Handle:
+                            </span>
+                            <span className="font-bold text-indigo-950 font-mono bg-white px-2.5 py-0.5 rounded-lg border border-indigo-200/60 shadow-2xs">
+                              @{appliedHandle}
+                            </span>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-700 pt-0.5">
+                            <input
+                              type="checkbox"
+                              checked={confirmHandleCheckbox}
+                              onChange={(e) => setConfirmHandleCheckbox(e.target.checked)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20"
+                            />
+                            <span>I confirm that this content is live on @{appliedHandle}</span>
+                          </label>
                         </div>
                       )}
 

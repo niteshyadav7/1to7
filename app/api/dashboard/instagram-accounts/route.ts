@@ -6,8 +6,10 @@ import {
   extractInstagramUsername,
   normalizeInstagramUsername,
   checkInstagramHandleAvailability,
-  syncUserInstagramState
+  syncUserInstagramState,
+  getActiveApplicationsUsingProfile
 } from '@/lib/instagram-utils'
+import { InstagramLogService } from '@/lib/services/instagram-log.service'
 
 // ─── GET: Fetch all linked Instagram profiles ───────────────
 export async function GET() {
@@ -28,7 +30,19 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json({ profiles: profiles || [] })
+    // Annotate each profile with active campaigns count
+    const profilesWithActive = await Promise.all(
+      (profiles || []).map(async (p: any) => {
+        const activeApps = await getActiveApplicationsUsingProfile(payload.id, p.id)
+        return {
+          ...p,
+          active_campaigns_count: activeApps.length,
+          active_campaigns: activeApps
+        }
+      })
+    )
+
+    return NextResponse.json({ profiles: profilesWithActive })
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to fetch Instagram profiles' }, { status: 500 })
   }
@@ -110,6 +124,16 @@ export async function POST(request: Request) {
     // 5. Sync users table
     const updatedProfiles = await syncUserInstagramState(payload.id)
 
+    InstagramLogService.log({
+      event_type: 'PROFILE_LINKED',
+      user_id: payload.id,
+      profile_id: newProfile.id,
+      new_username: newProfile.username,
+      actor: { type: 'creator', id: payload.id },
+      metadata: { followers, category, is_primary: makePrimary, source: 'creator_dashboard' },
+      request
+    }).catch(() => {})
+
     return NextResponse.json({
       message: 'Instagram profile linked successfully',
       profile: newProfile,
@@ -162,6 +186,15 @@ export async function PUT(request: Request) {
         .from('user_instagram_profiles')
         .update({ is_primary: true, updated_at: new Date().toISOString() })
         .eq('id', profileId)
+
+      InstagramLogService.log({
+        event_type: 'PROFILE_PRIMARY_CHANGED',
+        user_id: payload.id,
+        profile_id: profileId,
+        new_username: targetProfile.username,
+        actor: { type: 'creator', id: payload.id },
+        request
+      }).catch(() => {})
     }
 
     // If updating followers or category
@@ -224,6 +257,25 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Profile not found or access denied' }, { status: 404 })
     }
 
+    // Check if this profile is actively locked to an active campaign
+    const activeApps = await getActiveApplicationsUsingProfile(payload.id, profileId)
+    if (activeApps.length > 0) {
+      const campaignList = activeApps.map(a => `${a.brand_name} (${a.campaign_code})`).join(', ')
+      await InstagramLogService.log({
+        event_type: 'PROFILE_UNLINK_BLOCKED',
+        user_id: payload.id,
+        profile_id: profileId,
+        old_username: targetProfile.username,
+        actor: { type: 'creator', id: payload.id },
+        reason: `Attempted to unlink while active in campaign(s): ${campaignList}`,
+        metadata: { blocking_applications: activeApps },
+        request
+      })
+      return NextResponse.json({
+        error: `Cannot unlink @${targetProfile.username} because it is actively locked for ongoing campaign(s): ${campaignList}. Please contact your campaign manager or complete deliverables first.`
+      }, { status: 409 })
+    }
+
     // Prevent removing if it's the only profile
     if (userProfiles.length === 1) {
       return NextResponse.json({
@@ -252,6 +304,15 @@ export async function DELETE(request: Request) {
     if (delErr) throw delErr
 
     const updatedProfiles = await syncUserInstagramState(payload.id)
+
+    InstagramLogService.log({
+      event_type: 'PROFILE_UNLINKED',
+      user_id: payload.id,
+      profile_id: profileId,
+      old_username: targetProfile.username,
+      actor: { type: 'creator', id: payload.id },
+      request
+    }).catch(() => {})
 
     return NextResponse.json({
       message: 'Instagram profile unlinked',

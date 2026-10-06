@@ -54,7 +54,7 @@ export async function ensurePocMigration(): Promise<void> {
           CREATE INDEX IF NOT EXISTS idx_campaigns_poc_admin_ids ON public.campaigns USING GIN (poc_admin_ids);
         END IF;
 
-        -- 2. phone column on admins for POC profile contact
+        -- 2. phone and creator-facing proxy columns on admins for POC profile contact
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
           WHERE table_schema = 'public' 
@@ -62,6 +62,24 @@ export async function ensurePocMigration(): Promise<void> {
             AND column_name = 'phone'
         ) THEN
           ALTER TABLE public.admins ADD COLUMN phone TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'admins' 
+            AND column_name = 'creator_view_name'
+        ) THEN
+          ALTER TABLE public.admins ADD COLUMN creator_view_name TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'admins' 
+            AND column_name = 'creator_view_phone'
+        ) THEN
+          ALTER TABLE public.admins ADD COLUMN creator_view_phone TEXT;
         END IF;
 
         -- 3. manager_phone column on campaigns for auto-linked brand manager phone

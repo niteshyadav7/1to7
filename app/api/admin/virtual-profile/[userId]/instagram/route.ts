@@ -5,8 +5,10 @@ import {
   extractInstagramUsername,
   normalizeInstagramUsername,
   checkInstagramHandleAvailability,
-  syncUserInstagramState
+  syncUserInstagramState,
+  getActiveApplicationsUsingProfile
 } from '@/lib/instagram-utils'
+import { InstagramLogService } from '@/lib/services/instagram-log.service'
 
 // ─── GET: Fetch all linked Instagram profiles for a user ───
 export async function GET(
@@ -93,7 +95,8 @@ export async function POST(
         followers,
         category,
         is_primary: makePrimary,
-        is_verified: false
+        is_verified: false,
+        added_by: `admin:${admin.id}`
       }])
       .select()
       .single()
@@ -108,6 +111,20 @@ export async function POST(
     }
 
     const updatedProfiles = await syncUserInstagramState(userId)
+
+    InstagramLogService.log({
+      event_type: 'PROFILE_LINKED',
+      user_id: userId,
+      profile_id: newProfile.id,
+      new_username: newProfile.username,
+      actor: {
+        type: 'admin',
+        id: admin.id,
+        name: admin.name || admin.email
+      },
+      metadata: { followers, category, is_primary: makePrimary, source: 'admin_panel' },
+      request
+    }).catch(() => {})
 
     return NextResponse.json({
       message: 'Instagram profile linked successfully (by admin)',
@@ -165,6 +182,19 @@ export async function PUT(
         .from('user_instagram_profiles')
         .update({ is_primary: true, updated_at: new Date().toISOString() })
         .eq('id', profileId)
+
+      InstagramLogService.log({
+        event_type: 'PROFILE_PRIMARY_CHANGED',
+        user_id: userId,
+        profile_id: profileId,
+        new_username: targetProfile.username,
+        actor: {
+          type: 'admin',
+          id: admin.id,
+          name: admin.name || admin.email
+        },
+        request
+      }).catch(() => {})
     }
 
     const updates: Record<string, any> = { updated_at: new Date().toISOString() }
@@ -231,6 +261,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Profile not found or access denied' }, { status: 404 })
     }
 
+    const force = searchParams.get('force') === 'true'
+    const activeApps = await getActiveApplicationsUsingProfile(userId, profileId)
+    if (activeApps.length > 0 && !force) {
+      const campaignList = activeApps.map(a => `${a.brand_name} (${a.campaign_code})`).join(', ')
+      return NextResponse.json({
+        error: `This profile is actively locked to ongoing campaign(s): ${campaignList}. Pass ?force=true to override.`,
+        activeApplications: activeApps
+      }, { status: 409 })
+    }
+
     if (userProfiles.length === 1) {
       return NextResponse.json({
         error: 'Cannot remove the only linked Instagram profile.'
@@ -256,6 +296,21 @@ export async function DELETE(
     if (delErr) throw delErr
 
     const updatedProfiles = await syncUserInstagramState(userId)
+
+    InstagramLogService.log({
+      event_type: 'PROFILE_UNLINKED',
+      user_id: userId,
+      profile_id: profileId,
+      old_username: targetProfile.username,
+      actor: {
+        type: 'admin',
+        id: admin.id,
+        name: admin.name || admin.email
+      },
+      reason: force ? 'Forced unlink by admin' : undefined,
+      metadata: { force, activeApplicationsCount: activeApps.length },
+      request
+    }).catch(() => {})
 
     return NextResponse.json({
       message: 'Instagram profile unlinked (by admin)',

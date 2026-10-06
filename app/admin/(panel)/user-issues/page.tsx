@@ -27,6 +27,7 @@ import {
   Share2,
   FileText,
   ShieldCheck,
+  UserCheck,
 } from 'lucide-react'
 import ImageZoomModal from '@/components/admin/ImageZoomModal'
 import { Input } from '@/components/ui/input'
@@ -231,7 +232,7 @@ export default function AdminUserIssuesPage() {
 
       toast.success(`Status changed to ${newStatus.replace('_', ' ')}`)
       setIssues((prev) =>
-        prev.map((i) => (i.id === issueId ? { ...i, status: newStatus as any } : i))
+        prev.map((i) => (i.id === issueId ? (data.issue ? { ...i, ...data.issue } : { ...i, status: newStatus as any }) : i))
       )
       window.dispatchEvent(new Event('admin-counters-refresh'))
       fetchIssues()
@@ -281,6 +282,8 @@ export default function AdminUserIssuesPage() {
       'Mobile',
       'Category',
       'Status',
+      'Resolved By',
+      'Resolved At',
       'Description',
       'Admin Notes',
       'Screenshot URL',
@@ -295,6 +298,8 @@ export default function AdminUserIssuesPage() {
       i.mobile,
       CATEGORY_LABELS[i.issue_type] || i.issue_type,
       i.status,
+      `"${(i.resolved_by || '').replace(/"/g, '""')}"`,
+      i.resolved_at ? new Date(i.resolved_at).toLocaleString() : '',
       `"${i.description.replace(/"/g, '""')}"`,
       `"${(i.admin_notes || '').replace(/"/g, '""')}"`,
       i.screenshot_url || 'None',
@@ -700,9 +705,34 @@ export default function AdminUserIssuesPage() {
                         )}
                       </td>
 
-                      {/* Status */}
+                      {/* Status & Resolver */}
                       <td className="p-4 align-top">
-                        {getStatusBadge(item.status)}
+                        <div className="space-y-1">
+                          {getStatusBadge(item.status)}
+                          {item.status === 'resolved' && item.resolved_by && (
+                            <div
+                              className="flex items-center gap-1.5 text-[11px] text-emerald-300 font-semibold"
+                              title={`Resolved by: ${item.resolved_by}${item.resolved_at ? ` on ${new Date(item.resolved_at).toLocaleString()}` : ''}`}
+                            >
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                              <span className="truncate max-w-[130px]">{item.resolved_by}</span>
+                            </div>
+                          )}
+                          {item.status === 'rejected' && item.resolved_by && (
+                            <div
+                              className="flex items-center gap-1.5 text-[11px] text-rose-300/80 font-medium"
+                              title={`Closed by: ${item.resolved_by}${item.resolved_at ? ` on ${new Date(item.resolved_at).toLocaleString()}` : ''}`}
+                            >
+                              <UserCheck className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                              <span className="truncate max-w-[130px]">{item.resolved_by}</span>
+                            </div>
+                          )}
+                          {item.status === 'resolved' && item.resolved_at && (
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              {new Date(item.resolved_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                            </p>
+                          )}
+                        </div>
                       </td>
 
                       {/* Reported Date */}
@@ -777,6 +807,28 @@ export default function AdminUserIssuesPage() {
                       Submitted on {new Date(selectedIssue.created_at).toLocaleString()} from{' '}
                       <span className="font-semibold text-slate-300 capitalize">{selectedIssue.source_page} Page</span>
                     </p>
+                    {selectedIssue.status === 'resolved' && selectedIssue.resolved_by && (
+                      <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1.5 font-medium">
+                        <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                        Resolved by <span className="font-bold text-emerald-300">{selectedIssue.resolved_by}</span>
+                        {selectedIssue.resolved_at && (
+                          <span className="text-slate-400 text-[11px]">
+                            • {new Date(selectedIssue.resolved_at).toLocaleString()}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    {selectedIssue.status === 'rejected' && selectedIssue.resolved_by && (
+                      <p className="text-xs text-rose-400 mt-1 flex items-center gap-1.5 font-medium">
+                        <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                        Closed by <span className="font-bold text-rose-300">{selectedIssue.resolved_by}</span>
+                        {selectedIssue.resolved_at && (
+                          <span className="text-slate-400 text-[11px]">
+                            • {new Date(selectedIssue.resolved_at).toLocaleString()}
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button
@@ -888,6 +940,26 @@ export default function AdminUserIssuesPage() {
                     <h4 className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-1.5">
                       <ShieldCheck className="h-4 w-4" /> Admin Resolution & Status
                     </h4>
+
+                    {selectedIssue.resolved_by && (
+                      <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/25 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <UserCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                          <div>
+                            <span className="text-slate-400 text-[11px] block">Currently Resolved By</span>
+                            <span className="text-white font-bold text-xs">{selectedIssue.resolved_by}</span>
+                          </div>
+                        </div>
+                        {selectedIssue.resolved_at && (
+                          <div className="text-right">
+                            <span className="text-slate-400 text-[11px] block">Resolved On</span>
+                            <span className="text-slate-300 font-mono text-[11px]">
+                              {new Date(selectedIssue.resolved_at).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">

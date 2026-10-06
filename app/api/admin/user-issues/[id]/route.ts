@@ -32,8 +32,26 @@ export async function PATCH(
     if (status) {
       updatePayload.status = status
       if (status === 'resolved') {
+        let resolverName = admin.name || admin.email || 'Admin'
+        if (!admin.name || admin.name === 'Admin') {
+          try {
+            const { data: adminRow } = await supabase
+              .from('admins')
+              .select('name')
+              .eq('id', admin.id)
+              .maybeSingle()
+            if (adminRow?.name) {
+              resolverName = adminRow.name
+            }
+          } catch {
+            // fallback to admin.email or 'Admin'
+          }
+        }
         updatePayload.resolved_at = new Date().toISOString()
-        updatePayload.resolved_by = admin.name || admin.email
+        updatePayload.resolved_by = resolverName
+      } else if (status === 'pending' || status === 'in_progress') {
+        updatePayload.resolved_at = null
+        updatePayload.resolved_by = null
       }
     }
 

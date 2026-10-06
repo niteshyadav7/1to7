@@ -33,8 +33,10 @@ export async function GET() {
         a.name, 
         a.email, 
         a.phone,
+        a.creator_view_name,
+        a.creator_view_phone,
         a.role, 
-        a.avatar_url,
+        a.avatar_url, 
         COALESCE(r.display_name, a.role) AS role_display_name
       FROM public.admins a
       LEFT JOIN public.roles r ON a.role = r.name
@@ -57,6 +59,10 @@ export async function GET() {
         name: row.name || 'Team Member',
         email: row.email,
         phone: row.phone || null,
+        creatorViewName: row.creator_view_name || null,
+        creatorViewPhone: row.creator_view_phone || null,
+        effectiveCreatorName: row.creator_view_name || row.name || 'Campaign Manager',
+        effectiveCreatorPhone: row.creator_view_phone || row.phone || null,
         role: row.role,
         roleDisplayName: row.role_display_name || 'Operations Admin',
         avatarUrl: row.avatar_url || null,

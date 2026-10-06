@@ -14,6 +14,8 @@ import {
   X,
   Check,
   Languages,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -275,6 +277,24 @@ export const Step1PersonalDetails: React.FC<Step1PersonalDetailsProps> = ({
                             Primary
                           </span>
                         )}
+                        {p.added_by && (p.added_by.startsWith('admin:') || p.added_by === 'admin') && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            title={`Linked by 1to7 Media Team (${p.added_by})`}
+                          >
+                            <ShieldCheck className="h-2.5 w-2.5 text-indigo-600" />
+                            Added by 1to7 Team
+                          </span>
+                        )}
+                        {Boolean(p.active_campaigns_count && p.active_campaigns_count > 0) && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300"
+                            title={`Locked in ${p.active_campaigns_count} active campaign(s)`}
+                          >
+                            <Lock className="h-2.5 w-2.5 text-amber-600" />
+                            In Active Campaign ({p.active_campaigns_count})
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
                         <span className="font-bold text-slate-700">
@@ -321,7 +341,16 @@ export const Step1PersonalDetails: React.FC<Step1PersonalDetailsProps> = ({
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDeleteInstagramProfile(p.id)}
-                        className="h-7 px-2 text-[11px] font-bold text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                        className={`h-7 px-2 text-[11px] font-bold rounded-lg cursor-pointer ${
+                          p.active_campaigns_count && p.active_campaigns_count > 0
+                            ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50'
+                            : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={
+                          p.active_campaigns_count && p.active_campaigns_count > 0
+                            ? `In active campaign (${p.active_campaigns_count}) — unlinking requires admin override`
+                            : 'Unlink Instagram profile'
+                        }
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>

@@ -27,6 +27,7 @@ import { openInstagramProfilesInBulk } from '@/lib/bulk-instagram-opener'
 import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/components/admin/InfluencerCampaignHistoryCard'
 import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
 import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
+import ChangeInstagramProfileModal from '@/components/admin/ChangeInstagramProfileModal'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
@@ -1021,6 +1022,7 @@ export default function AllApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
   const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
+  const [igModalApp, setIgModalApp] = useState<any | null>(null)
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('Applied')
@@ -2242,40 +2244,82 @@ export default function AllApplicationsPage() {
                         )}
 
                         {/* Instagram */}
-                        {visibleCols.instagram && (
-                          <td className={`px-2.5 ${densityPadding[density]}`}>
-                            {user?.instagram_username ? (
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1">
-                                  <a 
-                                    href={getInstagramUrl(user.instagram_username)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[11px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1 max-w-[105px] transition-colors group/link"
-                                    title={getInstagramDisplayHandle(user.instagram_username)}
-                                  >
-                                    <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
-                                    <span className="truncate">{getInstagramDisplayHandle(user.instagram_username)}</span>
-                                    <ExternalLink className="h-2.5 w-2.5 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
-                                  </a>
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                                    {formatFollowers(user.instagram_followers_count || user.followers)}
-                                  </span>
-                                  {user?.is_instagram_verified && (
-                                    <span className="px-1 py-0.2 rounded text-[7px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs whitespace-nowrap">
-                                      <CheckCircle2 className="h-2 w-2" /> META API
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-[11px] text-slate-600">—</span>
-                            )}
-                          </td>
-                        )}
+                        {visibleCols.instagram && (() => {
+                            const appliedHandle =
+                              app.form_data?.applied_instagram_username ||
+                              app.form_data?.instagram_username ||
+                              user?.instagram_username ||
+                              ''
+                            const primaryHandle = user?.instagram_username || ''
+                            const isMismatch = Boolean(
+                              appliedHandle &&
+                              primaryHandle &&
+                              appliedHandle.toLowerCase().replace(/^@/, '') !== primaryHandle.toLowerCase().replace(/^@/, '')
+                            )
+                            const effectiveFollowers =
+                              app.form_data?.applied_instagram_followers ??
+                              (user?.instagram_followers_count || user?.followers)
+
+                            return (
+                              <td className={`px-2.5 ${densityPadding[density]}`}>
+                                {appliedHandle ? (
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <a 
+                                        href={getInstagramUrl(appliedHandle)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-[11px] font-semibold text-slate-300 hover:text-pink-400 hover:underline flex items-center gap-1 max-w-[105px] transition-colors group/link"
+                                        title={getInstagramDisplayHandle(appliedHandle)}
+                                      >
+                                        <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
+                                        <span className="truncate">{getInstagramDisplayHandle(appliedHandle)}</span>
+                                        <ExternalLink className="h-2.5 w-2.5 text-pink-400 shrink-0 inline opacity-70 group-hover/link:opacity-100" />
+                                      </a>
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setIgModalApp(app)
+                                        }}
+                                        className="p-1 rounded-md text-slate-500 hover:text-pink-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                                        title="Change Instagram Profile for this campaign"
+                                      >
+                                        <Pencil className="h-2.5 w-2.5" />
+                                      </button>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      {effectiveFollowers !== undefined && (
+                                        <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                          {formatFollowers(effectiveFollowers)}
+                                        </span>
+                                      )}
+
+                                      {isMismatch && (
+                                        <span
+                                          className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 whitespace-nowrap cursor-help"
+                                          title={`Applied with @${appliedHandle} (Current Primary: @${primaryHandle})`}
+                                        >
+                                          <AlertTriangle className="h-2 w-2" /> Mismatch
+                                        </span>
+                                      )}
+
+                                      {user?.is_instagram_verified && !isMismatch && (
+                                        <span className="px-1 py-0.2 rounded text-[7px] font-black uppercase tracking-wider bg-gradient-to-r from-purple-500 to-pink-500 text-white flex items-center gap-0.5 shadow-2xs whitespace-nowrap">
+                                          <CheckCircle2 className="h-2 w-2" /> META API
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] text-slate-600">—</span>
+                                )}
+                              </td>
+                            )
+                          })()}
 
                         {/* Campaign */}
                         {visibleCols.campaign && (
@@ -3165,9 +3209,9 @@ export default function AllApplicationsPage() {
                 onClick={() => {
                   const selectedApps = processedData.filter(a => selectedIds.has(a.id))
                   const handles = selectedApps.map(a => 
-                    a.users?.instagram_username || 
                     a.form_data?.applied_instagram_username || 
-                    a.form_data?.instagram_username
+                    a.form_data?.instagram_username ||
+                    a.users?.instagram_username
                   )
                   openInstagramProfilesInBulk(handles)
                 }}
@@ -3720,6 +3764,20 @@ export default function AllApplicationsPage() {
       <ApplicationImportModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
+        onSuccess={fetchApplications}
+      />
+
+      {/* Change Instagram Profile Modal */}
+      <ChangeInstagramProfileModal
+        isOpen={Boolean(igModalApp)}
+        onClose={() => setIgModalApp(null)}
+        applicationId={igModalApp?.id || ''}
+        creatorName={igModalApp?.users?.full_name}
+        currentAppliedHandle={
+          igModalApp?.form_data?.applied_instagram_username ||
+          igModalApp?.form_data?.instagram_username ||
+          igModalApp?.users?.instagram_username
+        }
         onSuccess={fetchApplications}
       />
 

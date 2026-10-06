@@ -1,24 +1,27 @@
 import { NextResponse } from 'next/server'
-import { getAdminFromRequest, hasActionPermission, hasModuleAccess } from '@/lib/admin-auth'
 import pool from '@/lib/db'
+import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
+
+export const dynamic = 'force-dynamic'
 
 interface Params {
   params: Promise<{ id: string }>
 }
 
-// GET /api/admin/staff/[id] - Fetch single staff member
+// GET /api/admin/staff/[id] - Fetch single staff member details
 export async function GET(request: Request, { params }: Params) {
   try {
-    const currentAdmin = await getAdminFromRequest()
-    if (!currentAdmin || !hasModuleAccess(currentAdmin, 'staff')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    const admin = await getAdminFromRequest()
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 })
     }
 
     const { id } = await params
 
     const res = await pool.query(
       `SELECT 
-        a.id, a.email, a.name, a.phone, a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
+        a.id, a.email, a.name, a.phone, a.creator_view_name, a.creator_view_phone,
+        a.role, a.permissions, a.is_active, a.last_login, a.created_at, a.plain_password,
         a.auth_provider, a.avatar_url, a.approval_status, a.approved_at, a.approved_by,
         r.display_name as role_display_name, r.permissions as role_permissions
        FROM public.admins a
@@ -54,9 +57,25 @@ export async function PUT(request: Request, { params }: Params) {
 
     const { id } = await params
     const body = await request.json()
-    const { name, email, phone, role, permissions, is_active } = body
+    const {
+      name,
+      email,
+      phone,
+      creator_view_name,
+      creator_view_phone,
+      role,
+      permissions,
+      is_active
+    } = body
+
     const phoneProvided = phone !== undefined
     const cleanPhone = phone ? String(phone).replace(/[^\d+]/g, '').trim() : null
+
+    const creatorPhoneProvided = creator_view_phone !== undefined
+    const cleanCreatorPhone = creator_view_phone ? String(creator_view_phone).replace(/[^\d+]/g, '').trim() : null
+
+    const creatorNameProvided = creator_view_name !== undefined
+    const cleanCreatorName = creator_view_name ? String(creator_view_name).trim() : null
 
     // Verify staff exists
     const existing = await pool.query('SELECT * FROM public.admins WHERE id = $1', [id])
@@ -104,9 +123,11 @@ export async function PUT(request: Request, { params }: Params) {
          plain_password = CASE WHEN $6 = true THEN NULL ELSE plain_password END,
          approval_status = COALESCE($7, approval_status),
          phone = CASE WHEN $8::boolean = true THEN $9 ELSE phone END,
+         creator_view_name = CASE WHEN $10::boolean = true THEN $11 ELSE creator_view_name END,
+         creator_view_phone = CASE WHEN $12::boolean = true THEN $13 ELSE creator_view_phone END,
          updated_at = NOW()
-       WHERE id = $10
-       RETURNING id, name, email, phone, role, permissions, is_active, plain_password, auth_provider, avatar_url, approval_status, updated_at`,
+       WHERE id = $14
+       RETURNING id, name, email, phone, creator_view_name, creator_view_phone, role, permissions, is_active, plain_password, auth_provider, avatar_url, approval_status, updated_at`,
       [
         name?.trim() ?? null,
         email ? email.toLowerCase().trim() : null,
@@ -117,6 +138,10 @@ export async function PUT(request: Request, { params }: Params) {
         body.approval_status ?? null,
         phoneProvided,
         cleanPhone,
+        creatorNameProvided,
+        cleanCreatorName,
+        creatorPhoneProvided,
+        cleanCreatorPhone,
         id,
       ]
     )
@@ -141,30 +166,28 @@ export async function DELETE(request: Request, { params }: Params) {
   try {
     const currentAdmin = await getAdminFromRequest()
     if (!currentAdmin || !hasActionPermission(currentAdmin, 'staff', 'delete')) {
-      return NextResponse.json({ error: 'Unauthorized: Permission to delete staff is denied' }, { status: 403 })
+      return NextResponse.json({ error: 'Unauthorized: Permission to delete employee is denied' }, { status: 403 })
     }
 
     const { id } = await params
 
-    // Prevent self-deletion
     if (currentAdmin.id === id) {
       return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
     }
 
-    // Verify staff exists
     const existing = await pool.query('SELECT * FROM public.admins WHERE id = $1', [id])
     if (existing.rows.length === 0) {
-      return NextResponse.json({ error: 'Staff member not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
     const targetStaff = existing.rows[0]
 
-    // Safeguard: Cannot delete the last Super Admin
+    // Safeguard: Cannot delete the last active Super Admin
     if (targetStaff.role === 'super_admin') {
       const countRes = await pool.query("SELECT COUNT(*) FROM public.admins WHERE role = 'super_admin'")
       const superAdminCount = parseInt(countRes.rows[0].count, 10)
       if (superAdminCount <= 1) {
-        return NextResponse.json({ error: 'Cannot delete the only Super Admin account' }, { status: 400 })
+        return NextResponse.json({ error: 'Cannot delete the last Super Admin' }, { status: 400 })
       }
     }
 
@@ -172,7 +195,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
     return NextResponse.json({
       success: true,
-      message: 'Staff member deleted successfully',
+      message: 'Employee account deleted permanently',
     })
   } catch (error) {
     console.error('API /admin/staff/[id] DELETE Error:', error)

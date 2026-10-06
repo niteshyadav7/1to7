@@ -61,6 +61,8 @@ interface StaffMember {
   name: string
   email: string
   phone?: string | null
+  creator_view_name?: string | null
+  creator_view_phone?: string | null
   role: string
   roleDisplayName: string
   permissions: Record<string, string[]>
@@ -125,6 +127,8 @@ export default function StaffManagementPage() {
   const [formName, setFormName] = useState('')
   const [formEmail, setFormEmail] = useState('')
   const [formPhone, setFormPhone] = useState('')
+  const [formCreatorViewName, setFormCreatorViewName] = useState('')
+  const [formCreatorViewPhone, setFormCreatorViewPhone] = useState('')
   const [formPassword, setFormPassword] = useState('')
   const [formShowPassword, setFormShowPassword] = useState(false)
   const [formRole, setFormRole] = useState('admin')
@@ -208,6 +212,8 @@ export default function StaffManagementPage() {
     setFormName('')
     setFormEmail('')
     setFormPhone('')
+    setFormCreatorViewName('')
+    setFormCreatorViewPhone('')
     setFormPassword(generateRandomPassword())
     setFormShowPassword(true)
     setFormRole('admin')
@@ -225,6 +231,8 @@ export default function StaffManagementPage() {
     setFormName(staff.name)
     setFormEmail(staff.email)
     setFormPhone(staff.phone || '')
+    setFormCreatorViewName(staff.creator_view_name || '')
+    setFormCreatorViewPhone(staff.creator_view_phone || '')
     setFormRole(staff.role)
     setFormIsActive(staff.is_active)
 
@@ -377,6 +385,8 @@ export default function StaffManagementPage() {
           name: formName,
           email: formEmail,
           phone: formPhone.trim() || null,
+          creator_view_name: formCreatorViewName.trim() || null,
+          creator_view_phone: formCreatorViewPhone.trim() || null,
           password: formPassword,
           role: formRole,
           is_active: formIsActive,
@@ -411,6 +421,8 @@ export default function StaffManagementPage() {
           name: formName,
           email: formEmail,
           phone: formPhone.trim() || null,
+          creator_view_name: formCreatorViewName.trim() || null,
+          creator_view_phone: formCreatorViewPhone.trim() || null,
           role: formRole,
           is_active: formIsActive,
           permissions: customPermissionsEnabled ? formPermissions : {},
@@ -925,6 +937,15 @@ export default function StaffManagementPage() {
                                 <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                                   <Phone className="h-2.5 w-2.5" />
                                   +91 {staff.phone}
+                                </span>
+                              )}
+                              {staff.creator_view_name && (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/25 font-medium"
+                                  title={`Creator View: ${staff.creator_view_name}${staff.creator_view_phone ? ` (${staff.creator_view_phone})` : ''}`}
+                                >
+                                  <ShieldCheck className="h-2.5 w-2.5 text-cyan-400" />
+                                  Alias: {staff.creator_view_name}
                                 </span>
                               )}
                             </div>
@@ -1552,6 +1573,45 @@ export default function StaffManagementPage() {
                   </div>
                 </div>
 
+                {/* Creator-Facing Public Identity (Privacy Shield) */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/20 via-blue-950/20 to-slate-900/40 border border-cyan-500/20 space-y-3">
+                  <div className="flex items-center gap-2 text-cyan-400">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Creator-Facing Public Identity (Privacy Shield)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Influencers and creators see these details instead of this staff member&apos;s real name and personal phone.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Public Display Alias
+                      </label>
+                      <Input
+                        value={formCreatorViewName}
+                        onChange={(e) => setFormCreatorViewName(e.target.value)}
+                        placeholder="e.g. Aarav - 1to7 Media"
+                        className="bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-10 rounded-xl text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Creator WhatsApp / Support Mobile
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                        <Input
+                          type="tel"
+                          value={formCreatorViewPhone}
+                          onChange={(e) => setFormCreatorViewPhone(e.target.value)}
+                          placeholder="10-digit number (e.g. 8875912020)"
+                          className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-10 rounded-xl text-sm font-mono"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Password & Generator */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -1839,6 +1899,45 @@ export default function StaffManagementPage() {
                         placeholder="10-digit number"
                         className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-11 rounded-xl text-sm font-mono"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Creator-Facing Public Identity (Privacy Shield) */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/20 via-blue-950/20 to-slate-900/40 border border-cyan-500/20 space-y-3">
+                  <div className="flex items-center gap-2 text-cyan-400">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Creator-Facing Public Identity (Privacy Shield)</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Influencers and creators see these details instead of this staff member&apos;s real name and personal phone.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Public Display Alias
+                      </label>
+                      <Input
+                        value={formCreatorViewName}
+                        onChange={(e) => setFormCreatorViewName(e.target.value)}
+                        placeholder="e.g. Aarav - 1to7 Media"
+                        className="bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-10 rounded-xl text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Creator WhatsApp / Support Mobile
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                        <Input
+                          type="tel"
+                          value={formCreatorViewPhone}
+                          onChange={(e) => setFormCreatorViewPhone(e.target.value)}
+                          placeholder="10-digit number (e.g. 8875912020)"
+                          className="pl-9 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 h-10 rounded-xl text-sm font-mono"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

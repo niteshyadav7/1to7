@@ -89,13 +89,20 @@ export async function GET(request: Request) {
     }
 
     // Batch fetch POC admins from pool
-    const pocMap = new Map<string, { name: string; email: string; phone: string | null; avatar_url: string | null }>()
+    const pocMap = new Map<string, {
+      name: string
+      email: string
+      phone: string | null
+      creator_view_name: string | null
+      creator_view_phone: string | null
+      avatar_url: string | null
+    }>()
     if (pocIds.size > 0) {
       try {
         const pool = (await import('@/lib/db')).default
         const idList = Array.from(pocIds)
         const pocRes = await pool.query(
-          `SELECT id, name, email, phone, avatar_url FROM public.admins WHERE id = ANY($1::uuid[])`,
+          `SELECT id, name, email, phone, creator_view_name, creator_view_phone, avatar_url FROM public.admins WHERE id = ANY($1::uuid[])`,
           [idList]
         )
         for (const row of pocRes.rows) {
@@ -106,15 +113,18 @@ export async function GET(request: Request) {
       }
     }
 
-    // Enrich applications with resolved manager details
+    // Enrich applications with resolved manager details (Strict Privacy Shield)
     const enrichedApplications = (applications || []).map((app: any) => {
       const c = app.campaigns || {}
       const primaryPocId = Array.isArray(c.poc_admin_ids) && c.poc_admin_ids.length > 0 ? c.poc_admin_ids[0] : null
       const pocData = primaryPocId ? pocMap.get(primaryPocId) : null
 
-      const resolvedPhone = app.manager_phone || c.manager_phone || pocData?.phone || null
-      const resolvedName = pocData?.name || 'Campaign Manager'
-      const resolvedEmail = pocData?.email || null
+      // Shielded Name: prioritize creator_view_name, fallback to generic 'Campaign Manager'
+      // Never expose personal employee name to creators
+      const resolvedName = pocData?.creator_view_name || 'Campaign Manager'
+
+      // Shielded Phone: prioritize creator_view_phone, fallback to campaign manager_phone
+      const resolvedPhone = pocData?.creator_view_phone || app.manager_phone || c.manager_phone || pocData?.phone || null
       const resolvedAvatar = pocData?.avatar_url || null
 
       return {
@@ -123,7 +133,6 @@ export async function GET(request: Request) {
         manager: {
           name: resolvedName,
           phone: resolvedPhone,
-          email: resolvedEmail,
           avatarUrl: resolvedAvatar,
         },
       }

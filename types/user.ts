@@ -28,6 +28,9 @@ export interface LinkedInstagramProfile {
   profile_pic_url?: string
   is_primary: boolean
   is_verified?: boolean
+  added_by?: string | null
+  active_campaigns_count?: number
+  active_campaigns?: Array<{ id: string; campaign_code: string; brand_name: string; status: string }>
   created_at?: string
   updated_at?: string
 }

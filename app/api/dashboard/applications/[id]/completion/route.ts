@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { checkLiveDateMaturation, getRequiredMaturationDays } from '@/lib/utils/completion-timeline-utils'
+import { getAppliedProfile, isProfileLinkedToUser } from '@/lib/instagram-utils'
+import { InstagramLogService } from '@/lib/services/instagram-log.service'
 
 export async function PUT(
   request: Request,
@@ -23,7 +25,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { live_date, deliverable_link, supporting_document, notes, views_count, custom_responses } = body
+    const { live_date, deliverable_link, supporting_document, notes, views_count, custom_responses, confirmed_instagram_username } = body
 
     if (!live_date) {
       return NextResponse.json({ error: 'Live date is required' }, { status: 400 })
@@ -36,7 +38,21 @@ export async function PUT(
     // Verify application ownership and fetch campaign timeline settings
     const { data: application, error: fetchErr } = await supabase
       .from('applications')
-      .select('id, user_id, form_data, status, campaigns(completion_days)')
+      .select(`
+        id,
+        user_id,
+        form_data,
+        status,
+        campaigns (
+          id,
+          brand_name,
+          campaign_code,
+          completion_days
+        ),
+        users (
+          instagram_username
+        )
+      `)
       .eq('id', id)
       .single()
 
@@ -48,14 +64,84 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Enforce Live Date Maturation Gap based on campaign settings
     const campaignConfig = Array.isArray(application.campaigns)
       ? application.campaigns[0]
       : application.campaigns
+
+    // Enforce Live Date Maturation Gap based on campaign settings
     const minMaturationDays = getRequiredMaturationDays(campaignConfig)
     const maturation = checkLiveDateMaturation(live_date, minMaturationDays)
     if (!maturation.canSubmit) {
       return NextResponse.json({ error: maturation.message }, { status: 400 })
+    }
+
+    // ─── INSTAGRAM PROFILE CONSISTENCY VERIFICATION ───
+    const applied = getAppliedProfile(application)
+
+    if (applied.username) {
+      // 1. Verify creator still has this profile actively linked
+      const { linked, profile: linkedProfile } = await isProfileLinkedToUser(payload.id, {
+        username: applied.username,
+        profileId: applied.profileId
+      })
+
+      if (!linked) {
+        const { data: userProfiles } = await supabase
+          .from('user_instagram_profiles')
+          .select('username')
+          .eq('user_id', payload.id)
+
+        const currentHandles = userProfiles?.map(p => `@${p.username}`) || []
+
+        InstagramLogService.log({
+          event_type: 'COMPLETION_BLOCKED_MISMATCH',
+          user_id: payload.id,
+          application_id: id,
+          campaign_id: campaignConfig?.id,
+          old_username: applied.username,
+          actor: { type: 'creator', id: payload.id },
+          reason: `Applied profile @${applied.username} is not actively linked to creator account`,
+          metadata: { linkedHandles: currentHandles, deliverable_link },
+          request
+        }).catch(() => {})
+
+        return NextResponse.json({
+          code: 'PROFILE_MISMATCH',
+          error: `This campaign was applied with Instagram profile @${applied.username}, which is not currently linked in your Profile. Please link @${applied.username} in your profile or contact your campaign manager to update your profile.`,
+          appliedUsername: applied.username,
+          linkedProfiles: currentHandles
+        }, { status: 409 })
+      }
+
+      // 2. If deliverable link contains a username prefix, check for match
+      if (deliverable_link) {
+        const urlMatch = String(deliverable_link).match(/instagram\.com\/([A-Za-z0-9._]+)\/(reel|p|tv)\//i)
+        if (urlMatch) {
+          const urlUser = urlMatch[1].toLowerCase()
+          if (!['reel', 'p', 'tv', 'reels', 'stories'].includes(urlUser)) {
+            if (applied.normalized && urlUser !== applied.normalized) {
+              InstagramLogService.log({
+                event_type: 'COMPLETION_BLOCKED_MISMATCH',
+                user_id: payload.id,
+                application_id: id,
+                campaign_id: campaignConfig?.id,
+                old_username: applied.username,
+                actor: { type: 'creator', id: payload.id },
+                reason: `Deliverable link belongs to @${urlUser}, but application was locked to @${applied.username}`,
+                metadata: { urlUser, deliverable_link },
+                request
+              }).catch(() => {})
+
+              return NextResponse.json({
+                code: 'PROFILE_MISMATCH',
+                error: `Deliverable link is from Instagram account @${urlUser}, but your approved application is locked to @${applied.username}. Please post from @${applied.username} or contact your campaign manager.`,
+                appliedUsername: applied.username,
+                postedUsername: urlUser
+              }, { status: 409 })
+            }
+          }
+        }
+      }
     }
 
     const currentFormData = application.form_data || {}
@@ -84,6 +170,9 @@ export async function PUT(
         views_count: views_count || '',
         notes: notes || '',
         custom_responses: custom_responses || {},
+        posted_from_handle: applied.username || null,
+        posted_from_profile_id: applied.profileId || null,
+        verification_method: 'self_declared',
         submitted_at: new Date().toISOString(),
         attempt: updatedHistory.length + 1,
       },
@@ -103,6 +192,23 @@ export async function PUT(
 
     if (updateErr) throw updateErr
 
+    InstagramLogService.log({
+      event_type: 'COMPLETION_PROFILE_CONFIRMED',
+      user_id: payload.id,
+      application_id: id,
+      campaign_id: campaignConfig?.id,
+      new_username: applied.username,
+      profile_id: applied.profileId,
+      actor: { type: 'creator', id: payload.id },
+      metadata: {
+        deliverable_link,
+        live_date,
+        views_count,
+        attempt: updatedHistory.length + 1
+      },
+      request
+    }).catch(() => {})
+
     return NextResponse.json({
       success: true,
       message: 'Campaign completion deliverables submitted successfully!',
@@ -112,3 +218,4 @@ export async function PUT(
     return NextResponse.json({ error: err.message || 'Failed to submit completion' }, { status: 500 })
   }
 }
+

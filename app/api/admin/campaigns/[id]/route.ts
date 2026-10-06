@@ -74,9 +74,9 @@ export async function PUT(
     if (updates.poc_admin_ids !== undefined && body.manager_phone === undefined) {
       if (Array.isArray(updates.poc_admin_ids) && updates.poc_admin_ids.length > 0) {
         try {
-          const pocRes = await pool.query('SELECT phone FROM public.admins WHERE id = $1', [updates.poc_admin_ids[0]])
-          if (pocRes.rows[0]?.phone) {
-            updates.manager_phone = pocRes.rows[0].phone
+          const pocRes = await pool.query('SELECT phone, creator_view_phone FROM public.admins WHERE id = $1', [updates.poc_admin_ids[0]])
+          if (pocRes.rows[0]?.creator_view_phone || pocRes.rows[0]?.phone) {
+            updates.manager_phone = pocRes.rows[0].creator_view_phone || pocRes.rows[0].phone
           }
         } catch (err) {
           console.warn('Non-fatal error resolving POC phone during campaign update:', err)

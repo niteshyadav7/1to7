@@ -90,14 +90,14 @@ export async function GET(
       try {
         const pool = (await import('@/lib/db')).default
         const pocRes = await pool.query(
-          `SELECT name, email, phone, avatar_url FROM public.admins WHERE id = $1`,
+          `SELECT name, email, phone, creator_view_name, creator_view_phone, avatar_url FROM public.admins WHERE id = $1`,
           [campaign.poc_admin_ids[0]]
         )
         if (pocRes.rows[0]) {
           const row = pocRes.rows[0]
           manager = {
-            name: row.name || 'Brand Manager',
-            phone: campaign.manager_phone || row.phone || null,
+            name: row.creator_view_name || 'Brand Manager',
+            phone: row.creator_view_phone || campaign.manager_phone || row.phone || null,
             email: row.email,
             avatarUrl: row.avatar_url || null,
           }

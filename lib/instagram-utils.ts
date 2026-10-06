@@ -201,3 +201,221 @@ export async function syncUserInstagramState(userId: string) {
 
   return profiles
 }
+
+/**
+ * Extracts the locked or declared Instagram profile from an application record.
+ */
+export function getAppliedProfile(application: any): {
+  username: string
+  normalized: string
+  profileId: string | null
+  followers: number | null
+  lockedAt: string | null
+} {
+  const fd = application?.form_data || {}
+  const rawUsername =
+    fd.applied_instagram_username ||
+    fd.instagram_username ||
+    application?.users?.instagram_username ||
+    ''
+
+  const username = extractInstagramUsername(rawUsername)
+  const normalized = normalizeInstagramUsername(username)
+  const profileId = fd.applied_instagram_profile_id || null
+  const followers = typeof fd.applied_instagram_followers === 'number'
+    ? fd.applied_instagram_followers
+    : (parseInt(fd.applied_instagram_followers || '0', 10) || null)
+  const lockedAt = fd.applied_instagram_locked_at || null
+
+  return { username, normalized, profileId, followers, lockedAt }
+}
+
+/**
+ * Verifies whether a given Instagram username or profile ID is actively linked to a user.
+ */
+export async function isProfileLinkedToUser(
+  userId: string,
+  identifier: { username?: string | null; profileId?: string | null }
+): Promise<{ linked: boolean; profile: any | null }> {
+  if (!userId) return { linked: false, profile: null }
+
+  const { supabase } = await import('@/lib/supabase')
+  const normalized = normalizeInstagramUsername(identifier.username)
+
+  const { data: profiles, error } = await supabase
+    .from('user_instagram_profiles')
+    .select('*')
+    .eq('user_id', userId)
+
+  if (error || !profiles || profiles.length === 0) {
+    return { linked: false, profile: null }
+  }
+
+  // Check by profile ID first
+  if (identifier.profileId) {
+    const matchedById = profiles.find(p => p.id === identifier.profileId)
+    if (matchedById) return { linked: true, profile: matchedById }
+  }
+
+  // Check by normalized username
+  if (normalized) {
+    const matchedByName = profiles.find(
+      p => normalizeInstagramUsername(p.username) === normalized ||
+           normalizeInstagramUsername(p.normalized_username) === normalized
+    )
+    if (matchedByName) return { linked: true, profile: matchedByName }
+  }
+
+  return { linked: false, profile: null }
+}
+
+/**
+ * Finds all active applications for a user that are locked to or using a specific Instagram profile.
+ * Used to guard against creators deleting accounts actively needed for campaign completion.
+ */
+export async function getActiveApplicationsUsingProfile(
+  userId: string,
+  handleOrProfileId: string
+): Promise<{ id: string; campaign_code?: string; brand_name?: string; status: string }[]> {
+  if (!userId || !handleOrProfileId) return []
+
+  const { supabase } = await import('@/lib/supabase')
+  const normalized = normalizeInstagramUsername(handleOrProfileId)
+
+  const { data: applications, error } = await supabase
+    .from('applications')
+    .select(`
+      id,
+      status,
+      form_data,
+      campaigns (
+        id,
+        brand_name,
+        campaign_code
+      )
+    `)
+    .eq('user_id', userId)
+    .in('status', ['Applied', 'Approved', 'Under Process'])
+
+  if (error || !applications) return []
+
+  const active = applications.filter((app: any) => {
+    // If completion is already approved or application is rejected/cancelled, ignore
+    if (app.status === 'Completed' || app.status === 'Rejected') return false
+    const applied = getAppliedProfile(app)
+    if (applied.profileId && applied.profileId === handleOrProfileId) return true
+    if (normalized && (applied.normalized === normalized || applied.username === handleOrProfileId)) return true
+    return false
+  })
+
+  return active.map((app: any) => {
+    const camp = Array.isArray(app.campaigns) ? app.campaigns[0] : app.campaigns
+    return {
+      id: app.id,
+      campaign_code: camp?.campaign_code || 'Campaign',
+      brand_name: camp?.brand_name || 'Brand',
+      status: app.status
+    }
+  })
+}
+
+/**
+ * Ensures an Instagram profile is linked to a user.
+ * If not already linked, inserts into `user_instagram_profiles` with `added_by` attribution,
+ * and synchronizes state to `users.instagram_profiles`.
+ */
+export async function ensureProfileLinked(
+  userId: string,
+  username: string,
+  addedBy: string = 'admin',
+  options?: {
+    followers?: number
+    category?: string
+    makePrimary?: boolean
+  }
+): Promise<{ success: boolean; profile: any; isNew: boolean; error?: string }> {
+  const cleaned = extractInstagramUsername(username)
+  const normalized = normalizeInstagramUsername(cleaned)
+  if (!cleaned || !normalized) {
+    return { success: false, profile: null, isNew: false, error: 'Invalid Instagram username' }
+  }
+
+  const { supabase } = await import('@/lib/supabase')
+
+  // Check if user already has this profile
+  const { data: existingProfiles } = await supabase
+    .from('user_instagram_profiles')
+    .select('*')
+    .eq('user_id', userId)
+
+  const existing = existingProfiles?.find(
+    p => normalizeInstagramUsername(p.username) === normalized ||
+         normalizeInstagramUsername(p.normalized_username) === normalized
+  )
+
+  if (existing) {
+    // If makePrimary requested and not already primary
+    if (options?.makePrimary && !existing.is_primary) {
+      await supabase
+        .from('user_instagram_profiles')
+        .update({ is_primary: false, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+
+      await supabase
+        .from('user_instagram_profiles')
+        .update({ is_primary: true, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+
+      await syncUserInstagramState(userId)
+    }
+    return { success: true, profile: existing, isNew: false }
+  }
+
+  // Check cross-account uniqueness
+  const availability = await checkInstagramHandleAvailability(cleaned, userId)
+  if (!availability.available) {
+    return {
+      success: false,
+      profile: null,
+      isNew: false,
+      error: availability.message || `Instagram handle (@${cleaned}) is already linked to another account.`
+    }
+  }
+
+  const isFirst = !existingProfiles || existingProfiles.length === 0
+  const makePrimary = options?.makePrimary ?? isFirst
+
+  if (makePrimary && existingProfiles && existingProfiles.length > 0) {
+    await supabase
+      .from('user_instagram_profiles')
+      .update({ is_primary: false, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+  }
+
+  const insertPayload: any = {
+    user_id: userId,
+    username: cleaned,
+    normalized_username: normalized,
+    followers: options?.followers || 0,
+    category: options?.category || null,
+    is_primary: makePrimary,
+    is_verified: false,
+    added_by: addedBy,
+    created_at: new Date().toISOString()
+  }
+
+  const { data: newProfile, error: insertError } = await supabase
+    .from('user_instagram_profiles')
+    .insert([insertPayload])
+    .select()
+    .single()
+
+  if (insertError) {
+    return { success: false, profile: null, isNew: false, error: insertError.message }
+  }
+
+  await syncUserInstagramState(userId)
+
+  return { success: true, profile: newProfile, isNew: true }
+}
+

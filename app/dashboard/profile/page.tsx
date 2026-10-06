@@ -7,7 +7,7 @@ import {
   Sparkles, Shield, CheckCircle2, AtSign, Building, Hash, Globe,
   BadgeCheck, ExternalLink, Tag, X, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Check,
   RefreshCw, Plus, Home, Briefcase, Package, Pencil, Trash2, FileText, Star, Copy, Phone,
-  Calendar, Youtube, Shirt, Footprints, MessageSquare, Info, Languages, UploadCloud, Eye
+  Calendar, Youtube, Shirt, Footprints, MessageSquare, Info, Languages, UploadCloud, Eye, ShieldCheck
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import BrandLoader from '@/components/ui/BrandLoader'
 import InstagramMediaGrid from '@/components/dashboard/InstagramMediaGrid'
+import InstagramActivitySection from '@/components/dashboard/InstagramActivitySection'
 import { extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 import { isStandardProfileField, TRANSIENT_CAMPAIGN_SLUGS, createAttributeSlug } from '@/lib/utils/profile-sync-utils'
 
@@ -249,6 +250,9 @@ export default function ProfilePage() {
     profile_pic?: string
     is_primary: boolean
     is_verified?: boolean
+    added_by?: string | null
+    active_campaigns_count?: number
+    active_campaigns?: Array<{ id: string; campaign_code: string; brand_name: string; status: string }>
     created_at?: string
   }
 
@@ -1387,6 +1391,24 @@ export default function ProfilePage() {
                                         Primary
                                       </span>
                                     )}
+                                    {p.added_by && (p.added_by.startsWith('admin:') || p.added_by === 'admin') && (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                        title="Linked by 1to7 Media Team"
+                                      >
+                                        <ShieldCheck className="h-2.5 w-2.5 text-indigo-600" />
+                                        Added by 1to7 Team
+                                      </span>
+                                    )}
+                                    {Boolean(p.active_campaigns_count && p.active_campaigns_count > 0) && (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-300"
+                                        title={`In use by ${p.active_campaigns_count} active campaign(s): ${p.active_campaigns?.map(c => c.brand_name).join(', ')}`}
+                                      >
+                                        <Lock className="h-2.5 w-2.5 text-amber-600" />
+                                        In Active Campaign ({p.active_campaigns_count})
+                                      </span>
+                                    )}
                                     {p.is_verified ? (
                                       <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-2xs">
                                         <CheckCircle2 className="h-2.5 w-2.5" />
@@ -1453,8 +1475,24 @@ export default function ProfilePage() {
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => handleDeleteInstagramProfile(p.id)}
-                                  className="h-7 px-2 text-[11px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+                                  disabled={Boolean(p.active_campaigns_count && p.active_campaigns_count > 0)}
+                                  onClick={() => {
+                                    if (p.active_campaigns_count && p.active_campaigns_count > 0) {
+                                      toast.error(`Cannot unlink @${p.username} because it is in use by ${p.active_campaigns_count} active campaign(s).`)
+                                      return
+                                    }
+                                    handleDeleteInstagramProfile(p.id)
+                                  }}
+                                  className={`h-7 px-2 text-[11px] font-bold rounded-lg cursor-pointer ${
+                                    p.active_campaigns_count && p.active_campaigns_count > 0
+                                      ? 'text-slate-300 hover:text-slate-300 cursor-not-allowed opacity-60'
+                                      : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                  }`}
+                                  title={
+                                    p.active_campaigns_count && p.active_campaigns_count > 0
+                                      ? `In use by ${p.active_campaigns_count} active campaign(s) — cannot unlink`
+                                      : 'Unlink Instagram profile'
+                                  }
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -1464,6 +1502,9 @@ export default function ProfilePage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Collapsible Instagram Profile Activity History */}
+                    <InstagramActivitySection />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

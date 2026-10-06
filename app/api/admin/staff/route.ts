@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
-import { getAdminFromRequest, hasModuleAccess, hasActionPermission } from '@/lib/admin-auth'
 import pool from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
 
-// GET /api/admin/staff - List all staff accounts
+export const dynamic = 'force-dynamic'
+
+/**
+ * GET /api/admin/staff
+ * Returns all admin/staff users with their assigned roles and permissions.
+ */
 export async function GET() {
   try {
-    const currentAdmin = await getAdminFromRequest()
-    if (!currentAdmin || !hasModuleAccess(currentAdmin, 'staff')) {
-      return NextResponse.json({ error: 'Unauthorized: Access to Staff Management is restricted' }, { status: 403 })
+    const admin = await getAdminFromRequest()
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized: Session required' }, { status: 401 })
     }
 
     const res = await pool.query(
@@ -17,6 +22,8 @@ export async function GET() {
         a.email, 
         a.name, 
         a.phone,
+        a.creator_view_name,
+        a.creator_view_phone,
         a.role, 
         a.permissions, 
         a.is_active, 
@@ -49,6 +56,8 @@ export async function GET() {
         email: row.email,
         name: row.name || 'Employee',
         phone: row.phone || null,
+        creator_view_name: row.creator_view_name || null,
+        creator_view_phone: row.creator_view_phone || null,
         role: row.role || 'staff',
         roleDisplayName: row.role_display_name || row.role,
         permissions: row.permissions || {},
@@ -73,7 +82,10 @@ export async function GET() {
   }
 }
 
-// POST /api/admin/staff - Create new staff account
+/**
+ * POST /api/admin/staff
+ * Creates a new employee/admin account directly.
+ */
 export async function POST(request: Request) {
   try {
     const currentAdmin = await getAdminFromRequest()
@@ -82,7 +94,17 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, email, password, phone, role = 'admin', permissions = {}, is_active = true } = body
+    const {
+      name,
+      email,
+      password,
+      phone,
+      creator_view_name,
+      creator_view_phone,
+      role = 'admin',
+      permissions = {},
+      is_active = true
+    } = body
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
@@ -98,8 +120,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
     }
 
-    // Clean phone number if provided
+    // Clean phone numbers if provided
     const cleanPhone = phone ? String(phone).replace(/[^\d+]/g, '').trim() : null
+    const cleanCreatorPhone = creator_view_phone ? String(creator_view_phone).replace(/[^\d+]/g, '').trim() : null
+    const cleanCreatorName = creator_view_name?.trim() || null
 
     // Hash password
     const salt = await bcrypt.genSalt(10)
@@ -109,15 +133,17 @@ export async function POST(request: Request) {
     // Insert staff
     const insertRes = await pool.query(
       `INSERT INTO public.admins 
-        (name, email, password_hash, plain_password, phone, role, permissions, is_active, approval_status, auth_provider, approved_by, approved_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', 'credentials', $9, NOW())
-       RETURNING id, name, email, phone, role, permissions, is_active, created_at, plain_password, auth_provider, avatar_url, approval_status`,
+        (name, email, password_hash, plain_password, phone, creator_view_name, creator_view_phone, role, permissions, is_active, approval_status, auth_provider, approved_by, approved_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'approved', 'credentials', $11, NOW())
+       RETURNING id, name, email, phone, creator_view_name, creator_view_phone, role, permissions, is_active, created_at, plain_password, auth_provider, avatar_url, approval_status`,
       [
         name?.trim() || 'Employee',
         email.toLowerCase().trim(),
         passwordHash,
         plainPassToStore,
         cleanPhone,
+        cleanCreatorName,
+        cleanCreatorPhone,
         role,
         JSON.stringify(permissions),
         is_active,
