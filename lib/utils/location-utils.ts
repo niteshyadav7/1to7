@@ -152,6 +152,8 @@ export function doesCityMatch(addressCity: string, targetCity: string): boolean 
     'VARANASI': ['BANARAS', 'KASHI', 'VARANASI'],
     'GHAZIABAD': ['GHAZIABAD', 'DELHI NCR', 'NCR'],
     'NOIDA': ['GREATER NOIDA', 'NOIDA', 'GAUTAM BUDDHA NAGAR', 'DELHI NCR'],
+    'BHUBANESWAR': ['BHUBANESWAR', 'BHUBANESHWAR', 'KHORDHA', 'KHORDA'],
+    'BHUBANESHWAR': ['BHUBANESWAR', 'BHUBANESHWAR', 'KHORDHA', 'KHORDA'],
   }
 
   for (const [key, aliases] of Object.entries(cityAliases)) {
