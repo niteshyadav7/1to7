@@ -1018,10 +1018,10 @@ export default function ApplicationFormModal({
                                 </p>
                               </div>
                               {campaign.form_fields!.map((field, idx) => (
-                                <div key={`cf-${idx}`} className="space-y-2.5">
-                                  <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
-                                    {field.name}
-                                    {field.required && <span className="text-primary ml-1.5">*</span>}
+                                <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2.5">
+                                  <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-start justify-between gap-2">
+                                    <span className="flex-1 min-w-0 break-words leading-normal">{field.name}</span>
+                                    {field.required && <span className="text-primary shrink-0 font-bold">*</span>}
                                   </Label>
 
                                   <div className="relative group">
@@ -1033,7 +1033,7 @@ export default function ApplicationFormModal({
                                           onChange={(e) =>
                                             setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
                                           }
-                                          placeholder={`Enter ${field.name.toLowerCase()}...`}
+                                          placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`}
                                           rows={3}
                                           className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
                                         />
@@ -1047,8 +1047,8 @@ export default function ApplicationFormModal({
                                             setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
                                           }
                                         >
-                                          <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
-                                            <SelectValue placeholder={`Select ${field.name}`} />
+                                          <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                            <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
                                           </SelectTrigger>
                                           <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
                                             {field.options?.map((opt) => (
@@ -1113,8 +1113,8 @@ export default function ApplicationFormModal({
                                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                             setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
                                           }
-                                          placeholder={`Enter ${field.name.toLowerCase()}...`}
-                                          className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
+                                          placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`)}
+                                          className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
                                         />
                                       </>
                                     )}

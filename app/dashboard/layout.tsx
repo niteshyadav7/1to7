@@ -220,7 +220,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:px-5 sm:pt-3.5 sm:pb-5 lg:px-6 lg:pt-3.5 lg:pb-6 min-w-0 overflow-x-hidden flex flex-col">
+        <main className="flex-1 p-3 sm:px-5 sm:pt-3.5 sm:pb-5 lg:px-6 lg:pt-3.5 lg:pb-6 min-w-0 overflow-x-hidden flex flex-col">
           {!isProfileComplete() && (
             <div className="mb-6 rounded-md bg-primary-container/5 border border-primary-container/25 py-2.5 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-3">

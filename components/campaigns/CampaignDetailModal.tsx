@@ -615,16 +615,16 @@ export default function CampaignDetailModal({
                       {Array.from(new Set(missingFields.map(f => (f === 'city' ? 'state' : f)))).map((field) => (
                         <div key={field}>
                            {field === 'gender' ? (
-                             <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                                  <span>{FIELD_LABELS[field] || field}</span>
-                                  <span className="text-red-500 font-bold">* (Required)</span>
+                             <div className="space-y-1.5 sm:space-y-2">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                  <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
+                                  <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
                                 </label>
                                <Select 
                                  value={inlineData[field] || ""} 
                                  onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
                                >
-                                  <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                  <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
                                     hasAttemptedInlineSubmit && !inlineData[field] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                   }`}>
                                      <SelectValue placeholder="Select Gender" />
@@ -637,18 +637,18 @@ export default function CampaignDetailModal({
                                </Select>
                              </div>
                             ) : field === 'state' ? (
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 {/* State */}
-                                <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                                     <span>State</span>
-                                     <span className="text-red-500 font-bold">*</span>
+                                <div className="space-y-1.5 sm:space-y-2">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                     <span className="break-words min-w-0 leading-normal">State</span>
+                                     <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
                                   </label>
                                   <Select 
                                     value={inlineData.state || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
                                   >
-                                    <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                    <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
                                       hasAttemptedInlineSubmit && !inlineData.state ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                     }`}>
                                        <SelectValue placeholder="Select State" />
@@ -661,17 +661,17 @@ export default function CampaignDetailModal({
                                   </Select>
                                 </div>
                                 {/* City */}
-                                <div className="space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                                     <span>City</span>
-                                     <span className="text-red-500 font-bold">*</span>
+                                <div className="space-y-1.5 sm:space-y-2">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                     <span className="break-words min-w-0 leading-normal">City</span>
+                                     <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
                                   </label>
                                   <Select 
                                     disabled={!inlineData.state && !user?.state}
                                     value={inlineData.city || ""} 
                                     onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
                                   >
-                                    <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                    <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
                                       hasAttemptedInlineSubmit && !inlineData.city ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                     }`}>
                                        <SelectValue placeholder="Select City" />
@@ -685,10 +685,10 @@ export default function CampaignDetailModal({
                                 </div>
                               </div>
                            ) : (
-                             <div className="space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                                  <span>{FIELD_LABELS[field] || field}</span>
-                                  <span className="text-red-500 font-bold">* (Required)</span>
+                             <div className="space-y-1.5 sm:space-y-2">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                  <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
+                                  <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
                                </label>
                                <div className="relative">
                                   {field.includes('account') || field.includes('ifsc') ? (
@@ -705,7 +705,7 @@ export default function CampaignDetailModal({
                                     type={field === 'followers' ? 'number' : 'text'}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
                                     placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
-                                    className={`bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${
+                                    className={`w-full bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${
                                       hasAttemptedInlineSubmit && (
                                         field === 'followers' 
                                           ? (!inlineData[field] || Number(inlineData[field]) <= 0)
@@ -727,7 +727,7 @@ export default function CampaignDetailModal({
                                Comments / Notes
                              </p>
                            </div>
-                           <div className="space-y-2">
+                           <div className="space-y-1.5 sm:space-y-2">
                              <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
                                Your Comments (Optional)
                              </label>
@@ -751,20 +751,20 @@ export default function CampaignDetailModal({
                              </p>
                            </div>
                            {campaign.form_fields!.map((field, idx) => (
-                             <div key={`cf-${idx}`} className="space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                                 <span>{field.name}</span>
-                                 {field.required && <span className="text-red-500 font-bold">* (Required)</span>}
+                             <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2">
+                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                 <span className="break-words min-w-0 leading-normal">{field.name}</span>
+                                 {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
                                </label>
                                {field.type === 'dropdown' ? (
                                  <Select
                                    value={customFormData[field.name] || ""}
                                    onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
                                  >
-                                   <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                   <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
                                      hasAttemptedInlineSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                    }`}>
-                                     <SelectValue placeholder={`Select ${field.name}`} />
+                                     <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
                                    </SelectTrigger>
                                    <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                      {field.options?.map(opt => (
@@ -776,7 +776,7 @@ export default function CampaignDetailModal({
                                  <textarea
                                    value={customFormData[field.name] || ''}
                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                                   placeholder={`Enter ${field.name}...`}
+                                   placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
                                    rows={3}
                                    className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
                                      hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
@@ -790,7 +790,7 @@ export default function CampaignDetailModal({
                                        <button
                                          type="button"
                                          onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
-                                         className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                         className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
                                        >
                                          <X className="h-4 w-4" />
                                        </button>
@@ -826,8 +826,8 @@ export default function CampaignDetailModal({
                                    value={customFormData[field.name] || ''}
                                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                                   placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
-                                   className={`bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
+                                   placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
+                                   className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
                                      hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                    }`}
                                  />
@@ -839,10 +839,12 @@ export default function CampaignDetailModal({
                      </div>
 
                      <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
-                        {getPendingInlineRequirements().length > 0 && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-medium px-1">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                            <span>Please complete: <strong className="font-bold text-amber-950">{getPendingInlineRequirements().join(', ')}</strong></span>
+                        {hasAttemptedInlineSubmit && getPendingInlineRequirements().length > 0 && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                            <span className="leading-tight break-words">
+                              Please complete: <strong className="font-bold text-amber-950">{getPendingInlineRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
+                            </span>
                           </div>
                         )}
                         <div className="flex gap-4">
@@ -896,7 +898,7 @@ export default function CampaignDetailModal({
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 no-scrollbar scrollbar-none">
                       {/* Missing custom requirements alert box */}
-                      {getPendingCustomRequirements().length > 0 && (
+                      {hasAttemptedCustomSubmit && getPendingCustomRequirements().length > 0 && (
                         <motion.div 
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -908,8 +910,8 @@ export default function CampaignDetailModal({
                               <p className="font-bold text-amber-950">
                                 Required Questions Incomplete
                               </p>
-                              <p className="text-amber-800 text-[11px] leading-relaxed">
-                                Please answer: {getPendingCustomRequirements().join(', ')}
+                              <p className="text-amber-800 text-[11px] leading-relaxed break-words">
+                                Please answer: {getPendingCustomRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}
                               </p>
                             </div>
                           </div>
@@ -917,10 +919,10 @@ export default function CampaignDetailModal({
                       )}
 
                       {campaign.form_fields.map((field, idx) => (
-                        <div key={idx} className="space-y-2">
-                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-center justify-between">
-                              <span>{field.name}</span>
-                              {field.required && <span className="text-red-500 font-bold">* (Required)</span>}
+                        <div key={idx} className="space-y-1.5 sm:space-y-2">
+                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                              <span className="break-words min-w-0 leading-normal">{field.name}</span>
+                              {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
                            </label>
                            
                            {field.type === 'dropdown' ? (
@@ -928,10 +930,10 @@ export default function CampaignDetailModal({
                                value={customFormData[field.name] || ""} 
                                onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
                              >
-                                <SelectTrigger className={`bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                                <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
                                   hasAttemptedCustomSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                 }`}>
-                                   <SelectValue placeholder={`Select ${field.name}`} />
+                                   <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
                                    {field.options?.map(opt => (
@@ -943,7 +945,7 @@ export default function CampaignDetailModal({
                              <textarea
                                value={customFormData[field.name] || ''}
                                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                               placeholder={`Enter ${field.name}...`}
+                               placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
                                rows={3}
                                className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
                                  hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
@@ -993,8 +995,8 @@ export default function CampaignDetailModal({
                                value={customFormData[field.name] || ''}
                                type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                               placeholder={field.type === 'date' ? '' : `Enter ${field.name}...`}
-                               className={`bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
+                               placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
+                               className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
                                  hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                }`}
                              />
@@ -1004,10 +1006,12 @@ export default function CampaignDetailModal({
                     </div>
 
                     <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
-                       {getPendingCustomRequirements().length > 0 && (
-                         <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-medium px-1">
-                           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                           <span>Please complete: <strong className="font-bold text-amber-950">{getPendingCustomRequirements().join(', ')}</strong></span>
+                       {hasAttemptedCustomSubmit && getPendingCustomRequirements().length > 0 && (
+                         <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                           <span className="leading-tight break-words">
+                             Please complete: <strong className="font-bold text-amber-950">{getPendingCustomRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
+                           </span>
                          </div>
                        )}
                        <div className="flex gap-4">
@@ -1043,36 +1047,37 @@ export default function CampaignDetailModal({
               </AnimatePresence>
 
               {/* Top Right Action Buttons */}
-              <div className="absolute top-6 right-6 z-10 flex items-center gap-2">
+              {/* Top Right Action Buttons */}
+              <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-10 flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={handleCopyLink}
                   title="Copy campaign link"
-                  className="rounded-full py-1.5 px-3 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                  className="rounded-full py-1 sm:py-1.5 px-2.5 sm:px-3 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer flex items-center gap-1 text-[11px] sm:text-xs font-semibold"
                 >
-                  {copiedLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4 text-primary" />}
+                  {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Link2 className="h-3.5 w-3.5 text-primary" />}
                   <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
                 </button>
                 <button
                   onClick={onClose}
-                  className="rounded-full p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
+                  className="rounded-full p-1.5 sm:p-2 bg-gray-muted hover:bg-surface-container text-secondary hover:text-charcoal-surface transition-all cursor-pointer"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
               {/* Header */}
-              <div className="p-4 sm:p-8 pb-4">
-                <div className="flex items-center gap-5">
-                  <div className="h-14 w-14 rounded-lg bg-gray-muted border border-border-subtle flex items-center justify-center text-3xl shadow-inner">
+              <div className="p-4 sm:p-8 pb-3 sm:pb-4 pr-28 sm:pr-36">
+                <div className="flex items-center gap-3 sm:gap-5">
+                  <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg bg-gray-muted border border-border-subtle flex items-center justify-center text-2xl sm:text-3xl shadow-inner shrink-0">
                     {emoji}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2">
-                       <h2 className="text-2xl font-bold text-charcoal-surface tracking-tight">{campaign.brand_name}</h2>
-                       <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter">ID: {campaign.campaign_code}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                       <h2 className="text-xl sm:text-2xl font-bold text-charcoal-surface tracking-tight truncate">{campaign.brand_name}</h2>
+                       <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter truncate">ID: {campaign.campaign_code}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] font-bold text-primary bg-primary-container/10 px-2.5 py-1 rounded-full border border-primary-container/20">
+                      <span className="text-[10px] sm:text-[11px] font-bold text-primary bg-primary-container/10 px-2.5 py-0.5 sm:py-1 rounded-full border border-primary-container/20">
                         {campaign.category}
                       </span>
                     </div>
@@ -1594,58 +1599,60 @@ export default function CampaignDetailModal({
               </div>
 
               {/* Footer */}
-              <div className="p-8 pt-0">
+              <div className="p-4 sm:p-8 pt-2 sm:pt-0 pb-4 sm:pb-6 bg-white border-t sm:border-t-0 border-border-subtle">
                 {campaign.applied && campaign.application_status !== 'Rejected' ? (
                   <Button
                     onClick={() => {
                       onClose()
                       window.location.href = campaign.application_status === 'Approved' ? '/dashboard/approved' : '/dashboard/campaigns'
                     }}
-                    className="w-full h-14 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base transition-all active:scale-[0.98] group cursor-pointer"
+                    className="w-full h-12 sm:h-14 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm sm:text-base transition-all active:scale-[0.98] group cursor-pointer"
                   >
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                    <span>View Application in Dashboard</span>
-                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <CheckCircle2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                    <span className="truncate">View Application in Dashboard</span>
+                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform group-hover:translate-x-1" />
                   </Button>
                 ) : (isLoggedIn && !checkFollowerEligibility(effectiveFollowers, campaign).eligible) ? (
                   <Button
                     disabled
-                    className="w-full h-14 rounded-md bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-sm cursor-not-allowed opacity-90"
+                    className="w-full h-12 sm:h-14 rounded-md bg-amber-500/20 border border-amber-300 text-amber-950 font-bold text-xs sm:text-sm cursor-not-allowed opacity-90 px-3"
                   >
-                    <Lock className="mr-2 h-4 w-4 text-amber-800" />
-                    <span>Min {formatFollowerCount(checkFollowerEligibility(effectiveFollowers, campaign).requiredFollowers)} Followers Required to Apply</span>
+                    <Lock className="mr-1.5 sm:mr-2 h-4 w-4 text-amber-800 shrink-0" />
+                    <span className="truncate">Min {formatFollowerCount(checkFollowerEligibility(effectiveFollowers, campaign).requiredFollowers)} Followers Required</span>
                   </Button>
                 ) : (isLoggedIn && !locationEligibility.isEligible) ? (
                   <Button
                     onClick={() => {
                       setQuickAddressModalOpen(true)
                     }}
-                    className="w-full h-14 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all active:scale-[0.98] group cursor-pointer shadow-sm"
+                    className="w-full h-12 sm:h-14 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm transition-all active:scale-[0.98] group cursor-pointer shadow-sm px-3"
                   >
-                    <MapPin className="mr-2 h-4 w-4" />
-                    <span>Add an Address in {locationEligibility.requiredLocationText} to Apply</span>
+                    <MapPin className="mr-1.5 sm:mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">Add Address in {locationEligibility.requiredLocationText} to Apply</span>
                   </Button>
                 ) : (isLoggedIn && !completionEligibility.isEligible) ? (
                   <Button
                     disabled
-                    className="w-full h-14 rounded-md bg-rose-500/20 border border-rose-300 text-rose-950 font-bold text-sm cursor-not-allowed opacity-90"
+                    className="w-full h-12 sm:h-14 rounded-md bg-rose-500/20 border border-rose-300 text-rose-950 font-bold text-xs sm:text-sm cursor-not-allowed opacity-90 px-3"
                   >
-                    <Clock className="mr-2 h-4 w-4 text-rose-800" />
-                    <span>Submit Overdue Deliverable to Apply</span>
+                    <Clock className="mr-1.5 sm:mr-2 h-4 w-4 text-rose-800 shrink-0" />
+                    <span className="truncate">Submit Overdue Deliverable to Apply</span>
                   </Button>
                 ) : (
                   <Button
                     onClick={handleApplyClick}
                     disabled={!agreementChecked}
-                    className="w-full h-14 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-lg transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-12 sm:h-14 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm sm:text-base uppercase tracking-wider transition-all active:scale-[0.98] group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-4"
                   >
-                    {campaign.applied && campaign.application_status === 'Rejected'
-                      ? 'Re-Apply to Campaign'
-                      : !isLoggedIn 
-                      ? 'Apply Now' 
-                      : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
-                    }
-                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                    <span className="truncate">
+                      {campaign.applied && campaign.application_status === 'Rejected'
+                        ? 'Re-Apply to Campaign'
+                        : !isLoggedIn 
+                        ? 'Apply Now' 
+                        : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
+                      }
+                    </span>
+                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform group-hover:translate-x-1" />
                   </Button>
                 )}
               </div>

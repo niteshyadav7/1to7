@@ -81,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PwaProvider>
               <div className="min-h-screen flex flex-col bg-slate-50">
                 <ConditionalNavbar />
-                <main className="flex-grow">
+                <main className="flex-grow w-full min-w-0 overflow-x-hidden">
                   {children}
                 </main>
               </div>

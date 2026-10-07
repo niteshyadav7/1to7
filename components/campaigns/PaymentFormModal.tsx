@@ -231,9 +231,9 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
             {/* Dynamic Custom Fields */}
             {dynamicCustomFields.map((field, idx) => (
               <div key={`pf-${idx}`} className="space-y-1.5">
-                <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex items-center gap-1">
-                  {field.name}
-                  {field.required && <span className="text-red-500">*</span>}
+                <Label className="text-slate-600 text-xs font-semibold uppercase tracking-wider flex items-start justify-between gap-2">
+                  <span className="flex-1 min-w-0 break-words leading-normal">{field.name}</span>
+                  {field.required && <span className="text-red-500 shrink-0 font-bold">*</span>}
                 </Label>
                 
                 {field.type === 'dropdown' ? (
@@ -241,8 +241,8 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                       value={formData[field.name] || ""}
                       onValueChange={(val) => setFormData(p => ({ ...p, [field.name]: val }))}
                     >
-                      <SelectTrigger className="bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500">
-                        <SelectValue placeholder={`Select ${field.name}`} />
+                      <SelectTrigger className="w-full bg-slate-50 border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500">
+                        <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
                       </SelectTrigger>
                       <SelectContent className="bg-white border-slate-200 text-slate-900 max-h-[300px]">
                         {field.options?.map((opt: string) => (
@@ -254,7 +254,7 @@ export default function PaymentFormModal({ isOpen, onClose, onSuccess, applicati
                   <textarea
                     value={formData[field.name] || ''}
                     onChange={e => setFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                    placeholder={`Enter ${field.name}...`}
+                    placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
                     rows={3}
                     className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none placeholder:text-slate-400"
                   />

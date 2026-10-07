@@ -150,7 +150,7 @@ const STEPS = [
   {
     id: 4,
     title: 'Instagram Feed & Stats',
-    shortTitle: '4. Instagram Feed',
+    shortTitle: '4. Instagram',
     subtitle: 'Media & Analytics',
     icon: Instagram,
   },
@@ -1044,11 +1044,11 @@ export default function ProfilePage() {
   return (
     <div className="w-full flex-1 flex flex-col space-y-4">
       {/* ─── Top Compact Profile & Strength Header Bar ─── */}
-      <div className="bg-white rounded-xl border border-slate-200/80 px-4 py-3 shadow-2xs flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="bg-white rounded-xl border border-slate-200/80 px-3.5 sm:px-4 py-3 shadow-2xs flex flex-wrap items-center justify-between gap-3 shrink-0">
         {/* Left: User Avatar & Badges */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <div className="relative shrink-0">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-base font-extrabold text-white shadow-sm border border-slate-200 overflow-hidden">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl bg-slate-900 text-base font-extrabold text-white shadow-sm border border-slate-200 overflow-hidden">
               {formData.instagram_profile_pic || profile?.instagram_profile_pic ? (
                 <img
                   src={formData.instagram_profile_pic || profile?.instagram_profile_pic}
@@ -1063,20 +1063,20 @@ export default function ProfilePage() {
               <CheckCircle2 className="h-2.5 w-2.5 text-white" />
             </div>
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-extrabold text-charcoal-surface truncate">{profile?.full_name || 'Creator Profile'}</h2>
+              <h2 className="text-sm font-extrabold text-charcoal-surface truncate">{formData.full_name || profile?.full_name || 'Creator Profile'}</h2>
               <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-2 py-0.2 text-[10px] font-bold text-emerald-700 border border-emerald-200 shrink-0">
                 <Shield className="h-2.5 w-2.5 text-emerald-600" />
                 Verified
               </span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-secondary mt-0.5">
-              <span className="font-semibold text-slate-700">{profile?.influencer_id || 'ID Loading...'}</span>
+              <span className="font-semibold text-slate-700 truncate">{profile?.influencer_id || 'ID Loading...'}</span>
               {profile?.created_at && (
                 <>
-                  <span>•</span>
-                  <span>Member since {new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
+                  <span className="shrink-0">•</span>
+                  <span className="truncate">Member since {new Date(profile.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
                 </>
               )}
             </div>
@@ -1085,44 +1085,46 @@ export default function ProfilePage() {
 
         {/* Right Group: Auto-Save Status, Profile Strength & Save Button */}
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
-          {/* Live Auto-Save Status Indicator */}
-          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0">
-            {saveStatus === 'saving' ? (
-              <span className="flex items-center gap-1.5 text-pink-600">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
-                <span>Auto-saving...</span>
-              </span>
-            ) : saveStatus === 'unsaved' ? (
-              <span className="flex items-center gap-1.5 text-amber-700">
-                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Unsaved changes...</span>
-              </span>
-            ) : saveStatus === 'error' ? (
-              <span className="flex items-center gap-1.5 text-rose-700">
-                <X className="h-3.5 w-3.5 text-rose-600" />
-                <span>Save failed</span>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-emerald-700">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                <span>All saved</span>
-              </span>
-            )}
-          </div>
-
-          {/* Profile Strength Bar */}
-          <div className="flex items-center gap-2 sm:gap-3 bg-slate-50 border border-slate-200/60 px-2.5 sm:px-3.5 py-1.5 rounded-lg shrink-0">
-            <div className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-800">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span className="hidden sm:inline">Profile Strength:</span>
-              <span className="sm:hidden">Strength:</span>
-              <span className="text-emerald-600 font-extrabold">{strength}%</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+            {/* Live Auto-Save Status Indicator */}
+            <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-bold transition-all shrink-0">
+              {saveStatus === 'saving' ? (
+                <span className="flex items-center gap-1.5 text-pink-600">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#f50057]" />
+                  <span>Auto-saving...</span>
+                </span>
+              ) : saveStatus === 'unsaved' ? (
+                <span className="flex items-center gap-1.5 text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Unsaved changes...</span>
+                </span>
+              ) : saveStatus === 'error' ? (
+                <span className="flex items-center gap-1.5 text-rose-700">
+                  <X className="h-3.5 w-3.5 text-rose-600" />
+                  <span>Save failed</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-emerald-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>All saved</span>
+                </span>
+              )}
             </div>
-            <div className="w-16 sm:w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className={`h-full rounded-full bg-gradient-to-r ${strengthColor} transition-all duration-500`}
-                style={{ width: `${strength}%` }}
-              />
+
+            {/* Profile Strength Bar */}
+            <div className="flex items-center gap-1.5 sm:gap-3 bg-slate-50 border border-slate-200/60 px-2 sm:px-3.5 py-1.5 rounded-lg shrink-0">
+              <div className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-slate-800">
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Profile Strength:</span>
+                <span className="sm:hidden">Strength:</span>
+                <span className="text-emerald-600 font-extrabold">{strength}%</span>
+              </div>
+              <div className="w-14 sm:w-28 h-2 rounded-full bg-slate-200 overflow-hidden">
+                <div
+                  className={`h-full rounded-full bg-gradient-to-r ${strengthColor} transition-all duration-500`}
+                  style={{ width: `${strength}%` }}
+                />
+              </div>
             </div>
           </div>
 
@@ -1146,8 +1148,8 @@ export default function ProfilePage() {
       </div>
 
       {/* ─── Modern Multi-Step Visual Stepper Header ─── */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs">
-        <div className="relative flex items-center justify-between gap-2 max-w-4xl mx-auto">
+      <div className="bg-white rounded-xl border border-slate-200/80 p-2.5 sm:p-4 shadow-2xs">
+        <div className="relative flex items-center justify-between gap-1 sm:gap-2 max-w-4xl mx-auto">
           {/* Connector Track Line behind nodes */}
           <div className="absolute left-6 right-6 top-5 -translate-y-1/2 h-0.5 bg-slate-200 z-0 hidden sm:block" />
           <div
@@ -1166,10 +1168,10 @@ export default function ProfilePage() {
               <button
                 key={step.id}
                 onClick={() => goToStep(step.id)}
-                className="relative z-10 flex-1 flex flex-col items-center group cursor-pointer focus:outline-none"
+                className="relative z-10 flex-1 min-w-0 flex flex-col items-center group cursor-pointer focus:outline-none"
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-300 ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-extrabold text-xs transition-all duration-300 shrink-0 ${
                     isActive
                       ? 'bg-[#f50057] text-white ring-4 ring-pink-100 shadow-md scale-105'
                       : isDone
@@ -1178,15 +1180,15 @@ export default function ProfilePage() {
                   }`}
                 >
                   {isDone && !isActive ? (
-                    <Check className="h-5 w-5 text-white stroke-[3]" />
+                    <Check className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white stroke-[3]" />
                   ) : (
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   )}
                 </div>
 
-                <div className="mt-1.5 sm:mt-2 text-center max-w-[70px] sm:max-w-none mx-auto">
+                <div className="mt-1.5 sm:mt-2 text-center w-full px-0.5 min-w-0">
                   <p
-                    className={`text-[10px] sm:text-xs font-bold transition-colors line-clamp-1 sm:line-clamp-none ${
+                    className={`text-[10px] sm:text-xs font-bold transition-colors truncate ${
                       isActive
                         ? 'text-[#f50057]'
                         : isDone
@@ -1197,7 +1199,7 @@ export default function ProfilePage() {
                     <span className="sm:hidden">{step.shortTitle.replace(/^\d+\.\s*/, '')}</span>
                     <span className="hidden sm:inline">{step.title}</span>
                   </p>
-                  <p className="text-[10px] text-slate-400 font-medium hidden md:block">{step.subtitle}</p>
+                  <p className="text-[10px] text-slate-400 font-medium hidden md:block truncate">{step.subtitle}</p>
                 </div>
               </button>
             )
@@ -1254,7 +1256,7 @@ export default function ProfilePage() {
             >
               {/* STEP 1: Social & Creator Profile */}
               {currentStep === 1 && (
-                <div className="space-y-4 max-w-4xl mx-auto">
+                <div className="space-y-4 max-w-4xl mx-auto w-full min-w-0">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
                     <div className="space-y-1.5">
@@ -1886,18 +1888,18 @@ export default function ProfilePage() {
 
               {/* STEP 2: Location & Shipping Addresses */}
               {currentStep === 2 && (
-                <div className="space-y-6 max-w-3xl mx-auto">
+                <div className="space-y-6 max-w-3xl mx-auto w-full min-w-0">
                   {/* Info Banner */}
-                  <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-indigo-500/10 border border-amber-200/80 rounded-2xl p-4 flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700 border border-amber-500/30 shrink-0">
-                        <Package className="h-5 w-5 text-amber-600" />
+                  <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-indigo-500/10 border border-amber-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                    <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
+                      <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700 border border-amber-500/30 shrink-0 mt-0.5">
+                        <Package className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
                       </div>
-                      <div>
-                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider break-words">
                           Product Shipping & Delivery Addresses
                         </h4>
-                        <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                        <p className="text-xs text-slate-600 mt-1 sm:mt-0.5 leading-relaxed">
                           Brands ship physical sample products, PR packages & gifts here. You can add multiple delivery locations (Home, Studio, Agency) and pick any address when applying for campaigns!
                         </p>
                       </div>
@@ -1907,27 +1909,27 @@ export default function ProfilePage() {
                       <Button
                         type="button"
                         onClick={openAddAddressModal}
-                        className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer shrink-0"
+                        className="h-8 px-3.5 bg-[#f50057] hover:bg-[#d8004c] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer w-full sm:w-auto shrink-0 justify-center"
                       >
                         <Plus className="mr-1 h-3.5 w-3.5" />
                         Add Address
                       </Button>
                     ) : (
-                      <span className="text-[11px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shrink-0">
+                      <span className="text-[11px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shrink-0 text-center sm:text-left">
                         Max 6 Saved
                       </span>
                     )}
                   </div>
 
                   {/* Saved Addresses List */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-[#f50057]" />
-                        Saved Delivery Locations ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES})
+                  <div className="space-y-3 w-full min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 truncate">
+                        <MapPin className="h-3.5 w-3.5 text-[#f50057] shrink-0" />
+                        <span>Saved Delivery Locations ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES})</span>
                       </h3>
                       {(formData.shipping_addresses || []).length >= MAX_ADDRESSES && (
-                        <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
                           Limit Reached (6/6)
                         </span>
                       )}
@@ -1950,21 +1952,21 @@ export default function ProfilePage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full min-w-0">
                         {(formData.shipping_addresses || []).map((addr) => (
                           <div
                             key={addr.id}
-                            className={`relative rounded-2xl border p-4 transition-all flex flex-col justify-between ${
+                            className={`relative rounded-2xl border p-3.5 sm:p-4 transition-all flex flex-col justify-between min-w-0 ${
                               addr.is_default
                                 ? 'bg-gradient-to-br from-pink-50/70 via-white to-orange-50/40 border-[#f50057]/40 shadow-md shadow-pink-500/5 ring-1 ring-[#f50057]/20'
                                 : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
                             }`}
                           >
-                            <div>
+                            <div className="min-w-0">
                               {/* Header: Title & Badges */}
-                              <div className="flex items-center justify-between gap-2 mb-2.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="flex items-center justify-center h-7 w-7 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+                              <div className="flex items-center justify-between gap-2 mb-2.5 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="flex items-center justify-center h-7 w-7 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
                                     {addr.title.toLowerCase().includes('home') ? (
                                       <Home className="h-3.5 w-3.5 text-blue-600" />
                                     ) : addr.title.toLowerCase().includes('studio') || addr.title.toLowerCase().includes('work') ? (
@@ -1973,67 +1975,67 @@ export default function ProfilePage() {
                                       <Package className="h-3.5 w-3.5 text-amber-600" />
                                     )}
                                   </span>
-                                  <span className="text-xs font-bold text-slate-900">{addr.title}</span>
+                                  <span className="text-xs font-bold text-slate-900 truncate">{addr.title}</span>
                                 </div>
 
                                 {addr.is_default && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#f50057]/15 text-[#f50057] border border-[#f50057]/30">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#f50057]/15 text-[#f50057] border border-[#f50057]/30 shrink-0">
                                     <Star className="h-3 w-3 fill-[#f50057]" /> Primary
                                   </span>
                                 )}
                               </div>
 
                               {/* Recipient & Phone */}
-                              <div className="text-xs text-slate-800 font-semibold mb-1 flex items-center justify-between">
-                                <span>{addr.recipient_name}</span>
-                                <span className="text-slate-500 font-normal text-[11px]">{addr.mobile}</span>
+                              <div className="text-xs text-slate-800 font-semibold mb-1 flex items-center justify-between gap-2 min-w-0">
+                                <span className="truncate">{addr.recipient_name}</span>
+                                <span className="text-slate-500 font-normal text-[11px] shrink-0">{addr.mobile}</span>
                               </div>
 
                               {/* Detailed Street Address */}
-                              <p className="text-xs text-slate-600 leading-relaxed">
+                              <p className="text-xs text-slate-600 leading-relaxed break-words">
                                 {addr.address_line1}
                                 {addr.address_line2 ? `, ${addr.address_line2}` : ''}
                               </p>
                               {addr.landmark && (
-                                <p className="text-[11px] text-slate-500 italic mt-0.5">
+                                <p className="text-[11px] text-slate-500 italic mt-0.5 break-words">
                                   Landmark: {addr.landmark}
                                 </p>
                               )}
 
                               {/* City, State, PIN */}
-                              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                                <span className="font-medium text-slate-700">{addr.city}, {addr.state}</span>
-                                <span className="font-mono font-bold text-[#f50057] bg-pink-50 px-2 py-0.5 rounded border border-pink-100 text-[11px]">
+                              <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-xs min-w-0">
+                                <span className="font-medium text-slate-700 break-words min-w-0 flex-1">{addr.city}, {addr.state}</span>
+                                <span className="font-mono font-bold text-[#f50057] bg-pink-50 px-2 py-0.5 rounded border border-pink-100 text-[11px] shrink-0">
                                   PIN: {addr.pincode || 'N/A'}
                                 </span>
                               </div>
 
                               {/* Delivery Remarks */}
                               {addr.delivery_remarks && (
-                                <div className="mt-2 p-2 bg-amber-50/70 border border-amber-200/60 rounded-lg text-[11px] text-amber-900 flex items-start gap-1.5">
+                                <div className="mt-2 p-2 bg-amber-50/70 border border-amber-200/60 rounded-lg text-[11px] text-amber-900 flex items-start gap-1.5 break-words min-w-0">
                                   <FileText className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
-                                  <span className="leading-tight"><strong className="font-semibold">Note:</strong> {addr.delivery_remarks}</span>
+                                  <span className="leading-tight break-words min-w-0"><strong className="font-semibold">Note:</strong> {addr.delivery_remarks}</span>
                                 </div>
                               )}
                             </div>
 
                             {/* Card Footer Actions */}
-                            <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100">
+                            <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 min-w-0">
                               {!addr.is_default ? (
                                 <button
                                   type="button"
                                   onClick={() => handleSetDefaultAddress(addr.id)}
-                                  className="text-[11px] font-semibold text-slate-600 hover:text-[#f50057] transition-colors cursor-pointer"
+                                  className="text-[11px] font-semibold text-slate-600 hover:text-[#f50057] transition-colors cursor-pointer truncate"
                                 >
                                   Make Primary
                                 </button>
                               ) : (
-                                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                                <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 shrink-0">
                                   <CheckCircle2 className="h-3 w-3" /> Selected for orders
                                 </span>
                               )}
 
-                              <div className="flex items-center gap-1.5 ml-auto">
+                              <div className="flex items-center gap-1.5 ml-auto shrink-0">
                                 <button
                                   type="button"
                                   onClick={() => openEditAddressModal(addr)}
@@ -2067,13 +2069,14 @@ export default function ProfilePage() {
                         type="button"
                         variant="outline"
                         onClick={openAddAddressModal}
-                        className="w-full h-10 border-dashed border-2 border-slate-200 hover:border-[#f50057] hover:bg-pink-50/30 text-slate-700 hover:text-[#f50057] font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                        className="w-full h-auto min-h-10 py-2.5 px-3 border-dashed border-2 border-slate-200 hover:border-[#f50057] hover:bg-pink-50/30 text-slate-700 hover:text-[#f50057] font-semibold text-xs rounded-xl transition-all cursor-pointer whitespace-normal text-center justify-center"
                       >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        Add Another Delivery Location ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES} Saved)
+                        <Plus className="mr-1.5 h-4 w-4 shrink-0" />
+                        <span className="sm:hidden">Add Delivery Location ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES})</span>
+                        <span className="hidden sm:inline">Add Another Delivery Location ({(formData.shipping_addresses || []).length}/{MAX_ADDRESSES} Saved)</span>
                       </Button>
                     ) : (
-                      <div className="w-full py-3 px-4 text-center rounded-xl bg-amber-50/70 border border-amber-200 text-xs font-bold text-amber-800 flex items-center justify-center gap-2">
+                      <div className="w-full py-2.5 px-3.5 text-center rounded-xl bg-amber-50/70 border border-amber-200 text-[11px] sm:text-xs font-bold text-amber-800 flex items-center justify-center gap-2">
                         <span>Maximum limit of {MAX_ADDRESSES} delivery locations reached. You can edit or delete existing addresses above.</span>
                       </div>
                     )
@@ -2083,7 +2086,7 @@ export default function ProfilePage() {
 
               {/* STEP 3: Bank & Payout Details */}
               {currentStep === 3 && (
-                <div className="space-y-5 max-w-2xl mx-auto">
+                <div className="space-y-5 max-w-2xl mx-auto w-full min-w-0">
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-start gap-3">
                     <CreditCard className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
                     <div>
@@ -2267,7 +2270,7 @@ export default function ProfilePage() {
 
               {/* STEP 4: Instagram Feed & Stats */}
               {currentStep === 4 && (
-                <div className="space-y-4 max-w-2xl mx-auto">
+                <div className="space-y-4 max-w-2xl mx-auto w-full min-w-0">
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-start gap-3">
                     <Instagram className="h-5 w-5 text-pink-600 shrink-0 mt-0.5" />
                     <div>
@@ -2294,7 +2297,7 @@ export default function ProfilePage() {
               variant="outline"
               className="h-9 px-3 sm:px-4 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold text-xs rounded-lg transition-all disabled:opacity-30 cursor-pointer shrink-0"
             >
-              <ChevronLeft className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <ChevronLeft className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
               Previous
             </Button>
 
@@ -2305,7 +2308,7 @@ export default function ProfilePage() {
                 className="h-9 px-4 sm:px-5 bg-[#f50057] hover:bg-[#d8004c] text-white font-extrabold text-xs rounded-lg shadow-sm transition-all cursor-pointer shrink-0"
               >
                 Next Step
-                <ChevronRight className="ml-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <ChevronRight className="ml-1 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
               </Button>
             ) : (
               <Button
@@ -2318,7 +2321,7 @@ export default function ProfilePage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <Save className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <Save className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                     <span className="sm:hidden">Save & Finish</span>
                     <span className="hidden sm:inline">Save & Finish Profile</span>
                   </>

@@ -188,9 +188,9 @@ export default function OrderVerificationModal({
                 ) : (
                   fields.map((field, idx) => (
                     <div key={`of-${idx}`} className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider px-0.5 flex items-center gap-1">
-                        {field.name}
-                        {field.required && <span className="text-red-500">*</span>}
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wider px-0.5 flex items-start justify-between gap-2">
+                        <span className="flex-1 min-w-0 break-words leading-normal">{field.name}</span>
+                        {field.required && <span className="text-red-500 shrink-0 font-bold">*</span>}
                       </label>
                       
                       {field.type === 'dropdown' ? (
@@ -198,8 +198,8 @@ export default function OrderVerificationModal({
                           value={orderFormData[field.name] || ""}
                           onValueChange={(val) => setOrderFormData(p => ({ ...p, [field.name]: val }))}
                         >
-                          <SelectTrigger className="bg-white border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500 shadow-2xs">
-                            <SelectValue placeholder={`Select ${field.name}`} />
+                          <SelectTrigger className="w-full bg-white border-slate-200 text-slate-900 h-11 rounded-xl focus:ring-amber-500 shadow-2xs">
+                            <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
                           </SelectTrigger>
                           <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-xl max-h-[300px] rounded-xl">
                             {field.options?.map(opt => (
@@ -211,7 +211,7 @@ export default function OrderVerificationModal({
                         <textarea
                           value={orderFormData[field.name] || ''}
                           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOrderFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                          placeholder={`Enter ${field.name}...`}
+                          placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
                           rows={3}
                           className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none placeholder:text-slate-400 font-medium shadow-2xs"
                         />
