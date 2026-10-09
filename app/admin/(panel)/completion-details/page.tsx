@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
+import Papa from 'papaparse'
 import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { openInstagramProfilesInBulk, openUrlsInBulk } from '@/lib/bulk-instagram-opener'
@@ -795,11 +796,14 @@ export default function CompletionDetailsPage() {
         return
       }
       const headers = Object.keys(dataToExport[0])
-      const csvRows = [
-        headers.join(','),
-        ...dataToExport.map(row => headers.map(h => `"${String((row as any)[h] || '').replace(/"/g, '""')}"`).join(','))
-      ]
-      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
+      const csv = Papa.unparse({
+        fields: headers,
+        data: dataToExport.map(row => headers.map(h => {
+          const val = (row as any)[h]
+          return val === null || val === undefined ? '' : val
+        }))
+      })
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

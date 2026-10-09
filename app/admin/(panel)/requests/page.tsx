@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 import { getInstagramUrl } from '@/lib/instagram-utils'
+import Papa from 'papaparse'
 
 // ─── Types ─────────────────────────────────────────────────
 interface RequestEntry {
@@ -446,8 +447,14 @@ export default function RequestsPage() {
     let content: string, mime: string, ext: string
     if (format === 'csv') {
       const headers = Object.keys(data[0] || {})
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h]).replace(/"/g, '""')}"`).join(','))
-      content = [headers.join(','), ...rows].join('\n'); mime = 'text/csv'; ext = 'csv'
+      const csv = Papa.unparse({
+        fields: headers,
+        data: data.map(row => headers.map(h => {
+          const val = (row as any)[h]
+          return val === null || val === undefined ? '' : val
+        }))
+      })
+      content = '\uFEFF' + csv; mime = 'text/csv;charset=utf-8;'; ext = 'csv'
     } else { content = JSON.stringify(data, null, 2); mime = 'application/json'; ext = 'json' }
     const blob = new Blob([content], { type: mime })
     const url = URL.createObjectURL(blob)

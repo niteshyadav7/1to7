@@ -30,6 +30,7 @@ import { ApplicationImportModal } from '@/components/admin/ApplicationImportModa
 import ChangeInstagramProfileModal from '@/components/admin/ChangeInstagramProfileModal'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+import Papa from 'papaparse'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -1709,9 +1710,15 @@ export default function AllApplicationsPage() {
       const headerSet = new Set<string>()
       data.forEach(row => Object.keys(row).forEach(k => headerSet.add(k)))
       const headers = Array.from(headerSet)
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h] || '').replace(/"/g, '""')}"`).join(','))
-      content = [headers.join(','), ...rows].join('\n')
-      mime = 'text/csv'
+      const csv = Papa.unparse({
+        fields: headers,
+        data: data.map(row => headers.map(h => {
+          const val = (row as any)[h]
+          return val === null || val === undefined ? '' : val
+        }))
+      })
+      content = '\uFEFF' + csv
+      mime = 'text/csv;charset=utf-8;'
       ext = 'csv'
     } else {
       content = JSON.stringify(data, null, 2)

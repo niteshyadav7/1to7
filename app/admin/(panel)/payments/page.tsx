@@ -33,6 +33,7 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getInstagramDisplayHandle, getInstagramUrl } from '@/lib/instagram-utils'
+import Papa from 'papaparse'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -1060,8 +1061,16 @@ export default function PaymentsPage() {
       const headerSet = new Set<string>()
       data.forEach(row => Object.keys(row).forEach(k => headerSet.add(k)))
       const headers = [...headerSet]
-      const rows = data.map(row => headers.map(h => `"${String((row as any)[h] ?? '').replace(/"/g, '""')}"`).join(','))
-      content = [headers.join(','), ...rows].join('\n'); mime = 'text/csv'; ext = 'csv'
+      const csv = Papa.unparse({
+        fields: headers,
+        data: data.map(row => headers.map(h => {
+          const val = (row as any)[h]
+          return val === null || val === undefined ? '' : val
+        }))
+      })
+      content = '\uFEFF' + csv
+      mime = 'text/csv;charset=utf-8;'
+      ext = 'csv'
     } else { content = JSON.stringify(data, null, 2); mime = 'application/json'; ext = 'json' }
     const blob = new Blob([content], { type: mime })
     const url = URL.createObjectURL(blob)
