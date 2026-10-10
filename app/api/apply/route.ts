@@ -12,7 +12,7 @@ import { InstagramLogService } from '@/lib/services/instagram-log.service'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { campaignId, formData, mobile, verifiedUserId, guestProfile, selectedStore, selectedInstagramProfile } = body
+    const { campaignId, formData, mobile, guestProfile, selectedStore, selectedInstagramProfile } = body
 
     if (!campaignId) {
       return NextResponse.json(
@@ -45,40 +45,28 @@ export async function POST(request: Request) {
           { status: 401 }
         )
       }
-    } else if (verifiedUserId) {
-      // Existing user who passed the email challenge
-      userId = verifiedUserId
-      
-      // Auto-login the verified user
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id, mobile, influencer_id')
-        .eq('id', verifiedUserId)
-        .single()
-      
-      if (existingUser) {
-        const { encrypt } = await import('@/lib/auth')
-        const newToken = await encrypt({ id: existingUser.id, mobile: existingUser.mobile, influencer_id: existingUser.influencer_id })
-        cookieStore.set('auth_token', newToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 30
-        })
-      } else {
-        return NextResponse.json({ error: 'Session mismatch: User was deleted or not found. Please refresh and try again.' }, { status: 400 })
-      }
     } else if (mobile) {
-      // Guest Checkout Logic — New user with profile data
+      // Guest Checkout Logic — New creator with profile data
+      const cleanMobile = String(mobile).replace(/\D/g, '')
+      if (cleanMobile.length !== 10) {
+        return NextResponse.json(
+          { error: 'Valid 10-digit mobile number is required' },
+          { status: 400 }
+        )
+      }
+
       const { data: existingUser } = await supabase
         .from('users')
         .select('id')
-        .eq('mobile', mobile)
+        .eq('mobile', cleanMobile)
         .single()
         
       if (existingUser) {
-        userId = existingUser.id
+        // Prevent unauthenticated callers from hijacking or applying on behalf of an existing account
+        return NextResponse.json({
+          error: 'An account already exists with this mobile number. Please log in to submit your application with your verified profile.',
+          code: 'ACCOUNT_EXISTS'
+        }, { status: 401 })
       } else {
         // Check Instagram handle availability if provided
         let cleanedInsta = ''
@@ -102,8 +90,8 @@ export async function POST(request: Request) {
           .from('users')
           .insert([{
              full_name: guestProfile?.full_name || 'Guest Creator',
-             mobile: mobile,
-             email: guestProfile?.email || `${mobile}@guest.1to7.com`,
+             mobile: cleanMobile,
+             email: guestProfile?.email || `${cleanMobile}@guest.1to7.com`,
              password_hash: '$2b$10$vysFdPLELlPEvtXf1B5kneSq1OV0iEtxOUlf4LpwKfGXmenL1jUpm',
              is_mobile_verified: false,
              is_email_verified: false,
@@ -155,21 +143,13 @@ export async function POST(request: Request) {
               .eq('id', newUser.id)
           }
         }
-        
-        // Auto-login newly created user
-        const { encrypt } = await import('@/lib/auth')
-        const newToken = await encrypt({ id: newUser.id, mobile: newUser.mobile, influencer_id: newUser.influencer_id })
-        cookieStore.set('auth_token', newToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 30
-        })
+        // Guest user record created for tracking application in DB.
+        // SECURITY: We intentionally DO NOT set auth_token cookie here.
+        // Guest remains unauthenticated until they legitimately log in.
       }
     } else {
       return NextResponse.json(
-        { error: 'You must be logged in or provide a mobile number to apply' },
+        { error: 'You must be logged in or provide guest creator details to apply' },
         { status: 401 }
       )
     }    // Execute all necessary verification reads in a single concurrent Promise.all batch

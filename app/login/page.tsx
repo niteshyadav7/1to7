@@ -75,7 +75,18 @@ export default function LoginPage() {
     }
   }, [emailCountdown])
 
-  // Check for error params from OAuth callbacks (e.g. Instagram redirect)
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const redirect = params.get('redirect')
+      if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+        return redirect
+      }
+    }
+    return '/dashboard'
+  }
+
+  // Check for error and query params (e.g. mobile prefill or OAuth error)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -83,6 +94,14 @@ export default function LoginPage() {
       if (err) {
         toast.error(decodeURIComponent(err), { duration: 6000 })
         window.history.replaceState({}, '', window.location.pathname)
+      }
+      const mobileParam = params.get('mobile')
+      if (mobileParam) {
+        const clean = mobileParam.replace(/\D/g, '').slice(0, 10)
+        if (clean) {
+          setMobile(clean)
+          setIdentifier(clean)
+        }
       }
     }
   }, [])
@@ -240,7 +259,7 @@ export default function LoginPage() {
     }
     login(data.user)
     toast.success('Welcome back!')
-    window.location.href = '/dashboard'
+    window.location.href = getRedirectUrl()
   }
 
   // ─── Helper: send Email OTP ───
@@ -304,7 +323,7 @@ export default function LoginPage() {
 
       login(data.user)
       toast.success('Welcome back!')
-      window.location.href = '/dashboard'
+      window.location.href = getRedirectUrl()
     } catch (err: any) {
       toast.error(err.message || 'Verification failed. Please try again.')
     } finally {
@@ -354,7 +373,7 @@ export default function LoginPage() {
       // Mobile is verified — login complete
       login(data.user)
       toast.success('Welcome back!')
-      window.location.href = '/dashboard'
+      window.location.href = getRedirectUrl()
     } catch (err: any) {
       toast.error(err.message || 'Invalid credentials. Please try again.')
     } finally {
@@ -461,7 +480,7 @@ export default function LoginPage() {
 
       login(data.user)
       toast.success('Welcome!')
-      window.location.href = '/dashboard'
+      window.location.href = getRedirectUrl()
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setLoading(false)
@@ -591,7 +610,7 @@ export default function LoginPage() {
         }
         login(data.user)
         toast.success('Welcome back!')
-        window.location.href = '/dashboard'
+        window.location.href = getRedirectUrl()
       }
     } catch (err: any) {
       toast.error(err.message || 'Invalid OTP. Please try again.')

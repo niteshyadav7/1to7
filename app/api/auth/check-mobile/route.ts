@@ -27,15 +27,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ exists: false, isVerified: false })
     }
 
-    // If email was provided, verify it matches (for the email challenge)
+    // If email was provided, verify it matches (for optional verification)
     if (email) {
       const isMatch = user.email?.toLowerCase() === email.toLowerCase()
-      return NextResponse.json({ exists: true, emailVerified: isMatch, userId: isMatch ? user.id : undefined, isVerified: user.is_mobile_verified })
+      return NextResponse.json({ exists: true, emailVerified: isMatch, isVerified: user.is_mobile_verified })
     }
-    // Return data directly (skip masking since we bypass email challenge entirely now for direct apply)
+    // Return sanitized status without exposing internal database userId
     return NextResponse.json({ 
       exists: true, 
-      userId: user.id, // Exposing ID so the frontend can bypass identity check
       maskedEmail: maskEmail(user.email || ''), 
       isVerified: user.is_mobile_verified 
     })

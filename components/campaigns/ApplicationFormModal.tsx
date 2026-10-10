@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, CheckCircle2, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar, Lock, Instagram } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,7 @@ export default function ApplicationFormModal({
   const [fieldsLoading, setFieldsLoading] = useState(false)
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const { user, refreshUserProfile } = useAuth()
+  const router = useRouter()
   const [quickAddressModalOpen, setQuickAddressModalOpen] = useState(false)
 
   // Multi-Instagram Profile Support
@@ -132,7 +134,6 @@ export default function ApplicationFormModal({
   const [guestCity, setGuestCity] = useState('')
   const [checkingMobile, setCheckingMobile] = useState(false)
   const [mobileStatus, setMobileStatus] = useState<'idle' | 'exists' | 'new'>('idle')
-  const [verifiedUserId, setVerifiedUserId] = useState<string | null>(null)
 
   // Reset all state when modal opens/closes
   useEffect(() => {
@@ -147,7 +148,6 @@ export default function ApplicationFormModal({
       setGuestEmail('')
       setCheckingMobile(false)
       setMobileStatus('idle')
-      setVerifiedUserId(null)
       setPitch('')
     }
   }, [isOpen, campaign])
@@ -222,7 +222,6 @@ export default function ApplicationFormModal({
       const cleanMobile = guestMobile.replace(/\D/g, '')
       if (cleanMobile.length !== 10) {
         setMobileStatus('idle')
-        setVerifiedUserId(null)
         return
       }
 
@@ -236,13 +235,11 @@ export default function ApplicationFormModal({
         })
         const data = await res.json()
 
-        if (data.exists && data.userId) {
+        if (data.exists) {
           setMobileStatus('exists')
-          setVerifiedUserId(data.userId)
           if (data.maskedEmail) setMaskedEmail(data.maskedEmail)
         } else {
           setMobileStatus('new')
-          setVerifiedUserId(null)
           setMaskedEmail('')
         }
       } catch {
@@ -268,10 +265,16 @@ export default function ApplicationFormModal({
       return
     }
 
-    if (mobileStatus === 'exists' && verifiedUserId) {
-      setGuestStep('application')
+    const redirectTarget = campaign?.id ? `/campaigns/${campaign.id}` : '/'
+
+    if (mobileStatus === 'exists') {
+      toast.info('Account found! Please log in to apply with your profile.')
+      onClose()
+      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${cleanMobile}`)
+      return
     } else if (mobileStatus === 'new') {
       setGuestStep('new-profile')
+      return
     } else {
       // Fallback if they clicked continue before silent check finished
       setCheckingMobile(true)
@@ -283,10 +286,13 @@ export default function ApplicationFormModal({
         })
         const data = await res.json()
 
-        if (data.exists && data.userId) {
-          setVerifiedUserId(data.userId)
-          setGuestStep('application')
+        if (data.exists) {
+          setMobileStatus('exists')
+          toast.info('Account found! Please log in to apply with your profile.')
+          onClose()
+          router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${cleanMobile}`)
         } else {
+          setMobileStatus('new')
           setGuestStep('new-profile')
         }
       } catch {
@@ -294,36 +300,6 @@ export default function ApplicationFormModal({
       } finally {
         setCheckingMobile(false)
       }
-    }
-  }
-
-  // Step 2a: Verify email challenge for existing user
-  const handleEmailChallenge = async () => {
-    if (!emailChallenge.trim() || !emailChallenge.includes('@')) {
-      toast.error('Please enter a valid email address')
-      return
-    }
-
-    setCheckingMobile(true)
-    try {
-      const res = await fetch('/api/auth/check-mobile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mobile: guestMobile.replace(/\D/g, ''), email: emailChallenge.trim() }),
-      })
-      const data = await res.json()
-
-      if (data.emailVerified && data.userId) {
-        setVerifiedUserId(data.userId)
-        toast.success('Identity verified! Continue your application.')
-        setGuestStep('application')
-      } else {
-        toast.error('Email does not match our records. Please try again.')
-      }
-    } catch {
-      toast.error('Verification failed. Please try again.')
-    } finally {
-      setCheckingMobile(false)
     }
   }
 
@@ -421,21 +397,14 @@ export default function ApplicationFormModal({
       if (!user) {
         const cleanMobile = guestMobile.replace(/\D/g, '')
         payload.mobile = cleanMobile
-
-        if (verifiedUserId) {
-          // Existing user who passed email challenge
-          payload.verifiedUserId = verifiedUserId
-        } else {
-          // New user — send profile data to create account
-          payload.guestProfile = {
-            full_name: guestName.trim(),
-            email: guestEmail.trim(),
-            instagram_username: extractInstagramUsername(guestInstagram),
-            followers: guestFollowers.trim(),
-            gender: guestGender,
-            state: guestState,
-            city: guestCity
-          }
+        payload.guestProfile = {
+          full_name: guestName.trim(),
+          email: guestEmail.trim(),
+          instagram_username: extractInstagramUsername(guestInstagram),
+          followers: guestFollowers.trim(),
+          gender: guestGender,
+          state: guestState,
+          city: guestCity
         }
       }
 
@@ -687,12 +656,28 @@ export default function ApplicationFormModal({
                         {mobileStatus === 'exists' && (
                           <motion.div 
                             initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
-                            className="flex items-center gap-2 text-primary text-xs font-semibold pt-2 pl-1"
+                            className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-950 space-y-2.5 mt-2"
                           >
-                            <CheckCircle className="h-3.5 w-3.5 shrink-0" /> 
-                            <span>
-                              Account Found{maskedEmail ? <span className="text-primary/70"> ({maskedEmail})</span> : ''}! You can quick apply.
-                            </span>
+                            <div className="flex items-start gap-2.5">
+                              <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" /> 
+                              <div className="text-xs space-y-0.5">
+                                <p className="font-bold text-amber-950">Creator Account Found!</p>
+                                <p className="text-amber-800 text-[11px] leading-relaxed">
+                                  This number is registered{maskedEmail ? ` (${maskedEmail})` : ''}. Please log in to apply using your verified Instagram profile.
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                onClose()
+                                const redirectTarget = campaign?.id ? `/campaigns/${campaign.id}` : '/'
+                                router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${guestMobile.replace(/\D/g, '')}`)
+                              }}
+                              className="w-full h-9 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs cursor-pointer"
+                            >
+                              Log In to Apply
+                            </Button>
                           </motion.div>
                         )}
                         {mobileStatus === 'new' && (
@@ -706,17 +691,19 @@ export default function ApplicationFormModal({
                       </AnimatePresence>
                     </div>
 
-                    <Button
-                      onClick={handleMobileCheck}
-                      disabled={checkingMobile}
-                      className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm cursor-pointer"
-                    >
-                      {checkingMobile ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
-                      ) : (
-                        <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
-                      )}
-                    </Button>
+                    {mobileStatus !== 'exists' && (
+                      <Button
+                        onClick={handleMobileCheck}
+                        disabled={checkingMobile}
+                        className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm cursor-pointer"
+                      >
+                        {checkingMobile ? (
+                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
+                        ) : (
+                          <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                        )}
+                      </Button>
+                    )}
                   </motion.div>
                 )}
 
@@ -1152,7 +1139,7 @@ export default function ApplicationFormModal({
                          <Button
                            type="button"
                            variant="ghost"
-                           onClick={!isLoggedIn ? () => setGuestStep(verifiedUserId ? 'mobile' : guestEmail ? 'mobile' : 'mobile') : onClose}
+                           onClick={!isLoggedIn ? () => setGuestStep(guestEmail ? 'new-profile' : 'mobile') : onClose}
                            className="flex-1 h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted font-bold"
                          >
                            {isLoggedIn ? 'Cancel' : 'Back'}
@@ -1224,10 +1211,13 @@ export default function ApplicationFormModal({
 
                     <div className="w-full space-y-2 pt-2">
                       <Button
-                        onClick={() => window.location.href = !isLoggedIn ? '/login' : '/dashboard/campaigns'}
-                        className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold shadow-sm"
+                        onClick={() => {
+                          onClose()
+                          router.push(!isLoggedIn ? '/login' : '/dashboard/campaigns')
+                        }}
+                        className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold shadow-sm cursor-pointer"
                       >
-                        {!isLoggedIn ? 'Login to Track Details' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
+                        {!isLoggedIn ? 'Log In to Track Status' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -1265,3 +1255,4 @@ export default function ApplicationFormModal({
     </AnimatePresence>
   )
 }
+
