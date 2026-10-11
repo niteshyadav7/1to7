@@ -18,6 +18,7 @@ import {
   getCanonicalField,
   CANONICAL_FIELDS
 } from '@/lib/utils/profile-sync-utils'
+import { STATES, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 
 export interface FormField {
   name: string
@@ -54,6 +55,11 @@ export default function FormFieldBuilder({
   onChange: (fields: FormField[]) => void
 }) {
   const [optionInput, setOptionInput] = useState<Record<number, string>>({})
+  const [expandedOptions, setExpandedOptions] = useState<Record<number, boolean>>({})
+
+  const toggleExpand = (index: number) => {
+    setExpandedOptions(prev => ({ ...prev, [index]: !prev[index] }))
+  }
 
   const addField = () => {
     onChange([...fields, { name: '', type: 'text', required: true, options: [], sync_to_profile: false, profile_sync_key: 'none' }])
@@ -86,7 +92,20 @@ export default function FormFieldBuilder({
 
   const updateField = (index: number, updates: Partial<FormField>) => {
     const updated = [...fields]
-    updated[index] = { ...updated[index], ...updates }
+    const current = updated[index]
+
+    // Smart Preset detection: If changing type to dropdown and options are empty
+    if (updates.type === 'dropdown' && (!current.options || current.options.length === 0)) {
+      const isState = current.profile_sync_key === 'state' || /state/i.test(current.name)
+      const isCity = current.profile_sync_key === 'city' || /city/i.test(current.name)
+      if (isState) {
+        updates.options = [...STATES]
+      } else if (isCity) {
+        updates.options = [...TOP_METRO_CITIES]
+      }
+    }
+
+    updated[index] = { ...current, ...updates }
     // Clear options if type is changed away from dropdown
     if (updates.type && updates.type !== 'dropdown') {
       updated[index].options = []
@@ -328,49 +347,142 @@ export default function FormFieldBuilder({
               </div>
 
               {/* Dropdown Options */}
-              {field.type === 'dropdown' && (
-                <div className="ml-7 space-y-2 pt-1 border-t border-white/5">
-                  <Label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Dropdown Options</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {field.options.map((opt, oi) => (
-                      <span
-                        key={oi}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-indigo-500/15 text-indigo-300 text-xs border border-indigo-500/20"
+              {field.type === 'dropdown' && (() => {
+                const isStateField = field.profile_sync_key === 'state' || /state/i.test(field.name)
+                const isCityField = field.profile_sync_key === 'city' || /city/i.test(field.name)
+                const isExpanded = expandedOptions[index]
+                const maxPreview = 10
+                const hasMany = field.options.length > maxPreview
+                const displayedOptions = hasMany && !isExpanded ? field.options.slice(0, maxPreview) : field.options
+
+                return (
+                  <div className="ml-7 space-y-2.5 pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+                          Dropdown Options ({field.options.length})
+                        </Label>
+                        {isStateField && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 font-semibold border border-emerald-500/30">
+                            📍 India States
+                          </span>
+                        )}
+                        {isCityField && (
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/15 text-blue-300 font-semibold border border-blue-500/30">
+                            🏙️ India Cities
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 1-Click Option Loaders */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isStateField && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(index, { options: [...STATES] })}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
+                          >
+                            ⚡ Load 36 States
+                          </button>
+                        )}
+                        {isCityField && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(index, { options: [...TOP_METRO_CITIES] })}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 transition-colors cursor-pointer"
+                          >
+                            ⚡ Load Top Metros
+                          </button>
+                        )}
+                        {!isStateField && !isCityField && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => updateField(index, { options: [...STATES] })}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 transition-colors cursor-pointer"
+                            >
+                              + 36 States
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateField(index, { options: [...TOP_METRO_CITIES.slice(0, 15)] })}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 transition-colors cursor-pointer"
+                            >
+                              + Top Metros
+                            </button>
+                          </>
+                        )}
+                        {field.options.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => updateField(index, { options: [] })}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isCityField && (
+                      <p className="text-[11px] text-blue-300/80 bg-blue-950/30 border border-blue-500/20 p-2 rounded-lg">
+                        💡 <strong>Smart Cascading:</strong> In the application form, influencers can choose from cities matching their selected State, or pick from this list.
+                      </p>
+                    )}
+
+                    {field.options.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-slate-950/40 border border-white/5">
+                        {displayedOptions.map((opt, oi) => (
+                          <span
+                            key={oi}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 text-xs border border-indigo-500/20"
+                          >
+                            <span className="truncate max-w-[150px]">{opt}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeOption(index, oi)}
+                              className="hover:text-red-400 transition-colors cursor-pointer text-sm leading-none ml-0.5"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        {hasMany && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(index)}
+                            className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 cursor-pointer transition-colors"
+                          >
+                            {isExpanded ? 'Collapse ▲' : `+${field.options.length - maxPreview} more ▼`}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Input
+                        value={optionInput[index] || ''}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setOptionInput({ ...optionInput, [index]: e.target.value })
+                        }
+                        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                          if (e.key === 'Enter') { e.preventDefault(); addOption(index) }
+                        }}
+                        placeholder="Type an option and press Enter (or click Add)"
+                        className="flex-1 bg-slate-950/70 border-white/10 text-white h-8 text-xs focus-visible:ring-indigo-500 rounded-lg placeholder:text-slate-500"
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => addOption(index)}
+                        variant="outline"
+                        className="h-8 px-3 text-xs rounded-lg border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/10 bg-slate-950 cursor-pointer"
                       >
-                        {opt}
-                        <button
-                          type="button"
-                          onClick={() => removeOption(index, oi)}
-                          className="hover:text-red-400 transition-colors cursor-pointer"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
+                        Add
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={optionInput[index] || ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setOptionInput({ ...optionInput, [index]: e.target.value })
-                      }
-                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === 'Enter') { e.preventDefault(); addOption(index) }
-                      }}
-                      placeholder="Type an option and press Enter (or click Add)"
-                      className="flex-1 bg-slate-950/70 border-white/10 text-white h-8 text-xs focus-visible:ring-indigo-500 rounded-lg placeholder:text-slate-500"
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => addOption(index)}
-                      variant="outline"
-                      className="h-8 px-3 text-xs rounded-lg border-indigo-500/20 text-indigo-300 hover:bg-indigo-500/10 bg-slate-950 cursor-pointer"
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
             </motion.div>
           )
         })}

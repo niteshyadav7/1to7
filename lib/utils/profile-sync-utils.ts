@@ -4,6 +4,8 @@
  * and synchronizes creator answers directly into their profile and custom_attributes.
  */
 
+import { STATES, TOP_METRO_CITIES } from '@/lib/constants/india-data'
+
 export interface CanonicalFieldMapping {
   key: string
   label: string
@@ -226,10 +228,10 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
     label: 'Current City',
     icon: '🏙️',
     name: 'Current City',
-    type: 'text',
+    type: 'dropdown',
     required: true,
-    options: [],
-    description: 'Auto-saves creator primary city',
+    options: [...TOP_METRO_CITIES],
+    description: 'Auto-saves creator primary city (cascades with State in forms)',
     canonicalKey: 'city'
   },
   {
@@ -237,10 +239,10 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
     label: 'State',
     icon: '📍',
     name: 'State / UT',
-    type: 'text',
+    type: 'dropdown',
     required: true,
-    options: [],
-    description: 'Auto-saves creator primary state',
+    options: [...STATES],
+    description: 'Auto-saves creator primary state (All 36 Indian States & UTs)',
     canonicalKey: 'state'
   },
   {
@@ -623,6 +625,16 @@ export function getPrefillValueForField(rawLabel: string, user: any): string {
   if (canonicalKey && user[canonicalKey] !== undefined && user[canonicalKey] !== null) {
     const val = String(user[canonicalKey]).trim()
     if (val) return val
+  }
+
+  // Check saved shipping addresses (for state, city, pincode)
+  if ((canonicalKey === 'state' || canonicalKey === 'city' || canonicalKey === 'pincode') &&
+      user.shipping_addresses && Array.isArray(user.shipping_addresses) && user.shipping_addresses.length > 0) {
+    const defaultAddr = user.shipping_addresses.find((a: any) => a.is_default) || user.shipping_addresses[0]
+    if (defaultAddr && defaultAddr[canonicalKey]) {
+      const val = String(defaultAddr[canonicalKey]).trim()
+      if (val) return val
+    }
   }
 
   // Check custom_attributes JSONB

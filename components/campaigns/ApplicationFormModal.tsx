@@ -3,20 +3,43 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, CheckCircle2, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar, Lock, Instagram } from 'lucide-react'
+import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, CheckCircle2, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar, Lock, Instagram, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
+import { STATES, INDIA_DATA, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { checkFollowerEligibility, formatFollowerCount, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
-import { checkCampaignLocationEligibility, StoreLocation } from '@/lib/utils/location-utils'
+import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
+
+function isStateField(name: string, syncKey?: string): boolean {
+  if (syncKey === 'state') return true
+  const n = (name || '').trim().toLowerCase()
+  return /^(state|state\s*\/\s*ut|state\s*name|select\s*state)$/i.test(n) || /\bstate\s*\/\s*ut\b/i.test(n)
+}
+
+function isCityField(name: string, syncKey?: string): boolean {
+  if (syncKey === 'city') return true
+  const n = (name || '').trim().toLowerCase()
+  return /^(city|current\s*city|living\s*city|district|home\s*city|select\s*city)$/i.test(n) || /\bcurrent\s*city\b/i.test(n)
+}
+
+function getActiveState(currentFormData: Record<string, string>, userObj: any): string {
+  for (const [key, val] of Object.entries(currentFormData)) {
+    if (val && isStateField(key)) {
+      return String(val).trim()
+    }
+  }
+  if (userObj?.state) return String(userObj.state).trim()
+  if (userObj?.shipping_addresses?.[0]?.state) return String(userObj.shipping_addresses[0].state).trim()
+  return ''
+}
 
 interface FormField {
   id: string
@@ -922,78 +945,167 @@ export default function ApplicationFormModal({
                             </div>
                           )}
 
-                          {fields.length > 0 && fields.map((field) => (
-                            <div key={field.id} className="space-y-2.5">
-                            <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
-                              {field.field_name}
-                              {field.is_required && <span className="text-primary ml-1.5">*</span>}
-                            </Label>
+                          {fields.length > 0 && fields.map((field) => {
+                            const isFieldState = isStateField(field.field_name)
+                            const isFieldCity = isCityField(field.field_name)
+                            const activeStateVal = getActiveState(formData, user)
 
-                            <div className="relative group">
-                              {field.field_type === 'textarea' ? (
-                                <>
-                                  <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                                  <textarea
-                                    value={formData[field.field_name] || ''}
-                                    onChange={(e) =>
-                                      setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
-                                    }
-                                    placeholder={`Enter ${field.field_name.toLowerCase()}...`}
-                                    rows={4}
-                                    className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
-                                  />
-                                </>
-                              ) : field.field_type === 'dropdown' ? (
-                                <>
-                                  <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
-                                  <Select
-                                    value={formData[field.field_name] || ''}
-                                    onValueChange={(value) =>
-                                      setFormData((prev) => ({ ...prev, [field.field_name]: value || '' }))
-                                    }
-                                  >
-                                    <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
-                                      <SelectValue placeholder="Select an option" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
-                                      {(Array.isArray(field.field_options)
-                                        ? field.field_options
-                                        : JSON.parse(field.field_options as unknown as string || '[]')
-                                      ).map((option: string) => (
-                                        <SelectItem
-                                          key={option}
-                                          value={option}
-                                          className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
+                            return (
+                              <div key={field.id} className="space-y-2.5">
+                                <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-center">
+                                  {field.field_name}
+                                  {field.is_required && <span className="text-primary ml-1.5">*</span>}
+                                </Label>
+
+                                {isFieldState ? (
+                                  <div className="relative group">
+                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500 z-10 pointer-events-none" />
+                                    <Select
+                                      value={formData[field.field_name] || ''}
+                                      onValueChange={(value) => {
+                                        setFormData((prev) => {
+                                          const next = { ...prev, [field.field_name]: value || '' }
+                                          const newCities = getCitiesForState(value || '')
+                                          fields.forEach(cf => {
+                                            if (isCityField(cf.field_name)) {
+                                              const currCity = next[cf.field_name]
+                                              if (currCity && newCities.length > 0 && !newCities.includes(currCity)) {
+                                                next[cf.field_name] = ''
+                                              }
+                                            }
+                                          })
+                                          return next
+                                        })
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                        <SelectValue placeholder="Select State / UT" />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 max-h-[260px] overflow-y-auto">
+                                        {STATES.map((opt) => (
+                                          <SelectItem
+                                            key={opt}
+                                            value={opt}
+                                            className="focus:bg-primary-container focus:text-black cursor-pointer py-2.5 rounded-md text-xs font-medium"
+                                          >
+                                            {opt}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : isFieldCity ? (() => {
+                                  const stateCities = activeStateVal ? getCitiesForState(activeStateVal) : []
+                                  const cityOptions = stateCities.length > 0 ? stateCities : TOP_METRO_CITIES
+
+                                  return (
+                                    <div className="space-y-1.5">
+                                      <div className="relative group">
+                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 z-10 pointer-events-none" />
+                                        <Select
+                                          value={formData[field.field_name] || ''}
+                                          onValueChange={(value) =>
+                                            setFormData((prev) => ({ ...prev, [field.field_name]: value || '' }))
+                                          }
                                         >
-                                          {option}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </>
-                              ) : (
-                                <>
-                                  {field.field_name.toLowerCase().includes('follower') ? (
-                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                                  ) : field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? (
-                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
-                                  ) : (
-                                    <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                                  )}
-                                  <Input
-                                    type={field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? 'date' : field.field_type === 'number' ? 'number' : 'text'}
-                                    value={formData[field.field_name] || ''}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                      setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
-                                    }
-                                    placeholder={`Enter ${field.field_name.toLowerCase()}...`}
-                                    className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
-                                  />
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                                          <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                            <SelectValue
+                                              placeholder={
+                                                activeStateVal
+                                                  ? `Select city in ${activeStateVal}`
+                                                  : 'Select City / District'
+                                              }
+                                            />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 max-h-[260px] overflow-y-auto">
+                                            {cityOptions.map((opt) => (
+                                              <SelectItem
+                                                key={opt}
+                                                value={opt}
+                                                className="focus:bg-primary-container focus:text-black cursor-pointer py-2.5 rounded-md text-xs font-medium"
+                                              >
+                                                {opt}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      {activeStateVal && stateCities.length > 0 && (
+                                        <p className="text-[10px] text-slate-500 flex items-center gap-1 pl-1 font-medium">
+                                          <span>📍 Showing {stateCities.length} cities in</span>
+                                          <strong className="text-slate-800">{activeStateVal}</strong>
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
+                                })() : (
+                                  <div className="relative group">
+                                    {field.field_type === 'textarea' ? (
+                                      <>
+                                        <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                        <textarea
+                                          value={formData[field.field_name] || ''}
+                                          onChange={(e) =>
+                                            setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
+                                          }
+                                          placeholder={`Enter ${field.field_name.toLowerCase()}...`}
+                                          rows={4}
+                                          className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
+                                        />
+                                      </>
+                                    ) : field.field_type === 'dropdown' ? (
+                                      <>
+                                        <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
+                                        <Select
+                                          value={formData[field.field_name] || ''}
+                                          onValueChange={(value) =>
+                                            setFormData((prev) => ({ ...prev, [field.field_name]: value || '' }))
+                                          }
+                                        >
+                                          <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                            <SelectValue placeholder="Select an option" />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
+                                            {(Array.isArray(field.field_options)
+                                              ? field.field_options
+                                              : JSON.parse(field.field_options as unknown as string || '[]')
+                                            ).map((option: string) => (
+                                              <SelectItem
+                                                key={option}
+                                                value={option}
+                                                className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
+                                              >
+                                                {option}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {field.field_name.toLowerCase().includes('follower') ? (
+                                          <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                        ) : field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? (
+                                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
+                                        ) : (
+                                          <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                        )}
+                                        <Input
+                                          type={field.field_type === 'date' || field.field_name.toLowerCase().includes('date') || field.field_name.toLowerCase().includes('dob') || field.field_name.toLowerCase().includes('birth') ? 'date' : field.field_type === 'number' ? 'number' : 'text'}
+                                          value={formData[field.field_name] || ''}
+                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                            setFormData((prev) => ({ ...prev, [field.field_name]: e.target.value }))
+                                          }
+                                          placeholder={`Enter ${field.field_name.toLowerCase()}...`}
+                                          className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
+                                        />
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
 
                           {/* Custom Campaign Questions (form_fields) */}
                           {hasCustomFields && (
@@ -1004,110 +1116,203 @@ export default function ApplicationFormModal({
                                   Campaign Questions
                                 </p>
                               </div>
-                              {campaign.form_fields!.map((field, idx) => (
-                                <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2.5">
-                                  <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-start justify-between gap-2">
-                                    <span className="flex-1 min-w-0 break-words leading-normal">{field.name}</span>
-                                    {field.required && <span className="text-primary shrink-0 font-bold">*</span>}
-                                  </Label>
+                              {campaign.form_fields!.map((field, idx) => {
+                                const isFieldState = isStateField(field.name, (field as any).profile_sync_key)
+                                const isFieldCity = isCityField(field.name, (field as any).profile_sync_key)
+                                const activeStateVal = getActiveState(formData, user)
 
-                                  <div className="relative group">
-                                    {field.type === 'textarea' ? (
-                                      <>
-                                        <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                                        <textarea
-                                          value={formData[field.name] || ''}
-                                          onChange={(e) =>
-                                            setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                                          }
-                                          placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`}
-                                          rows={3}
-                                          className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
-                                        />
-                                      </>
-                                    ) : field.type === 'dropdown' ? (
-                                      <>
-                                        <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
+                                return (
+                                  <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2.5">
+                                    <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider flex items-start justify-between gap-2">
+                                      <span className="flex-1 min-w-0 break-words leading-normal">{field.name}</span>
+                                      {field.required && <span className="text-primary shrink-0 font-bold">*</span>}
+                                    </Label>
+
+                                    {isFieldState ? (
+                                      <div className="relative group">
+                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500 z-10 pointer-events-none" />
                                         <Select
                                           value={formData[field.name] || ''}
-                                          onValueChange={(value) =>
-                                            setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
-                                          }
+                                          onValueChange={(value) => {
+                                            setFormData((prev) => {
+                                              const next = { ...prev, [field.name]: value || '' }
+                                              const newCities = getCitiesForState(value || '')
+                                              if (campaign?.form_fields) {
+                                                campaign.form_fields.forEach(cf => {
+                                                  if (isCityField(cf.name, (cf as any).profile_sync_key)) {
+                                                    const currCity = next[cf.name]
+                                                    if (currCity && newCities.length > 0 && !newCities.includes(currCity)) {
+                                                      next[cf.name] = ''
+                                                    }
+                                                  }
+                                                })
+                                              }
+                                              return next
+                                            })
+                                          }}
                                         >
                                           <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
-                                            <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
+                                            <SelectValue placeholder="Select State / UT" />
                                           </SelectTrigger>
-                                          <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
-                                            {field.options?.map((opt) => (
+                                          <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 max-h-[260px] overflow-y-auto">
+                                            {(field.options && field.options.length > 0 ? field.options : STATES).map((opt) => (
                                               <SelectItem
                                                 key={opt}
                                                 value={opt}
-                                                className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
+                                                className="focus:bg-primary-container focus:text-black cursor-pointer py-2.5 rounded-md text-xs font-medium"
                                               >
                                                 {opt}
                                               </SelectItem>
                                             ))}
                                           </SelectContent>
                                         </Select>
-                                      </>
-                                    ) : field.type === 'image' ? (
-                                      <div className="space-y-2">
-                                        {formData[field.name] ? (
-                                          <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
-                                            <img src={formData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
-                                            <button
-                                              type="button"
-                                              onClick={() => setFormData(p => ({ ...p, [field.name]: '' }))}
-                                              className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                      </div>
+                                    ) : isFieldCity ? (() => {
+                                      const stateCities = activeStateVal ? getCitiesForState(activeStateVal) : []
+                                      const cityOptions = stateCities.length > 0
+                                        ? stateCities
+                                        : (field.options && field.options.length > 0 ? field.options : TOP_METRO_CITIES)
+
+                                      return (
+                                        <div className="space-y-1.5">
+                                          <div className="relative group">
+                                            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 z-10 pointer-events-none" />
+                                            <Select
+                                              value={formData[field.name] || ''}
+                                              onValueChange={(value) =>
+                                                setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
+                                              }
                                             >
-                                              <X className="h-4 w-4" />
-                                            </button>
+                                              <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                                <SelectValue
+                                                  placeholder={
+                                                    activeStateVal
+                                                      ? `Select city in ${activeStateVal}`
+                                                      : 'Select City / District'
+                                                  }
+                                                />
+                                              </SelectTrigger>
+                                              <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 max-h-[260px] overflow-y-auto">
+                                                {cityOptions.map((opt) => (
+                                                  <SelectItem
+                                                    key={opt}
+                                                    value={opt}
+                                                    className="focus:bg-primary-container focus:text-black cursor-pointer py-2.5 rounded-md text-xs font-medium"
+                                                  >
+                                                    {opt}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
                                           </div>
-                                        ) : (
-                                          <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-border-subtle hover:border-primary-container bg-gray-muted hover:bg-primary-container/5 transition-all cursor-pointer group">
-                                            {uploadingFields[field.name] ? (
-                                              <div className="flex flex-col items-center gap-2">
-                                                <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                                                <span className="text-xs text-secondary">Uploading...</span>
+                                          {activeStateVal && stateCities.length > 0 && (
+                                            <p className="text-[10px] text-slate-500 flex items-center gap-1 pl-1 font-medium">
+                                              <span>📍 Showing {stateCities.length} cities in</span>
+                                              <strong className="text-slate-800">{activeStateVal}</strong>
+                                            </p>
+                                          )}
+                                        </div>
+                                      )
+                                    })() : (
+                                      <div className="relative group">
+                                        {field.type === 'textarea' ? (
+                                          <>
+                                            <MessageSquare className="absolute left-4 top-4 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                            <textarea
+                                              value={formData[field.name] || ''}
+                                              onChange={(e) =>
+                                                setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
+                                              }
+                                              placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`}
+                                              rows={3}
+                                              className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary text-sm rounded-md pl-11 p-4 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all resize-none"
+                                            />
+                                          </>
+                                        ) : field.type === 'dropdown' ? (
+                                          <>
+                                            <Layout className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary z-10" />
+                                            <Select
+                                              value={formData[field.name] || ''}
+                                              onValueChange={(value) =>
+                                                setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
+                                              }
+                                            >
+                                              <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                                <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
+                                              </SelectTrigger>
+                                              <SelectContent className="bg-white border-border-subtle text-charcoal-surface rounded-md shadow-lg p-1 overflow-hidden">
+                                                {field.options?.map((opt) => (
+                                                  <SelectItem
+                                                    key={opt}
+                                                    value={opt}
+                                                    className="focus:bg-primary-container focus:text-black cursor-pointer py-3 rounded-md"
+                                                  >
+                                                    {opt}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </>
+                                        ) : field.type === 'image' ? (
+                                          <div className="space-y-2">
+                                            {formData[field.name] ? (
+                                              <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
+                                                <img src={formData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => setFormData(p => ({ ...p, [field.name]: '' }))}
+                                                  className="absolute top-2 right-2 p-1.5 rounded-md bg-black/50 text-white hover:bg-red-500/80 transition-colors"
+                                                >
+                                                  <X className="h-4 w-4" />
+                                                </button>
                                               </div>
                                             ) : (
-                                              <>
-                                                <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
-                                                <span className="text-sm font-medium text-charcoal-surface">Tap to select image</span>
-                                                <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
-                                              </>
+                                              <label className="relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-border-subtle hover:border-primary-container bg-gray-muted hover:bg-primary-container/5 transition-all cursor-pointer group">
+                                                {uploadingFields[field.name] ? (
+                                                  <div className="flex flex-col items-center gap-2">
+                                                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                                    <span className="text-xs text-secondary">Uploading...</span>
+                                                  </div>
+                                                ) : (
+                                                  <>
+                                                    <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                                                    <span className="text-sm font-medium text-charcoal-surface">Tap to select image</span>
+                                                    <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
+                                                  </>
+                                                )}
+                                                <input
+                                                  type="file"
+                                                  accept="image/png, image/jpeg, image/webp"
+                                                  className="hidden"
+                                                  disabled={uploadingFields[field.name]}
+                                                  onChange={(e) => handleImageUpload(e, field.name)}
+                                                />
+                                              </label>
                                             )}
-                                            <input
-                                              type="file"
-                                              accept="image/png, image/jpeg, image/webp"
-                                              className="hidden"
-                                              disabled={uploadingFields[field.name]}
-                                              onChange={(e) => handleImageUpload(e, field.name)}
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? (
+                                              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
+                                            ) : (
+                                              <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                                            )}
+                                            <Input
+                                              type={field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? 'date' : field.type === 'number' ? 'number' : 'text'}
+                                              value={formData[field.name] || ''}
+                                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
+                                              }
+                                              placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`)}
+                                              className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
                                             />
-                                          </label>
+                                          </>
                                         )}
                                       </div>
-                                    ) : (
-                                      <>
-                                        {field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? (
-                                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors z-10" />
-                                        ) : (
-                                          <Pencil className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                                        )}
-                                        <Input
-                                          type={field.type === 'date' || field.name.toLowerCase().includes('date') || field.name.toLowerCase().includes('dob') || field.name.toLowerCase().includes('birth') ? 'date' : field.type === 'number' ? 'number' : 'text'}
-                                          value={formData[field.name] || ''}
-                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                            setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                                          }
-                                          placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name.toLowerCase()}...`)}
-                                          className="w-full bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all cursor-pointer"
-                                        />
-                                      </>
                                     )}
                                   </div>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </>
                           )}
 

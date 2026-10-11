@@ -3,6 +3,8 @@
  * Handles multi-state, multi-city matching for campaigns against creator saved delivery addresses.
  */
 
+import { INDIA_DATA, STATES } from '@/lib/constants/india-data'
+
 export interface ShippingAddressLike {
   id?: string
   title?: string
@@ -125,6 +127,29 @@ export function doesStateMatch(addressState: string, targetState: string): boole
   if (normTarget.length >= 4 && normAddr.includes(normTarget)) return true
 
   return false
+}
+
+/**
+ * Resolves any state name, abbreviation, or alias to the canonical state key in INDIA_DATA.
+ */
+export function resolveStandardStateName(stateStr: string): string | null {
+  if (!stateStr) return null
+  const norm = normalizeLocationStr(stateStr)
+  for (const [canonical, aliases] of Object.entries(STATE_ALIASES)) {
+    if (normalizeLocationStr(canonical) === norm) return canonical
+    if (aliases.some(a => normalizeLocationStr(a) === norm)) return canonical
+  }
+  const found = STATES.find(s => normalizeLocationStr(s) === norm)
+  return found || null
+}
+
+/**
+ * Returns all cities/districts for a given state name from INDIA_DATA.
+ */
+export function getCitiesForState(stateStr: string): string[] {
+  if (!stateStr) return []
+  const canonical = resolveStandardStateName(stateStr) || normalizeLocationStr(stateStr)
+  return INDIA_DATA[canonical] || []
 }
 
 /**
