@@ -6,37 +6,27 @@ import {
 
 describe('completion-maturation', () => {
   describe('getRequiredMaturationDays', () => {
-    it('defaults to 7 days when campaign or completion_days is not provided', () => {
-      expect(getRequiredMaturationDays(null)).toBe(7)
-      expect(getRequiredMaturationDays(undefined)).toBe(7)
-      expect(getRequiredMaturationDays({})).toBe(7)
-      expect(getRequiredMaturationDays({ completion_days: null })).toBe(7)
-      expect(getRequiredMaturationDays({ completion_days: undefined })).toBe(7)
-    })
-
-    it('returns 0 for fast-turnaround campaigns with completion_days < 7', () => {
+    it('returns 0 days by default so creators can submit deliverables immediately', () => {
+      expect(getRequiredMaturationDays(null)).toBe(0)
+      expect(getRequiredMaturationDays(undefined)).toBe(0)
+      expect(getRequiredMaturationDays({})).toBe(0)
+      expect(getRequiredMaturationDays({ completion_days: null })).toBe(0)
+      expect(getRequiredMaturationDays({ completion_days: undefined })).toBe(0)
       expect(getRequiredMaturationDays({ completion_days: 1 })).toBe(0)
-      expect(getRequiredMaturationDays({ completion_days: 2 })).toBe(0)
-      expect(getRequiredMaturationDays({ completion_days: 3 })).toBe(0)
-      expect(getRequiredMaturationDays({ completion_days: 5 })).toBe(0)
-    })
-
-    it('returns 7 for standard 7+ day campaigns', () => {
-      expect(getRequiredMaturationDays({ completion_days: 7 })).toBe(7)
-      expect(getRequiredMaturationDays({ completion_days: 10 })).toBe(7)
-      expect(getRequiredMaturationDays({ completion_days: 14 })).toBe(7)
+      expect(getRequiredMaturationDays({ completion_days: 7 })).toBe(0)
+      expect(getRequiredMaturationDays({ completion_days: 14 })).toBe(0)
     })
   })
 
   describe('checkLiveDateMaturation', () => {
     it('rejects empty or missing live dates', () => {
-      const res = checkLiveDateMaturation(null, 7)
+      const res = checkLiveDateMaturation(null)
       expect(res.canSubmit).toBe(false)
       expect(res.message).toContain('Please select the date')
     })
 
     it('rejects invalid live date strings', () => {
-      const res = checkLiveDateMaturation('invalid-date', 7)
+      const res = checkLiveDateMaturation('invalid-date')
       expect(res.canSubmit).toBe(false)
       expect(res.message).toBe('Invalid live date format.')
     })
@@ -51,14 +41,14 @@ describe('completion-maturation', () => {
     it('rejects future live dates', () => {
       const future = new Date()
       future.setDate(future.getDate() + 2)
-      const res = checkLiveDateMaturation(formatLocalDate(future), 7)
+      const res = checkLiveDateMaturation(formatLocalDate(future))
       expect(res.canSubmit).toBe(false)
       expect(res.message).toBe('Live date cannot be in the future.')
     })
 
-    it('allows immediate submission when minDaysRequired is 0 for past or today dates', () => {
+    it('allows immediate submission by default (0 days) for today or past dates', () => {
       const today = formatLocalDate(new Date())
-      const resToday = checkLiveDateMaturation(today, 0)
+      const resToday = checkLiveDateMaturation(today)
       expect(resToday.canSubmit).toBe(true)
       expect(resToday.minDaysRequired).toBe(0)
       expect(resToday.daysRemaining).toBe(0)
@@ -66,12 +56,12 @@ describe('completion-maturation', () => {
 
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const resYesterday = checkLiveDateMaturation(formatLocalDate(yesterday), 0)
+      const resYesterday = checkLiveDateMaturation(formatLocalDate(yesterday))
       expect(resYesterday.canSubmit).toBe(true)
       expect(resYesterday.daysElapsed).toBeGreaterThanOrEqual(1)
     })
 
-    it('enforces 7-day wait when minDaysRequired is 7', () => {
+    it('enforces custom wait if an explicit minDaysRequired is provided', () => {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const res = checkLiveDateMaturation(formatLocalDate(yesterday), 7)

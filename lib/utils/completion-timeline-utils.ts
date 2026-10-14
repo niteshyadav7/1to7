@@ -205,11 +205,11 @@ export interface LiveDateMaturationStatus {
 }
 
 /**
- * Checks if the content live date satisfies the mandatory maturation gap (e.g. 7 days).
+ * Checks if the content live date satisfies the maturation gap (default 0 days).
  */
 export function checkLiveDateMaturation(
   liveDateStr?: string | null,
-  minDaysRequired: number = 7
+  minDaysRequired: number = 0
 ): LiveDateMaturationStatus {
   if (!liveDateStr) {
     return {
@@ -284,21 +284,12 @@ export function checkLiveDateMaturation(
 
 /**
  * Resolves the required live date maturation days for a campaign.
- * If campaign completion window is less than 7 days (e.g. 1-2 days fast-turnaround),
- * maturation is 0 so creators are not blocked from submitting deliverables within their deadline.
- * For standard campaigns (7+ days), requires the standard 7 days.
+ * Default is 0 days so creators can immediately submit deliverables
+ * as soon as content goes live without mandatory waiting period.
  */
 export function getRequiredMaturationDays(
   campaign?: { completion_days?: number | null } | null
 ): number {
-  if (!campaign) return 7
-  const days = typeof campaign.completion_days === 'number' && campaign.completion_days > 0
-    ? campaign.completion_days
-    : 7
-
-  if (days < 7) {
-    return 0
-  }
-  return 7
+  return 0
 }
 

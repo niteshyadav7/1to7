@@ -111,6 +111,8 @@ export default function CampaignDetailModal({
   onApply,
   isLoggedIn,
   user: propUser,
+  adminMode = false,
+  onSuccess,
 }: {
   campaign: Campaign | null
   isOpen: boolean
@@ -118,6 +120,8 @@ export default function CampaignDetailModal({
   onApply: (campaign: Campaign) => void
   isLoggedIn: boolean
   user?: any
+  adminMode?: boolean
+  onSuccess?: () => void
 }) {
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [showProfileInline, setShowProfileInline] = useState(false)
@@ -137,6 +141,10 @@ export default function CampaignDetailModal({
   const { user: authUser, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const user = propUser || authUser
   const router = useRouter()
+
+  const applyEndpoint = adminMode && user?.id
+    ? `/api/admin/virtual-profile/${user.id}/apply`
+    : '/api/apply'
 
   // Multi-Instagram Profile Support
   const userProfiles = (user?.instagram_profiles && user.instagram_profiles.length > 0)
@@ -294,7 +302,22 @@ export default function CampaignDetailModal({
   const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
   // Bank details excluded from campaign apply — collected later
   const bankFields = ['account_name', 'account_number', 'ifsc_code']
-  const campaignMissingFields = getMissingFields().filter(f => !bankFields.includes(f))
+  const getCreatorMissingFields = (u: any) => {
+    if (!u) return []
+    const requiredFields = [
+      'full_name', 'instagram_username', 'gender', 
+      'state', 'city', 'followers'
+    ]
+    return requiredFields.filter(field => {
+      const val = (u as any)[field]
+      if (field === 'followers') return val === undefined || val === null || val === 0 || val === '0'
+      return !val || (typeof val === 'string' && val.trim() === '')
+    })
+  }
+
+  const campaignMissingFields = propUser
+    ? getCreatorMissingFields(propUser)
+    : getMissingFields().filter(f => !bankFields.includes(f))
   const missingFields = campaignMissingFields
   const needsInlineForm = true // Always show form for comments
 
@@ -340,7 +363,7 @@ export default function CampaignDetailModal({
       return
     }
 
-    if (!user?.is_mobile_verified) {
+    if (!adminMode && !user?.is_mobile_verified) {
       setShowOTPModal(true)
       return
     }
@@ -383,7 +406,7 @@ export default function CampaignDetailModal({
 
     setSubmitting(true)
     try {
-      const res = await fetch('/api/apply', {
+      const res = await fetch(applyEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -402,6 +425,10 @@ export default function CampaignDetailModal({
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
       
       setIsSuccess(true)
+      toast.success(adminMode ? 'Application submitted on behalf of creator!' : 'Application submitted successfully!')
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit application')
     } finally {
@@ -418,7 +445,7 @@ export default function CampaignDetailModal({
       return
     }
 
-    if (!user?.is_mobile_verified) {
+    if (!adminMode && !user?.is_mobile_verified) {
       setShowOTPModal(true)
       return
     }
@@ -432,7 +459,7 @@ export default function CampaignDetailModal({
         comments: commentText || '',
       }
 
-      const res = await fetch('/api/apply', {
+      const res = await fetch(applyEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -451,9 +478,13 @@ export default function CampaignDetailModal({
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
 
       setIsSuccess(true)
+      toast.success(adminMode ? 'Application submitted on behalf of creator!' : 'Application submitted successfully!')
+      if (onSuccess) {
+        onSuccess()
+      }
 
       // Refresh in-memory user cache in background without blocking UI
-      if (refreshUserProfile) {
+      if (refreshUserProfile && !adminMode) {
         refreshUserProfile().catch(() => {})
       }
     } catch (err: any) {
@@ -512,6 +543,11 @@ export default function CampaignDetailModal({
                         <div>
                           <h3 className="text-lg font-bold text-charcoal-surface flex items-center gap-2">
                             ✈️ Apply to Campaign
+                            {adminMode && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200">
+                                Super Admin (Acting for {user?.full_name || 'Creator'})
+                              </span>
+                            )}
                           </h3>
                           <p className="text-secondary text-sm mt-0.5">{campaign.brand_name}</p>
                         </div>
@@ -1703,9 +1739,13 @@ export default function CampaignDetailModal({
                     <CheckCircle className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-charcoal-surface mb-1">What&apos;s Next?</p>
+                    <p className="text-sm font-bold text-charcoal-surface mb-1">
+                      {adminMode ? 'Creator Application Confirmed' : "What's Next?"}
+                    </p>
                     <p className="text-xs text-secondary leading-relaxed">
-                      You will be notified once the brand reviews your application and makes a decision!
+                      {adminMode
+                        ? `This application was recorded for ${user?.full_name || 'the creator'}. It is now visible in their dashboard and in Virtual Profile > Applied.`
+                        : 'You will be notified once the brand reviews your application and makes a decision!'}
                     </p>
                   </div>
                 </div>
@@ -1713,16 +1753,25 @@ export default function CampaignDetailModal({
 
               <div className="w-full space-y-2 pt-2">
                 <Button
-                  onClick={() => window.location.href = '/dashboard/campaigns'}
+                  onClick={() => {
+                    if (adminMode && user?.id) {
+                      window.location.href = `/admin/virtual-profile/${user.id}/applied`
+                    } else {
+                      window.location.href = '/dashboard/campaigns'
+                    }
+                  }}
                   className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold"
                 >
-                  Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                  {adminMode ? 'View Creator Applied Campaigns' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {
                     setIsSuccess(false)
                     onClose()
+                    if (onSuccess) {
+                      onSuccess()
+                    }
                   }}
                   className="w-full h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted"
                 >

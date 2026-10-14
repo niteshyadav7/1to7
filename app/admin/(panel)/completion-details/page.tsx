@@ -1349,7 +1349,7 @@ export default function CompletionDetailsPage() {
                                 </p>
                                 {maturationInfo && (
                                   <span className={`text-[9px] font-semibold block mt-0.5 whitespace-nowrap ${maturationInfo.canSubmit ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                    {maturationInfo.canSubmit ? '✓ Matured' : `⏳ ${maturationInfo.daysRemaining}d left`}
+                                    {maturationInfo.canSubmit ? (maturationInfo.minDaysRequired > 0 ? '✓ Matured' : '✓ Live') : `⏳ ${maturationInfo.daysRemaining}d left`}
                                   </span>
                                 )}
                               </div>

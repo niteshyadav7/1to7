@@ -76,6 +76,61 @@ export async function GET(
         return NextResponse.json({ applications: apps || [] })
       }
 
+      case 'campaigns': {
+        const { data: campaigns, error: campError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('is_live', true)
+          .eq('status', 'Active')
+          .or('approval_status.eq.Approved,approval_status.is.null')
+          .order('display_order', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false })
+
+        if (campError) throw campError
+
+        // Filter by Pre-Launch Pilot Mode:
+        const visibleCampaigns = (campaigns || []).filter((c: any) => {
+          if (c.is_test_mode) {
+            const allowedUsers: string[] = Array.isArray(c.test_user_ids) ? c.test_user_ids : []
+            return allowedUsers.includes(userId)
+          }
+          return true
+        })
+
+        if (visibleCampaigns.length > 0) {
+          const campaignIds = visibleCampaigns.map((c: any) => c.id)
+          const { data: userApplications } = await supabase
+            .from('applications')
+            .select('id, campaign_id, status, created_at, form_data')
+            .eq('user_id', userId)
+            .in('campaign_id', campaignIds)
+
+          const appMap = new Map<string, any>()
+          if (userApplications) {
+            userApplications.forEach((app: any) => {
+              appMap.set(app.campaign_id, app)
+            })
+          }
+
+          const enrichedCampaigns = visibleCampaigns.map((c: any) => {
+            const app = appMap.get(c.id)
+            return {
+              ...c,
+              applied: !!app,
+              application_status: app ? app.status : null,
+              application_id: app ? app.id : null,
+              applied_at: app ? app.created_at : null,
+              rejection_reason: app ? (app.form_data?.rejection_reason || app.form_data?.revocation_note || null) : null,
+              form_data: app ? app.form_data : null
+            }
+          })
+
+          return NextResponse.json({ campaigns: enrichedCampaigns })
+        }
+
+        return NextResponse.json({ campaigns: [] })
+      }
+
       case 'feedback': {
         const { data: fb, error } = await supabase
           .from('feedback')

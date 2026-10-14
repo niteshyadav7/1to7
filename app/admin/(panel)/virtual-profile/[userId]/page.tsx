@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Send, CheckCircle2, Clock, TrendingUp, Sparkles, Instagram, Youtube, ShoppingBag, Search } from 'lucide-react'
 import { useParams } from 'next/navigation'
@@ -31,12 +31,12 @@ export default function VirtualProfileOverviewPage() {
 
   const basePath = `/admin/virtual-profile/${userId}`
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     if (!userId) return
     setLoading(true)
     Promise.all([
       fetch(`/api/admin/virtual-profile/${userId}?action=stats`).then(r => r.json()),
-      fetch('/api/campaigns').then(r => r.json()),
+      fetch(`/api/admin/virtual-profile/${userId}?action=campaigns`).then(r => r.json()),
       fetch(`/api/admin/virtual-profile/${userId}?action=profile`).then(r => r.json()),
     ])
       .then(([statsData, campaignsData, profileData]) => {
@@ -47,6 +47,10 @@ export default function VirtualProfileOverviewPage() {
       .catch(() => toast.error('Failed to fetch dashboard data'))
       .finally(() => setLoading(false))
   }, [userId])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   const handleViewDetails = (campaign: any) => {
     setSelectedCampaign(campaign)
@@ -191,9 +195,13 @@ export default function VirtualProfileOverviewPage() {
         campaign={selectedCampaign}
         isOpen={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onApply={() => toast.info('Admin mode: Apply is disabled on behalf of creators')}
+        onApply={() => {}}
         isLoggedIn={true}
         user={virtualUser}
+        adminMode={true}
+        onSuccess={() => {
+          fetchData()
+        }}
       />
     </div>
   )
