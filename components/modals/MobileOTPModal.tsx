@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
-import type { ConfirmationResult } from '@/lib/firebase'
+import { initMsg91Widget, sendMsg91Otp, verifyMsg91Otp, retryMsg91Otp } from '@/lib/utils/msg91-otp'
 
 declare global {
   interface Window {
@@ -29,11 +29,13 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
   const [countdown, setCountdown] = useState(0)
-  const confirmationRef = useRef<ConfirmationResult | null>(null)
+  const [otpProvider, setOtpProvider] = useState<'msg91' | 'firebase'>('msg91')
+  const confirmationRef = useRef<any>(null)
 
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      initMsg91Widget().catch(console.warn)
       setStep('send')
       setOtp('')
       setError('')
@@ -41,15 +43,6 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
       setVerifying(false)
       setCountdown(0)
       confirmationRef.current = null
-    }
-    return () => {
-      // Clean up global recaptcha on unmount to prevent invisible Captcha crashes on React StrictMode
-      if (window.recaptchaVerifier) {
-        try {
-          window.recaptchaVerifier.clear()
-        } catch (e) {}
-        window.recaptchaVerifier = null
-      }
     }
   }, [isOpen])
 
@@ -61,51 +54,61 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
     }
   }, [countdown])
 
-  // Initialize reCAPTCHA silently when the modal is open and on the send step
-  useEffect(() => {
-    if (isOpen && step === 'send' && !window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-wrapper', {
+  // Helper to initialize reCAPTCHA for Firebase fallback
+  const getOrCreateRecaptchaVerifier = () => {
+    if (typeof window === 'undefined') return null
+    if (window.recaptchaVerifier) return window.recaptchaVerifier
+    try {
+      const container = document.getElementById('recaptcha-wrapper')
+      if (container && container.parentNode && container.childNodes.length > 0) {
+        const freshContainer = document.createElement('div')
+        freshContainer.id = 'recaptcha-wrapper'
+        container.parentNode.replaceChild(freshContainer, container)
+      }
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-wrapper', {
         size: 'invisible',
-        callback: () => {
-          // reCAPTCHA solved
-        },
+        callback: () => {},
         'expired-callback': () => {
           setError('reCAPTCHA expired. Please try again.')
-          if (window.recaptchaVerifier) {
-            window.recaptchaVerifier.clear()
-            window.recaptchaVerifier = null
-          }
-        }
+        },
       })
+      window.recaptchaVerifier = verifier
+      return verifier
+    } catch (e) {
+      console.error('[Firebase Fallback Modal] reCAPTCHA init error:', e)
+      return null
     }
-  }, [isOpen, step])
+  }
 
   const handleSendOTP = async () => {
     setSending(true)
     setError('')
 
+    const cleanMobile = mobile.replace(/\D/g, '')
+
+    // 1. Primary: Try MSG91
     try {
-      // It should already be initialized by the useEffect above
-      if (!window.recaptchaVerifier) {
-        throw new Error('Verification service not ready. Please refresh the page.')
-      }
-
-      const cleanMobile = mobile.replace(/\D/g, '')
-      const phoneNumber = `+91${cleanMobile}`
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier)
-      confirmationRef.current = confirmation
-
+      await sendMsg91Otp(cleanMobile)
+      setOtpProvider('msg91')
       setStep('verify')
       setCountdown(45)
-      toast.success('OTP sent to your mobile number')
-    } catch (err: any) {
-      console.error('Send OTP Error:', err)
-      if (err.code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please try again later.')
-      } else if (err.code === 'auth/invalid-phone-number') {
-        setError('Invalid phone number format.')
-      } else {
-        setError(err.message || 'Failed to send OTP. Please try again.')
+      toast.success('OTP sent to your mobile via WhatsApp/SMS')
+    } catch (msg91Err: any) {
+      console.warn('[Modal OTP] MSG91 failed, triggering fallback to Firebase Phone Auth:', msg91Err)
+
+      // 2. Fallback: Firebase Phone Auth
+      try {
+        const verifier = getOrCreateRecaptchaVerifier()
+        if (!verifier) throw new Error('Verification fallback service unavailable')
+        const confirmation = await signInWithPhoneNumber(auth, `+91${cleanMobile}`, verifier)
+        confirmationRef.current = confirmation
+        setOtpProvider('firebase')
+        setStep('verify')
+        setCountdown(45)
+        toast.success('OTP sent via SMS to your mobile')
+      } catch (fbErr: any) {
+        console.error('[Modal OTP] Both providers failed:', fbErr)
+        setError(fbErr?.message || msg91Err?.message || 'Failed to send OTP. Please try again.')
       }
     } finally {
       setSending(false)
@@ -113,8 +116,8 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
   }
 
   const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP')
+    if (otp.length < 4 || otp.length > 6) {
+      setError('Please enter a valid OTP code')
       return
     }
 
@@ -122,14 +125,14 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
     setError('')
 
     try {
-      if (!confirmationRef.current) {
-        setError('Session expired. Please resend OTP.')
-        return
+      if (otpProvider === 'msg91') {
+        await verifyMsg91Otp(otp)
+      } else {
+        if (!confirmationRef.current) throw new Error('Session expired. Please resend OTP.')
+        await confirmationRef.current.confirm(otp)
       }
 
-      await confirmationRef.current.confirm(otp)
-
-      // OTP verified by Firebase — now update our database
+      // OTP verified — now update our database
       const res = await fetch('/api/auth/verify-mobile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -150,23 +153,24 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
       }, 1500)
     } catch (err: any) {
       console.error('Verify OTP Error:', err)
-      if (err.code === 'auth/invalid-verification-code') {
-        setError('Invalid OTP. Please check and try again.')
-      } else if (err.code === 'auth/code-expired') {
-        setError('OTP has expired. Please resend.')
-      } else {
-        setError(err.message || 'Verification failed. Please try again.')
-      }
+      setError(err?.message || 'Verification failed. Please try again.')
     } finally {
       setVerifying(false)
     }
   }
 
-  const handleResend = () => {
-    setStep('send')
-    setOtp('')
-    setError('')
-    confirmationRef.current = null
+  const handleResend = async () => {
+    try {
+      if (otpProvider === 'msg91') {
+        await retryMsg91Otp()
+        setCountdown(45)
+        toast.success('New OTP sent to your mobile via WhatsApp/SMS')
+      } else {
+        await handleSendOTP()
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to resend OTP')
+    }
   }
 
   if (!isOpen) return null
@@ -254,7 +258,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                   <>
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">
-                        Enter 6-Digit OTP
+                        Enter OTP Code
                       </label>
                       <Input
                         value={otp}
@@ -263,7 +267,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
                           setOtp(val)
                           setError('')
                         }}
-                        placeholder="000000"
+                        placeholder="••••"
                         maxLength={6}
                         className="bg-slate-50 border-slate-200 text-slate-900 h-14 rounded-xl text-center text-2xl font-mono tracking-[0.5em] focus-visible:ring-amber-400 focus-visible:border-amber-400 placeholder:text-slate-300 placeholder:tracking-[0.5em]"
                         autoFocus
@@ -272,7 +276,7 @@ export default function MobileOTPModal({ isOpen, onClose, onVerified, mobile }: 
 
                     <Button
                       onClick={handleVerifyOTP}
-                      disabled={verifying || otp.length !== 6}
+                      disabled={verifying || otp.length < 4 || otp.length > 6}
                       className="w-full h-12 rounded-xl bg-[#F5A623] hover:bg-[#e0961f] text-slate-950 font-bold uppercase tracking-wider shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 transition-all"
                     >
                       {verifying ? (

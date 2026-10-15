@@ -9,7 +9,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { toast } from 'sonner'
 import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Instagram, Mail, Clock } from 'lucide-react'
 import { auth, googleProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
-import type { ConfirmationResult } from '@/lib/firebase'
+import { initMsg91Widget, sendMsg91Otp, verifyMsg91Otp, retryMsg91Otp } from '@/lib/utils/msg91-otp'
 
 declare global {
   interface Window {
@@ -54,9 +54,38 @@ export default function LoginPage() {
   const [maskedEmail, setMaskedEmail] = useState('')
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [resendAttempts, setResendAttempts] = useState(0)
+  const [otpProvider, setOtpProvider] = useState<'msg91' | 'firebase'>('msg91')
+
+  // Inline verification state (when credentials/social account is unverified)
+  const [inlineVerification, setInlineVerification] = useState<{
+    required: boolean
+    needsMobile: boolean
+    needsEmail: boolean
+    mobile: string
+    email: string
+    mobileVerified: boolean
+    emailVerified: boolean
+    targetFlow: 'password' | 'google' | 'instagram' | null
+  }>({
+    required: false,
+    needsMobile: false,
+    needsEmail: false,
+    mobile: '',
+    email: '',
+    mobileVerified: false,
+    emailVerified: false,
+    targetFlow: null,
+  })
+
+  const [inlineMobileOtp, setInlineMobileOtp] = useState('')
+  const [isVerifyingMobile, setIsVerifyingMobile] = useState(false)
+  const [inlineEmailOtp, setInlineEmailOtp] = useState('')
+  const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false)
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false)
+  const [inlineEmailOtpSent, setInlineEmailOtpSent] = useState(false)
 
   const [loading, setLoading] = useState(false)
-  const confirmationRef = useRef<ConfirmationResult | null>(null)
+  const confirmationRef = useRef<any>(null)
   const { login } = useAuth()
 
   // Countdown timer for mobile OTP
@@ -106,102 +135,81 @@ export default function LoginPage() {
     }
   }, [])
 
-  // Helper to get or re-initialize a safe RecaptchaVerifier
-  const getOrCreateRecaptchaVerifier = () => {
-    if (window.recaptchaVerifier) {
-      return window.recaptchaVerifier
-    }
-
-    const container = document.getElementById('recaptcha-container')
-    if (container && container.parentNode && container.childNodes.length > 0) {
-      const freshContainer = document.createElement('div')
-      freshContainer.id = 'recaptcha-container'
-      container.parentNode.replaceChild(freshContainer, container)
-    }
-
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => {},
-      'expired-callback': () => {
-        toast.error('Security verification expired. Please try again.')
-      },
-    })
-
-    window.recaptchaVerifier = verifier
-    return verifier
-  }
-
-  const resetRecaptchaLogin = () => {
-    try {
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear()
-        window.recaptchaVerifier = null
-      }
-    } catch (e) {}
-    const container = document.getElementById('recaptcha-container')
-    if (container && container.parentNode) {
-      const freshContainer = document.createElement('div')
-      freshContainer.id = 'recaptcha-container'
-      container.parentNode.replaceChild(freshContainer, container)
-    }
-  }
-
-  // Cleanup reCAPTCHA on unmount
+  // Initialize MSG91 OTP Widget SDK on mount
   useEffect(() => {
-    return () => {
-      if (window.recaptchaVerifier) {
-        try {
-          window.recaptchaVerifier.clear()
-        } catch (e) {}
-        window.recaptchaVerifier = null
-      }
-    }
+    initMsg91Widget().catch((e) => console.warn('[MSG91] Init notice:', e))
   }, [])
 
-  // ─── Helper: send Firebase OTP ───
+  // Helper to initialize reCAPTCHA for Firebase fallback
+  const getOrCreateRecaptchaVerifier = () => {
+    if (typeof window === 'undefined') return null
+    if (window.recaptchaVerifier) return window.recaptchaVerifier
+    try {
+      const container = document.getElementById('recaptcha-container')
+      if (container && container.parentNode && container.childNodes.length > 0) {
+        const freshContainer = document.createElement('div')
+        freshContainer.id = 'recaptcha-container'
+        container.parentNode.replaceChild(freshContainer, container)
+      }
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {
+          toast.error('Security verification expired. Please try again.')
+        },
+      })
+      window.recaptchaVerifier = verifier
+      return verifier
+    } catch (e) {
+      console.error('[Firebase Fallback] reCAPTCHA init error:', e)
+      return null
+    }
+  }
+
+  // ─── Helper: send Mobile OTP via MSG91 with Firebase Fallback ───
   const sendFirebaseOTP = async (mobileNum: string, isResend = false): Promise<boolean> => {
     setIsSendingOtp(true)
     const toastId = toast.loading(isResend ? 'Resending OTP...' : 'Sending OTP...')
+    
+    // 1. Primary: Try MSG91 first
     try {
-      const verifier = getOrCreateRecaptchaVerifier()
-      const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
-      confirmationRef.current = confirmation
+      if (isResend && otpProvider === 'msg91') {
+        await retryMsg91Otp()
+      } else {
+        await sendMsg91Otp(mobileNum)
+        setOtpProvider('msg91')
+      }
       if (!isResend) {
         setCountdown(45)
       }
       toast.success(
-        isResend ? `New OTP sent to +91 ${mobileNum}` : `OTP sent to +91 ${mobileNum}`,
+        isResend ? `New OTP sent to +91 ${mobileNum}` : `OTP sent to +91 ${mobileNum} via WhatsApp/SMS`,
         { id: toastId }
       )
       return true
-    } catch (err: any) {
-      console.error('Firebase OTP error:', err)
-      resetRecaptchaLogin()
+    } catch (msg91Err: any) {
+      console.warn('[OTP] MSG91 failed, triggering fallback to Firebase Phone Auth:', msg91Err)
 
-      if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
-        toast.error(
-          'Too many OTP attempts on this number. Firebase has temporarily paused requests for security. Please wait a few minutes before trying again.',
-          { id: toastId, duration: 7000 }
-        )
-      } else if (err?.code === 'auth/quota-exceeded' || err?.message?.includes('quota-exceeded')) {
-        toast.error(
-          'Daily SMS limit reached for this project. Please contact support or try again later.',
-          { id: toastId, duration: 6000 }
-        )
-      } else if (err?.code === 'auth/invalid-phone-number') {
-        toast.error(
-          'Invalid mobile number format. Please ensure it is a 10-digit Indian number.',
+      // 2. Fallback: Firebase Phone Auth
+      try {
+        const verifier = getOrCreateRecaptchaVerifier()
+        if (!verifier) throw new Error('Verification fallback service unavailable')
+        const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
+        confirmationRef.current = confirmation
+        setOtpProvider('firebase')
+        if (!isResend) {
+          setCountdown(45)
+        }
+        toast.success(
+          isResend ? `New OTP sent via SMS to +91 ${mobileNum}` : `OTP sent via SMS to +91 ${mobileNum}`,
           { id: toastId }
         )
-      } else if (err?.code === 'auth/captcha-check-failed') {
-        toast.error(
-          'Security verification failed. Please refresh the page and try again.',
-          { id: toastId }
-        )
-      } else {
-        toast.error(err?.message || 'Failed to send OTP. Please try again.', { id: toastId })
+        return true
+      } catch (fbErr: any) {
+        console.error('[OTP] Both MSG91 and Firebase failed:', fbErr)
+        toast.error(fbErr?.message || msg91Err?.message || 'Failed to send OTP. Please try again.', { id: toastId })
+        return false
       }
-      return false
     } finally {
       setIsSendingOtp(false)
     }
@@ -243,23 +251,149 @@ export default function LoginPage() {
 
   // ─── Helper: complete login after verification ───
   const completePasswordLogin = async () => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      toast.error(data.error || 'Login failed')
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Login failed')
+        return
+      }
+      if (data.requiresVerification || data.requiresMobileVerification || data.requiresEmailVerification) {
+        toast.error('Verification still pending. Please complete both OTPs.')
+        return
+      }
+      login(data.user)
+      toast.success('Welcome back!')
+      window.location.href = getRedirectUrl()
+    } catch (err: any) {
+      toast.error(err.message || 'Login failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Helper: verify inline Mobile OTP ───
+  const handleVerifyInlineMobileOtp = async () => {
+    const cleanOtp = inlineMobileOtp.trim()
+    if (!cleanOtp || cleanOtp.length < 4 || cleanOtp.length > 6) {
+      toast.error('Please enter a valid OTP code')
       return
     }
-    if (data.requiresMobileVerification) {
-      toast.error('Mobile still not verified. Please try again.')
+
+    setIsVerifyingMobile(true)
+    try {
+      if (otpProvider === 'msg91') {
+        const verifyRes = await verifyMsg91Otp(cleanOtp)
+        const tokenStr = typeof verifyRes === 'string' ? verifyRes : verifyRes?.token || verifyRes?.message
+        if (tokenStr && typeof tokenStr === 'string' && tokenStr.length > 20) {
+          await fetch('/api/auth/msg91/verify-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: tokenStr, mobile: inlineVerification.mobile }),
+          }).catch(console.warn)
+        }
+      } else {
+        if (!confirmationRef.current) throw new Error('Session expired. Please resend OTP.')
+        await confirmationRef.current.confirm(cleanOtp)
+      }
+
+      const cleanNum = inlineVerification.mobile.replace(/\D/g, '')
+      await markMobileVerified(cleanNum)
+      toast.success('Mobile verified!')
+
+      const nextState = { ...inlineVerification, mobileVerified: true }
+      setInlineVerification(nextState)
+
+      // If email is also verified or not needed, complete login immediately!
+      if (!nextState.needsEmail || nextState.emailVerified) {
+        if (nextState.targetFlow === 'password') {
+          await completePasswordLogin()
+        } else if (nextState.targetFlow === 'google') {
+          setMobile(cleanNum)
+          handleGooglePopup(cleanNum)
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid Mobile OTP. Please try again.')
+    } finally {
+      setIsVerifyingMobile(false)
+    }
+  }
+
+  // ─── Helper: send inline Email OTP ───
+  const handleSendInlineEmailOtp = async () => {
+    const cleanEmail = inlineVerification.email.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Valid email address not found')
       return
     }
-    login(data.user)
-    toast.success('Welcome back!')
-    window.location.href = getRedirectUrl()
+
+    setIsSendingEmailOtp(true)
+    try {
+      const res = await fetch('/api/auth/send-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, type: 'login' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send verification email')
+
+      setInlineEmailOtpSent(true)
+      setEmailCountdown(45)
+      toast.success(`Verification code sent to ${cleanEmail}!`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send verification email')
+    } finally {
+      setIsSendingEmailOtp(false)
+    }
+  }
+
+  // ─── Helper: verify inline Email OTP ───
+  const handleVerifyInlineEmailOtp = async () => {
+    const cleanEmail = inlineVerification.email.trim().toLowerCase()
+    const cleanCode = inlineEmailOtp.trim()
+    if (!cleanCode || cleanCode.length !== 6) {
+      toast.error('Please enter the 6-digit Email OTP')
+      return
+    }
+
+    setIsVerifyingEmail(true)
+    try {
+      const res = await fetch('/api/auth/verify-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          otp: cleanCode,
+          type: 'verify',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Invalid or expired Email OTP')
+
+      toast.success('Email verified!')
+      const nextState = { ...inlineVerification, emailVerified: true }
+      setInlineVerification(nextState)
+
+      // If mobile is also verified or not needed, complete login immediately!
+      if (!nextState.needsMobile || nextState.mobileVerified) {
+        if (nextState.targetFlow === 'password') {
+          await completePasswordLogin()
+        } else if (nextState.targetFlow === 'google') {
+          setMobile(inlineVerification.mobile)
+          handleGooglePopup(inlineVerification.mobile)
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid Email OTP. Please check and try again.')
+    } finally {
+      setIsVerifyingEmail(false)
+    }
   }
 
   // ─── Helper: send Email OTP ───
@@ -355,22 +489,46 @@ export default function LoginPage() {
         return
       }
 
-      if (data.requiresMobileVerification) {
-        // Credentials are valid but mobile isn't verified
-        toast.info('Please verify your mobile number to continue.')
-        setMobile(data.mobile || '')
-        setPendingFlow('password')
-        // Send OTP immediately to the mobile on file
-        if (data.mobile) {
-          const sent = await sendFirebaseOTP(data.mobile)
-          if (sent) {
-            setView('verify-otp')
-          }
+      if (data.requiresVerification || data.requiresMobileVerification || data.requiresEmailVerification) {
+        const needsMob = !!(data.needsMobile ?? data.requiresMobileVerification)
+        const needsEm = !!(data.needsEmail ?? data.requiresEmailVerification)
+        const userMobile = data.mobile || (identifier.replace(/\D/g, '').length === 10 ? identifier.replace(/\D/g, '') : '')
+        const userEmail = data.email || (identifier.includes('@') ? identifier : '')
+
+        setMobile(userMobile)
+        setInlineVerification({
+          required: true,
+          needsMobile: needsMob,
+          needsEmail: needsEm,
+          mobile: userMobile,
+          email: userEmail,
+          mobileVerified: !needsMob,
+          emailVerified: !needsEm,
+          targetFlow: 'password',
+        })
+
+        toast.info('Please verify your unverified account details below to continue.')
+
+        if (needsMob && userMobile) {
+          sendFirebaseOTP(userMobile).catch(console.warn)
         }
+        if (needsEm && userEmail) {
+          fetch('/api/auth/send-email-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userEmail, type: 'login' }),
+          }).then((r) => {
+            if (r.ok) {
+              setInlineEmailOtpSent(true)
+              setEmailCountdown(45)
+            }
+          }).catch(console.warn)
+        }
+        setLoading(false)
         return
       }
 
-      // Mobile is verified — login complete
+      // Mobile & email are already verified — login complete directly!
       login(data.user)
       toast.success('Welcome back!')
       window.location.href = getRedirectUrl()
@@ -384,10 +542,78 @@ export default function LoginPage() {
   // ═══════════════════════════════════════════
   //  FLOW 2: GOOGLE LOGIN
   // ═══════════════════════════════════════════
-  const handleGoogleStart = () => {
+  const handleGoogleStart = async () => {
     setPendingFlow('google')
-    setMobile('')
-    setView('verify-mobile')
+
+    // Check if user already entered a 10-digit mobile in identifier input
+    const cleanMobile = identifier.replace(/\D/g, '').slice(0, 10)
+    if (cleanMobile.length === 10) {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/auth/check-mobile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile: cleanMobile }),
+        })
+        const data = await res.json()
+
+        if (!data.exists) {
+          toast.error('No account found with this mobile. Please sign up first.')
+          setLoading(false)
+          return
+        }
+
+        if (data.isVerified && data.isMobileVerified && data.isEmailVerified) {
+          // Already verified! Direct Google popup!
+          setMobile(cleanMobile)
+          setLoading(false)
+          handleGooglePopup(cleanMobile)
+          return
+        }
+
+        // Needs verification! Show inline!
+        setMobile(cleanMobile)
+        const needsMob = !data.isMobileVerified
+        const needsEm = !data.isEmailVerified
+
+        setInlineVerification({
+          required: true,
+          needsMobile: needsMob,
+          needsEmail: needsEm,
+          mobile: cleanMobile,
+          email: data.email || '',
+          mobileVerified: !needsMob,
+          emailVerified: !needsEm,
+          targetFlow: 'google',
+        })
+
+        toast.info('Please verify your account details below to continue with Google.')
+
+        if (needsMob) {
+          sendFirebaseOTP(cleanMobile).catch(console.warn)
+        }
+        if (needsEm && data.email) {
+          fetch('/api/auth/send-email-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: data.email, type: 'login' }),
+          }).then((r) => {
+            if (r.ok) {
+              setInlineEmailOtpSent(true)
+              setEmailCountdown(45)
+            }
+          }).catch(console.warn)
+        }
+        setLoading(false)
+        return
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to check mobile')
+        setLoading(false)
+      }
+    } else {
+      setMobile('')
+      setView('verify-mobile')
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -426,13 +652,13 @@ export default function LoginPage() {
         return
       }
 
-      if (data.isVerified) {
+      if (data.isVerified && data.isMobileVerified && data.isEmailVerified) {
         // Already verified — go straight to Social popup
         setMaskedEmail(data.maskedEmail || '')
         if (pendingFlow === 'instagram') {
           setView('instagram-ready')
         } else {
-          setView('google-ready')
+          handleGooglePopup(cleanMobile)
         }
       } else {
         // Not verified — send OTP first
@@ -448,7 +674,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleGooglePopup = async () => {
+  const handleGooglePopup = async (overrideMobile?: string) => {
     setLoading(true)
     try {
       const result = await signInWithPopup(auth, googleProvider)
@@ -459,7 +685,8 @@ export default function LoginPage() {
         return
       }
 
-      const cleanMobile = mobile.replace(/\D/g, '')
+      const activeMobile = overrideMobile || mobile || inlineVerification.mobile
+      const cleanMobile = activeMobile ? activeMobile.replace(/\D/g, '') : ''
       const res = await fetch('/api/auth/google-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -568,18 +795,34 @@ export default function LoginPage() {
   // ═══════════════════════════════════════════
   const handleVerifyOTP = async () => {
     if (!otp.trim()) {
-      toast.error('Please enter the 6-digit OTP code')
+      toast.error('Please enter the OTP code')
       return
     }
-    if (otp.length !== 6) {
-      toast.error('OTP must be exactly 6 digits')
+    if (otp.length < 4 || otp.length > 6) {
+      toast.error('Please enter a valid OTP code')
       return
     }
 
     setLoading(true)
     try {
-      if (!confirmationRef.current) throw new Error('Session expired. Please start over.')
-      await confirmationRef.current.confirm(otp)
+      if (otpProvider === 'msg91') {
+        // 1. Verify via MSG91 Custom UI method
+        const verifyRes = await verifyMsg91Otp(otp)
+
+        // Optionally verify access token server-side if returned
+        const tokenStr = typeof verifyRes === 'string' ? verifyRes : verifyRes?.token || verifyRes?.message
+        if (tokenStr && typeof tokenStr === 'string' && tokenStr.length > 20) {
+          await fetch('/api/auth/msg91/verify-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: tokenStr, mobile }),
+          }).catch((e) => console.warn('[MSG91] Server verify notice:', e))
+        }
+      } else {
+        // 2. Verify via Firebase confirmation
+        if (!confirmationRef.current) throw new Error('Session expired. Please resend OTP.')
+        await confirmationRef.current.confirm(otp)
+      }
 
       const cleanMobile = mobile.replace(/\D/g, '')
       // Mark mobile verified in DB
@@ -792,6 +1035,156 @@ export default function LoginPage() {
                           Forgot Password?
                         </Link>
                       </div>
+
+                      {/* INLINE VERIFICATION PANEL (Only appears if unverified) */}
+                      {inlineVerification.required && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 space-y-3.5 shadow-sm text-left">
+                          <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+                            <div className="flex items-center gap-2">
+                              <Shield className="h-4 w-4 text-amber-600" />
+                              <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                                Account Verification
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setInlineVerification((prev) => ({ ...prev, required: false }))}
+                              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+
+                          {/* Mobile Verification Block */}
+                          {inlineVerification.needsMobile && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                  <Phone className="h-3.5 w-3.5 text-slate-600" /> +91 {inlineVerification.mobile}
+                                </span>
+                                {inlineVerification.mobileVerified ? (
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                    Mobile Unverified
+                                  </span>
+                                )}
+                              </div>
+
+                              {!inlineVerification.mobileVerified && (
+                                <div className="space-y-1.5 pt-1">
+                                  <div className="flex gap-2">
+                                    <Input
+                                      value={inlineMobileOtp}
+                                      onChange={(e) => setInlineMobileOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                      placeholder="Mobile OTP"
+                                      maxLength={6}
+                                      className="bg-white border-slate-300 text-slate-900 h-10 rounded-lg text-center font-mono tracking-widest text-sm focus-visible:ring-amber-500"
+                                      onKeyDown={(e) => e.key === 'Enter' && handleVerifyInlineMobileOtp()}
+                                    />
+                                    <Button
+                                      type="button"
+                                      onClick={handleVerifyInlineMobileOtp}
+                                      disabled={isVerifyingMobile || inlineMobileOtp.length < 4}
+                                      className="h-10 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer shadow-sm disabled:opacity-50"
+                                    >
+                                      {isVerifyingMobile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Verify'}
+                                    </Button>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[10px] px-1 text-slate-500">
+                                    <span>Sent via WhatsApp/SMS</span>
+                                    {countdown > 0 ? (
+                                      <span className="text-slate-400 font-medium">Resend in {countdown}s</span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => sendFirebaseOTP(inlineVerification.mobile, true)}
+                                        disabled={isSendingOtp}
+                                        className="font-bold text-amber-700 hover:underline cursor-pointer"
+                                      >
+                                        {isSendingOtp ? 'Sending...' : 'Resend OTP'}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Email Verification Block */}
+                          {inlineVerification.needsEmail && (
+                            <div className="space-y-2 pt-2 border-t border-amber-200/60">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-slate-800 flex items-center gap-1.5 truncate max-w-[200px]">
+                                  <Mail className="h-3.5 w-3.5 text-slate-600 shrink-0" /> {inlineVerification.email}
+                                </span>
+                                {inlineVerification.emailVerified ? (
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3" /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                    Email Unverified
+                                  </span>
+                                )}
+                              </div>
+
+                              {!inlineVerification.emailVerified && (
+                                <div className="space-y-1.5 pt-1">
+                                  {!inlineEmailOtpSent ? (
+                                    <Button
+                                      type="button"
+                                      onClick={handleSendInlineEmailOtp}
+                                      disabled={isSendingEmailOtp}
+                                      className="w-full h-9 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs cursor-pointer shadow-sm disabled:opacity-50"
+                                    >
+                                      {isSendingEmailOtp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Send Email Verification Code'}
+                                    </Button>
+                                  ) : (
+                                    <>
+                                      <div className="flex gap-2">
+                                        <Input
+                                          value={inlineEmailOtp}
+                                          onChange={(e) => setInlineEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                          placeholder="Email OTP"
+                                          maxLength={6}
+                                          className="bg-white border-slate-300 text-slate-900 h-10 rounded-lg text-center font-mono tracking-widest text-sm focus-visible:ring-amber-500"
+                                          onKeyDown={(e) => e.key === 'Enter' && handleVerifyInlineEmailOtp()}
+                                        />
+                                        <Button
+                                          type="button"
+                                          onClick={handleVerifyInlineEmailOtp}
+                                          disabled={isVerifyingEmail || inlineEmailOtp.length !== 6}
+                                          className="h-10 px-4 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs cursor-pointer shadow-sm disabled:opacity-50"
+                                        >
+                                          {isVerifyingEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Verify'}
+                                        </Button>
+                                      </div>
+                                      <div className="flex justify-between items-center text-[10px] px-1 text-slate-500">
+                                        <span>Check inbox & spam folder</span>
+                                        {emailCountdown > 0 ? (
+                                          <span className="text-slate-400 font-medium">Resend in {emailCountdown}s</span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={handleSendInlineEmailOtp}
+                                            disabled={isSendingEmailOtp}
+                                            className="font-bold text-amber-700 hover:underline cursor-pointer"
+                                          >
+                                            {isSendingEmailOtp ? 'Sending...' : 'Resend Email OTP'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <Button
                         type="submit"
@@ -1056,7 +1449,7 @@ export default function LoginPage() {
                   )}
                 </div>
                 <Button
-                  onClick={handleGooglePopup}
+                  onClick={() => handleGooglePopup()}
                   disabled={loading}
                   className="w-full h-12 rounded-md bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-200 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >

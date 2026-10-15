@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     // Query Supabase for the user
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, is_mobile_verified')
+      .select('id, email, is_mobile_verified, is_email_verified')
       .eq('mobile', mobile)
       .single()
 
@@ -24,19 +24,21 @@ export async function POST(request: Request) {
     }
 
     if (!user) {
-      return NextResponse.json({ exists: false, isVerified: false })
+      return NextResponse.json({ exists: false, isVerified: false, isMobileVerified: false, isEmailVerified: false })
     }
 
-    // If email was provided, verify it matches (for optional verification)
-    if (email) {
-      const isMatch = user.email?.toLowerCase() === email.toLowerCase()
-      return NextResponse.json({ exists: true, emailVerified: isMatch, isVerified: user.is_mobile_verified })
-    }
+    const isPlaceholderEmail = !user.email || user.email.endsWith('@instagram.1to7.com')
+    const emailVerified = isPlaceholderEmail ? true : !!user.is_email_verified
+    const mobileVerified = !!user.is_mobile_verified
+
     // Return sanitized status without exposing internal database userId
     return NextResponse.json({ 
       exists: true, 
       maskedEmail: maskEmail(user.email || ''), 
-      isVerified: user.is_mobile_verified 
+      email: user.email,
+      isVerified: mobileVerified && emailVerified, 
+      isMobileVerified: mobileVerified,
+      isEmailVerified: emailVerified
     })
   } catch (error) {
     console.error('API /auth/check-mobile Error:', error)

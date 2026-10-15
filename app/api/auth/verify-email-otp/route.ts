@@ -36,9 +36,20 @@ export async function POST(request: Request) {
       .update({ is_used: true })
       .eq('id', otpData.id)
 
-    // 3. For signup: OTP is verified, return success without creating session yet
-    // (the signup route will create the user and issue the auth session)
+    // 3. For signup or verify: OTP is verified, return success without creating session yet
     if (type === 'signup') {
+      return NextResponse.json({
+        success: true,
+        message: 'Email verified successfully',
+      })
+    }
+
+    if (type === 'verify') {
+      await supabase
+        .from('users')
+        .update({ is_email_verified: true })
+        .ilike('email', cleanEmail)
+
       return NextResponse.json({
         success: true,
         message: 'Email verified successfully',

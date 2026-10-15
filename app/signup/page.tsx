@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { Sparkles, Loader2, Phone, Shield, CheckCircle2, ArrowRight, Lock, User as UserIcon, ArrowLeft, Eye, EyeOff, Mail, Instagram, Clock } from 'lucide-react'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
-import type { ConfirmationResult } from '@/lib/firebase'
+import { initMsg91Widget, sendMsg91Otp, verifyMsg91Otp, retryMsg91Otp } from '@/lib/utils/msg91-otp'
 
 declare global {
   interface Window {
@@ -42,9 +42,10 @@ export default function SignupPage() {
   const [isResendingMobile, setIsResendingMobile] = useState(false)
   const [isResendingEmail, setIsResendingEmail] = useState(false)
   const [mobileResendAttempts, setMobileResendAttempts] = useState(0)
+  const [otpProvider, setOtpProvider] = useState<'msg91' | 'firebase'>('msg91')
 
   const [loading, setLoading] = useState(false)
-  const confirmationRef = useRef<ConfirmationResult | null>(null)
+  const confirmationRef = useRef<any>(null)
   const { login } = useAuth()
 
   // Countdowns
@@ -62,55 +63,36 @@ export default function SignupPage() {
     }
   }, [emailCountdown])
 
-  // Helper to get or re-initialize a safe RecaptchaVerifier
-  const getOrCreateRecaptchaVerifierSignup = () => {
-    if (window.recaptchaVerifierSignup) {
-      return window.recaptchaVerifierSignup
-    }
-
-    const container = document.getElementById('recaptcha-container-signup')
-    if (container && container.parentNode && container.childNodes.length > 0) {
-      const freshContainer = document.createElement('div')
-      freshContainer.id = 'recaptcha-container-signup'
-      container.parentNode.replaceChild(freshContainer, container)
-    }
-
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
-      size: 'invisible',
-      callback: () => { },
-      'expired-callback': () => {
-        toast.error('Security verification expired. Please try again.')
-      }
-    })
-
-    window.recaptchaVerifierSignup = verifier
-    return verifier
-  }
-
-  const resetRecaptchaSignup = () => {
-    try {
-      if (window.recaptchaVerifierSignup) {
-        window.recaptchaVerifierSignup.clear()
-        window.recaptchaVerifierSignup = null
-      }
-    } catch (e) {}
-    const container = document.getElementById('recaptcha-container-signup')
-    if (container && container.parentNode) {
-      const freshContainer = document.createElement('div')
-      freshContainer.id = 'recaptcha-container-signup'
-      container.parentNode.replaceChild(freshContainer, container)
-    }
-  }
-
-  // Cleanup reCAPTCHA on unmount
+  // Initialize MSG91 OTP Widget SDK on mount
   useEffect(() => {
-    return () => {
-      if (window.recaptchaVerifierSignup) {
-        try { window.recaptchaVerifierSignup.clear() } catch (e) { }
-        window.recaptchaVerifierSignup = null
-      }
-    }
+    initMsg91Widget().catch((e) => console.warn('[MSG91] Signup Init notice:', e))
   }, [])
+
+  // Helper to initialize reCAPTCHA for Firebase fallback
+  const getOrCreateRecaptchaVerifierSignup = () => {
+    if (typeof window === 'undefined') return null
+    if (window.recaptchaVerifierSignup) return window.recaptchaVerifierSignup
+    try {
+      const container = document.getElementById('recaptcha-container-signup')
+      if (container && container.parentNode && container.childNodes.length > 0) {
+        const freshContainer = document.createElement('div')
+        freshContainer.id = 'recaptcha-container-signup'
+        container.parentNode.replaceChild(freshContainer, container)
+      }
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-signup', {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {
+          toast.error('Security verification expired. Please try again.')
+        },
+      })
+      window.recaptchaVerifierSignup = verifier
+      return verifier
+    } catch (e) {
+      console.error('[Firebase Fallback Signup] reCAPTCHA init error:', e)
+      return null
+    }
+  }
 
   // ─── Step 1: Submit Details & Send OTPs ───
   const handleDetailsSubmit = async (e: React.FormEvent) => {
@@ -182,13 +164,37 @@ export default function SignupPage() {
   }
 
   const sendFirebaseOTP = async (mobileNum: string, isResend = false) => {
-    const verifier = getOrCreateRecaptchaVerifierSignup()
-    const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
-    confirmationRef.current = confirmation
-    if (!isResend) {
-      setCountdown(45)
+    // 1. Primary: Try MSG91 first
+    try {
+      if (isResend && otpProvider === 'msg91') {
+        await retryMsg91Otp()
+      } else {
+        await sendMsg91Otp(mobileNum)
+        setOtpProvider('msg91')
+      }
+      if (!isResend) {
+        setCountdown(45)
+      }
+      return true
+    } catch (msg91Err: any) {
+      console.warn('[Signup OTP] MSG91 failed, triggering fallback to Firebase Phone Auth:', msg91Err)
+
+      // 2. Fallback: Firebase Phone Auth
+      try {
+        const verifier = getOrCreateRecaptchaVerifierSignup()
+        if (!verifier) throw new Error('Verification fallback service unavailable')
+        const confirmation = await signInWithPhoneNumber(auth, `+91${mobileNum}`, verifier)
+        confirmationRef.current = confirmation
+        setOtpProvider('firebase')
+        if (!isResend) {
+          setCountdown(45)
+        }
+        return true
+      } catch (fbErr: any) {
+        console.error('[Signup OTP] Both providers failed:', fbErr)
+        throw new Error(fbErr?.message || msg91Err?.message || 'Failed to send OTP')
+      }
     }
-    return confirmation
   }
 
   const sendEmailOTP = async (emailAddr: string) => {
@@ -227,26 +233,16 @@ export default function SignupPage() {
 
     const toastId = toast.loading('Resending Mobile OTP...')
     try {
-      await sendFirebaseOTP(cleanMobile, true)
-      toast.success(`New OTP sent to +91 ${cleanMobile}`, { id: toastId })
-    } catch (err: any) {
-      console.error('Firebase OTP error:', err)
-      resetRecaptchaSignup()
-
-      if (err?.code === 'auth/too-many-requests' || err?.message?.includes('too-many-requests')) {
-        toast.error(
-          'Too many OTP attempts on this number. Firebase has temporarily paused requests for security. Please wait a few minutes before trying again.',
-          { id: toastId, duration: 7000 }
-        )
-      } else if (err?.code === 'auth/quota-exceeded' || err?.message?.includes('quota-exceeded')) {
-        toast.error('Daily SMS quota reached. Please contact support or try again later.', { id: toastId, duration: 6000 })
-      } else if (err?.code === 'auth/invalid-phone-number') {
-        toast.error('Invalid mobile number format. Please ensure it is a 10-digit number.', { id: toastId })
-      } else if (err?.code === 'auth/captcha-check-failed') {
-        toast.error('Security verification failed. Please refresh the page.', { id: toastId })
+      if (otpProvider === 'msg91') {
+        await retryMsg91Otp()
+        toast.success(`New OTP sent to +91 ${cleanMobile} via WhatsApp/SMS`, { id: toastId })
       } else {
-        toast.error(err.message || 'Failed to resend Mobile OTP.', { id: toastId })
+        await sendFirebaseOTP(cleanMobile, true)
+        toast.success(`New OTP sent via SMS to +91 ${cleanMobile}`, { id: toastId })
       }
+    } catch (err: any) {
+      console.error('OTP resend error:', err)
+      toast.error(err.message || 'Failed to resend Mobile OTP.', { id: toastId })
     } finally {
       setIsResendingMobile(false)
     }
@@ -287,8 +283,8 @@ export default function SignupPage() {
       toast.error('Please enter the Mobile OTP')
       return
     }
-    if (mobileOtp.length !== 6) {
-      toast.error('Mobile OTP must be exactly 6 digits')
+    if (mobileOtp.length < 4 || mobileOtp.length > 6) {
+      toast.error('Please enter a valid Mobile OTP (4 to 6 digits)')
       return
     }
     if (!emailOtp.trim()) {
@@ -302,9 +298,13 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      // 1. Verify Mobile OTP via Firebase
-      if (!confirmationRef.current) throw new Error('Mobile session expired. Please go back and try again.')
-      await confirmationRef.current.confirm(mobileOtp)
+      // 1. Verify Mobile OTP (MSG91 with Firebase Fallback)
+      if (otpProvider === 'msg91') {
+        await verifyMsg91Otp(mobileOtp)
+      } else {
+        if (!confirmationRef.current) throw new Error('Mobile session expired. Please go back and try again.')
+        await confirmationRef.current.confirm(mobileOtp)
+      }
 
       // 2. Verify Email OTP via Backend
       const verifyRes = await fetch('/api/auth/verify-email-otp', {

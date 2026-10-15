@@ -7,15 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase'
-import type { ConfirmationResult } from '@/lib/firebase'
+import { initMsg91Widget, sendMsg91Otp, verifyMsg91Otp, retryMsg91Otp } from '@/lib/utils/msg91-otp'
 import { useAuth } from '@/components/providers/AuthProvider'
 import Link from 'next/link'
-
-declare global {
-  interface Window {
-    recaptchaVerifier: any;
-  }
-}
 
 export default function VerifyMobilePage() {
   const [mobile, setMobile] = useState('')
@@ -27,8 +21,14 @@ export default function VerifyMobilePage() {
   const [resendAttempts, setResendAttempts] = useState(0)
   const [error, setError] = useState('')
   const [countdown, setCountdown] = useState(0)
-  const confirmationRef = useRef<ConfirmationResult | null>(null)
+  const [otpProvider, setOtpProvider] = useState<'msg91' | 'firebase'>('msg91')
+  const confirmationRef = useRef<any>(null)
   const { refreshUserProfile } = useAuth()
+
+  // Initialize MSG91 Widget SDK
+  useEffect(() => {
+    initMsg91Widget().catch(console.warn)
+  }, [])
 
   // Countdown timer
   useEffect(() => {
@@ -38,33 +38,31 @@ export default function VerifyMobilePage() {
     }
   }, [countdown])
 
-  // Initialize invisible reCAPTCHA
-  useEffect(() => {
-    if (step === 'input' && !window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-          'expired-callback': () => {
-            setError('reCAPTCHA expired. Please try again.')
-            if (window.recaptchaVerifier) {
-              window.recaptchaVerifier.clear()
-              window.recaptchaVerifier = null
-            }
-          }
-        })
-      } catch (e) {
-        console.error('reCAPTCHA init error:', e)
+  // Helper to initialize reCAPTCHA for Firebase fallback
+  const getOrCreateRecaptchaVerifier = () => {
+    if (typeof window === 'undefined') return null
+    if (window.recaptchaVerifier) return window.recaptchaVerifier
+    try {
+      const container = document.getElementById('recaptcha-container')
+      if (container && container.parentNode && container.childNodes.length > 0) {
+        const freshContainer = document.createElement('div')
+        freshContainer.id = 'recaptcha-container'
+        container.parentNode.replaceChild(freshContainer, container)
       }
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {
+          setError('reCAPTCHA expired. Please try again.')
+        },
+      })
+      window.recaptchaVerifier = verifier
+      return verifier
+    } catch (e) {
+      console.error('[Firebase Fallback] reCAPTCHA init error:', e)
+      return null
     }
-
-    return () => {
-      if (window.recaptchaVerifier) {
-        try { window.recaptchaVerifier.clear() } catch (e) {}
-        window.recaptchaVerifier = null
-      }
-    }
-  }, [step])
+  }
 
   const handleSendOTP = async () => {
     const cleanMobile = mobile.replace(/\D/g, '')
@@ -80,25 +78,29 @@ export default function VerifyMobilePage() {
     setSending(true)
     setError('')
 
+    // 1. Primary: Try MSG91
     try {
-      if (!window.recaptchaVerifier) {
-        throw new Error('Verification service not ready. Please refresh the page.')
-      }
-
-      const phoneNumber = `+91${cleanMobile}`
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier)
-      confirmationRef.current = confirmation
+      await sendMsg91Otp(cleanMobile)
+      setOtpProvider('msg91')
       setStep('otp')
       setCountdown(45)
-      toast.success('OTP sent to your mobile number')
-    } catch (err: any) {
-      console.error('Send OTP Error:', err)
-      if (err.code === 'auth/too-many-requests') {
-        setError('Too many attempts. Please try again later.')
-      } else if (err.code === 'auth/invalid-phone-number') {
-        setError('Invalid phone number format.')
-      } else {
-        setError(err.message || 'Failed to send OTP. Please try again.')
+      toast.success('OTP sent to your mobile via WhatsApp/SMS')
+    } catch (msg91Err: any) {
+      console.warn('[VerifyMobile OTP] MSG91 failed, triggering fallback to Firebase Phone Auth:', msg91Err)
+
+      // 2. Fallback: Firebase Phone Auth
+      try {
+        const verifier = getOrCreateRecaptchaVerifier()
+        if (!verifier) throw new Error('Verification fallback service unavailable')
+        const confirmation = await signInWithPhoneNumber(auth, `+91${cleanMobile}`, verifier)
+        confirmationRef.current = confirmation
+        setOtpProvider('firebase')
+        setStep('otp')
+        setCountdown(45)
+        toast.success('OTP sent via SMS to your mobile')
+      } catch (fbErr: any) {
+        console.error('[VerifyMobile OTP] Both providers failed:', fbErr)
+        setError(fbErr?.message || msg91Err?.message || 'Failed to send OTP. Please try again.')
       }
     } finally {
       setSending(false)
@@ -121,22 +123,16 @@ export default function VerifyMobilePage() {
 
     const toastId = toast.loading('Resending OTP...')
     try {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {},
-        })
+      if (otpProvider === 'msg91') {
+        await retryMsg91Otp()
+        toast.success('New OTP sent to your mobile via WhatsApp/SMS', { id: toastId })
+      } else {
+        await handleSendOTP()
+        toast.success('New OTP sent via SMS to your mobile', { id: toastId })
       }
-      const confirmation = await signInWithPhoneNumber(auth, `+91${cleanMobile}`, window.recaptchaVerifier)
-      confirmationRef.current = confirmation
-      toast.success('New OTP sent to your mobile', { id: toastId })
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
-      if (err.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.', { id: toastId })
-      } else {
-        toast.error(err.message || 'Failed to resend OTP', { id: toastId })
-      }
+      toast.error(err?.message || 'Failed to resend OTP', { id: toastId })
     } finally {
       setIsResending(false)
     }
@@ -144,13 +140,13 @@ export default function VerifyMobilePage() {
 
   const handleVerifyOTP = async () => {
     if (!otp.trim()) {
-      toast.error('Please enter the 6-digit OTP')
-      setError('Please enter the 6-digit OTP')
+      toast.error('Please enter the OTP')
+      setError('Please enter the OTP')
       return
     }
-    if (otp.length !== 6) {
-      toast.error('OTP must be exactly 6 digits')
-      setError('Please enter a valid 6-digit OTP')
+    if (otp.length < 4 || otp.length > 6) {
+      toast.error('Please enter a valid OTP code')
+      setError('Please enter a valid OTP code')
       return
     }
 
@@ -158,12 +154,12 @@ export default function VerifyMobilePage() {
     setError('')
 
     try {
-      if (!confirmationRef.current) {
-        setError('Session expired. Please resend OTP.')
-        return
+      if (otpProvider === 'msg91') {
+        await verifyMsg91Otp(otp)
+      } else {
+        if (!confirmationRef.current) throw new Error('Session expired. Please resend OTP.')
+        await confirmationRef.current.confirm(otp)
       }
-
-      await confirmationRef.current.confirm(otp)
 
       // OTP verified — update our database with the mobile number
       const res = await fetch('/api/auth/verify-mobile', {

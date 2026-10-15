@@ -29,13 +29,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
-    // Gate: mobile must be verified before allowing full login
-    if (!user.is_mobile_verified) {
+    // Gate: mobile and email must be verified before allowing full login
+    const needsMobile = !user.is_mobile_verified && !!user.mobile
+    const isPlaceholderEmail = !user.email || user.email.endsWith('@instagram.1to7.com')
+    const needsEmail = !user.is_email_verified && !!user.email && !isPlaceholderEmail
+
+    if (needsMobile || needsEmail) {
       return NextResponse.json({
         success: false,
-        requiresMobileVerification: true,
+        requiresVerification: true,
+        requiresMobileVerification: needsMobile,
+        requiresEmailVerification: needsEmail,
+        needsMobile,
+        needsEmail,
         mobile: user.mobile,
-        message: 'Please verify your mobile number to continue.'
+        email: user.email,
+        message: 'Verification required to continue.'
       }, { status: 200 })
     }
 
