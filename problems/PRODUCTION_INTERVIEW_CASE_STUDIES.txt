@@ -1,0 +1,282 @@
+====================================================================================================
+                      1TO7 PRODUCTION ENGINEERING: REAL-WORLD CASE STUDIES & INTERVIEW GUIDE
+====================================================================================================
+This document contains detailed production problems, root-cause analyses, architectural solutions,
+and interview-ready STAR-format answers from the 1to7 Influencer Marketing Platform.
+Use these real-world case studies for Senior Full-Stack / Backend / Next.js / PostgreSQL interviews.
+====================================================================================================
+
+INDEX OF CASE STUDIES:
+----------------------------------------------------------------------------------------------------
+CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST (Data Disappearance)
+CASE 2: PostgreSQL UUID Type-Casting 500 Error (Dual Slug / UUID Resolution)
+CASE 3: Real-Time Tab Filter Blindspot & Dynamic Cross-Status Search UX
+CASE 4: Creator Ghosting Event Sourcing, Proof Audit Trail & Access Blocking Gatekeeper
+CASE 5: Race Condition in Zero-Gap Sequential ID Generation (HY10891 Trigger Engine)
+CASE 6: CSV Export Column Shifting, Object Object Bug, and UTF-8 BOM Encoding
+CASE 7: Browser Tab Sequencing & Asynchronous Web Worker Flow for Bulk Instagram Verification
+CASE 8: Dual OTP Gateway Failover Architecture (MSG91 + Firebase ReCAPTCHA)
+CASE 9: OAuth Code Fragment Sanitization (#_) and Instagram Graph API Token Consistency
+CASE 10: Commercial Double-Gatekeeper Peer Review for Variable Payout Approval
+
+====================================================================================================
+CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
+====================================================================================================
+CATEGORIES: Backend / Supabase / PostgREST / Database Scaling / Pagination
+INTERVIEW QUESTION: "Tell me about a high-severity data bug in production that looked like data corruption but was an architectural constraint."
+
+[SITUATION]
+Admin complained that creator Sanchita Sanyal (HY10891) had applied to multiple campaigns (Origami, Lavie), but searching for her ID on the main Applications Admin portal returned "No applications found". In the creator's mobile virtual view, her applications were active.
+
+[ROOT CAUSE INVESTIGATION]
+1. Audited PostgreSQL direct via SQL: The user and all 5 of her applications existed in the database table `applications`.
+2. Total rows in `applications` had recently reached 1,745.
+3. The API route `/api/admin/applications` called:
+      supabase.from('applications').select(...).order('created_at', { ascending: false })
+4. By design, Supabase's PostgREST proxy enforces a strict server-side hard ceiling of `max-rows: 1000`. Even if you do not specify a `.limit()`, PostgREST silently truncates the result set to the first 1,000 records.
+5. Sanchita applied to Origami and Lavie on September 22, 2026. Because 1,000 new applications had been created since October 7, her applications were at index ~1,350 in chronological order.
+6. PostgREST silently dropped records 1001 through 1745. The frontend never received them.
+
+[SOLUTION & ARCHITECTURE]
+1. Implemented Automatic Parallel Chunked Fetching:
+   - Step 1: Execute a lightweight `select('*', { count: 'exact', head: true })` to get total row count.
+   - Step 2: Compute `chunksNeeded = Math.ceil(totalCount / 1000)`.
+   - Step 3: Dispatch parallel queries using `Promise.all` over disjoint ranges:
+             `range(0, 999)`, `range(1000, 1999)`, etc.
+   - Step 4: Combine the chunk results into a complete, zero-loss collection.
+2. Optimized User History Enrichment:
+   - In the all-applications view, avoid making secondary `.in('user_id', userIds)` network queries (which also get clamped at 1000). Instead, compute cross-campaign user workload directly from the in-memory combined array.
+3. Added Database Performance B-Tree Indexes:
+   - `CREATE INDEX idx_applications_created_at ON applications(created_at DESC);`
+   - `CREATE INDEX idx_applications_campaign_created ON applications(campaign_id, created_at DESC);`
+   - `CREATE INDEX idx_applications_status ON applications(status);`
+
+[INTERVIEW STAR TAKEAWAY]
+- Situation: High-traffic app where older records disappeared once table exceeded 1000 rows.
+- Task: Identify why data was missing despite existing in PostgreSQL and ensure zero data loss.
+- Action: Discovered PostgREST proxy max-rows cap; engineered parallel chunked range queries and added compound indexes.
+- Result: 100% data fidelity restored immediately, query executed in <350ms for 1,745+ rows.
+
+====================================================================================================
+CASE 2: PostgreSQL UUID Type-Casting 500 Crash (Dual Slug / UUID Resolution)
+====================================================================================================
+CATEGORIES: PostgreSQL / API Routing / Data Validation / Next.js
+INTERVIEW QUESTION: "How do you handle API parameters that could be either an internal UUID or a human-friendly slug/code without database runtime crashes?"
+
+[SITUATION]
+Admin portal provides URLs like `/admin/applications/[campaign_id]`. Admins sometimes clicked links or shared URLs containing the campaign's human-readable code (e.g., `F10024C201` for Origami) instead of its UUID `cbf96c0c-961f-4b50-943d-7c17b47bdd9f`. This threw a 500 Internal Server Error.
+
+[ROOT CAUSE]
+PostgreSQL strictly validates types. The route passed the URL parameter directly into `.eq('id', campaign_id)` and `.eq('campaign_id', campaign_id)`.
+Because `campaigns.id` and `applications.campaign_id` are typed as `uuid` columns:
+   Error: invalid input syntax for type uuid: "F10024C201" (Postgres error code 22P02)
+This aborted the query and returned a 500 error, displaying an empty table to the admin.
+
+[SOLUTION & ARCHITECTURE]
+1. Implemented Dual Identifier Resolution using UUID Regex:
+   ```ts
+   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+   let campQuery = supabase.from('campaigns').select('id, brand_name, campaign_code, ...');
+   if (isUuid) {
+     campQuery = campQuery.eq('id', rawId);
+   } else {
+     campQuery = campQuery.eq('campaign_code', rawId);
+   }
+   const { data: campaign } = await campQuery.maybeSingle();
+   const resolvedCampaignId = campaign ? campaign.id : (isUuid ? rawId : null);
+   ```
+2. Applied the same pattern to the CSV export streaming route (`/api/admin/campaigns/export`):
+   Dynamically bound either `a.campaign_id = $1` or `c.campaign_code = $1` depending on UUID regex validation.
+3. Added database index:
+   `CREATE INDEX idx_campaigns_code ON campaigns(campaign_code);`
+
+[INTERVIEW STAR TAKEAWAY]
+- Key concept: Defensive parameter resolution. Never trust route parameters to be formatted as UUIDs. Always inspect and resolve polymorphic identifiers prior to binding in SQL clauses.
+
+====================================================================================================
+CASE 3: Real-Time Tab Filter Blindspot & Dynamic Cross-Status Search UX
+====================================================================================================
+CATEGORIES: Frontend Architecture / React / User Experience / State Management
+INTERVIEW QUESTION: "How do you prevent 'false negative' search results in applications with tab-based filtering?"
+
+[SITUATION]
+Admins reported that creators who applied were not found when searching by Influencer ID or Phone number.
+Creators were actually in the database, but admins were looking on the "Applied" tab while the creator was in "Under Process" or "Rejected". The admin concluded "the creator never applied" because the UI returned 0 results.
+
+[ROOT CAUSE]
+Frontend applied status filter before search:
+   `result = applications.filter(a => a.status === activeStatus).filter(a => matchesSearch(a))`
+Because `activeStatus` defaults to `Applied`, any creator in `Rejected` (e.g., Bioderma rejection) was pruned before the search ran.
+
+[SOLUTION & ARCHITECTURE]
+1. Built `matchesApplicationSearch(app, query)` utility checking across full name, ID, handle, email, phone, and remarks.
+2. Dynamic Tab Badges with Query Awareness:
+   - When no search is active: Tabs display total count per status (`Applied (850)`).
+   - When a search is active: Tabs dynamically recompute counts strictly for the searched entity:
+     e.g., `Applied (1) | Under Process (1) | Rejected (1) | Approved (0)`
+3. Cross-Status Intelligence Banner:
+   If the currently selected tab yields 0 records but other tabs contain matches:
+   Render an alert banner:
+   "0 results in 'Applied', but found 2 applicants matching 'HY10891' in other statuses: [View in All (2)] [View in Rejected (1)]"
+4. Empty State Action:
+   Added a primary button directly inside the empty state: "Search across All Statuses".
+
+[INTERVIEW STAR TAKEAWAY]
+- Shows user empathy and enterprise UX thinking: converting an application from an annoying search failure into a proactive status guide.
+
+====================================================================================================
+CASE 4: Creator Ghosting Event Sourcing, Proof Audit Trail & Access Blocking Gatekeeper
+====================================================================================================
+CATEGORIES: System Design / Event Sourcing / Integrity Controls / State Machine
+INTERVIEW QUESTION: "How do you build an abuse prevention and audit system for contract non-compliance?"
+
+[SITUATION]
+Influencers applied, received products or advance commercial payouts, and stopped responding ("ghosted" the brand). Admin teams needed a system to mark ghosting, maintain strict evidence, prevent accidental ghosting, and block ghosted users from taking new brand budgets.
+
+[SOLUTION & ARCHITECTURE]
+1. Database Schema (`application_ghost_events` table):
+   - `id`, `application_id`, `user_id`, `event_type` ('ghosted' | 'unghosted'), `reason`, `evidence_url`, `notes`, `performed_by`, `performed_at`.
+2. State Transition Integrity on `applications`:
+   - `is_ghosted` (boolean), `ghosted_at` (timestamptz), `ghost_reason` (text).
+3. Gatekeeper in Application Middleware:
+   - When any user attempts to apply (`POST /api/campaigns/[id]/apply`), run check:
+     `SELECT count(*) FROM applications WHERE user_id = $1 AND is_ghosted = true;`
+   - If > 0: Reject application with 403 Forbidden: "Account restricted due to unfulfilled collaboration deliverables."
+4. Unghosting Audit Trail:
+   - Admins can unghost only by submitting a formal resolution reason (e.g. "Delivered draft after phone follow-up"), keeping full chronological history of both ghost and unghost actions.
+
+====================================================================================================
+CASE 5: Race Condition in Zero-Gap Sequential ID Generation (HY10891 Trigger Engine)
+====================================================================================================
+CATEGORIES: Database Concurrency / PostgreSQL Triggers / ACID Transactions
+INTERVIEW QUESTION: "How do you guarantee strictly sequential, gapless, formatted IDs (like HY10001, HY10002) under concurrent web traffic?"
+
+[SITUATION]
+Influencers receive a formatted ID like `HY10891`. When thousands of influencers registered concurrently during marketing campaigns, standard application-level logic:
+   `const last = await db.query('SELECT MAX(influencer_seq_num) ...'); const next = last + 1;`
+caused duplicate key violations and race conditions (multiple users receiving identical IDs).
+
+[SOLUTION & ARCHITECTURE]
+1. Created dedicated PostgreSQL sequence:
+   `CREATE SEQUENCE influencer_id_seq START WITH 10001;`
+2. Implemented `BEFORE INSERT` Trigger at the database level:
+   ```sql
+   CREATE OR REPLACE FUNCTION set_influencer_sequential_id()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     IF NEW.influencer_seq_num IS NULL THEN
+       NEW.influencer_seq_num := nextval('influencer_id_seq');
+       NEW.influencer_id := 'HY' || NEW.influencer_seq_num::text;
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+   ```
+3. Guaranteed thread safety: `nextval()` is atomic and non-blocking in Postgres, completely eliminating race conditions.
+
+====================================================================================================
+CASE 6: CSV Export Column Shifting, [object Object] Bug, and UTF-8 BOM Encoding
+====================================================================================================
+CATEGORIES: Data Serialization / RFC 4180 / Excel Compatibility
+INTERVIEW QUESTION: "Why do CSV exports open corrupted or misaligned in Microsoft Excel, and how do you guarantee clean exports for non-ASCII characters?"
+
+[SITUATION]
+1. Dynamic questions with commas in user answers caused subsequent fields (e.g., Bank details, Phone numbers) to shift into the wrong Excel columns.
+2. Complex JSON fields like shipping addresses rendered as `[object Object]`.
+3. Indian Rupee symbol `₹` and Hindi comments displayed as garbled mojibake characters (`â‚¹`, `???`).
+
+[SOLUTION & ARCHITECTURE]
+1. RFC 4180 Compliant Sanitization:
+   - All text escaped via quotes, internal line breaks converted to ` | `:
+     `val.replace(/\r\n|\r|\n/g, ' | ').replace(/"/g, '""')`
+2. JSON Stringification:
+   - Detect nested objects/arrays (e.g., `shipping_addresses`, `selected_store`) and format them into readable summary strings before export.
+3. UTF-8 Byte Order Mark (BOM):
+   - Prepend `\uFEFF` to the start of the CSV output buffer:
+     `return new NextResponse('\uFEFF' + csvLines.join('\r\n'), { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });`
+   - Excel uses the BOM signature to identify UTF-8 rather than defaulting to ANSI/ASCII.
+
+====================================================================================================
+CASE 7: Browser Tab Sequencing & Asynchronous Web Worker Flow for Bulk Instagram Verification
+====================================================================================================
+CATEGORIES: Frontend / Browser Sandbox / DOM API
+INTERVIEW QUESTION: "How do you open multiple browser tabs in strict visual order while bypassing aggressive browser popup blockers?"
+
+[SITUATION]
+Admin reviews 25 creator profiles in a table. When clicking "Open All Selected Instagram Profiles", tabs opened in reverse order (bottom creator first, top creator last) and modern browsers blocked tabs after the first one as spam popups.
+
+[SOLUTION & ARCHITECTURE]
+1. Handled in `lib/bulk-instagram-opener.ts`:
+2. User-Gesture Preservation:
+   - Synchronously execute `window.open` inside the direct `onClick` event handler so the browser security model recognizes it as an intentional user action.
+3. Strict Visual Sequencing:
+   - Invert array before queueing so the top row opens last or sequentially with staggered intervals (120ms delays), ensuring the browser tab bar displays tabs left-to-right matching table rows top-to-bottom.
+
+====================================================================================================
+CASE 8: Dual OTP Gateway Failover Architecture (MSG91 + Firebase ReCAPTCHA)
+====================================================================================================
+CATEGORIES: Authentication / Third-Party Resiliency / Circuit Breakers
+INTERVIEW QUESTION: "How do you design a zero-downtime mobile OTP authentication flow when external telecom SMS aggregators experience outages?"
+
+[SITUATION]
+Creator onboarding conversion dropped whenever the primary SMS gateway (MSG91) suffered latency or DLT route blocking in India.
+
+[SOLUTION & ARCHITECTURE]
+1. Dual-Gateway Architecture:
+   - Primary: MSG91 Widget (Direct Indian routing, fast delivery, cost-efficient).
+   - Secondary / Fallback: Firebase Auth with Invisible reCAPTCHA.
+2. Automatic Client-Side Failover:
+   - If MSG91 fails to send or encounters timeout within 8 seconds, the UI automatically transitions to Firebase phone auth without requiring the user to refresh or restart.
+3. Security:
+   - Verification token signed with JWT on backend (`jose`), bound to the validated phone number with expiration time (5 minutes).
+
+====================================================================================================
+CASE 9: OAuth Code Fragment Sanitization (#_) & Instagram Token Consistency
+====================================================================================================
+CATEGORIES: OAuth 2.0 / Mobile Browser Quirks / Instagram Graph API
+INTERVIEW QUESTION: "Explain a peculiar issue you encountered integrating OAuth 2.0 with social platforms on mobile browsers."
+
+[SITUATION]
+Creators logging in via Instagram OAuth from Instagram in-app browsers or Android Chrome had a 30% login failure rate. The backend returned:
+   `OAuthException: Invalid verification code format`
+
+[ROOT CAUSE]
+Instagram's redirect URI on mobile devices appends `#_` (hash fragment) to the end of the authorization code in the URL:
+   `https://1to7media.in/auth/callback?code=AQD123...#_`
+When client-side Next.js parsed `searchParams.get('code')`, the string sometimes retained the trailing `#_` fragment, corrupting the token exchange payload.
+
+[SOLUTION & ARCHITECTURE]
+1. Sanitized code before backend exchange:
+   `const cleanCode = rawCode.replace(/#_$/, '').trim();`
+2. Normalized `redirect_uri` to match the exact protocol (`https://`), port, and trailing slash configured in the Meta Developer App dashboard.
+
+====================================================================================================
+CASE 10: Commercial Double-Gatekeeper Peer Review for Variable Payout Approval
+====================================================================================================
+CATEGORIES: FinTech / Authorization Matrix / RBAC / Business Process Automation
+INTERVIEW QUESTION: "How do you enforce organizational checks and balances in financial approval workflows?"
+
+[SITUATION]
+For variable budget campaigns, admins negotiate commercial pricing directly with creators. If an admin made a typo (e.g. ₹50,000 instead of ₹5,000) and approved the deal, the company was legally committed to that payout.
+
+[SOLUTION & ARCHITECTURE]
+1. State Machine for Negotiations:
+   `pending_negotiation` -> `pending_peer_approval` -> `approved`
+2. Dual-Signoff Rule:
+   - If negotiated amount > budget threshold:
+   - Initiating Admin enters proposed commercial + justification notes.
+   - Status changes to `pending_peer_approval`.
+   - The initiating admin's own approve button is disabled with message: "Awaiting colleague sign-off".
+   - A DIFFERENT admin must review the commercial breakdown and click "Approve Deal" before the application can transition to Approved.
+3. Audit Log:
+   Both `proposed_by`, `proposed_at`, `approved_by`, and `peer_approved_at` are persisted in `form_data.negotiation`.
+
+====================================================================================================
+SUMMARY CHECKLIST FOR INTERVIEWS:
+----------------------------------------------------------------------------------------------------
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking) & Case 5 (gapless ID trigger).
+2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver).
+3. When asked about Frontend UX: Mention Case 3 (Multi-status search detection & tab badges).
+4. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing) & Case 10 (Double peer approval).
+5. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 9 (OAuth fragment sanitization).
+====================================================================================================
