@@ -18,6 +18,7 @@ CASE 7: Browser Tab Sequencing & Asynchronous Web Worker Flow for Bulk Instagram
 CASE 8: Dual OTP Gateway Failover Architecture (MSG91 + Firebase ReCAPTCHA)
 CASE 9: OAuth Code Fragment Sanitization (#_) and Instagram Graph API Token Consistency
 CASE 10: Commercial Double-Gatekeeper Peer Review for Variable Payout Approval
+CASE 11: High-Scale Platform Analytics & Real-Time Stats Hub (Server-Side SQL Aggregation vs Client Memory Exhaustion)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -272,11 +273,50 @@ For variable budget campaigns, admins negotiate commercial pricing directly with
    Both `proposed_by`, `proposed_at`, `approved_by`, and `peer_approved_at` are persisted in `form_data.negotiation`.
 
 ====================================================================================================
+CASE 11: High-Scale Platform Analytics & Real-Time Stats Hub (Server-Side SQL Aggregation vs Client Memory Exhaustion)
+====================================================================================================
+CATEGORIES: Database Optimization / PostgreSQL / API Design / Next.js / Real-Time Analytics
+INTERVIEW QUESTION: "How do you design an enterprise-grade analytics dashboard that tracks 35k+ users, financial disbursements, and daily/weekly velocity without overwhelming client memory or database connection pools?"
+
+[SITUATION]
+Admin portal needed a centralized "Platform Stats Hub" (/admin/stats) displaying all platform metrics in one place:
+1. High-level KPIs (total applications, active campaigns, 32,600+ creators, disbursed payouts vs pending liabilities, completion rates).
+2. Day-wise and Week-wise velocity trends (interactive timeline of submissions, completions, and creator onboardings).
+3. Application conversion pipeline funnel (Applied -> Under Process -> Approved -> Completed -> Paid).
+4. Creator intelligence & demographics (follower tiers Nano/Micro/Mid/Macro, gender split, geographic distribution).
+5. Budget model architecture (Barter vs Paid Variable vs Paid Fixed vs Hybrid).
+
+[ROOT CAUSE / ARCHITECTURAL PITFALL]
+If an application attempts to load raw records for 32,600+ creators and thousands of applications into frontend browser memory or Node.js memory:
+1. PostgREST enforces a 1,000-row silent clamp, resulting in inaccurate sums and missing data.
+2. Network payload balloons to 15MB-30MB of JSON, causing noticeable lag and mobile browser tab crashes.
+3. Node.js heap spikes when running `.reduce()` or `.filter()` over tens of thousands of raw objects.
+4. Database connection exhaustion occurs if multiple uncoordinated queries lock backend workers.
+
+[SOLUTION & ARCHITECTURE]
+1. Server-Side Parallel SQL Aggregations:
+   - Built a dedicated API route `/api/admin/stats` utilizing PostgreSQL connection pooling (`pg.Pool`).
+   - Replaced all raw data transfers with parameterized, indexed SQL aggregation queries executed concurrently via `Promise.all`:
+     * `DATE_TRUNC('day', created_at)` and `DATE_TRUNC('week', created_at)` with `GROUP BY` for granular time-series.
+     * Conditional counting using `COUNT(CASE WHEN status::text = '...' THEN 1 END)` to compute the entire funnel in a single table pass.
+     * `COALESCE(SUM(partial_payment + final_payment), 0)` for financial velocity calculations.
+2. Direct Type Safety & Enum Handling:
+   - Handled PostgreSQL enum `application_status` safely using text casting (`status::text`) to prevent 22P02 invalid input crashes when filtering dynamic subsets.
+3. Stale-While-Revalidate Caching:
+   - Integrated client-side `fastCache` keyed by `admin_stats_${range}_${granularity}_${campaignId}` to deliver instant loads (<10ms) while silently revalidating data in the background.
+4. Zero-Flicker Interactive UI with Recharts:
+   - Built with responsive SVG charts (`ResponsiveContainer`, `AreaChart`, `BarChart`) with CSS glassmorphism, animated date switches, and CSV export capabilities.
+   - Result: Response payload reduced from >25MB to <8KB, executing 11 parallel aggregations across 32,600+ users in ~450ms.
+
+[INTERVIEW STAR TAKEAWAY]
+"Always push data aggregation to the database engine where B-Tree indexes, multi-core query execution, and parallel scans operate natively. Never transfer raw records to the application server or browser just to calculate counts and sums. A well-crafted SQL aggregation returning 5KB will always outperform megabytes of client-side JavaScript filtering, both in reliability and latency."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
-1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking) & Case 5 (gapless ID trigger).
-2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver).
-3. When asked about Frontend UX: Mention Case 3 (Multi-status search detection & tab badges).
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
+2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
+3. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges) & Case 11 (Interactive Day/Week velocity charts).
 4. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing) & Case 10 (Double peer approval).
-5. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 9 (OAuth fragment sanitization).
+5. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
 ====================================================================================================

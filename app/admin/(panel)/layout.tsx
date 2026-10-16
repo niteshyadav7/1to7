@@ -17,6 +17,7 @@ import {
   FileCheck,
   CreditCard,
   BarChart3,
+  TrendingUp,
   FileUp,
   MessageSquareHeart,
   UserCheck,
@@ -58,6 +59,7 @@ interface NavLink {
 
 const allSidebarLinks: NavLink[] = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleKey: 'dashboard' },
+  { href: '/admin/stats', label: 'Platform Stats', icon: TrendingUp, moduleKey: 'analytics' },
   { href: '/admin/poc-dashboard', label: 'POC Performance', icon: Award, moduleKey: 'poc_dashboard' },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
@@ -79,6 +81,7 @@ const allSidebarLinks: NavLink[] = [
 
 function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname === '/admin/dashboard') return 'dashboard'
+  if (pathname.startsWith('/admin/stats')) return 'analytics'
   if (pathname.startsWith('/admin/poc-dashboard')) return 'poc_dashboard'
   if (pathname.startsWith('/admin/campaigns')) return 'campaigns'
   if (pathname.startsWith('/admin/applications')) return 'applications'
