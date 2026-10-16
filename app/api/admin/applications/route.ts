@@ -10,142 +10,201 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const campaign_id = searchParams.get('campaign_id')
+    const rawCampaignId = searchParams.get('campaign_id')?.trim() || null
 
-    // Get campaign info if campaign_id is provided
+    // Get campaign info if campaign_id / campaign_code is provided
     let campaign: any = null
-    if (campaign_id) {
-      const { data } = await supabase
+    let resolvedCampaignId: string | null = null
+
+    if (rawCampaignId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCampaignId)
+      let campQuery = supabase
         .from('campaigns')
-        .select('brand_name, campaign_code, platform, budget_amount, budget_type, location, location_type, store_locations')
-        .eq('id', campaign_id)
-        .single()
-      campaign = data
+        .select('id, brand_name, campaign_code, platform, budget_amount, budget_type, location, location_type, store_locations, completion_days, completion_deadline, enforce_completion_deadline, manager_phone')
+
+      if (isUuid) {
+        campQuery = campQuery.eq('id', rawCampaignId)
+      } else {
+        campQuery = campQuery.eq('campaign_code', rawCampaignId)
+      }
+
+      const { data: campData } = await campQuery.maybeSingle()
+      campaign = campData
+      resolvedCampaignId = campaign ? campaign.id : (isUuid ? rawCampaignId : null)
     }
 
-    // Build applications query
-    let query = supabase
-      .from('applications')
-      .select(`
+    // Build applications query with chunked fetching to bypass Supabase 1,000 row hard limit
+    const SELECT_FIELDS = `
+      id,
+      user_id,
+      campaign_id,
+      status,
+      form_data,
+      selected_store,
+      partial_payment,
+      final_payment,
+      pending_amount,
+      manager_phone,
+      completion_deadline,
+      is_delay_exempted,
+      delay_exemption_reason,
+      completion_submitted_at,
+      is_ghosted,
+      ghosted_at,
+      team_remark,
+      team_remark_by,
+      team_remark_updated_at,
+      created_at,
+      updated_at,
+      users (
         id,
-        status,
-        form_data,
-        selected_store,
-        partial_payment,
-        final_payment,
-        pending_amount,
-        manager_phone,
+        full_name,
+        influencer_id,
+        email,
+        mobile,
+        instagram_username,
+        followers,
+        state,
+        city,
+        gender,
+        instagram_profile_pic,
+        shipping_addresses,
+        is_instagram_verified,
+        instagram_followers_count,
+        instagram_media_count,
+        instagram_account_type,
+        instagram_biography,
+        instagram_website,
+        instagram_profiles
+      ),
+      campaigns (
+        id,
+        brand_name,
+        campaign_code,
+        platform,
+        budget_amount,
+        budget_type,
+        location,
+        location_type,
+        store_locations,
+        completion_days,
         completion_deadline,
-        is_delay_exempted,
-        delay_exemption_reason,
-        completion_submitted_at,
-        is_ghosted,
-        ghosted_at,
-        team_remark,
-        team_remark_by,
-        team_remark_updated_at,
-        created_at,
-        updated_at,
-        users (
-          id,
-          full_name,
-          influencer_id,
-          email,
-          mobile,
-          instagram_username,
-          followers,
-          state,
-          city,
-          gender,
-          instagram_profile_pic,
-          shipping_addresses,
-          is_instagram_verified,
-          instagram_followers_count,
-          instagram_media_count,
-          instagram_account_type,
-          instagram_biography,
-          instagram_website,
-          instagram_profiles
-        ),
-        campaigns (
-          id,
-          brand_name,
-          campaign_code,
-          platform,
-          budget_amount,
-          budget_type,
-          location,
-          location_type,
-          store_locations,
-          completion_days,
-          completion_deadline,
-          enforce_completion_deadline,
-          manager_phone
-        )
-      `)
+        enforce_completion_deadline,
+        manager_phone
+      )
+    `
 
-    if (campaign_id) {
-      query = query.eq('campaign_id', campaign_id)
+    // Step 1: Count exact total records
+    let countQuery = supabase.from('applications').select('*', { count: 'exact', head: true })
+    if (resolvedCampaignId) {
+      countQuery = countQuery.eq('campaign_id', resolvedCampaignId)
+    }
+    const { count: totalApplicationsCount, error: countErr } = await countQuery
+    if (countErr) throw countErr
+
+    const totalCount = totalApplicationsCount || 0
+    const CHUNK_SIZE = 1000
+    const chunksNeeded = Math.max(1, Math.ceil(totalCount / CHUNK_SIZE))
+
+    // Step 2: Parallel fetch all chunks so no rows are ever dropped
+    const chunkPromises: PromiseLike<any>[] = []
+    for (let i = 0; i < chunksNeeded; i++) {
+      const from = i * CHUNK_SIZE
+      const to = from + CHUNK_SIZE - 1
+      let chunkQuery = supabase
+        .from('applications')
+        .select(SELECT_FIELDS)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (resolvedCampaignId) {
+        chunkQuery = chunkQuery.eq('campaign_id', resolvedCampaignId)
+      }
+      chunkPromises.push(chunkQuery)
     }
 
-    const { data: rawApplications, error } = await query.order('created_at', { ascending: false })
+    const chunkResults = await Promise.all(chunkPromises)
+    const applications: any[] = []
+    for (const res of chunkResults) {
+      if (res.error) throw res.error
+      if (res.data) applications.push(...res.data)
+    }
 
-    if (error) throw error
-
-    const applications = rawApplications || []
-
-    // Fetch all user collaboration histories across all campaigns for shortlisting intelligence
-    const userIds = Array.from(
-      new Set(
-        applications
-          .map((a: any) => (a.users && typeof a.users === 'object' ? a.users.id : null))
-          .filter(Boolean)
-      )
-    )
-
+    // Step 3: Efficient user history lookup
     const userHistoryMap: Record<string, any[]> = {}
 
-    if (userIds.length > 0) {
-      const { data: allUserApps, error: histErr } = await supabase
-        .from('applications')
-        .select(`
-          id,
-          user_id,
-          campaign_id,
-          status,
-          form_data,
-          partial_payment,
-          final_payment,
-          pending_amount,
-          completion_deadline,
-          is_delay_exempted,
-          delay_exemption_reason,
-          completion_submitted_at,
-          is_ghosted,
-          ghosted_at,
-          created_at,
-          updated_at,
-          campaigns (
-            id,
-            brand_name,
-            campaign_code,
-            platform,
-            budget_type,
-            budget_amount,
-            collab_date,
-            completion_days,
-            completion_deadline,
-            enforce_completion_deadline
-          )
-        `)
-        .in('user_id', userIds)
+    if (!resolvedCampaignId) {
+      // For all-applications query: We already loaded all applications across all campaigns!
+      // Group them directly by user_id in-memory to save heavy database roundtrip.
+      for (const app of applications) {
+        const uId = app.user_id || app.users?.id
+        if (uId) {
+          if (!userHistoryMap[uId]) userHistoryMap[uId] = []
+          userHistoryMap[uId].push(app)
+        }
+      }
+    } else {
+      // For single-campaign query: Fetch collaborator histories for applicants of this campaign
+      const userIds = Array.from(
+        new Set(
+          applications
+            .map((a: any) => a.user_id || (a.users && typeof a.users === 'object' ? a.users.id : null))
+            .filter(Boolean)
+        )
+      )
 
-      if (!histErr && allUserApps) {
-        for (const app of allUserApps) {
-          if (!userHistoryMap[app.user_id]) {
-            userHistoryMap[app.user_id] = []
+      if (userIds.length > 0) {
+        const USER_BATCH_SIZE = 100
+        const historyPromises: PromiseLike<any>[] = []
+        for (let i = 0; i < userIds.length; i += USER_BATCH_SIZE) {
+          const batch = userIds.slice(i, i + USER_BATCH_SIZE)
+          historyPromises.push(
+            supabase
+              .from('applications')
+              .select(`
+                id,
+                user_id,
+                campaign_id,
+                status,
+                form_data,
+                partial_payment,
+                final_payment,
+                pending_amount,
+                completion_deadline,
+                is_delay_exempted,
+                delay_exemption_reason,
+                completion_submitted_at,
+                is_ghosted,
+                ghosted_at,
+                created_at,
+                updated_at,
+                campaigns (
+                  id,
+                  brand_name,
+                  campaign_code,
+                  platform,
+                  budget_type,
+                  budget_amount,
+                  collab_date,
+                  completion_days,
+                  completion_deadline,
+                  enforce_completion_deadline
+                )
+              `)
+              .in('user_id', batch)
+              .range(0, 999)
+          )
+        }
+        const histResults = await Promise.all(historyPromises)
+        for (const res of histResults) {
+          if (!res.error && res.data) {
+            for (const app of res.data) {
+              if (!userHistoryMap[app.user_id]) {
+                userHistoryMap[app.user_id] = []
+              }
+              userHistoryMap[app.user_id].push(app)
+            }
           }
-          userHistoryMap[app.user_id].push(app)
         }
       }
     }

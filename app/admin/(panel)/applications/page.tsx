@@ -1016,6 +1016,33 @@ function TeamRemarkCell({
 }
 
 
+// ─── Search Helper ─────────────────────────────────────────
+function matchesApplicationSearch(a: Application, query: string): boolean {
+  if (!query) return true
+  const q = query.toLowerCase().trim()
+  const qDigits = query.replace(/\D/g, '')
+  const textFields = `${a.users?.full_name || ''} ${a.users?.influencer_id || ''} ${a.users?.instagram_username || ''} ${a.users?.email || ''} ${a.campaigns?.brand_name || ''} ${a.campaigns?.campaign_code || ''} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
+  if (textFields.includes(q)) return true
+
+  const phoneList = [
+    a.users?.mobile,
+    a.manager_phone,
+    a.form_data?.phone,
+    a.form_data?.whatsapp_number,
+    a.form_data?.mobile,
+    a.form_data?.contact_number,
+    a.form_data?.calling_number,
+    a.form_data?.order_details?.phone,
+    a.form_data?.order_details?.mobile,
+    a.form_data?.order_details?.whatsapp,
+  ].filter(Boolean).map(String)
+
+  if (phoneList.some(p => p.toLowerCase().includes(q))) return true
+  if (qDigits.length >= 3 && phoneList.some(p => p.replace(/\D/g, '').includes(qDigits))) return true
+
+  return false
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function AllApplicationsPage() {
   const { admin } = useAdminPermissions()
@@ -1354,30 +1381,7 @@ export default function AllApplicationsPage() {
 
     // Search (Name, Influencer ID, Instagram, Email, Brand, Campaign Code, Phone / Mobile)
     if (searchQuery) {
-      const q = searchQuery.toLowerCase().trim()
-      const qDigits = searchQuery.replace(/\D/g, '')
-      result = result.filter(a => {
-        const textFields = `${a.users?.full_name} ${a.users?.influencer_id} ${a.users?.instagram_username} ${a.users?.email} ${a.campaigns?.brand_name} ${a.campaigns?.campaign_code} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
-        if (textFields.includes(q)) return true
-
-        const phoneList = [
-          a.users?.mobile,
-          a.manager_phone,
-          a.form_data?.phone,
-          a.form_data?.whatsapp_number,
-          a.form_data?.mobile,
-          a.form_data?.contact_number,
-          a.form_data?.calling_number,
-          a.form_data?.order_details?.phone,
-          a.form_data?.order_details?.mobile,
-          a.form_data?.order_details?.whatsapp,
-        ].filter(Boolean).map(String)
-
-        if (phoneList.some(p => p.toLowerCase().includes(q))) return true
-        if (qDigits.length >= 3 && phoneList.some(p => p.replace(/\D/g, '').includes(qDigits))) return true
-
-        return false
-      })
+      result = result.filter(a => matchesApplicationSearch(a, searchQuery))
     }
 
     // Advanced filters
@@ -1741,12 +1745,29 @@ export default function AllApplicationsPage() {
     setVisibleCols(prev => ({ ...prev, [col]: !prev[col] }))
   }, [])
 
-  // ─── Status counts ────────────────────────────────────
+  // ─── Status counts (dynamically reflects search query if entered) ──
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    applications.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1 })
+    const pool = searchQuery.trim()
+      ? applications.filter(a => matchesApplicationSearch(a, searchQuery))
+      : applications
+
+    pool.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1 })
     return counts
-  }, [applications])
+  }, [applications, searchQuery])
+
+  // ─── Detect matches in other statuses when current tab has 0 matches ─
+  const otherStatusMatches = useMemo(() => {
+    if (!searchQuery.trim() || activeStatus === 'All') return []
+    const matchingApps = applications.filter(a => matchesApplicationSearch(a, searchQuery))
+    const statusMap: Record<string, number> = {}
+    matchingApps.forEach(a => {
+      if (a.status !== activeStatus) {
+        statusMap[a.status] = (statusMap[a.status] || 0) + 1
+      }
+    })
+    return Object.entries(statusMap).map(([status, count]) => ({ status, count }))
+  }, [applications, searchQuery, activeStatus])
 
   // ─── Loading State ─────────────────────────────────────
   const isInitialLoading = loading && applications.length === 0
@@ -1778,24 +1799,30 @@ export default function AllApplicationsPage() {
       {/* ─── Status Tabs & Brand Shared Filter (Wrap without Horizontal Scrollbar) ─── */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/40 p-1.5 rounded-2xl border border-white/5">
         <div className="flex flex-wrap items-center gap-1">
-          {statusFilters.map(f => (
-            <button
-              key={f}
-              onClick={() => { setActiveStatus(f); setSelectedIds(new Set()); setExpandedId(null) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeStatus === f
-                  ? 'bg-white/[0.12] text-white shadow-sm border border-white/10'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
-              }`}
-            >
-              <span>{f}</span>
-              {f !== 'All' && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${activeStatus === f ? 'bg-indigo-500/30 text-indigo-200' : 'bg-white/5 text-slate-500'}`}>
-                  {statusCounts[f] || 0}
+          {statusFilters.map(f => {
+            const countForTab = f === 'All'
+              ? (searchQuery.trim() ? Object.values(statusCounts).reduce((a, b) => a + b, 0) : applications.length)
+              : (statusCounts[f] || 0)
+
+            return (
+              <button
+                key={f}
+                onClick={() => { setActiveStatus(f); setSelectedIds(new Set()); setExpandedId(null) }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeStatus === f
+                    ? 'bg-white/[0.12] text-white shadow-sm border border-white/10'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                }`}
+              >
+                <span>{f}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  activeStatus === f ? 'bg-indigo-500/30 text-indigo-200' : 'bg-white/5 text-slate-500'
+                }`}>
+                  {countForTab}
                 </span>
-              )}
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
 
         {/* Brand Shared Toggle Pills */}
@@ -2075,6 +2102,41 @@ export default function AllApplicationsPage() {
         )}
       </div>
 
+      {/* ─── Smart Cross-Status Search Alert ─────────────── */}
+      {otherStatusMatches.length > 0 && paginatedData.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-200 shadow-xl backdrop-blur-md"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-base">💡</span>
+            <span>
+              0 results in <span className="font-bold text-white uppercase">&apos;{activeStatus}&apos;</span>, but found <strong className="text-white">{otherStatusMatches.reduce((acc, curr) => acc + curr.count, 0)}</strong> applicant(s) matching <span className="text-indigo-300 font-mono font-bold">&quot;{searchQuery}&quot;</span> in other statuses:
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveStatus('All')}
+              className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] cursor-pointer shadow-sm transition-all"
+            >
+              View in All ({otherStatusMatches.reduce((acc, curr) => acc + curr.count, 0)})
+            </button>
+            {otherStatusMatches.map(({ status, count }) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setActiveStatus(status)}
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-[11px] border border-white/15 cursor-pointer transition-all"
+              >
+                {status} ({count})
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {/* ─── Table ──────────────────────────────────────── */}
       <div className="rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-xl">
         <div className="w-full overflow-x-auto no-scrollbar hide-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -2162,12 +2224,29 @@ export default function AllApplicationsPage() {
                         <Filter className="h-7 w-7 text-slate-600" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-slate-400">No applications found</h3>
+                        <h3 className="text-sm font-semibold text-slate-400">
+                          {otherStatusMatches.length > 0
+                            ? `No '${activeStatus}' applications found for "${searchQuery}"`
+                            : 'No applications found'}
+                        </h3>
                         <p className="text-xs text-slate-600 mt-1">
-                          {activeFilterCount > 0 || activeStatus !== 'All' || searchQuery
-                            ? 'Try adjusting your filters or search'
+                          {otherStatusMatches.length > 0
+                            ? `This applicant exists in another status (${otherStatusMatches.map(m => `${m.status}: ${m.count}`).join(', ')}). Click below to view.`
+                            : activeFilterCount > 0 || activeStatus !== 'All' || searchQuery
+                            ? 'Try adjusting your filters or search query'
                             : 'Applications will appear here when influencers apply'}
                         </p>
+                        {otherStatusMatches.length > 0 && (
+                          <div className="mt-3 flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setActiveStatus('All')}
+                              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer shadow-md transition-all"
+                            >
+                              Show in All Statuses
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>

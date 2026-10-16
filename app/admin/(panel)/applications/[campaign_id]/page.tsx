@@ -515,7 +515,7 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
             </button>
 
             <a
-              href={`/api/admin/campaigns/export?type=applications&campaign_id=${campaign_id}`}
+              href={`/api/admin/campaigns/export?type=applications&campaign_id=${campaign?.id || campaign_id}`}
               download
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 hover:text-white transition-all cursor-pointer shadow-sm"
             >

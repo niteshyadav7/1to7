@@ -172,8 +172,13 @@ export async function GET(request: Request) {
     const appWheres: string[] = []
 
     if (campaignId) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId)
       appParams.push(campaignId)
-      appWheres.push(`a.campaign_id = $${appParams.length}`)
+      if (isUuid) {
+        appWheres.push(`a.campaign_id = $${appParams.length}`)
+      } else {
+        appWheres.push(`c.campaign_code = $${appParams.length}`)
+      }
     }
 
     if (status && status !== 'All') {
