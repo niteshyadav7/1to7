@@ -180,6 +180,8 @@ export async function POST(request: Request) {
           is_delay_exempted,
           delay_exemption_reason,
           completion_submitted_at,
+          is_ghosted,
+          ghosted_at,
           created_at,
           updated_at,
           campaigns (
@@ -228,14 +230,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if creator is blocked due to overdue completion submissions
+    // Check if creator is blocked due to ghosted status or overdue completion submissions
     if (userActiveApps && userActiveApps.length > 0) {
       const completionEligibility = checkCreatorCompletionEligibility(userActiveApps as any)
       if (!completionEligibility.isEligible) {
         return NextResponse.json(
           {
             error: completionEligibility.message,
-            code: 'COMPLETION_OVERDUE',
+            code: completionEligibility.isGhostBlocked ? 'CREATOR_GHOSTED' : 'COMPLETION_OVERDUE',
             overdueCampaigns: completionEligibility.blockedApplications,
           },
           { status: 403 }

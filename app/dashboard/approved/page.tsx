@@ -16,6 +16,8 @@ interface Application {
   partial_payment: number
   final_payment: number
   pending_amount: number
+  is_ghosted?: boolean
+  ghosted_at?: string | null
   manager_phone?: string | null
   manager?: {
     name?: string
@@ -160,6 +162,21 @@ export default function ApprovedCampaignsPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Overdue / Action Required Banner */}
+                {app.is_ghosted && (
+                  <div className="bg-rose-50 border-b border-rose-200 px-4 py-2.5 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold text-rose-800 leading-tight">
+                        Too delayed to complete the completion form. Please fill at the earliest or contact your POC.
+                      </p>
+                      <p className="text-[10px] text-rose-600 mt-0.5 font-medium">
+                        New campaign applications are paused until submitted.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Card Middle / Body */}
                 <div className="p-5 flex-1 flex flex-col">

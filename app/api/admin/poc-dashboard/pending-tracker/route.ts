@@ -28,6 +28,7 @@ export interface CampaignPendingItem {
   pendingDeliverables: number
   pendingPayments: number
   pendingApplications: number
+  pendingGhosted: number
   totalCriticalPending: number
   isClear: boolean
   quickLinks: {
@@ -35,6 +36,7 @@ export interface CampaignPendingItem {
     completionUrl: string
     paymentsUrl: string
     applicationsUrl: string
+    ghostedUrl?: string
   }
 }
 
@@ -46,6 +48,7 @@ export interface PendingTrackerResponse {
     totalPendingDeliverables: number
     totalPendingPayments: number
     totalPendingApplications: number
+    totalPendingGhosted: number
     totalCriticalPending: number
     isAllClear: boolean
   }
@@ -168,6 +171,9 @@ export async function GET(request: Request) {
         COUNT(app.id) FILTER (
           WHERE app.status IN ('Applied', 'Under Review', 'Under Process')
         ) AS pending_applications,
+        COUNT(app.id) FILTER (
+          WHERE app.is_ghosted = true
+        ) AS pending_ghosted,
         COUNT(app.id) AS total_applications
       FROM public.campaigns c
       LEFT JOIN public.applications app ON app.campaign_id = c.id
@@ -207,6 +213,7 @@ export async function GET(request: Request) {
     let totalPendingDeliverables = 0
     let totalPendingPayments = 0
     let totalPendingApplications = 0
+    let totalPendingGhosted = 0
 
     let items: CampaignPendingItem[] = res.rows.map(row => {
       const rawPocIds: string[] = Array.isArray(row.poc_admin_ids) ? row.poc_admin_ids : []
@@ -218,11 +225,13 @@ export async function GET(request: Request) {
       const pendingDeliverables = parseInt(row.pending_deliverables) || 0
       const pendingPayments = parseInt(row.pending_payments) || 0
       const pendingApplications = parseInt(row.pending_applications) || 0
+      const pendingGhosted = parseInt(row.pending_ghosted) || 0
 
       totalPendingOrders += pendingOrders
       totalPendingDeliverables += pendingDeliverables
       totalPendingPayments += pendingPayments
       totalPendingApplications += pendingApplications
+      totalPendingGhosted += pendingGhosted
 
       const totalCriticalPending = pendingOrders + pendingDeliverables + pendingPayments
       const isClear = totalCriticalPending === 0
@@ -242,6 +251,7 @@ export async function GET(request: Request) {
         pendingDeliverables,
         pendingPayments,
         pendingApplications,
+        pendingGhosted,
         totalCriticalPending,
         isClear,
         quickLinks: {
@@ -249,6 +259,7 @@ export async function GET(request: Request) {
           completionUrl: `/admin/completion-details?tab=pending&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
           paymentsUrl: `/admin/payments?status=Payment+Requested&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
           applicationsUrl: `/admin/applications?status=Applied&campaign=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
+          ghostedUrl: `/admin/poc-dashboard?tab=ghosted&campaign=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
         }
       }
     })
@@ -279,6 +290,7 @@ export async function GET(request: Request) {
         totalPendingDeliverables,
         totalPendingPayments,
         totalPendingApplications,
+        totalPendingGhosted,
         totalCriticalPending,
         isAllClear,
       },

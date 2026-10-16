@@ -23,6 +23,8 @@ export interface InfluencerCampaignItem {
   is_overdue?: boolean
   is_delay_exempted?: boolean
   delay_exemption_reason?: string | null
+  is_ghosted?: boolean
+  ghosted_at?: string | null
   created_at: string
 }
 
@@ -89,12 +91,19 @@ export function InfluencerCampaignHistoryCard({
 
         {/* Counter Pills */}
         <div className="flex items-center gap-2 flex-wrap">
+          {history.active_campaigns.some((c) => c.is_ghosted) && (
+            <span className="text-[11px] px-2.5 py-1 rounded-lg font-bold bg-rose-600/25 text-rose-300 border border-rose-500/50 flex items-center gap-1.5 shadow-sm">
+              <span>👻</span>
+              Ghosted Collab Active
+            </span>
+          )}
+
           <span className={`text-[11px] px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1.5 ${
             activeCount > 0 
               ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' 
               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
           }`}>
-            <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
+            <span className="h-2.5 w-2.5 rounded-full bg-current animate-pulse" />
             {activeCount} Active Ongoing
           </span>
 
@@ -168,7 +177,11 @@ export function InfluencerCampaignHistoryCard({
                 return (
                   <div
                     key={item.application_id}
-                    className="p-3 rounded-xl bg-slate-900/90 border border-white/10 space-y-2 hover:border-indigo-500/40 transition-colors"
+                    className={`p-3 rounded-xl bg-slate-900/90 border space-y-2 transition-colors ${
+                      item.is_ghosted
+                        ? 'border-rose-500/50 bg-rose-950/20 hover:border-rose-500'
+                        : 'border-white/10 hover:border-indigo-500/40'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -185,7 +198,11 @@ export function InfluencerCampaignHistoryCard({
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${badge.bg} ${badge.text} ${badge.border}`}>
                           {item.status}
                         </span>
-                        {item.is_delay_exempted ? (
+                        {item.is_ghosted ? (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
+                            👻 Ghosted
+                          </span>
+                        ) : item.is_delay_exempted ? (
                           <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1" title={item.delay_exemption_reason || 'Delay waived'}>
                             <ShieldCheck className="h-2.5 w-2.5" />
                             Exempted

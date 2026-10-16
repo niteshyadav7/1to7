@@ -23,6 +23,10 @@ export interface CampaignCreatorDetail {
   finalPayment: number
   completionSubmittedAt: string | null
   pitch: string | null
+  isGhosted: boolean
+  ghostedAt: string | null
+  isOverdue: boolean
+  daysOverdue: number
 }
 
 export interface CampaignCreatorsResponse {
@@ -36,6 +40,8 @@ export interface CampaignCreatorsResponse {
     all: number
     approved: number
     pending: number
+    ghosted: number
+    overdue: number
     completed: number
     applied: number
     rejected: number
@@ -84,6 +90,7 @@ export async function GET(req: NextRequest) {
         a.user_id,
         a.status,
         a.created_at as applied_at,
+        a.updated_at as app_updated_at,
         a.form_data,
         a.team_remark,
         a.team_remark_by,
@@ -92,6 +99,13 @@ export async function GET(req: NextRequest) {
         COALESCE(a.partial_payment, 0) as partial_payment,
         COALESCE(a.final_payment, 0) as final_payment,
         a.completion_submitted_at,
+        a.completion_deadline,
+        a.is_delay_exempted,
+        a.is_ghosted,
+        a.ghosted_at,
+        c.completion_days,
+        c.completion_deadline as campaign_completion_deadline,
+        c.enforce_completion_deadline,
         u.full_name,
         u.instagram_username,
         u.instagram_profile_pic,
@@ -99,10 +113,12 @@ export async function GET(req: NextRequest) {
         u.mobile,
         u.city
       FROM applications a
+      LEFT JOIN campaigns c ON a.campaign_id = c.id
       LEFT JOIN users u ON a.user_id = u.id
       WHERE a.campaign_id = $1
       ORDER BY 
         CASE 
+          WHEN a.is_ghosted = true THEN 0
           WHEN a.status = 'Approved' THEN 1
           WHEN a.status = 'Payment Approved' THEN 2
           WHEN a.status = 'Completed' THEN 3
@@ -122,6 +138,10 @@ export async function GET(req: NextRequest) {
     let completedCount = 0
     let rejectedCount = 0
     let paymentApprovedCount = 0
+    let ghostedCount = 0
+    let overdueCount = 0
+
+    const now = new Date()
 
     const creators: CampaignCreatorDetail[] = appsRes.rows.map(row => {
       const status = row.status || 'Applied'
@@ -130,6 +150,31 @@ export async function GET(req: NextRequest) {
       const isUnderReview = status === 'Applied' || status === 'Under Process' || status === 'Under Review'
       const isRejected = status === 'Rejected'
       const isApproved = !isUnderReview && !isRejected
+      const isGhosted = Boolean(row.is_ghosted)
+
+      if (isGhosted) {
+        ghostedCount++
+      }
+
+      // Calculate deadline & overdue
+      const baseDate = row.app_updated_at
+        ? new Date(row.app_updated_at)
+        : (row.applied_at ? new Date(row.applied_at) : now)
+      const defaultDays = Number(row.completion_days) || 7
+      const effectiveDeadline = row.completion_deadline
+        ? new Date(row.completion_deadline)
+        : (row.campaign_completion_deadline
+            ? new Date(row.campaign_completion_deadline)
+            : new Date(baseDate.getTime() + defaultDays * 24 * 60 * 60 * 1000))
+
+      const isOverdue = isApproved && !isCompleted && now > effectiveDeadline
+      const daysOverdue = isOverdue
+        ? Math.max(1, Math.ceil((now.getTime() - effectiveDeadline.getTime()) / (1000 * 60 * 60 * 24)))
+        : 0
+
+      if (isOverdue && !isGhosted) {
+        overdueCount++
+      }
 
       if (isApproved) {
         approvedCount++
@@ -173,6 +218,10 @@ export async function GET(req: NextRequest) {
         finalPayment: Number(row.final_payment) || 0,
         completionSubmittedAt: row.completion_submitted_at ? new Date(row.completion_submitted_at).toISOString() : null,
         pitch,
+        isGhosted,
+        ghostedAt: row.ghosted_at ? new Date(row.ghosted_at).toISOString() : null,
+        isOverdue,
+        daysOverdue,
       }
     })
 
@@ -187,6 +236,8 @@ export async function GET(req: NextRequest) {
         all: creators.length,
         approved: approvedCount,
         pending: pendingCount,
+        ghosted: ghostedCount,
+        overdue: overdueCount,
         applied: appliedCount,
         completed: completedCount,
         rejected: rejectedCount,

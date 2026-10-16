@@ -59,12 +59,56 @@ export async function GET(request: Request) {
       throw error
     }
 
+    // Enrich with ghosting status and lifetime counts
+    const userIds = (influencers || []).map((u: any) => u.id).filter(Boolean)
+    const ghostedUserMap: Record<string, { activeGhostCount: number; lifetimeGhostCount: number }> = {}
+
+    if (userIds.length > 0) {
+      const [ghostedAppsRes, ghostEventsRes] = await Promise.all([
+        supabase
+          .from('applications')
+          .select('id, user_id')
+          .eq('is_ghosted', true)
+          .in('user_id', userIds),
+        supabase
+          .from('application_ghost_events')
+          .select('id, user_id, event_type')
+          .eq('event_type', 'ghosted')
+          .in('user_id', userIds),
+      ])
+
+      if (ghostedAppsRes.data) {
+        for (const g of ghostedAppsRes.data) {
+          if (!ghostedUserMap[g.user_id]) {
+            ghostedUserMap[g.user_id] = { activeGhostCount: 0, lifetimeGhostCount: 0 }
+          }
+          ghostedUserMap[g.user_id].activeGhostCount++
+        }
+      }
+
+      if (ghostEventsRes.data) {
+        for (const ev of ghostEventsRes.data) {
+          if (!ghostedUserMap[ev.user_id]) {
+            ghostedUserMap[ev.user_id] = { activeGhostCount: 0, lifetimeGhostCount: 0 }
+          }
+          ghostedUserMap[ev.user_id].lifetimeGhostCount++
+        }
+      }
+    }
+
+    const enrichedInfluencers = (influencers || []).map((u: any) => ({
+      ...u,
+      is_ghosted: (ghostedUserMap[u.id]?.activeGhostCount || 0) > 0,
+      active_ghost_count: ghostedUserMap[u.id]?.activeGhostCount || 0,
+      lifetime_ghost_count: ghostedUserMap[u.id]?.lifetimeGhostCount || 0,
+    }))
+
     // Get global stats (total count, verified email count, etc)
     const { count: totalInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true })
     const { count: verifiedInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_email_verified', true)
 
     return NextResponse.json({
-      influencers: influencers || [],
+      influencers: enrichedInfluencers,
       stats: {
         total: totalInfluencers || 0,
         verified: verifiedInfluencers || 0,

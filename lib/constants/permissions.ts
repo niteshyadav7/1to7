@@ -48,6 +48,7 @@ export const ADMIN_MODULES: ModuleDefinition[] = [
     actions: [
       { key: 'view', name: 'View Applications', description: 'Can view submitted applications' },
       { key: 'edit', name: 'Approve / Reject', description: 'Can update status, payouts, and notes' },
+      { key: 'ghost', name: 'Ghost / Un-ghost Creators', description: 'Can mark unresponsive creators as ghosted with proof or reverse it' },
       { key: 'delete', name: 'Delete Application', description: 'Can remove applications' },
     ],
   },

@@ -17,7 +17,7 @@ export async function GET() {
     const [appsRes, campaignsRes] = await Promise.all([
       supabase
         .from('applications')
-        .select('id, status, partial_payment, pending_amount, form_data, created_at, updated_at, campaigns(brand_name, campaign_code)')
+        .select('id, status, partial_payment, pending_amount, form_data, is_ghosted, ghosted_at, created_at, updated_at, campaigns(brand_name, campaign_code)')
         .eq('user_id', payload.id)
         .gte('updated_at', thirtyDaysAgo)
         .order('updated_at', { ascending: false })
@@ -50,6 +50,18 @@ export async function GET() {
     // 2. Application status notifications
     for (const app of (appsRes.data || [])) {
       const campaignName = (app.campaigns as any)?.brand_name || 'Campaign'
+
+      // Overdue deliverables action required
+      if (app.is_ghosted) {
+        notifications.push({
+          id: `ghosted_${app.id}`,
+          type: 'action_required',
+          title: '⚠️ Action Required: Pending Deliverables',
+          message: `Too delayed to complete the completion form for ${campaignName}. Please fill at the earliest or contact your POC.`,
+          link: '/dashboard/approved',
+          createdAt: app.ghosted_at || app.updated_at,
+        })
+      }
 
       // Application approved
       if (app.status === 'Approved') {

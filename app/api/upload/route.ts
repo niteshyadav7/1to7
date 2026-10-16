@@ -47,8 +47,10 @@ export async function POST(request: Request) {
     }
 
     // Generate unique filename
+    const folder = (formData.get('folder') as string)?.trim()?.replace(/[^a-zA-Z0-9_-]/g, '') || ''
     const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${uploaderId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+    const prefix = folder ? `${folder}/${uploaderId}` : uploaderId
+    const filename = `${prefix}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
 
     // Convert to buffer
     const arrayBuffer = await file.arrayBuffer()

@@ -39,6 +39,8 @@ export async function GET(request: Request) {
         is_delay_exempted,
         delay_exemption_reason,
         completion_submitted_at,
+        is_ghosted,
+        ghosted_at,
         team_remark,
         team_remark_by,
         team_remark_updated_at,
@@ -119,6 +121,8 @@ export async function GET(request: Request) {
           is_delay_exempted,
           delay_exemption_reason,
           completion_submitted_at,
+          is_ghosted,
+          ghosted_at,
           created_at,
           updated_at,
           campaigns (
@@ -180,6 +184,8 @@ export async function GET(request: Request) {
             is_overdue: isOverdue,
             is_delay_exempted: isExempted,
             delay_exemption_reason: other.delay_exemption_reason || null,
+            is_ghosted: Boolean(other.is_ghosted),
+            ghosted_at: other.ghosted_at || null,
             created_at: other.created_at,
           }
         })

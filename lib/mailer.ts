@@ -170,3 +170,96 @@ export async function sendSignupOtpEmail(email: string, otp: string) {
   })
 }
 
+export async function sendDeliverableOverdueEmail(
+  email: string,
+  userName: string,
+  brandName: string,
+  campaignCode: string,
+  daysOverdue: number,
+  pocName?: string | null,
+  pocPhone?: string | null
+) {
+  const contactInfo = pocPhone
+    ? `<p style="font-size: 14px; color: #475569; margin: 10px 0 0 0;">📞 <strong>Assigned POC:</strong> ${pocName || 'Campaign Manager'} (<a href="https://wa.me/91${pocPhone.replace(/\D/g, '')}" style="color: #059669; font-weight: 600; text-decoration: none;">WhatsApp +91 ${pocPhone}</a>)</p>`
+    : `<p style="font-size: 14px; color: #475569; margin: 10px 0 0 0;">👤 <strong>Assigned POC:</strong> ${pocName || 'Campaign Manager'}</p>`
+
+  await sendNotificationEmail({
+    to: email,
+    subject: `Action Required: Deliverable Submission Overdue – ${brandName}`,
+    bodyHtml: `
+      <p style="font-size: 16px; color: #333; margin-top: 0;">Hi ${userName},</p>
+      <p style="font-size: 16px; color: #333;">Your completion form for <strong>${brandName}</strong> <span style="color: #6366f1; font-weight: 600;">(${campaignCode})</span> is overdue by <strong>${daysOverdue} day${daysOverdue > 1 ? 's' : ''}</strong>.</p>
+      
+      <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 18px 20px; border-radius: 10px; margin: 20px 0;">
+        <p style="font-size: 14px; color: #92400e; font-weight: 700; margin: 0 0 6px 0;">⚠️ Too Delayed to Complete Deliverables</p>
+        <p style="font-size: 13px; color: #78350f; margin: 0;">Please fill the completion form at the earliest to ensure timely payout processing, or reach out to your Point of Contact immediately.</p>
+        ${contactInfo}
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://1to7media.in'}/dashboard/approved" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 12px 26px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">Submit Deliverable Proof</a>
+      </div>
+      <p style="font-size: 13px; color: #64748b;">Failure to complete deliverables may pause your ability to apply for new campaigns.</p>
+    `,
+  })
+}
+
+export async function sendCreatorActionRequiredGhostedEmail(
+  email: string,
+  userName: string,
+  brandName: string,
+  campaignCode: string,
+  pocName?: string | null,
+  pocPhone?: string | null
+) {
+  const contactInfo = pocPhone
+    ? `<p style="font-size: 14px; color: #475569; margin: 10px 0 0 0;">📞 <strong>Assigned POC:</strong> ${pocName || 'Campaign Manager'} (<a href="https://wa.me/91${pocPhone.replace(/\D/g, '')}" style="color: #059669; font-weight: 600; text-decoration: none;">WhatsApp +91 ${pocPhone}</a>)</p>`
+    : `<p style="font-size: 14px; color: #475569; margin: 10px 0 0 0;">👤 <strong>Assigned POC:</strong> ${pocName || 'Campaign Manager'}</p>`
+
+  await sendNotificationEmail({
+    to: email,
+    subject: `URGENT: Collaboration Attention Required – ${brandName}`,
+    bodyHtml: `
+      <p style="font-size: 16px; color: #333; margin-top: 0;">Hi ${userName},</p>
+      <p style="font-size: 16px; color: #333;">Your collaboration for <strong>${brandName}</strong> <span style="color: #6366f1; font-weight: 600;">(${campaignCode})</span> has been flagged due to unresponsiveness or overdue deliverables.</p>
+      
+      <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 18px 20px; border-radius: 10px; margin: 20px 0;">
+        <p style="font-size: 14px; color: #991b1b; font-weight: 700; margin: 0 0 6px 0;">🚫 New Campaign Applications Paused</p>
+        <p style="font-size: 13px; color: #7f1d1d; margin: 0;">Because your deliverable completion form remains pending without response, your ability to apply for new campaigns on 1to7 has been temporarily paused.</p>
+        ${contactInfo}
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://1to7media.in'}/dashboard/approved" style="display: inline-block; background-color: #dc2626; color: #ffffff; padding: 12px 26px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">Open Approved Collaborations</a>
+      </div>
+      <p style="font-size: 13px; color: #64748b;">Please complete the completion form or contact your POC as soon as possible so your account status can be reviewed and unblocked.</p>
+    `,
+  })
+}
+
+export async function sendCreatorCollaborationRestoredEmail(
+  email: string,
+  userName: string,
+  brandName: string,
+  campaignCode: string
+) {
+  await sendNotificationEmail({
+    to: email,
+    subject: `✅ Collaboration Status Restored – ${brandName}`,
+    bodyHtml: `
+      <p style="font-size: 16px; color: #333; margin-top: 0;">Great news, ${userName}! 🎉</p>
+      <p style="font-size: 16px; color: #333;">Your collaboration for <strong>${brandName}</strong> <span style="color: #6366f1; font-weight: 600;">(${campaignCode})</span> has been verified and restored by the campaign manager.</p>
+      
+      <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 18px 20px; border-radius: 10px; margin: 20px 0;">
+        <p style="font-size: 14px; color: #065f46; font-weight: 700; margin: 0;">✅ Account Fully Active</p>
+        <p style="font-size: 13px; color: #047857; margin: 6px 0 0 0;">You can now apply to new campaigns and manage your active collaborations as normal.</p>
+      </div>
+
+      <div style="text-align: center; margin: 25px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://1to7media.in'}/dashboard" style="display: inline-block; background-color: #059669; color: #ffffff; padding: 12px 26px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 700;">Explore Campaigns</a>
+      </div>
+    `,
+  })
+}
+
+

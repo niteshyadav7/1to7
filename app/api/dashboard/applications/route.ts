@@ -30,6 +30,12 @@ export async function GET(request: Request) {
         final_payment,
         pending_amount,
         manager_phone,
+        completion_deadline,
+        is_delay_exempted,
+        delay_exemption_reason,
+        completion_submitted_at,
+        is_ghosted,
+        ghosted_at,
         created_at,
         updated_at,
         campaigns (

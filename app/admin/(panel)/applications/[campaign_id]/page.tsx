@@ -22,6 +22,8 @@ import { InfluencerCampaignHistoryCard, InfluencerCampaignHistory } from '@/comp
 import CommercialNegotiationModal from '@/components/admin/CommercialNegotiationModal'
 import { ApplicationImportModal } from '@/components/admin/ApplicationImportModal'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
+import { GhostActionModal } from '@/components/admin/ghost/GhostActionModal'
+import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 
 interface UserInfo {
   id: string
@@ -59,6 +61,8 @@ interface Application {
   is_delay_exempted?: boolean | null
   delay_exemption_reason?: string | null
   completion_submitted_at?: string | null
+  is_ghosted?: boolean | null
+  ghosted_at?: string | null
   team_remark?: string | null
   team_remark_by?: string | null
   team_remark_updated_at?: string | null
@@ -151,6 +155,13 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
   const [remarkModalApp, setRemarkModalApp] = useState<Application | null>(null)
   const [modalRemarkText, setModalRemarkText] = useState('')
   const [modalRemarkSaving, setModalRemarkSaving] = useState(false)
+
+  // Ghost & Unghost Modal States
+  const [ghostModalApp, setGhostModalApp] = useState<{
+    app: Application
+    actionType: 'ghost' | 'unghost'
+  } | null>(null)
+  const [ghostHistoryApp, setGhostHistoryApp] = useState<Application | null>(null)
 
   const handleUpdateTeamRemark = async (appId: string, newRemark: string) => {
     const trimmed = newRemark.trim()
@@ -1057,7 +1068,12 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                             
                             {/* Live Timeline Status Badge */}
                             <div>
-                              {isCompleted ? (
+                              {app.is_ghosted ? (
+                                <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-rose-500/25 text-rose-200 border border-rose-500/40 flex items-center gap-1.5 animate-pulse">
+                                  <span>👻</span>
+                                  <span>Marked Ghosted — Account Paused</span>
+                                </span>
+                              ) : isCompleted ? (
                                 <span className="text-[10px] px-2.5 py-1 rounded-lg font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Deliverable Submitted On Time
@@ -1096,28 +1112,77 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
 
                             {/* Admin Quick Action Buttons */}
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              {!app.is_delay_exempted ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => setExemptionModalApp(app)}
-                                  disabled={updatingId === app.id}
-                                  className="h-7 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer"
-                                >
-                                  <ShieldCheck className="h-3 w-3 mr-1" />
-                                  Exempt Brand Delay
-                                </Button>
+                              {app.is_ghosted ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                      setGhostModalApp({
+                                        app,
+                                        actionType: 'unghost',
+                                      })
+                                    }
+                                    className="h-7 px-2.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold cursor-pointer"
+                                  >
+                                    <ShieldCheck className="h-3 w-3 mr-1" />
+                                    Un-ghost Creator
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => setGhostHistoryApp(app)}
+                                    className="h-7 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[11px] font-bold cursor-pointer"
+                                    title="View Ghost Audit Records"
+                                  >
+                                    <History className="h-3 w-3 mr-1" />
+                                    Ghost History
+                                  </Button>
+                                </>
                               ) : (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => updateApplicationTimeline(app.id, { is_delay_exempted: false })}
-                                  disabled={updatingId === app.id}
-                                  className="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[11px] font-bold cursor-pointer"
-                                >
-                                  <RotateCcw className="h-3 w-3 mr-1" />
-                                  Remove Exemption
-                                </Button>
+                                <>
+                                  {!app.is_delay_exempted ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => setExemptionModalApp(app)}
+                                      disabled={updatingId === app.id}
+                                      className="h-7 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold cursor-pointer"
+                                    >
+                                      <ShieldCheck className="h-3 w-3 mr-1" />
+                                      Exempt Brand Delay
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => updateApplicationTimeline(app.id, { is_delay_exempted: false })}
+                                      disabled={updatingId === app.id}
+                                      className="h-7 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[11px] font-bold cursor-pointer"
+                                    >
+                                      <RotateCcw className="h-3 w-3 mr-1" />
+                                      Remove Exemption
+                                    </Button>
+                                  )}
+
+                                  {!isCompleted && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() =>
+                                        setGhostModalApp({
+                                          app,
+                                          actionType: 'ghost',
+                                        })
+                                      }
+                                      className="h-7 px-2.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-[11px] font-bold cursor-pointer"
+                                      title="Mark unresponsive creator as ghosted with proof"
+                                    >
+                                      <span className="mr-1">👻</span>
+                                      Mark Ghosted
+                                    </Button>
+                                  )}
+                                </>
                               )}
 
                               <Button
@@ -2238,6 +2303,34 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
         campaignBrand={campaign?.brand_name}
         campaignCode={campaign?.campaign_code}
       />
+
+      {/* Ghost & Unghost Action Modal */}
+      {ghostModalApp && (
+        <GhostActionModal
+          isOpen={Boolean(ghostModalApp)}
+          actionType={ghostModalApp.actionType}
+          targetCreator={{
+            applicationId: ghostModalApp.app.id,
+            creatorName: ghostModalApp.app.users?.full_name || 'Creator',
+            instagramUsername: ghostModalApp.app.users?.instagram_username,
+            brandName: campaign?.brand_name,
+            campaignCode: campaign?.campaign_code,
+          }}
+          onClose={() => setGhostModalApp(null)}
+          onSuccess={fetchApplications}
+        />
+      )}
+
+      {/* Ghost Audit History Modal */}
+      {ghostHistoryApp && (
+        <GhostHistoryModal
+          isOpen={Boolean(ghostHistoryApp)}
+          applicationId={ghostHistoryApp.id}
+          creatorName={ghostHistoryApp.users?.full_name || 'Creator'}
+          brandName={campaign?.brand_name}
+          onClose={() => setGhostHistoryApp(null)}
+        />
+      )}
     </div>
   )
 }

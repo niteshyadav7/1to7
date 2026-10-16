@@ -18,6 +18,8 @@ export interface ApplicationTimelineData {
   is_delay_exempted?: boolean | null
   delay_exemption_reason?: string | null
   completion_submitted_at?: string | null
+  is_ghosted?: boolean | null
+  ghosted_at?: string | null
   campaigns?: CampaignTimelineConfig | null
 }
 
@@ -28,6 +30,7 @@ export interface ApplicationTimelineStatus {
   campaignCode: string
   status: string
   isCompleted: boolean
+  isGhosted: boolean
   deadline: string
   deadlineDate: Date
   isOverdue: boolean
@@ -41,8 +44,11 @@ export interface ApplicationTimelineStatus {
 
 export interface CreatorCompletionEligibility {
   isEligible: boolean
+  isGhostBlocked?: boolean
+  ghostedCount?: number
   overdueCount: number
   blockingCount: number
+  ghostedApplications?: ApplicationTimelineStatus[]
   blockedApplications: ApplicationTimelineStatus[]
   overdueApplications: ApplicationTimelineStatus[]
   message: string
@@ -132,9 +138,11 @@ export function getApplicationTimelineStatus(
   const isDelayExempted = Boolean(application.is_delay_exempted)
   const delayExemptionReason = application.delay_exemption_reason || null
   const isEnforced = campaign.enforce_completion_deadline !== false
+  const isGhosted = Boolean(application.is_ghosted)
 
-  // Only blocks next campaign if overdue, NOT exempted by admin, and campaign enforcement is ON
-  const isBlocking = isOverdue && !isDelayExempted && isEnforced
+  // Ghosted ALWAYS blocks new campaigns (cannot be bypassed by delay exemption).
+  // Overdue blocks if NOT exempted and campaign enforcement is ON.
+  const isBlocking = isGhosted || (isOverdue && !isDelayExempted && isEnforced)
 
   return {
     applicationId: application.id,
@@ -143,6 +151,7 @@ export function getApplicationTimelineStatus(
     campaignCode: campaign.campaign_code || '',
     status: application.status,
     isCompleted,
+    isGhosted,
     deadline: deadlineDate.toISOString(),
     deadlineDate,
     isOverdue,
@@ -157,15 +166,37 @@ export function getApplicationTimelineStatus(
 
 /**
  * Check if creator is eligible to apply for new campaigns
- * Scans all creator's approved/active applications for any unexempted overdue submissions
+ * Scans all creator applications for ghosted status and unexempted overdue submissions
  */
 export function checkCreatorCompletionEligibility(
   userApplications: ApplicationTimelineData[]
 ): CreatorCompletionEligibility {
-  // Only evaluate active approved applications (where creator is expected to post/submit)
+  const allApps = userApplications || []
+  
+  // 1. First, check for ANY ghosted application across all statuses
+  const ghostedApps = allApps
+    .filter(app => Boolean(app.is_ghosted))
+    .map(app => getApplicationTimelineStatus(app))
+
+  if (ghostedApps.length > 0) {
+    const firstGhosted = ghostedApps[0]
+    return {
+      isEligible: false,
+      isGhostBlocked: true,
+      ghostedCount: ghostedApps.length,
+      overdueCount: 0,
+      blockingCount: ghostedApps.length,
+      ghostedApplications: ghostedApps,
+      blockedApplications: ghostedApps,
+      overdueApplications: [],
+      message: `Your collaboration for ${firstGhosted.brandName} (${firstGhosted.campaignCode}) needs urgent attention. Please complete your pending completion form in Approved Campaigns or contact your assigned Point of Contact to continue applying.`,
+    }
+  }
+
+  // 2. Only evaluate active approved applications for overdue completion
   const activeApprovedStatuses = ['Approved', 'Order Placed']
   
-  const relevantApps = (userApplications || []).filter(app => 
+  const relevantApps = allApps.filter(app => 
     activeApprovedStatuses.includes(app.status)
   )
 
@@ -187,8 +218,11 @@ export function checkCreatorCompletionEligibility(
 
   return {
     isEligible,
+    isGhostBlocked: false,
+    ghostedCount: 0,
     overdueCount: overdueApplications.length,
     blockingCount: blockedApplications.length,
+    ghostedApplications: [],
     blockedApplications,
     overdueApplications,
     message,

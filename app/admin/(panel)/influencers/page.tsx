@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
+import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 
 // ─── Types ─────────────────────────────────────────────────
 export interface ShippingAddress {
@@ -73,6 +74,9 @@ interface Influencer {
   custom_attributes?: Record<string, any>
   is_email_verified: boolean
   is_mobile_verified: boolean
+  is_ghosted?: boolean
+  active_ghost_count?: number
+  lifetime_ghost_count?: number
   created_at: string
   profile_photo?: string
   instagram_profile_pic?: string
@@ -101,7 +105,15 @@ function useDebounceValue<T>(value: T, delay: number): T {
 }
 
 // ─── Profile Modal ─────────────────────────────────────────
-function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void }) {
+function ProfileModal({
+  user,
+  onClose,
+  onViewGhostHistory,
+}: {
+  user: Influencer
+  onClose: () => void
+  onViewGhostHistory?: (userId: string, name: string) => void
+}) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -141,9 +153,14 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
               )}
             </div>
             <div className="pb-1 text-shadow-sm">
-               <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight flex items-center gap-2">
-                 {user.full_name}
-                 {user.is_email_verified && <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+               <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight flex items-center gap-2 flex-wrap">
+                 <span>{user.full_name}</span>
+                 {user.is_email_verified && <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />}
+                 {user.is_ghosted && (
+                   <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
+                     👻 Ghosted ({user.active_ghost_count || 1})
+                   </span>
+                 )}
                </h2>
                <p className="text-sm font-mono text-indigo-300 font-medium">#{user.influencer_id}</p>
             </div>
@@ -151,8 +168,46 @@ function ProfileModal({ user, onClose }: { user: Influencer; onClose: () => void
         </div>
 
         {/* Content Body */}
-        <div className="pt-16 p-6 sm:p-8 overflow-y-auto overflow-x-hidden space-y-8">
+        <div className="pt-16 p-6 sm:p-8 overflow-y-auto overflow-x-hidden space-y-6">
            
+           {/* Ghost Warning & History Banner */}
+           {(user.is_ghosted || (user.lifetime_ghost_count || 0) > 0) && (
+             <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+               user.is_ghosted 
+                 ? 'bg-rose-500/15 border-rose-500/30' 
+                 : 'bg-amber-500/10 border-amber-500/20'
+             }`}>
+               <div className="flex items-center gap-3">
+                 <div className={`p-2.5 rounded-lg text-lg ${
+                   user.is_ghosted ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+                 }`}>
+                   👻
+                 </div>
+                 <div>
+                   <h4 className={`text-sm font-bold ${user.is_ghosted ? 'text-rose-300' : 'text-amber-300'}`}>
+                     {user.is_ghosted 
+                       ? `Currently Ghosted on ${user.active_ghost_count} Ongoing Campaign(s)` 
+                       : `Creator has ${user.lifetime_ghost_count} Past Ghost Incident(s)`}
+                   </h4>
+                   <p className="text-xs text-slate-400 mt-0.5">
+                     {user.is_ghosted 
+                       ? 'This creator is unresponsive and blocked from applying to new campaigns until resolved.' 
+                       : 'All previous ghosting cases have been unghosted or resolved with proof.'}
+                   </p>
+                 </div>
+               </div>
+               {onViewGhostHistory && (
+                 <button
+                   type="button"
+                   onClick={() => onViewGhostHistory(user.id, user.full_name)}
+                   className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-slate-200 hover:text-white hover:bg-white/10 shrink-0 text-xs font-semibold cursor-pointer transition-colors"
+                 >
+                   View Ghost Audit Log
+                 </button>
+               )}
+             </div>
+           )}
+
            {/* Section 1: Overview stats */}
            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-slate-800/40 border border-white/5 rounded-xl p-3 text-center">
@@ -1084,6 +1139,7 @@ export default function InfluencersDirectoryPage() {
   // Modal
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
   const [customExportOpen, setCustomExportOpen] = useState(false)
+  const [historyModalUser, setHistoryModalUser] = useState<{ id: string; name: string } | null>(null)
 
   // Export State
   const [isExporting, setIsExporting] = useState(false)
@@ -1263,13 +1319,27 @@ export default function InfluencersDirectoryPage() {
   return (
     <div className="space-y-5 pb-24 relative">
       <AnimatePresence>
-        {selectedProfile && <ProfileModal user={selectedProfile} onClose={() => setSelectedProfile(null)} />}
+        {selectedProfile && (
+          <ProfileModal
+            user={selectedProfile}
+            onClose={() => setSelectedProfile(null)}
+            onViewGhostHistory={(id, name) => setHistoryModalUser({ id, name })}
+          />
+        )}
         {customExportOpen && (
           <CustomExportModal
             isOpen={customExportOpen}
             onClose={() => setCustomExportOpen(false)}
             initialCategory={categoryFilter}
             initialGender={genderFilter}
+          />
+        )}
+        {historyModalUser && (
+          <GhostHistoryModal
+            isOpen={Boolean(historyModalUser)}
+            onClose={() => setHistoryModalUser(null)}
+            userId={historyModalUser.id}
+            title={`Ghost Audit History — ${historyModalUser.name}`}
           />
         )}
       </AnimatePresence>
@@ -1703,6 +1773,31 @@ export default function InfluencersDirectoryPage() {
                        {/* Status Blocks */}
                        <td className="px-4 py-3">
                          <div className="flex flex-col gap-1.5 items-start">
+                           {user.is_ghosted ? (
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.stopPropagation()
+                                 setHistoryModalUser({ id: user.id, name: user.full_name })
+                               }}
+                               className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/40 shadow-sm animate-pulse hover:bg-rose-500/30 cursor-pointer"
+                               title="Click to view ghost audit log"
+                             >
+                               👻 Ghosted ({user.active_ghost_count || 1})
+                             </button>
+                           ) : (user.lifetime_ghost_count || 0) > 0 ? (
+                             <button
+                               type="button"
+                               onClick={(e) => {
+                                 e.stopPropagation()
+                                 setHistoryModalUser({ id: user.id, name: user.full_name })
+                               }}
+                               className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 hover:bg-amber-500/25 cursor-pointer"
+                               title="Click to view past ghost incidents"
+                             >
+                               ⚠️ Past Ghost ({user.lifetime_ghost_count})
+                             </button>
+                           ) : null}
                            {user.is_email_verified ? (
                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 className="h-3 w-3" /> Email Verified</span>
                            ) : (

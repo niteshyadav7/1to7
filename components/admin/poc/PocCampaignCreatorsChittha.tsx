@@ -18,9 +18,17 @@ import {
   RefreshCw,
   FileText,
   Filter,
+  ShieldAlert,
+  ShieldCheck,
+  History,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
 import Link from 'next/link'
 import { CampaignCreatorDetail, CampaignCreatorsResponse } from '@/app/api/admin/poc-dashboard/campaign-creators/route'
+import { GhostActionModal, GhostActionType, TargetCreatorItem } from '@/components/admin/ghost/GhostActionModal'
+import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
+import { GhostBadge } from '@/components/admin/ghost/GhostBadge'
 
 interface PocCampaignCreatorsChitthaProps {
   campaignId: string
@@ -41,6 +49,30 @@ export function PocCampaignCreatorsChittha({
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+
+  // Multi-selection for bulk ghosting
+  const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
+
+  // Ghost Action Modal state
+  const [ghostModal, setGhostModal] = useState<{
+    isOpen: boolean
+    actionType: GhostActionType
+    targetCreator?: TargetCreatorItem | null
+    bulkCreators?: TargetCreatorItem[]
+  }>({
+    isOpen: false,
+    actionType: 'ghost',
+  })
+
+  // History Modal state
+  const [historyModal, setHistoryModal] = useState<{
+    isOpen: boolean
+    applicationId?: string
+    creatorName?: string
+    brandName?: string
+  }>({
+    isOpen: false,
+  })
 
   const fetchData = async () => {
     try {
@@ -70,24 +102,23 @@ export function PocCampaignCreatorsChittha({
 
     // 1. Status Filter
     if (selectedStatus !== 'all') {
-      if (selectedStatus === 'approved') {
-        // All Approved creators (matches top table: 80)
+      if (selectedStatus === 'ghosted') {
+        list = list.filter(c => c.isGhosted)
+      } else if (selectedStatus === 'approved') {
+        // All Approved creators
         list = list.filter(c => !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status))
       } else if (selectedStatus === 'pending') {
-        // Pending Deliverables: Approved creators who have NOT completed yet (34)
+        // Pending Deliverables: Approved creators who have NOT completed yet
         list = list.filter(c => 
           !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status) &&
           c.status !== 'Completed' &&
           !c.completionSubmittedAt
         )
       } else if (selectedStatus === 'completed') {
-        // Completed: deliverable submitted or marked completed (46)
         list = list.filter(c => c.status === 'Completed' || Boolean(c.completionSubmittedAt))
       } else if (selectedStatus === 'applied') {
-        // Under review / applied (78)
         list = list.filter(c => ['Applied', 'Under Process', 'Under Review'].includes(c.status))
       } else if (selectedStatus === 'rejected') {
-        // Rejected (2)
         list = list.filter(c => c.status === 'Rejected')
       }
     }
@@ -319,6 +350,23 @@ export function PocCampaignCreatorsChittha({
             </span>
           </button>
 
+          {/* Ghosted Tab */}
+          <button
+            type="button"
+            onClick={() => setSelectedStatus('ghosted')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              selectedStatus === 'ghosted'
+                ? 'bg-rose-600 text-white shadow-md'
+                : 'bg-slate-900 text-rose-300/90 hover:text-rose-200 hover:bg-slate-800 border border-rose-500/20'
+            }`}
+            title="Creators marked as ghosted due to unresponsiveness or overdue deliverables"
+          >
+            <span>👻 Ghosted</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-200 text-[10px]">
+              {data?.statusCounts.ghosted || 0}
+            </span>
+          </button>
+
           <button
             type="button"
             onClick={() => setSelectedStatus('rejected')}
@@ -374,13 +422,32 @@ export function PocCampaignCreatorsChittha({
           <table className="w-full text-left text-xs table-auto divide-y divide-white/[0.04]">
             <thead>
               <tr className="bg-slate-950/70 text-slate-400 text-[10px] uppercase font-semibold tracking-wider sticky top-0 z-10 backdrop-blur-md">
+                <th className="py-2.5 px-3 w-8 text-center">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredCreators.length > 0 &&
+                      filteredCreators.every(c => selectedAppIds.has(c.applicationId))
+                    }
+                    onChange={e => {
+                      if (e.target.checked) {
+                        setSelectedAppIds(new Set(filteredCreators.map(c => c.applicationId)))
+                      } else {
+                        setSelectedAppIds(new Set())
+                      }
+                    }}
+                    className="rounded bg-slate-900 border-white/20 text-rose-500 focus:ring-0 cursor-pointer"
+                    title="Select all on this view"
+                  />
+                </th>
                 <th className="py-2.5 px-3">#</th>
                 <th className="py-2.5 px-3 min-w-[200px]">Creator Details</th>
                 <th className="py-2.5 px-3 min-w-[140px]">Instagram &amp; Followers</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
-                <th className="py-2.5 px-3 min-w-[260px]">Accountability &amp; Review Chittha</th>
+                <th className="py-2.5 px-3 min-w-[240px]">Accountability &amp; Review Chittha</th>
                 <th className="py-2.5 px-3 text-right">Payout</th>
                 <th className="py-2.5 px-3 text-center">Applied On</th>
+                <th className="py-2.5 px-3 text-center min-w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
@@ -388,12 +455,34 @@ export function PocCampaignCreatorsChittha({
                 const isApproved =
                   creator.status === 'Approved' || creator.status === 'Payment Approved'
                 const isRejected = creator.status === 'Rejected'
+                const isSelected = selectedAppIds.has(creator.applicationId)
 
                 return (
                   <tr
                     key={creator.applicationId}
-                    className="hover:bg-slate-800/30 transition-colors group"
+                    className={`transition-colors group ${
+                      isSelected
+                        ? 'bg-rose-950/20'
+                        : creator.isGhosted
+                        ? 'bg-rose-950/10 hover:bg-rose-950/20'
+                        : 'hover:bg-slate-800/30'
+                    }`}
                   >
+                    {/* Checkbox */}
+                    <td className="py-3 px-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={e => {
+                          const next = new Set(selectedAppIds)
+                          if (e.target.checked) next.add(creator.applicationId)
+                          else next.delete(creator.applicationId)
+                          setSelectedAppIds(next)
+                        }}
+                        className="rounded bg-slate-900 border-white/20 text-rose-500 focus:ring-0 cursor-pointer"
+                      />
+                    </td>
+
                     {/* Index */}
                     <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">
                       {index + 1}
@@ -454,12 +543,54 @@ export function PocCampaignCreatorsChittha({
 
                     {/* Status Badge */}
                     <td className="py-3 px-3 text-center whitespace-nowrap">
-                      {getStatusBadge(creator.status, creator.completionSubmittedAt)}
+                      {creator.isGhosted ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <GhostBadge
+                            isGhosted={true}
+                            onClick={() =>
+                              setHistoryModal({
+                                isOpen: true,
+                                applicationId: creator.applicationId,
+                                creatorName: creator.creatorName,
+                                brandName: brandName || data?.campaign.brandName,
+                              })
+                            }
+                          />
+                          {creator.ghostedAt && (
+                            <span className="text-[9px] text-rose-400 font-mono">
+                              {new Date(creator.ghostedAt).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          {getStatusBadge(creator.status, creator.completionSubmittedAt)}
+                          {creator.isOverdue && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                              <AlertCircle className="w-2.5 h-2.5 text-amber-400" />
+                              Overdue {creator.daysOverdue}d
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
 
                     {/* Accountability & Review Chittha (Rejection reason / remarks / pitch) */}
                     <td className="py-3 px-3">
-                      {isRejected ? (
+                      {creator.isGhosted ? (
+                        <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 space-y-1">
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300 uppercase tracking-wide">
+                            <ShieldAlert className="w-3 h-3 text-rose-400 shrink-0" />
+                            <span>Ghosted Violation Logged</span>
+                          </div>
+                          <p className="text-[11px] text-rose-200/90 leading-tight">
+                            Account paused from new campaigns. Proof screenshots and justification recorded.
+                          </p>
+                        </div>
+                      ) : isRejected ? (
                         <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/25 space-y-1">
                           <div className="flex items-center gap-1 text-[10px] font-bold text-rose-300 uppercase tracking-wide">
                             <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
@@ -526,6 +657,77 @@ export function PocCampaignCreatorsChittha({
                           })
                         : '—'}
                     </td>
+
+                    {/* Actions Column */}
+                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                      {creator.isGhosted ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGhostModal({
+                                isOpen: true,
+                                actionType: 'unghost',
+                                targetCreator: {
+                                  applicationId: creator.applicationId,
+                                  creatorName: creator.creatorName,
+                                  instagramUsername: creator.instagramUsername,
+                                  brandName: brandName || data?.campaign.brandName,
+                                  campaignCode: campaignCode || data?.campaign.campaignCode,
+                                },
+                              })
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                            title="Un-ghost creator with proof and unblock their account"
+                          >
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Un-ghost</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setHistoryModal({
+                                isOpen: true,
+                                applicationId: creator.applicationId,
+                                creatorName: creator.creatorName,
+                                brandName: brandName || data?.campaign.brandName,
+                              })
+                            }
+                            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[10px] transition-colors cursor-pointer"
+                            title="View Ghost Audit Trail & Proof Screenshots"
+                          >
+                            <History className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : isApproved && !creator.completionSubmittedAt && creator.status !== 'Completed' ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGhostModal({
+                                isOpen: true,
+                                actionType: 'ghost',
+                                targetCreator: {
+                                  applicationId: creator.applicationId,
+                                  creatorName: creator.creatorName,
+                                  instagramUsername: creator.instagramUsername,
+                                  brandName: brandName || data?.campaign.brandName,
+                                  campaignCode: campaignCode || data?.campaign.campaignCode,
+                                },
+                              })
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                            title="Mark creator as ghosted with screenshot proof and comments"
+                          >
+                            <span>👻</span>
+                            <span>Mark Ghosted</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-600">—</span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -534,16 +736,85 @@ export function PocCampaignCreatorsChittha({
         )}
       </div>
 
-      {/* ─── 4. FOOTER SUMMARY BAR ─── */}
+      {/* ─── 4. FLOATING BULK ACTIONS BAR (When Creators Selected) ─── */}
+      {selectedAppIds.size > 0 && (
+        <div className="p-3 bg-rose-950/90 border-t border-rose-500/40 flex items-center justify-between px-5 text-xs animate-in slide-in-from-bottom duration-200">
+          <div className="flex items-center gap-2 text-white">
+            <ShieldAlert className="h-4 w-4 text-rose-400" />
+            <span>
+              <strong className="font-mono text-rose-300">{selectedAppIds.size}</strong> creator(s) selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedAppIds(new Set())}
+              className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const selectedCreators = filteredCreators
+                  .filter(c => selectedAppIds.has(c.applicationId))
+                  .map(c => ({
+                    applicationId: c.applicationId,
+                    creatorName: c.creatorName,
+                    instagramUsername: c.instagramUsername,
+                    brandName: brandName || data?.campaign.brandName,
+                    campaignCode: campaignCode || data?.campaign.campaignCode,
+                  }))
+                setGhostModal({
+                  isOpen: true,
+                  actionType: 'bulk-ghost',
+                  bulkCreators: selectedCreators,
+                })
+              }}
+              className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-rose-950/50 cursor-pointer"
+            >
+              <span>👻 Mark Selected as Ghosted ({selectedAppIds.size})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 5. FOOTER SUMMARY BAR ─── */}
       <div className="p-3 bg-slate-950 border-t border-white/[0.06] flex items-center justify-between text-xs text-slate-400 px-4">
         <span>
           Showing <strong className="text-white font-mono">{filteredCreators.length}</strong> of{' '}
           <strong className="text-white font-mono">{data?.statusCounts.all || 0}</strong> applicants
         </span>
         <span className="text-[11px] text-slate-500">
-          Click any Instagram handle to verify creator profile live
+          Click any Instagram handle or Ghost badge to view live proofs &amp; audit history
         </span>
       </div>
+
+      {/* Ghost Action Modal (Single or Bulk Ghost / Unghost) */}
+      <GhostActionModal
+        isOpen={ghostModal.isOpen}
+        actionType={ghostModal.actionType}
+        targetCreator={ghostModal.targetCreator}
+        bulkCreators={ghostModal.bulkCreators}
+        onClose={() =>
+          setGhostModal(prev => ({ ...prev, isOpen: false }))
+        }
+        onSuccess={() => {
+          setSelectedAppIds(new Set())
+          fetchData()
+        }}
+      />
+
+      {/* Ghost Audit History Modal */}
+      <GhostHistoryModal
+        isOpen={historyModal.isOpen}
+        applicationId={historyModal.applicationId}
+        creatorName={historyModal.creatorName}
+        brandName={historyModal.brandName}
+        onClose={() =>
+          setHistoryModal(prev => ({ ...prev, isOpen: false }))
+        }
+      />
     </div>
   )
 }

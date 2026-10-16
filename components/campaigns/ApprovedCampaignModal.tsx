@@ -54,6 +54,8 @@ interface Application {
   partial_payment: number
   final_payment: number
   pending_amount: number
+  is_ghosted?: boolean
+  ghosted_at?: string | null
   manager_phone?: string | null
   manager?: {
     name?: string
@@ -545,6 +547,68 @@ export default function ApprovedCampaignModal({
 
               {/* Modal Body with Tab Contents */}
               <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6 no-scrollbar scrollbar-none">
+
+                {/* Urgent Attention / Overdue Deliverable Banner */}
+                {application.is_ghosted && (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-rose-500/15 via-red-500/10 to-rose-500/15 border border-rose-300 shadow-xs space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-rose-600 text-white shrink-0 mt-0.5">
+                        <AlertCircle className="h-5 w-5 animate-pulse" />
+                      </div>
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">
+                            Action Required
+                          </span>
+                          <span className="text-xs text-rose-700 font-bold">
+                            Pending Deliverable Overdue
+                          </span>
+                        </div>
+                        <p className="text-sm font-bold text-slate-900 leading-snug">
+                          Too delayed to complete the completion form. Please fill at the earliest or contact your POC.
+                        </p>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          Your account is temporarily paused from applying to new campaigns until your deliverables are submitted or reviewed.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 pt-1 border-t border-rose-200/60 flex-wrap">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setActiveTab('completion')}
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs h-8 px-4 cursor-pointer shadow-xs"
+                      >
+                        <FileCheck className="h-3.5 w-3.5 mr-1.5" />
+                        Fill Completion Form
+                      </Button>
+
+                      {(() => {
+                        const mgrPhone = application.manager?.phone || application.manager_phone || application.campaigns?.manager_phone
+                        const cleanPhone = mgrPhone ? String(mgrPhone).replace(/\D/g, '') : ''
+                        const phone10 = cleanPhone ? (cleanPhone.length === 12 && cleanPhone.startsWith('91') ? cleanPhone.slice(2) : cleanPhone) : ''
+                        const mgrName = application.manager?.name || 'POC'
+
+                        if (!phone10) return null
+
+                        return (
+                          <a
+                            href={`https://wa.me/91${phone10}?text=${encodeURIComponent(
+                              `Hi ${mgrName}, I am reaching out regarding my pending deliverables on ${application.campaigns?.brand_name || 'Campaign'} (${application.campaigns?.campaign_code || ''}). I am updating my submission now.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            WhatsApp POC ({mgrName})
+                          </a>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )}
 
                 {/* ═══════════════════════════════════════════
                     TAB 1: CAMPAIGN DETAILS & OVERVIEW (DEFAULT)
