@@ -59,8 +59,8 @@ export function DynamicQuestionFiltersBar({
   }).length
 
   // Visible fields: filterable ones by default, or all if toggled
-  const filterableFields = fields.filter(f => f.filterable !== false)
-  const nonFilterableFields = fields.filter(f => f.filterable === false)
+  const filterableFields = fields.filter(f => f.filterable === true || /commercial|quote|budget|rate|charge|fee/i.test(f.name))
+  const otherFields = fields.filter(f => !filterableFields.some(ff => ff.name === f.name))
   const displayedFields = showAllQuestions ? fields : (filterableFields.length > 0 ? filterableFields : fields)
 
   return (
@@ -91,13 +91,13 @@ export function DynamicQuestionFiltersBar({
         </div>
 
         <div className="flex items-center gap-2">
-          {nonFilterableFields.length > 0 && (
+          {otherFields.length > 0 && (
             <button
               type="button"
               onClick={() => setShowAllQuestions(!showAllQuestions)}
               className="text-[11px] text-slate-400 hover:text-indigo-300 transition-colors cursor-pointer"
             >
-              {showAllQuestions ? 'Show quick filters only' : `+${nonFilterableFields.length} more campaign questions`}
+              {showAllQuestions ? 'Show quick filters only' : `+${otherFields.length} more campaign questions`}
             </button>
           )}
 

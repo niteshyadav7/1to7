@@ -36,20 +36,21 @@ export async function GET(request: Request) {
       if (isUuid) {
         campQuery = campQuery.eq('id', campaignId)
       } else {
-        campQuery = campQuery.eq('campaign_code', campaignId)
+        campQuery = campQuery.or(`campaign_code.eq.${campaignId},brand_name.ilike.${campaignId}`)
       }
-    } else if (campaignCode) {
-      campQuery = campQuery.eq('campaign_code', campaignCode)
-    } else if (brand) {
-      campQuery = campQuery.ilike('brand_name', brand)
+    } else {
+      const term = brand || campaignCode
+      campQuery = campQuery.or(`brand_name.ilike.%${term}%,campaign_code.ilike.%${term}%`)
     }
 
-    const { data: campaign, error } = await campQuery.maybeSingle()
+    const { data, error } = await campQuery.order('created_at', { ascending: false }).limit(1)
 
     if (error) {
       console.error('[question-filters] Error fetching campaign:', error)
       return NextResponse.json({ error: 'Failed to fetch campaign filters' }, { status: 500 })
     }
+
+    const campaign = data?.[0] || null
 
     if (!campaign) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })

@@ -90,7 +90,8 @@ export async function GET(request: Request) {
         completion_days,
         completion_deadline,
         enforce_completion_deadline,
-        manager_phone
+        manager_phone,
+        form_fields
       )
     `
 

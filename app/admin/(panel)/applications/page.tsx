@@ -108,6 +108,7 @@ interface CampaignInfo {
   completion_days?: number | null
   completion_deadline?: string | null
   enforce_completion_deadline?: boolean | null
+  form_fields?: FormField[]
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -1145,23 +1146,31 @@ export default function AllApplicationsPage() {
   useEffect(() => {
     if (filters.campaign.length === 1) {
       const selected = filters.campaign[0]
+
+      // 1. Instant local resolution from existing loaded applications
+      const localApp = applications.find(a =>
+        a.campaigns?.brand_name === selected || a.campaigns?.campaign_code === selected
+      )
+      if (localApp?.campaigns?.form_fields && localApp.campaigns.form_fields.length > 0) {
+        setSingleCampaignFields(localApp.campaigns.form_fields)
+      }
+
+      // 2. Network enrichment with historical aliases & updated builder settings
       let isMounted = true
-      fetch(`/api/admin/applications/question-filters?brand=${encodeURIComponent(selected)}&campaign_code=${encodeURIComponent(selected)}`)
+      fetch(`/api/admin/applications/question-filters?brand=${encodeURIComponent(selected)}`)
         .then(res => res.json())
         .then(data => {
           if (isMounted && data.campaign?.form_fields) {
             setSingleCampaignFields(data.campaign.form_fields)
           }
         })
-        .catch(() => {
-          if (isMounted) setSingleCampaignFields([])
-        })
+        .catch(() => {})
       return () => { isMounted = false }
     } else {
       setSingleCampaignFields([])
       setQuestionFilters({})
     }
-  }, [filters.campaign])
+  }, [filters.campaign, applications])
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
