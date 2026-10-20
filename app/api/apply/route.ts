@@ -62,11 +62,8 @@ export async function POST(request: Request) {
         .single()
         
       if (existingUser) {
-        // Prevent unauthenticated callers from hijacking or applying on behalf of an existing account
-        return NextResponse.json({
-          error: 'An account already exists with this mobile number. Please log in to submit your application with your verified profile.',
-          code: 'ACCOUNT_EXISTS'
-        }, { status: 401 })
+        // Associate application directly with existing creator account without creating an active session
+        userId = existingUser.id
       } else {
         // Check Instagram handle availability if provided
         let cleanedInsta = ''

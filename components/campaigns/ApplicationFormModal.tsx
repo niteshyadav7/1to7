@@ -288,12 +288,8 @@ export default function ApplicationFormModal({
       return
     }
 
-    const redirectTarget = campaign?.id ? `/campaigns/${campaign.id}` : '/'
-
     if (mobileStatus === 'exists') {
-      toast.info('Account found! Please log in to apply with your profile.')
-      onClose()
-      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${cleanMobile}`)
+      setGuestStep('application')
       return
     } else if (mobileStatus === 'new') {
       setGuestStep('new-profile')
@@ -311,9 +307,8 @@ export default function ApplicationFormModal({
 
         if (data.exists) {
           setMobileStatus('exists')
-          toast.info('Account found! Please log in to apply with your profile.')
-          onClose()
-          router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${cleanMobile}`)
+          if (data.maskedEmail) setMaskedEmail(data.maskedEmail)
+          setGuestStep('application')
         } else {
           setMobileStatus('new')
           setGuestStep('new-profile')
@@ -678,34 +673,25 @@ export default function ApplicationFormModal({
                       <AnimatePresence>
                         {mobileStatus === 'exists' && (
                           <motion.div 
-                            initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
-                            className="p-3.5 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-950 space-y-2.5 mt-2"
+                            initial={{ opacity: 0, height: 0, y: -5 }} 
+                            animate={{ opacity: 1, height: 'auto', y: 0 }} 
+                            exit={{ opacity: 0, height: 0 }}
+                            className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/90 text-emerald-950 space-y-1 mt-2"
                           >
-                            <div className="flex items-start gap-2.5">
-                              <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" /> 
-                              <div className="text-xs space-y-0.5">
-                                <p className="font-bold text-amber-950">Creator Account Found!</p>
-                                <p className="text-amber-800 text-[11px] leading-relaxed">
-                                  This number is registered{maskedEmail ? ` (${maskedEmail})` : ''}. Please log in to apply using your verified Instagram profile.
-                                </p>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0" /> 
+                              <p className="font-bold text-xs text-emerald-950">Creator Account Found!</p>
                             </div>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                onClose()
-                                const redirectTarget = campaign?.id ? `/campaigns/${campaign.id}` : '/'
-                                router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}&mobile=${guestMobile.replace(/\D/g, '')}`)
-                              }}
-                              className="w-full h-9 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs cursor-pointer"
-                            >
-                              Log In to Apply
-                            </Button>
+                            <p className="text-emerald-800 text-[11px] leading-relaxed pl-6">
+                              Registered account{maskedEmail ? ` (${maskedEmail})` : ''} detected. Click Continue below to apply directly with your profile.
+                            </p>
                           </motion.div>
                         )}
                         {mobileStatus === 'new' && (
                           <motion.div 
-                            initial={{ opacity: 0, height: 0, y: -5 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0 }}
+                            initial={{ opacity: 0, height: 0, y: -5 }} 
+                            animate={{ opacity: 1, height: 'auto', y: 0 }} 
+                            exit={{ opacity: 0, height: 0 }}
                             className="flex items-center gap-2 text-primary text-xs font-semibold pt-2 pl-1"
                           >
                             <User className="h-3.5 w-3.5" /> New Creator! We&apos;ll set up your profile next.
@@ -714,19 +700,17 @@ export default function ApplicationFormModal({
                       </AnimatePresence>
                     </div>
 
-                    {mobileStatus !== 'exists' && (
-                      <Button
-                        onClick={handleMobileCheck}
-                        disabled={checkingMobile}
-                        className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm cursor-pointer"
-                      >
-                        {checkingMobile ? (
-                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
-                        ) : (
-                          <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
-                        )}
-                      </Button>
-                    )}
+                    <Button
+                      onClick={handleMobileCheck}
+                      disabled={checkingMobile}
+                      className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold text-sm disabled:opacity-50 transition-all shadow-sm cursor-pointer"
+                    >
+                      {checkingMobile ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Checking...</>
+                      ) : (
+                        <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                      )}
+                    </Button>
                   </motion.div>
                 )}
 
