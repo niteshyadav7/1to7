@@ -66,7 +66,7 @@ export function DynamicQuestionFiltersBar({
   return (
     <div
       ref={containerRef}
-      className="p-3 rounded-2xl bg-gradient-to-r from-slate-900/90 via-indigo-950/25 to-slate-900/90 border border-indigo-500/25 shadow-lg backdrop-blur-sm space-y-2.5 transition-all"
+      className="relative z-40 p-3 rounded-2xl bg-gradient-to-r from-slate-900/90 via-indigo-950/25 to-slate-900/90 border border-indigo-500/25 shadow-lg backdrop-blur-sm space-y-2.5 transition-all"
     >
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export function DynamicQuestionFiltersBar({
           }
 
           return (
-            <div key={field.name} className="relative">
+            <div key={field.name} className={`relative ${isOpen ? 'z-[60]' : 'z-10'}`}>
               <button
                 type="button"
                 onClick={() => setOpenField(isOpen ? null : field.name)}
@@ -189,7 +189,7 @@ export function DynamicQuestionFiltersBar({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.98 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute left-0 top-full mt-1.5 z-50 w-72 sm:w-80 p-3.5 rounded-2xl bg-slate-900 border border-indigo-500/30 text-white shadow-2xl shadow-black/80 space-y-3"
+                    className="absolute left-0 top-full mt-2 z-[100] w-72 sm:w-84 max-w-[calc(100vw-2.5rem)] p-4 rounded-2xl bg-slate-900/98 backdrop-blur-2xl border border-indigo-500/50 text-white shadow-[0_20px_50px_rgba(0,0,0,0.95)] space-y-3 ring-1 ring-white/10"
                   >
                     <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2">
                       <div className="min-w-0">

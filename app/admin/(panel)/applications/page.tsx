@@ -2257,26 +2257,28 @@ export default function AllApplicationsPage() {
 
       {/* ─── Dynamic Campaign Questions Filter Bar (Shown when 1 campaign is selected) ─── */}
       {filters.campaign.length === 1 && singleCampaignFields.length > 0 && (
-        <DynamicQuestionFiltersBar
-          fields={singleCampaignFields}
-          questionFilters={questionFilters}
-          onFilterChange={(fieldName, criteria) => {
-            setQuestionFilters(prev => {
-              const updated = { ...prev }
-              if (!criteria) {
-                delete updated[fieldName]
-              } else {
-                updated[fieldName] = criteria
-              }
-              return updated
-            })
-            setPage(1)
-          }}
-          onClearAll={() => setQuestionFilters({})}
-          totalCount={applications.length}
-          filteredCount={processedData.length}
-          campaignName={filters.campaign[0]}
-        />
+        <div className="relative z-30">
+          <DynamicQuestionFiltersBar
+            fields={singleCampaignFields}
+            questionFilters={questionFilters}
+            onFilterChange={(fieldName, criteria) => {
+              setQuestionFilters(prev => {
+                const updated = { ...prev }
+                if (!criteria) {
+                  delete updated[fieldName]
+                } else {
+                  updated[fieldName] = criteria
+                }
+                return updated
+              })
+              setPage(1)
+            }}
+            onClearAll={() => setQuestionFilters({})}
+            totalCount={applications.length}
+            filteredCount={processedData.length}
+            campaignName={filters.campaign[0]}
+          />
+        </div>
       )}
 
       {/* ─── Smart Cross-Status Search Alert ─────────────── */}

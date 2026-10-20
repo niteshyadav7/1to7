@@ -727,25 +727,27 @@ export default function AdminApplicationsPage() {
 
       {/* Dynamic Campaign Questions Filter Bar */}
       {campaign?.form_fields && campaign.form_fields.length > 0 && (
-        <DynamicQuestionFiltersBar
-          fields={campaign.form_fields}
-          questionFilters={questionFilters}
-          onFilterChange={(fieldName, criteria) => {
-            setQuestionFilters(prev => {
-              const updated = { ...prev }
-              if (!criteria) {
-                delete updated[fieldName]
-              } else {
-                updated[fieldName] = criteria
-              }
-              return updated
-            })
-          }}
-          onClearAll={() => setQuestionFilters({})}
-          totalCount={applications.length}
-          filteredCount={filtered.length}
-          campaignName={campaign.brand_name || campaign.campaign_code}
-        />
+        <div className="relative z-30">
+          <DynamicQuestionFiltersBar
+            fields={campaign.form_fields}
+            questionFilters={questionFilters}
+            onFilterChange={(fieldName, criteria) => {
+              setQuestionFilters(prev => {
+                const updated = { ...prev }
+                if (!criteria) {
+                  delete updated[fieldName]
+                } else {
+                  updated[fieldName] = criteria
+                }
+                return updated
+              })
+            }}
+            onClearAll={() => setQuestionFilters({})}
+            totalCount={applications.length}
+            filteredCount={filtered.length}
+            campaignName={campaign.brand_name || campaign.campaign_code}
+          />
+        </div>
       )}
 
       {/* Applications */}
