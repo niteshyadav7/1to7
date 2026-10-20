@@ -26,6 +26,7 @@ CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engin
 CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic)
 CASE 17: Multi-State Governance Action Collision & CSS Flexbox Reverse Overflow (Approve/Reject Overlay Disaster)
 CASE 18: Dynamic Multi-Campaign Bulk Import Template Engine & Schema Drift (Phantom custom_fields vs Normalized form_fields & Barter/Paid Budget Polymorphism)
+CASE 19: Question-Text-as-Key Drift: Renamed Campaign Questions Silently Orphan 69% of Answers (Per-Question Filter Audit)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -582,6 +583,30 @@ When managers tried to bulk-import hundreds of creators for a selected campaign 
 
 [INTERVIEW STAR TAKEAWAY]
 "When engineering bulk data tools for polymorphic domain entities, client-side template generators must never rely on static assumptions or unverified property names. Always synchronize the generator against the single source of truth—the database JSONB schema (`form_fields` vs `custom_fields`) and entity metadata (`budget_type`). Back the output with UTF-8 BOM encoding and intelligent sample defaults so operations teams can immediately work with clean, pre-validated spreadsheets."
+
+====================================================================================================
+CASE 19: Question-Text-as-Key Drift: Renamed Campaign Questions Silently Orphan Answers
+====================================================================================================
+CATEGORIES: Data Modeling / JSONB Schema Design / Filtering Correctness / Product Analytics
+INTERVIEW QUESTION: "Tell me about a time a seemingly simple feature request exposed a hidden data-modeling flaw."
+
+[SITUATION]
+The ops manager asked for per-question filters on the Applications page (e.g. "show HRX applicants whose quoted commercial for 1 Reel + 1 Story is <= 3500"). Before building it, we audited production data for the HRX campaign (35 applications).
+
+[ROOT CAUSE]
+1. Campaign questions live in `campaigns.form_fields` (JSONB array of {name, type, options}). Creator answers live in `applications.form_data` (JSONB) keyed by the question's display TEXT, e.g. form_data["please share your best commercials for 1 Reel + 1 Story ..."] = "3500".
+2. Questions have no stable ID. When the brand team edited the wording mid-campaign ("If not, please share your best commercials..." -> "please share your best commercials..."), every earlier answer stayed under the OLD key.
+3. Audit result: only 9/35 applicants have an answer under the current question text; 24/35 (69%) answered the old wording. A naive filter on the current name would silently hide the majority of applicants, i.e. a cheaper creator could be excluded from shortlisting without anyone noticing.
+4. Secondary data-quality issues: numeric answers stored as strings with junk values ("1"), free-text inconsistency ("Bengaluru" / "Bangalore" / "bangalore"), dropdown case drift ("yes" vs "Yes"), and a status value ("Approved") leaking into a city column from a mis-mapped CSV import.
+
+[SOLUTION & ARCHITECTURE]
+1. Introduce a stable field identity: each form field gets an immutable `id` plus an `aliases[]` list of historical question texts. Readers resolve an answer via id -> current name -> aliases. Fully additive JSONB change, zero migration, no rewrite of historical rows.
+2. Builder auto-detects orphaned form_data keys for the campaign and offers one-click "link as previous wording" so renamed questions keep their history.
+3. Per-question `filterable` toggle in the campaign builder; the Applications page renders type-aware filters (number range with tolerant parsing of 5k / Rs 5,000, dropdown multi-select with case-insensitive matching, grouped distinct values for text, date/age range) only when exactly one campaign is selected.
+4. An "Unparseable / Not answered" bucket is always shown so nothing is silently dropped.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never key user data by mutable display text. Before shipping a filter, measure coverage against real production rows: our audit showed a filter on the current question would have hidden 69% of applicants. Stable IDs plus alias resolution fixed it additively, with no risky data migration."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

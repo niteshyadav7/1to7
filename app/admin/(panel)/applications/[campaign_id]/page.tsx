@@ -25,6 +25,13 @@ import { ApplicationImportModal } from '@/components/admin/ApplicationImportModa
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { GhostActionModal } from '@/components/admin/ghost/GhostActionModal'
 import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
+import { DynamicQuestionFiltersBar } from '@/components/admin/applications/DynamicQuestionFiltersBar'
+import { FormField } from '@/components/admin/FormFieldBuilder'
+import {
+  QuestionFilterCriteria,
+  matchesQuestionFilter,
+  getApplicationQuestionAnswer
+} from '@/lib/utils/question-filter-utils'
 
 interface UserInfo {
   id: string
@@ -83,6 +90,7 @@ interface CampaignInfo {
   completion_days?: number | null
   completion_deadline?: string | null
   enforce_completion_deadline?: boolean | null
+  form_fields?: FormField[]
 }
 
 const statusColors: Record<string, string> = {
@@ -118,6 +126,7 @@ export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [activeFilter, setActiveFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
+  const [questionFilters, setQuestionFilters] = useState<Record<string, QuestionFilterCriteria>>({})
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [paymentEdits, setPaymentEdits] = useState<Record<string, {
@@ -318,9 +327,22 @@ export default function AdminApplicationsPage() {
 
   const fetchApplications = async () => {
     try {
-      const res = await fetch(`/api/admin/applications?campaign_id=${campaign_id}`)
+      const [res, filterRes] = await Promise.all([
+        fetch(`/api/admin/applications?campaign_id=${campaign_id}`),
+        fetch(`/api/admin/applications/question-filters?campaign_id=${campaign_id}`).catch(() => null),
+      ])
       const data = await res.json()
-      setCampaign(data.campaign || null)
+      let camp = data.campaign || null
+      if (filterRes && filterRes.ok) {
+        const filterData = await filterRes.json().catch(() => ({}))
+        if (filterData?.campaign?.form_fields) {
+          camp = {
+            ...(camp || {}),
+            form_fields: filterData.campaign.form_fields,
+          }
+        }
+      }
+      setCampaign(camp)
       setApplications(data.applications || [])
 
       // Initialize payment edits
@@ -485,7 +507,21 @@ export default function AdminApplicationsPage() {
     const user = a.users
     const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
     const matchesSearch = searchString.includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesBrandSent && matchesSearch
+
+    if (!matchesFilter || !matchesBrandSent || !matchesSearch) return false
+
+    // Check Question Filters
+    const formFields = campaign?.form_fields || []
+    for (const [fieldName, criteria] of Object.entries(questionFilters)) {
+      if (!criteria) continue
+      const field = formFields.find(f => f.name === fieldName) || { name: fieldName, type: 'text' as const }
+      const rawAnswer = getApplicationQuestionAnswer(a.form_data, field)
+      if (!matchesQuestionFilter(rawAnswer, field.type, criteria)) {
+        return false
+      }
+    }
+
+    return true
   })
 
   return (
@@ -688,6 +724,29 @@ export default function AdminApplicationsPage() {
           </button>
         </div>
       </div>
+
+      {/* Dynamic Campaign Questions Filter Bar */}
+      {campaign?.form_fields && campaign.form_fields.length > 0 && (
+        <DynamicQuestionFiltersBar
+          fields={campaign.form_fields}
+          questionFilters={questionFilters}
+          onFilterChange={(fieldName, criteria) => {
+            setQuestionFilters(prev => {
+              const updated = { ...prev }
+              if (!criteria) {
+                delete updated[fieldName]
+              } else {
+                updated[fieldName] = criteria
+              }
+              return updated
+            })
+          }}
+          onClearAll={() => setQuestionFilters({})}
+          totalCount={applications.length}
+          filteredCount={filtered.length}
+          campaignName={campaign.brand_name || campaign.campaign_code}
+        />
+      )}
 
       {/* Applications */}
       {filtered.length === 0 ? (

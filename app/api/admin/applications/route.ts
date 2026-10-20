@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawCampaignId)
       let campQuery = supabase
         .from('campaigns')
-        .select('id, brand_name, campaign_code, platform, budget_amount, budget_type, location, location_type, store_locations, completion_days, completion_deadline, enforce_completion_deadline, manager_phone')
+        .select('id, brand_name, campaign_code, platform, budget_amount, budget_type, location, location_type, store_locations, completion_days, completion_deadline, enforce_completion_deadline, manager_phone, form_fields')
 
       if (isUuid) {
         campQuery = campQuery.eq('id', rawCampaignId)

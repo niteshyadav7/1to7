@@ -33,6 +33,13 @@ import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { GhostActionModal, TargetCreatorItem } from '@/components/admin/ghost/GhostActionModal'
 import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 import Papa from 'papaparse'
+import { DynamicQuestionFiltersBar } from '@/components/admin/applications/DynamicQuestionFiltersBar'
+import { FormField } from '@/components/admin/FormFieldBuilder'
+import {
+  QuestionFilterCriteria,
+  matchesQuestionFilter,
+  getApplicationQuestionAnswer
+} from '@/lib/utils/question-filter-utils'
 
 // ─── Types ─────────────────────────────────────────────────
 interface UserInfo {
@@ -1131,6 +1138,31 @@ export default function AllApplicationsPage() {
   })
   const [showFilters, setShowFilters] = useState(false)
 
+  // Dynamic question filters (active when 1 campaign is selected)
+  const [singleCampaignFields, setSingleCampaignFields] = useState<FormField[]>([])
+  const [questionFilters, setQuestionFilters] = useState<Record<string, QuestionFilterCriteria>>({})
+
+  useEffect(() => {
+    if (filters.campaign.length === 1) {
+      const selected = filters.campaign[0]
+      let isMounted = true
+      fetch(`/api/admin/applications/question-filters?brand=${encodeURIComponent(selected)}&campaign_code=${encodeURIComponent(selected)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (isMounted && data.campaign?.form_fields) {
+            setSingleCampaignFields(data.campaign.form_fields)
+          }
+        })
+        .catch(() => {
+          if (isMounted) setSingleCampaignFields([])
+        })
+      return () => { isMounted = false }
+    } else {
+      setSingleCampaignFields([])
+      setQuestionFilters({})
+    }
+  }, [filters.campaign])
+
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
@@ -1353,6 +1385,20 @@ export default function AllApplicationsPage() {
   )
 
   // ─── Active filter count ───────────────────────────────
+  const activeQuestionFilterCount = useMemo(() => {
+    return Object.keys(questionFilters).filter(k => {
+      const c = questionFilters[k]
+      return c && (
+        c.min !== undefined ||
+        c.max !== undefined ||
+        (c.selectedOptions && c.selectedOptions.length > 0) ||
+        (c.textSearch && c.textSearch.trim() !== '') ||
+        c.startDate ||
+        c.endDate
+      )
+    }).length
+  }, [questionFilters])
+
   const activeFilterCount = useMemo(() =>
     filters.campaign.length +
     filters.gender.length +
@@ -1360,8 +1406,9 @@ export default function AllApplicationsPage() {
     filters.followerRange.length +
     filters.platform.length +
     (filters.phone.trim() ? 1 : 0) +
-    (filters.dateRange !== 'all' ? 1 : 0),
-    [filters]
+    (filters.dateRange !== 'all' ? 1 : 0) +
+    activeQuestionFilterCount,
+    [filters, activeQuestionFilterCount]
   )
 
   // ─── Fetch ─────────────────────────────────────────────
@@ -1494,6 +1541,21 @@ export default function AllApplicationsPage() {
       result = result.filter(a => isInDateRange(a.created_at, filters.dateRange))
     }
 
+    // Dynamic question filters (active when 1 campaign is selected)
+    if (filters.campaign.length === 1 && Object.keys(questionFilters).length > 0) {
+      result = result.filter(a => {
+        for (const [fieldName, criteria] of Object.entries(questionFilters)) {
+          if (!criteria) continue
+          const field = singleCampaignFields.find(f => f.name === fieldName) || { name: fieldName, type: 'text' as const }
+          const rawAnswer = getApplicationQuestionAnswer(a.form_data, field)
+          if (!matchesQuestionFilter(rawAnswer, field.type, criteria)) {
+            return false
+          }
+        }
+        return true
+      })
+    }
+
     // Sort
     if (sortConfig.column && sortConfig.direction) {
       result.sort((a, b) => {
@@ -1515,7 +1577,7 @@ export default function AllApplicationsPage() {
     }
 
     return result
-  }, [applications, activeStatus, brandSentFilter, searchQuery, filters, sortConfig])
+  }, [applications, activeStatus, brandSentFilter, searchQuery, filters, singleCampaignFields, questionFilters, sortConfig])
 
   const totalFiltered = processedData.length
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
@@ -1571,6 +1633,7 @@ export default function AllApplicationsPage() {
 
   const clearAllFilters = useCallback(() => {
     setFilters({ campaign: [], phone: '', gender: [], state: [], followerRange: [], platform: [], dateRange: 'all' })
+    setQuestionFilters({})
     setSelectedIds(new Set())
   }, [])
 
@@ -2182,6 +2245,30 @@ export default function AllApplicationsPage() {
           </div>
         )}
       </div>
+
+      {/* ─── Dynamic Campaign Questions Filter Bar (Shown when 1 campaign is selected) ─── */}
+      {filters.campaign.length === 1 && singleCampaignFields.length > 0 && (
+        <DynamicQuestionFiltersBar
+          fields={singleCampaignFields}
+          questionFilters={questionFilters}
+          onFilterChange={(fieldName, criteria) => {
+            setQuestionFilters(prev => {
+              const updated = { ...prev }
+              if (!criteria) {
+                delete updated[fieldName]
+              } else {
+                updated[fieldName] = criteria
+              }
+              return updated
+            })
+            setPage(1)
+          }}
+          onClearAll={() => setQuestionFilters({})}
+          totalCount={applications.length}
+          filteredCount={processedData.length}
+          campaignName={filters.campaign[0]}
+        />
+      )}
 
       {/* ─── Smart Cross-Status Search Alert ─────────────── */}
       {otherStatusMatches.length > 0 && paginatedData.length === 0 && (

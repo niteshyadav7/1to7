@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   Plus, Trash2, GripVertical, ChevronUp, ChevronDown,
   Type, Hash, AlignLeft, List, ImageIcon, Calendar,
-  Sparkles, CheckCircle2, FileText, ArrowRight, Info, Zap
+  Sparkles, CheckCircle2, FileText, ArrowRight, Info, Zap, Filter
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,12 +21,15 @@ import {
 import { STATES, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 
 export interface FormField {
+  id?: string
   name: string
   type: 'text' | 'number' | 'textarea' | 'dropdown' | 'image' | 'date'
   required: boolean
   options: string[] // only for dropdown
   sync_to_profile?: boolean // explicit toggle: true = sync to profile, false = campaign-only
   profile_sync_key?: string // optional explicit profile target key
+  filterable?: boolean // explicit toggle: true = expose as filter in applications table
+  aliases?: string[] // historical question texts to preserve answer lookups across renames
 }
 
 const typeIcons: Record<string, React.ReactNode> = {
@@ -62,7 +65,20 @@ export default function FormFieldBuilder({
   }
 
   const addField = () => {
-    onChange([...fields, { name: '', type: 'text', required: true, options: [], sync_to_profile: false, profile_sync_key: 'none' }])
+    onChange([
+      ...fields,
+      {
+        id: `fld_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: '',
+        type: 'text',
+        required: true,
+        options: [],
+        sync_to_profile: false,
+        profile_sync_key: 'none',
+        filterable: false,
+        aliases: [],
+      }
+    ])
   }
 
   const addPresetField = (preset: ProfileFieldPreset) => {
@@ -76,12 +92,15 @@ export default function FormFieldBuilder({
     }
 
     const newField: FormField = {
+      id: `fld_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: preset.name,
       type: preset.type,
       required: preset.required,
       options: [...preset.options],
       sync_to_profile: true,
       profile_sync_key: preset.canonicalKey,
+      filterable: true,
+      aliases: [],
     }
     onChange([...fields, newField])
   }
@@ -93,6 +112,15 @@ export default function FormFieldBuilder({
   const updateField = (index: number, updates: Partial<FormField>) => {
     const updated = [...fields]
     const current = updated[index]
+
+    // Preserve historical question name as alias if renamed
+    if (updates.name !== undefined && current.name && updates.name.trim() !== current.name.trim()) {
+      const oldName = current.name.trim()
+      const existingAliases = current.aliases || []
+      if (!existingAliases.includes(oldName)) {
+        updates.aliases = [...existingAliases, oldName]
+      }
+    }
 
     // Smart Preset detection: If changing type to dropdown and options are empty
     if (updates.type === 'dropdown' && (!current.options || current.options.length === 0)) {
@@ -342,6 +370,47 @@ export default function FormFieldBuilder({
                       <option value="bio">📝 Bio / About</option>
                       <option value="youtube">🎥 YouTube Channel</option>
                     </select>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── Applications Filter Toggle & Historical Aliases ─── */}
+              <div className="ml-7 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 pb-1 border-t border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => updateField(index, { filterable: !field.filterable })}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      field.filterable ? 'bg-indigo-600 shadow-xs shadow-indigo-600/40' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        field.filterable ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    <Filter className={`h-3.5 w-3.5 ${field.filterable ? 'text-indigo-400' : 'text-slate-500'}`} />
+                    <span className={`text-xs font-bold ${field.filterable ? 'text-indigo-300' : 'text-slate-400'}`}>
+                      {field.filterable ? '🔍 Use as Filter on Applications' : 'Not used as filter'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 hidden sm:inline">
+                      {field.filterable
+                        ? '— Ops team can filter applicants by this question'
+                        : '— Excluded from applications filter bar'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Aliases badge */}
+                {field.aliases && field.aliases.length > 0 && (
+                  <div
+                    className="flex items-center gap-1.5 text-[10px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md"
+                    title={`Linked past wordings: ${field.aliases.join(' | ')}`}
+                  >
+                    <span>📎 {field.aliases.length} past wording{field.aliases.length > 1 ? 's' : ''} preserved</span>
                   </div>
                 )}
               </div>
