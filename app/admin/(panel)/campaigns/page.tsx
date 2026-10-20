@@ -11,7 +11,7 @@ import {
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   Info, UserCheck, AlertTriangle, FileText, CheckCheck, X,
   Download, FileSpreadsheet, ChevronDown, Loader2, History,
-  FlaskConical, Rocket
+  FlaskConical, Rocket, LayoutGrid, List
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -116,6 +116,25 @@ export default function AdminCampaignsPage() {
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const [exportingCampaignId, setExportingCampaignId] = useState<string | null>(null)
   const exportMenuRef = useRef<HTMLDivElement>(null)
+
+  // View Mode: 'grid' | 'list'
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin_campaigns_view_mode')
+      if (saved === 'grid' || saved === 'list') {
+        setViewMode(saved)
+      }
+    }
+  }, [])
+
+  const handleSetViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_campaigns_view_mode', mode)
+    }
+  }
 
   // Close export dropdown on click outside
   useEffect(() => {
@@ -815,47 +834,114 @@ export default function AdminCampaignsPage() {
           })}
         </div>
 
-        <div className="relative w-full sm:w-64 shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <Input
-            value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder="Search campaigns or admin emails..."
-            className="pl-9 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
-          />
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Input
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              placeholder="Search campaigns or admin emails..."
+              className="pl-9 bg-slate-900/50 border-white/5 text-white h-10 text-sm focus-visible:ring-indigo-500 rounded-xl w-full transition-all hover:bg-slate-900/80"
+            />
+          </div>
+
+          {/* View Mode Switcher: Grid vs List */}
+          <div className="flex items-center bg-slate-900/90 border border-white/10 rounded-xl p-1 shrink-0 shadow-inner relative">
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('grid')}
+              title="Card Grid View"
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                viewMode === 'grid' ? 'text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {viewMode === 'grid' && (
+                <motion.div
+                  layoutId="activeViewModePill"
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md shadow-indigo-500/25 -z-10"
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+                />
+              )}
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSetViewMode('list')}
+              title="High-Density List View"
+              className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                viewMode === 'list' ? 'text-white' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {viewMode === 'list' && (
+                <motion.div
+                  layoutId="activeViewModePill"
+                  className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg shadow-md shadow-indigo-500/25 -z-10"
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
+                />
+              )}
+              <List className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Campaign Cards */}
       {isInitialLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }).map((_, idx) => (
-            <div
-              key={idx}
-              className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 space-y-4 animate-pulse min-h-[190px]"
-            >
-              <div className="flex items-start justify-between">
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-white/5 bg-slate-900/60 p-5 space-y-4 animate-pulse min-h-[190px]"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0" />
+                    <div className="space-y-2">
+                      <div className="w-36 h-4 rounded bg-slate-800" />
+                      <div className="w-24 h-2.5 rounded bg-slate-800/60" />
+                    </div>
+                  </div>
+                  <div className="w-16 h-6 rounded-full bg-slate-800" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-16 h-5 rounded-md bg-slate-800/50" />
+                  <div className="w-16 h-5 rounded-md bg-slate-800/50" />
+                  <div className="w-20 h-5 rounded-md bg-slate-800/50" />
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                  <div className="w-28 h-3 rounded bg-slate-800/60" />
+                  <div className="w-20 h-7 rounded-lg bg-slate-800" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="h-16 rounded-2xl border border-white/5 bg-slate-900/60 p-3.5 animate-pulse flex items-center justify-between"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0" />
-                  <div className="space-y-2">
-                    <div className="w-36 h-4 rounded bg-slate-800" />
-                    <div className="w-24 h-2.5 rounded bg-slate-800/60" />
+                  <div className="w-4 h-4 rounded bg-slate-800 shrink-0" />
+                  <div className="w-7 h-5 rounded bg-slate-800 shrink-0" />
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 shrink-0" />
+                  <div className="space-y-1.5">
+                    <div className="w-28 h-3 rounded bg-slate-800" />
+                    <div className="w-20 h-2 rounded bg-slate-800/60" />
                   </div>
                 </div>
-                <div className="w-16 h-6 rounded-full bg-slate-800" />
+                <div className="flex items-center gap-2">
+                  <div className="w-16 h-5 rounded-full bg-slate-800" />
+                  <div className="w-20 h-6 rounded-lg bg-slate-800" />
+                </div>
               </div>
-              <div className="flex gap-2">
-                <div className="w-16 h-5 rounded-md bg-slate-800/50" />
-                <div className="w-16 h-5 rounded-md bg-slate-800/50" />
-                <div className="w-20 h-5 rounded-md bg-slate-800/50" />
-              </div>
-              <div className="flex justify-between items-center pt-3 border-t border-white/5">
-                <div className="w-28 h-3 rounded bg-slate-800/60" />
-                <div className="w-20 h-7 rounded-lg bg-slate-800" />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Megaphone className="h-12 w-12 text-slate-600 mx-auto mb-4" />
@@ -865,7 +951,16 @@ export default function AdminCampaignsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AnimatePresence mode="wait" initial={false}>
+          {viewMode === 'grid' ? (
+            <motion.div
+              key="campaigns-grid-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+            >
           <AnimatePresence mode="popLayout">
             {filtered.map((campaign, i) => {
               const globalIndex = campaigns.findIndex(c => c.id === campaign.id)
@@ -1278,8 +1373,427 @@ export default function AdminCampaignsPage() {
               )
             })}
           </AnimatePresence>
-        </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="campaigns-list-view"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          className="w-full overflow-x-auto pb-4"
+        >
+          <div className="min-w-[1200px] space-y-2">
+            {/* List Column Header */}
+            <div
+              style={{ gridTemplateColumns: '145px minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(165px, 1.1fr) auto' }}
+              className="grid gap-3 px-4 py-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase border-b border-white/5 select-none items-center"
+            >
+              <div className="flex items-center gap-1.5">Rank & Order</div>
+              <div className="flex items-center gap-1.5">Brand & Campaign</div>
+              <div className="flex items-center gap-1.5">Category & Applied</div>
+              <div className="flex items-center gap-1.5">Status & Governance</div>
+              <div className="text-right pr-2">Quick Actions</div>
+            </div>
+
+            <AnimatePresence mode="popLayout">
+              {filtered.map((campaign, i) => {
+                const globalIndex = campaigns.findIndex(c => c.id === campaign.id)
+                const rankNumber = globalIndex !== -1 ? globalIndex + 1 : (campaign.display_order || i + 1)
+                const isBeingDragged = draggedCampaignId === campaign.id
+                const isDragTarget = dragOverCampaignId === campaign.id && draggedCampaignId !== campaign.id
+
+                return (
+                  <motion.div
+                    layout
+                    key={campaign.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: isBeingDragged ? 0.4 : 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e as any, campaign.id)}
+                    onDragOver={(e) => handleDragOver(e as any, campaign.id)}
+                    onDragLeave={handleDragLeave as any}
+                    onDrop={(e) => handleDrop(e as any, campaign.id)}
+                    onDragEnd={handleDragEnd}
+                    style={{ gridTemplateColumns: '145px minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(165px, 1.1fr) auto' }}
+                    className={`group relative rounded-2xl border transition-all px-4 py-3 shadow-md backdrop-blur-lg grid gap-3 items-center select-none ${
+                      isDragTarget
+                        ? 'border-amber-400 bg-amber-500/10 scale-[1.01] shadow-xl shadow-amber-500/10 ring-2 ring-amber-500/40'
+                        : isBeingDragged
+                        ? 'border-indigo-500/50 bg-indigo-900/30'
+                        : campaign.approval_status === 'Pending Approval'
+                        ? 'border-amber-500/30 bg-slate-900/80 hover:bg-slate-800/90 shadow-amber-500/5'
+                        : 'border-white/5 bg-slate-900/60 hover:bg-slate-800/80 hover:border-white/10 hover:shadow-lg hover:shadow-indigo-500/5'
+                    }`}
+                  >
+                    {/* Col 1: Rank & Sequence */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        title="Drag to reorder sequence"
+                        className="flex items-center justify-center h-8 w-5 rounded-lg text-slate-500 group-hover:text-amber-400 hover:bg-white/5 cursor-grab active:cursor-grabbing transition-colors shrink-0"
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRankModalCampaign(campaign)
+                          setTargetRankInput(rankNumber.toString())
+                        }}
+                        title="Click to jump sequence rank"
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer shadow-sm active:scale-95 border ${
+                          rankNumber === 1
+                            ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/40 hover:border-amber-400'
+                            : rankNumber <= 3
+                            ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 hover:border-indigo-400'
+                            : 'bg-slate-800 text-slate-300 border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <span className="opacity-70 text-[10px]">#</span>
+                        <span>{rankNumber}</span>
+                        {rankNumber === 1 && <span className="text-[10px] ml-0.5">👑</span>}
+                      </button>
+
+                      <div className="flex items-center bg-slate-950/40 border border-white/5 rounded-lg p-0.5 shrink-0">
+                        {globalIndex > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleMoveToTop(campaign.id)}
+                            title="Move to Top (#1 Priority)"
+                            className="h-6 px-1.5 rounded text-[10px] font-semibold text-slate-400 hover:text-amber-300 hover:bg-amber-500/15 transition-all flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <ArrowUpToLine className="h-3 w-3 text-amber-400" />
+                            <span className="hidden sm:inline">Top</span>
+                          </button>
+                        )}
+                        {globalIndex > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleStepMove(campaign.id, -1)}
+                            title="Move Up 1 Slot"
+                            className="h-6 w-6 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </button>
+                        )}
+                        {globalIndex < campaigns.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleStepMove(campaign.id, 1)}
+                            title="Move Down 1 Slot"
+                            className="h-6 w-6 rounded text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer"
+                          >
+                            <ArrowDown className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 2: Brand & Campaign */}
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-slate-800 border border-white/5 text-slate-400 shrink-0 group-hover:bg-slate-700/50 transition-colors">
+                        {platformIcons[campaign.platform] || <Globe className="h-4 w-4" />}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <Link
+                            href={`/admin/campaigns/${campaign.id}`}
+                            className="text-xs sm:text-sm font-bold text-white hover:text-indigo-400 transition-colors truncate block"
+                            title={`Edit ${campaign.brand_name}`}
+                          >
+                            {campaign.brand_name}
+                          </Link>
+                          <button
+                            onClick={() => copyCampaignLink(campaign)}
+                            title="Copy campaign shareable link"
+                            className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/25 transition-all cursor-pointer shrink-0"
+                          >
+                            {copiedId === campaign.id ? <Check className="h-2.5 w-2.5 text-emerald-400" /> : <Copy className="h-2.5 w-2.5 text-indigo-400" />}
+                            <span>{copiedId === campaign.id ? 'Copied' : 'Link'}</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 truncate flex items-center gap-1 font-mono mt-0.5">
+                          <span>{campaign.campaign_code}</span>
+                          <span className="text-slate-600">•</span>
+                          <span className="font-sans text-slate-400">{campaign.platform}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Col 3: Category, Type & Applicants */}
+                    <div className="flex flex-col justify-center gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {campaign.category && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5 text-[10px] text-slate-300 truncate max-w-[120px]">
+                            {campaign.category}
+                          </span>
+                        )}
+                        {campaign.budget_type && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-800/80 border border-white/5 text-[10px] text-slate-300 font-medium">
+                            {campaign.budget_type}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <Link
+                          href={`/admin/applications/${campaign.id}`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold transition-colors cursor-pointer"
+                          title="View all applications"
+                        >
+                          <Users className="h-3 w-3 text-indigo-400" />
+                          <span>{campaign.application_count} applied</span>
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Col 4: Status & Governance & POC */}
+                    <div className="flex flex-col justify-center gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {campaign.approval_status === 'Pending Approval' ? (
+                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold border bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Pending 2nd
+                          </span>
+                        ) : campaign.approval_status === 'Rejected' ? (
+                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold border bg-rose-500/20 text-rose-300 border-rose-500/40 flex items-center gap-1">
+                            <XCircle className="h-3 w-3" /> Rejected
+                          </span>
+                        ) : (
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColors[campaign.status] || statusColors['Draft']}`}>
+                            {campaign.status}
+                          </span>
+                        )}
+
+                        {campaign.is_test_mode && (
+                          <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold border bg-amber-500/20 text-amber-300 border-amber-500/40 flex items-center gap-1">
+                            <FlaskConical className="h-3 w-3 text-amber-400" />
+                            Pilot ({campaign.test_creators?.length || campaign.test_user_ids?.length || 0})
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {campaign.poc_admin_ids && campaign.poc_admin_ids.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            {campaign.poc_admin_ids.slice(0, 1).map(pocId => {
+                              const poc = pocMap[pocId]
+                              return (
+                                <span
+                                  key={pocId}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-semibold truncate max-w-[100px]"
+                                  title={poc?.email}
+                                >
+                                  {poc?.name || 'POC'}
+                                </span>
+                              )
+                            })}
+                            {campaign.poc_admin_ids.length > 1 && (
+                              <span className="text-[10px] text-slate-400 font-semibold px-1 py-0.5 rounded bg-slate-800">
+                                +{campaign.poc_admin_ids.length - 1}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {campaign.edit_history && campaign.edit_history.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setHistoryModalCampaign(campaign)
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 transition-all cursor-pointer shadow-xs"
+                            title="Click to view detailed field modifications"
+                          >
+                            <History className="h-2.5 w-2.5" />
+                            <span>Diff ({campaign.edit_history[0]?.changes_count || campaign.edit_history[0]?.changes?.length || campaign.edit_history.length})</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 5: Actions */}
+                    <div className="flex items-center justify-end gap-1.5 min-w-0">
+                      {campaign.approval_status === 'Pending Approval' ? (
+                        <>
+                          {/* Governance Actions: Review, Approve, Reject */}
+                          <Button
+                            size="sm"
+                            onClick={() => setReviewModalCampaign(campaign)}
+                            variant="outline"
+                            className="h-7 px-2.5 rounded-lg border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold text-xs transition-all cursor-pointer"
+                            title="Review changes and specs"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Review
+                          </Button>
+
+                          {(() => {
+                            const latestAuthorId = campaign.last_edited_by_admin_id || campaign.created_by_admin_id
+                            const isLatestAuthor = !isSuperAdmin && admin?.id && latestAuthorId === admin.id
+
+                            if (isLatestAuthor) {
+                              return (
+                                <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                                  Awaiting 2nd
+                                </span>
+                              )
+                            }
+
+                            return (
+                              <>
+                                <Button
+                                  size="sm"
+                                  disabled={approvingId === campaign.id}
+                                  onClick={() => handleApproveCampaign(campaign)}
+                                  className="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                                >
+                                  <CheckCheck className="h-3 w-3 mr-1" />
+                                  {approvingId === campaign.id ? '...' : 'Approve'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={approvingId === campaign.id}
+                                  onClick={() => {
+                                    setRejectModalCampaign(campaign)
+                                    setRejectionReasonInput('')
+                                  }}
+                                  variant="outline"
+                                  className="h-7 px-2 rounded-lg border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs transition-all cursor-pointer"
+                                  title="Reject campaign"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )
+                          })()}
+
+                          {/* Edit */}
+                          <Link href={`/admin/campaigns/${campaign.id}`}>
+                            <button
+                              title="Edit campaign specs"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              <span>Edit</span>
+                            </button>
+                          </Link>
+
+                          {/* Delete */}
+                          <button
+                            onClick={() => deleteCampaign(campaign)}
+                            disabled={deletingId === campaign.id}
+                            title="Permanently delete campaign"
+                            className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {/* Live Toggle or Pilot Launch */}
+                          {campaign.is_test_mode ? (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setLaunchModalCampaign(campaign)
+                                setClearTestData(true)
+                              }}
+                              className="h-7 px-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1"
+                            >
+                              <Rocket className="h-3 w-3" />
+                              <span>Launch</span>
+                            </Button>
+                          ) : (
+                            <button
+                              onClick={() => toggleLive(campaign)}
+                              disabled={togglingId === campaign.id}
+                              title={campaign.is_live ? 'Click to make offline' : 'Click to make live'}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                                campaign.is_live
+                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                                  : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {campaign.is_live ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                              <span>{campaign.is_live ? 'Live' : 'Offline'}</span>
+                            </button>
+                          )}
+
+                          {/* Edit */}
+                          <Link href={`/admin/campaigns/${campaign.id}`}>
+                            <button
+                              title="Edit campaign specs"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              <span>Edit</span>
+                            </button>
+                          </Link>
+
+                          {/* Duplicate */}
+                          <Link href={`/admin/campaigns/create?clone_from=${campaign.id}`}>
+                            <button
+                              type="button"
+                              title="Clone campaign specs"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer"
+                            >
+                              <CopyPlus className="h-3 w-3 text-amber-400" />
+                              <span className="hidden lg:inline">Dup</span>
+                            </button>
+                          </Link>
+
+                          {/* Export CSV */}
+                          <button
+                            type="button"
+                            onClick={() => handleExportSingleCampaignApplications(campaign)}
+                            disabled={exportingCampaignId === campaign.id}
+                            title={`Export all applicants of ${campaign.brand_name} as CSV`}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                          >
+                            {exportingCampaignId === campaign.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
+                            ) : (
+                              <Download className="h-3 w-3 text-emerald-400" />
+                            )}
+                            <span className="hidden lg:inline">CSV</span>
+                          </button>
+
+                          {/* View Applications */}
+                          <Link href={`/admin/applications/${campaign.id}`}>
+                            <button
+                              title="View all applications"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all cursor-pointer"
+                            >
+                              <Users className="h-3 w-3" />
+                              <span className="hidden lg:inline">Apps</span>
+                            </button>
+                          </Link>
+
+                          {/* Delete */}
+                          <button
+                            onClick={() => deleteCampaign(campaign)}
+                            disabled={deletingId === campaign.id}
+                            title="Permanently delete campaign"
+                            className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        </motion.div>
       )}
+    </AnimatePresence>
+  )}
 
       {/* Bulk Upload Modal */}
       <BulkCampaignUploadModal

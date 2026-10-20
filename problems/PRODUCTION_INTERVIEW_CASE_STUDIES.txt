@@ -24,6 +24,7 @@ CASE 13: React Rules of Hooks Order Violation & Production Client-Side Exception
 CASE 14: Guest Campaign Checkout & Zero-Friction Authentication Handshake (Direct Apply vs Account Gatekeeper)
 CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engine
 CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic)
+CASE 17: Multi-State Governance Action Collision & CSS Flexbox Reverse Overflow (Approve/Reject Overlay Disaster)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -493,6 +494,42 @@ Upon deploying the centralized Ghosted Creators Hub (/admin/ghosted), the admin 
 
 [INTERVIEW STAR TAKEAWAY]
 "Raw SQL projections in high-performance endpoints give immense performance benefits over ORMs, but they bypass compile-time schema checking. When schema drift occurs (such as TypeScript models expecting profile_photo while PostgreSQL uses instagram_profile_pic), explicit aliasing in the SELECT clause (col as model_prop) provides zero-overhead schema reconciliation without requiring risky database migrations on high-traffic production tables."
+
+====================================================================================================
+CASE 17: Multi-State Governance Action Collision & CSS Flexbox Reverse Overflow (Approve/Reject Overlay Disaster)
+====================================================================================================
+CATEGORIES: Frontend / CSS Grid & Flexbox / Dual-Admin Governance / UI Architecture / Next.js
+INTERVIEW QUESTION: "Describe a front-end rendering bug where multi-state conditional rendering and flexbox alignment combined to cause severe visual overlap of critical action buttons."
+
+[SITUATION]
+In the campaigns administration dashboard (`/admin/campaigns`), a new high-density List View was introduced alongside the standard Card View. When viewing campaigns in "Pending Approval" state under the dual-admin peer review system, the "Review", "Approve", and "Reject" buttons unexpectedly rendered directly on top of the "Status & Governance" column, overlapping and occluding the "Pending 2nd" badge, assigned POC names, and the modification "Diff" button.
+
+[ROOT CAUSE]
+1. Conditional Branch Leaking:
+   In the list row's Actions column, the conditional check only toggled between `Approval Actions` and `Live Toggle`. The remaining standard buttons (`Edit`, `Duplicate`, `CSV Export`, `View Applications`, and `Delete`) were rendered unconditionally outside the ternary. For pending campaigns, this resulted in 8 action buttons rendering simultaneously in a single horizontal row.
+2. CSS Flexbox Reverse Overflow with `justify-end`:
+   The Actions column was constrained within a 12-column grid cell (~280px). The 8 buttons required over 480px of horizontal space. Because the container used `display: flex; justify-content: flex-end;`, overflowing items did not push outside the right margin; instead, they anchored to the right boundary and overflowed backwards to the left by ~200px.
+3. Track Invasiveness in Fractional Grids:
+   Without explicit grid column track boundaries or overflow constraints (`min-w-0`), the backwards-overflowing flex items floated directly over the adjacent column 4 (Status & Governance), rendering governance buttons right on top of text and diff badges.
+
+[SOLUTION & ARCHITECTURE]
+1. Strict Mutual-Exclusion of State Actions:
+   - Partitioned the Actions column into mutually exclusive branches:
+     - For `Pending Approval`: Render ONLY high-priority governance controls (`Review`, `Approve`, `Reject` or `Awaiting 2nd`), plus baseline `Edit` and `Delete`. Unapproved campaigns cannot be made live, duplicated, or exported to CSV (0 live applicants), eliminating 3 redundant buttons.
+     - For Non-Pending Campaigns: Render standard operational actions (`Live/Offline` or `Launch`, `Edit`, `Duplicate`, `CSV`, `Applications`, `Delete`).
+2. Robust Explicit CSS Grid Layout:
+   - Replaced fragile 12-fraction tracks (`grid-cols-12`) with explicit, proportional template columns:
+     `gridTemplateColumns: '145px minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(165px, 1.1fr) auto'`
+   - Track 1 (Rank & Sequence): 145px fixed.
+   - Track 2 (Brand & Platform): Responsive fraction (expands with viewport).
+   - Track 3 (Category & Metrics): 150px minimum.
+   - Track 4 (Status, Governance & POC): 165px minimum, preventing any status wrapping.
+   - Track 5 (Quick Actions): `auto` with `min-w-0`, guaranteed by CSS Grid boundaries to never physically cross into Track 4.
+3. Enhanced Viewport Min-Width:
+   - Set table container to `min-w-[1200px]` with smooth horizontal scroll for small laptops, ensuring zero button clipping or text crushing across all display sizes.
+
+[INTERVIEW STAR TAKEAWAY]
+"Flexbox containers with `justify-content: flex-end` have an insidious failure mode: when content overflows, it extends to the left rather than the right. If the preceding sibling elements lack strict CSS grid track separation, overflowing buttons visually mask previous columns. Structuring action buttons with strict mutual exclusivity based on lifecycle state and backing them with explicit CSS Grid tracks prevents visual collisions entirely."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
