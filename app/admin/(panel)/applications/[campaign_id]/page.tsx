@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo, use } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import Papa from 'papaparse'
 import {
   ArrowLeft, Loader2, CheckCircle2, XCircle, Send,
@@ -95,7 +96,7 @@ const statusColors: Record<string, string> = {
   'Payment Approved': 'bg-blue-500/15 text-blue-300 border-blue-500/20',
 }
 
-const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved']
+const filters = ['All', 'Applied', 'Under Process', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted']
 
 const PRESET_REMARKS = [
   'Shortlisted',
@@ -108,8 +109,9 @@ const PRESET_REMARKS = [
   'Call Pending',
 ]
 
-export default function AdminApplicationsPage({ params }: { params: Promise<{ campaign_id: string }> }) {
-  const { campaign_id } = use(params)
+export default function AdminApplicationsPage() {
+  const routeParams = useParams<{ campaign_id: string }>()
+  const campaign_id = routeParams?.campaign_id || ''
   const { admin } = useAdminPermissions()
   const [loading, setLoading] = useState(true)
   const [campaign, setCampaign] = useState<CampaignInfo | null>(null)
@@ -446,10 +448,6 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
     }
   }
 
-  if (loading) {
-    return <GlobalLoader text="Loading Applications..." />
-  }
-
   const uniqueBatches = useMemo(() => {
     const batchMap = new Map<string, { label: string; count: number; date?: string }>()
     applications.forEach(app => {
@@ -470,11 +468,15 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
     return Array.from(batchMap.values())
   }, [applications])
 
+  if (loading) {
+    return <GlobalLoader text="Loading Applications..." />
+  }
+
   const sentCount = applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length
   const unsharedCount = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length
 
   const filtered = applications.filter(a => {
-    const matchesFilter = activeFilter === 'All' || a.status === activeFilter
+    const matchesFilter = activeFilter === 'Ghosted' ? Boolean(a.is_ghosted) : (activeFilter === 'All' || a.status === activeFilter)
     const matchesBrandSent =
       brandSentFilter === 'all' ? true :
       brandSentFilter === 'sent' ? Boolean(a.form_data?.sent_to_brand?.is_sent) && (selectedBatch === 'all' || a.form_data?.sent_to_brand?.batch_label === selectedBatch) :
@@ -535,12 +537,19 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
               onClick={() => setActiveFilter(f)}
               className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
                 activeFilter === f
-                  ? 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
+                  ? f === 'Ghosted'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-lg shadow-rose-500/10'
+                    : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/20 shadow-lg shadow-indigo-500/10'
                   : 'bg-slate-900/50 text-slate-400 border-white/5 hover:bg-white/5 hover:text-white'
               }`}
             >
-              {f}
-              {f !== 'All' && (
+              {f === 'Ghosted' ? '👻 Ghosted' : f}
+              {f === 'Ghosted' && (
+                <span className="ml-1.5 text-[10px] opacity-75 font-bold">
+                  ({applications.filter(a => a.is_ghosted).length})
+                </span>
+              )}
+              {f !== 'All' && f !== 'Ghosted' && (
                 <span className="ml-1.5 text-[10px] opacity-60">
                   ({applications.filter(a => a.status === f).length})
                 </span>
@@ -706,7 +715,9 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.2, delay: i * 0.03 }}
                   className={`rounded-2xl border bg-slate-900/60 backdrop-blur-lg overflow-hidden transition-all ${
-                    isSent ? 'border-l-4 border-l-purple-500/70' : 'border-l-4 border-l-amber-500/80'
+                    app.is_ghosted
+                      ? 'border-l-4 border-l-rose-500 shadow-rose-950/20'
+                      : isSent ? 'border-l-4 border-l-purple-500/70' : 'border-l-4 border-l-amber-500/80'
                   } ${
                     isExpanded ? 'border-white/20 shadow-xl shadow-indigo-500/5' : 'border-white/5 hover:border-white/10'
                   }`}
@@ -837,6 +848,14 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                         <span className="truncate">{app.team_remark}</span>
                       </span>
                     ) : null}
+
+                    {/* Ghosted Badge */}
+                    {app.is_ghosted && (
+                      <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold bg-rose-500/25 text-rose-200 border border-rose-500/40 flex items-center gap-1 animate-pulse" title="Marked Ghosted — Account Paused">
+                        <span>👻</span>
+                        <span>Ghosted</span>
+                      </span>
+                    )}
 
                     <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                       {app.status}
@@ -1632,6 +1651,51 @@ export default function AdminApplicationsPage({ params }: { params: Promise<{ ca
                             </span>
                           )}
                         </>
+                      )}
+
+                      {/* Ghost / Unghost Action Buttons */}
+                      {app.is_ghosted ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            type="button"
+                            onClick={() =>
+                              setGhostModalApp({
+                                app,
+                                actionType: 'unghost',
+                              })
+                            }
+                            className="h-9 px-3.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold cursor-pointer"
+                          >
+                            <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                            Un-ghost Creator
+                          </Button>
+                          <Button
+                            size="sm"
+                            type="button"
+                            onClick={() => setGhostHistoryApp(app)}
+                            className="h-9 px-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-bold cursor-pointer"
+                            title="View Ghost Audit Records"
+                          >
+                            <History className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          type="button"
+                          onClick={() =>
+                            setGhostModalApp({
+                              app,
+                              actionType: 'ghost',
+                            })
+                          }
+                          className="h-9 px-3.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-semibold cursor-pointer"
+                          title="Mark unresponsive creator as ghosted with proof"
+                        >
+                          <span className="mr-1.5">👻</span>
+                          Mark Ghosted
+                        </Button>
                       )}
 
                       <Button

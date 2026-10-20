@@ -19,6 +19,8 @@ CASE 8: Dual OTP Gateway Failover Architecture (MSG91 + Firebase ReCAPTCHA)
 CASE 9: OAuth Code Fragment Sanitization (#_) and Instagram Graph API Token Consistency
 CASE 10: Commercial Double-Gatekeeper Peer Review for Variable Payout Approval
 CASE 11: High-Scale Platform Analytics & Real-Time Stats Hub (Server-Side SQL Aggregation vs Client Memory Exhaustion)
+CASE 12: Meta App Review & OAuth Screencast Compliance: End-to-End Visual Verification & Reviewer Sandbox Architecture
+CASE 13: React Rules of Hooks Order Violation & Production Client-Side Exception (Early Return before useMemo)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -312,11 +314,99 @@ If an application attempts to load raw records for 32,600+ creators and thousand
 "Always push data aggregation to the database engine where B-Tree indexes, multi-core query execution, and parallel scans operate natively. Never transfer raw records to the application server or browser just to calculate counts and sums. A well-crafted SQL aggregation returning 5KB will always outperform megabytes of client-side JavaScript filtering, both in reliability and latency."
 
 ====================================================================================================
+CASE 12: Meta App Review & OAuth Screencast Compliance: End-to-End Visual Verification & Reviewer Sandbox Architecture
+====================================================================================================
+CATEGORIES: OAuth 2.0 / Meta Graph API / Security Auditing / App Review Compliance / Screencast Architecture
+INTERVIEW QUESTION: "How do you navigate third-party platform security reviews (e.g., Meta / Instagram Graph API App Review) when your production app is rejected under Developer Policy 1.6 (Screencast Not Aligned with Use Case)?"
+
+[SITUATION]
+1to7 Media submitted an App Review request to Meta for the permission `instagram_business_basic` (App ID 1569291041247830) to automate creator profile verification, follower counts, and campaign application integrity.
+Meta responded with a rejection:
+- "We have determined that your apps' use case is allowed, however, the submitted screencast fails to demonstrate the end-to-end experience of the use case described in the submission notes, hence the requested permission/feature is rejected."
+- Cited: [Developer Policy 1.6 - Build a Trustworthy Product].
+
+[ROOT CAUSE INVESTIGATION]
+1. Conceptual Approval vs Demonstration Failure:
+   Meta explicitly approved the core use case ("apps' use case is allowed"). Rejection was 100% execution-based in the demonstration screencast and reviewer onboarding flow.
+2. Missing OAuth Consent Screen in Screencast (The "Silent Token" Trap):
+   In the submitted video, the test session was already pre-authenticated in Instagram. Clicking "Authorize with Instagram" caused an immediate redirect to `/dashboard` without displaying the Meta OAuth Consent Dialog ("1to7media.in is requesting access to... [Allow / Cancel]"). Meta Policy 1.6 strictly requires visually capturing the user granting permission.
+3. Incomplete End-to-End Loop:
+   The submission notes claimed the permission is used for: (a) creator verification, (b) dashboard stats, and (c) populating campaign application cards for brand manager review. The submitted video stopped at the creator dashboard and failed to demonstrate the data flowing into campaign applications and admin review.
+4. App ID Discrepancy in Development Pipeline:
+   Git commit audit revealed a reversion where the live code (`app/api/auth/instagram/login/route.ts`, `.env.vercel`, `.env.local`) defaulted to App ID `1371798394383152`, while the review submission was filed under App ID `1569291041247830`. If a reviewer attempted live testing using their assigned Meta review test user, they were greeted with authorization errors or misaligned app names.
+5. Missing Context & Voiceover in Screencast:
+   The video lacked English audio or captioned tooltips explaining why the intermediary mobile number step was needed (to bind the multi-tenant creator profile) before Instagram OAuth.
+
+[SOLUTION & ARCHITECTURE]
+1. Reviewer Sandbox & OTP Bypass Guarantee:
+   Maintained a permanently pre-verified test user in the database (`8875912020`) that circumvents SMS OTP gateways, ensuring international Meta review bots and human reviewers in Ireland/Singapore/US never fail at the Indian telecom barrier.
+2. Clean-Session OAuth Screencast Protocol:
+   Before recording, revoking app permissions from Instagram Settings (`Settings -> Apps and Websites -> Remove 1to7media.in`) and using an Incognito desktop browser. This forces the browser to render:
+   - Full URL bar showing `users.1to7media.in/login` transitioning to `instagram.com/oauth/authorize`.
+   - The authentic Meta Consent Dialog showing the exact requested scope (`instagram_business_basic`).
+   - The explicit click on the "Allow" button.
+3. Complete End-to-End Lifecycle Demonstration:
+   Extended the video to a structured 3-part walkthrough:
+   - Part 1: Meta Login & Permission Grant (OAuth prompt -> Allow).
+   - Part 2: Creator Dashboard Population (Verified handle, profile photo, follower count loaded from Graph API `/me`).
+   - Part 3: Downstream Business Value (Creator applies to a brand campaign -> Verified follower count and profile auto-populate on the application card -> Brand admin reviews authentic creator metrics).
+4. Synchronized Environment App ID:
+   Ensured production environment secrets and OAuth endpoints strictly match the Meta App Review ID (`1569291041247830`).
+
+[INTERVIEW STAR TAKEAWAY]
+"Third-party platform reviews (Meta, Google, Apple) evaluate not just security policy, but reproducible visual proof. Even when an API use case is 100% compliant, automated and human reviewers will reject submissions if the screencast skips the OAuth consent screen due to cached browser cookies, or if downstream data utilization isn't demonstrated end-to-end. Preparing an incognito-recorded walkthrough with English on-screen annotations and zero-OTP reviewer sandbox accounts is standard engineering hygiene for enterprise social integrations."
+
+====================================================================================================
+CASE 13: React Rules of Hooks Order Violation & Production Client-Side Exception (Early Return before useMemo)
+====================================================================================================
+CATEGORIES: Frontend / React 19 / Next.js / Lifecycle & State Machine / Debugging
+INTERVIEW QUESTION: "Tell me about a high-priority production bug where a page threw 'a client-side exception has occurred' only in production or after loading data, and how you tracked down the root cause."
+
+[SITUATION]
+Admins navigating to specific campaign applications pages (e.g. `/admin/applications/[campaign_id]`) encountered a total page crash:
+- In production (`users.1to7media.in`): White screen displaying "Application error: a client-side exception has occurred while loading users.1to7media.in (see the browser console for more information)."
+- In development (`localhost:3000`): Red error overlay "React has detected a change in the order of Hooks called by AdminApplicationsPage. Rendered more hooks than during the previous render. (453:32) @ AdminApplicationsPage".
+
+[ROOT CAUSE]
+1. Violation of the Golden Rule of Hooks ("Only Call Hooks at the Top Level"):
+   In `app/admin/(panel)/applications/[campaign_id]/page.tsx`, an early return was inserted right in the middle of hook declarations:
+   ```tsx
+   if (loading) {
+     return <GlobalLoader text="Loading Applications..." />
+   }
+
+   const uniqueBatches = useMemo(() => { ... }, [applications])
+   ```
+2. Render Hook Count Mismatch:
+   - Initial Render (`loading = true`): React called hooks 1 through ~30 (useState, useEffect, context), then hit `if (loading) return <GlobalLoader />`. The `useMemo` hook at line 453 was never executed.
+   - Subsequent Render (`loading = false`): After `fetchApplications()` completed, `setLoading(false)` triggered a re-render. With `loading = false`, execution passed line 450 and called `useMemo()`.
+   - React detected an unexpected 31st hook during re-render that did not exist on the initial render, triggering an immediate fatal crash: `Rendered more hooks than during the previous render`.
+
+[SOLUTION & ARCHITECTURE]
+1. Strictly Unconditional Hook Placement:
+   Moved all hooks (`useMemo`, `useCallback`, `useEffect`, `useState`) to the top of the component body, strictly preceding any conditional branching or early returns:
+   ```tsx
+   // 1. All hooks declared unconditionally at top level
+   const uniqueBatches = useMemo(() => { ... }, [applications])
+
+   // 2. Early return strictly after all hooks
+   if (loading) {
+     return <GlobalLoader text="Loading Applications..." />
+   }
+   ```
+2. Safe Route Parameter Resolution with `useParams`:
+   Replaced dynamic Promise unwrapping `use(params)` with the officially recommended synchronous `useParams<{ campaign_id: string }>()` hook from `'next/navigation'`, preventing potential Promise suspension inconsistencies across Next.js client-side transitions.
+
+[INTERVIEW STAR TAKEAWAY]
+"React hook calls rely on an internal linked list whose indices must match identically on every single render pass. Placing an early return (such as an auth or loading guard) before a `useMemo` or `useEffect` causes React to observe differing hook counts between states, resulting in a fatal 'client-side exception' in production. Always ensure that all hooks are declared unconditionally at the very top of the function component before any conditional early returns."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
-3. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges) & Case 11 (Interactive Day/Week velocity charts).
-4. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing) & Case 10 (Double peer approval).
-5. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
+3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover) and Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges) & Case 11 (Interactive Day/Week velocity charts).
+5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing) & Case 10 (Double peer approval).
+6. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
 ====================================================================================================

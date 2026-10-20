@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
-  Pencil, Save, Upload, Share2, MessageSquareText
+  Pencil, Save, Upload, Share2, MessageSquareText, History
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +30,8 @@ import { ApplicationImportModal } from '@/components/admin/ApplicationImportModa
 import ChangeInstagramProfileModal from '@/components/admin/ChangeInstagramProfileModal'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
+import { GhostActionModal, TargetCreatorItem } from '@/components/admin/ghost/GhostActionModal'
+import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 import Papa from 'papaparse'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -74,6 +76,8 @@ interface Application {
   is_delay_exempted?: boolean | null
   delay_exemption_reason?: string | null
   completion_submitted_at?: string | null
+  is_ghosted?: boolean | null
+  ghosted_at?: string | null
   team_remark?: string | null
   team_remark_by?: string | null
   team_remark_updated_at?: string | null
@@ -142,7 +146,7 @@ const statusDots: Record<string, string> = {
   'Payment Requested': 'bg-cyan-400',
 }
 
-const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved']
+const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted']
 
 const followerRanges = [
   { label: '< 1K', min: 0, max: 999 },
@@ -604,6 +608,8 @@ function ActionsDropdown({
   onOpenNegotiate,
   onSentToBrandToggle,
   onEditRemark,
+  onGhostAction,
+  onGhostHistory,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -614,6 +620,8 @@ function ActionsDropdown({
   onOpenNegotiate?: (app: Application) => void
   onSentToBrandToggle?: (action: 'mark_sent' | 'unmark_sent', appId: string) => void
   onEditRemark?: (app: Application) => void
+  onGhostAction?: (app: Application, actionType: 'ghost' | 'unghost') => void
+  onGhostHistory?: (app: Application) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -771,6 +779,49 @@ function ActionsDropdown({
                 <MessageSquareText className="h-3.5 w-3.5 text-cyan-400" />
                 {app.team_remark ? 'Edit Team Remark' : 'Add Team Remark'}
               </button>
+
+              <div className="border-t border-white/10 my-1" />
+
+              {/* Ghost / Unghost Action */}
+              {app.is_ghosted ? (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onGhostAction?.(app, 'unghost')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                    Un-ghost Creator
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onGhostHistory?.(app)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
+                  >
+                    <History className="h-3.5 w-3.5 text-slate-400" />
+                    Ghost Audit History
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onGhostAction?.(app, 'ghost')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                  title="Mark unresponsive creator as ghosted with proof"
+                >
+                  <span className="text-sm">👻</span>
+                  Mark Ghosted
+                </button>
+              )}
 
               <div className="border-t border-white/10 my-1" />
 
@@ -1051,6 +1102,12 @@ export default function AllApplicationsPage() {
   const [loading, setLoading] = useState(true)
   const [negotiationModalApp, setNegotiationModalApp] = useState<Application | null>(null)
   const [igModalApp, setIgModalApp] = useState<any | null>(null)
+  const [ghostModalApp, setGhostModalApp] = useState<{
+    app: Application
+    actionType: 'ghost' | 'unghost'
+  } | null>(null)
+  const [bulkGhostCreators, setBulkGhostCreators] = useState<TargetCreatorItem[]>([])
+  const [ghostHistoryApp, setGhostHistoryApp] = useState<Application | null>(null)
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('Applied')
@@ -1368,7 +1425,9 @@ export default function AllApplicationsPage() {
     let result = [...applications]
 
     // Status filter
-    if (activeStatus !== 'All') {
+    if (activeStatus === 'Ghosted') {
+      result = result.filter(a => a.is_ghosted)
+    } else if (activeStatus !== 'All') {
       result = result.filter(a => a.status === activeStatus)
     }
 
@@ -1752,7 +1811,12 @@ export default function AllApplicationsPage() {
       ? applications.filter(a => matchesApplicationSearch(a, searchQuery))
       : applications
 
-    pool.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1 })
+    pool.forEach(a => {
+      counts[a.status] = (counts[a.status] || 0) + 1
+      if (a.is_ghosted) {
+        counts['Ghosted'] = (counts['Ghosted'] || 0) + 1
+      }
+    })
     return counts
   }, [applications, searchQuery])
 
@@ -2441,10 +2505,18 @@ export default function AllApplicationsPage() {
                         {visibleCols.status && (
                           <td className={`px-2.5 ${densityPadding[density]}`}>
                             <div className="flex flex-col gap-1 items-start">
-                              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
-                                {app.status}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusDots[app.status] || 'bg-slate-400'}`} />
+                                  {app.status}
+                                </span>
+                                {app.is_ghosted && (
+                                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-rose-500/25 text-rose-200 border border-rose-500/40 whitespace-nowrap animate-pulse" title="Marked Ghosted — Account Paused">
+                                    <span>👻</span>
+                                    <span>Ghosted</span>
+                                  </span>
+                                )}
+                              </div>
                               {String(app.campaigns?.budget_type || '').toLowerCase().includes('variable') && (
                                 app.form_data?.negotiation?.status === 'pending_peer_approval' ? (
                                   <button
@@ -2560,6 +2632,8 @@ export default function AllApplicationsPage() {
                                 setSendRejectEmail(true)
                               }}
                               onDeleteApp={handleDeleteApplication}
+                              onGhostAction={(targetApp, actionType) => setGhostModalApp({ app: targetApp, actionType })}
+                              onGhostHistory={(targetApp) => setGhostHistoryApp(targetApp)}
                             />
                           </td>
                         )}
@@ -3330,7 +3404,32 @@ export default function AllApplicationsPage() {
                 <span>ALLOW RE-APPLY</span>
               </Button>
 
-              {/* 4. RESET (Red / Delete) */}
+              {/* 5. GHOST (Rose) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedApps = Array.from(selectedIds).map(id => {
+                    const app = applications.find(a => a.id === id)
+                    return {
+                      applicationId: id,
+                      creatorName: app?.users?.full_name || 'Creator',
+                      instagramUsername: app?.users?.instagram_username,
+                      brandName: app?.campaigns?.brand_name,
+                      campaignCode: app?.campaigns?.campaign_code,
+                    }
+                  })
+                  setBulkGhostCreators(selectedApps)
+                }}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+                title="Mark selected creators as ghosted with proof"
+              >
+                <span>👻</span>
+                <span>GHOST</span>
+              </Button>
+
+              {/* 6. RESET (Red / Delete) */}
               <Button
                 variant="outline"
                 size="sm"
@@ -3866,6 +3965,49 @@ export default function AllApplicationsPage() {
         }
         onSuccess={fetchApplications}
       />
+
+      {/* Ghost & Unghost Action Modal */}
+      {ghostModalApp && (
+        <GhostActionModal
+          isOpen={Boolean(ghostModalApp)}
+          actionType={ghostModalApp.actionType}
+          targetCreator={{
+            applicationId: ghostModalApp.app.id,
+            creatorName: ghostModalApp.app.users?.full_name || 'Creator',
+            instagramUsername: ghostModalApp.app.users?.instagram_username,
+            brandName: ghostModalApp.app.campaigns?.brand_name,
+            campaignCode: ghostModalApp.app.campaigns?.campaign_code,
+          }}
+          onClose={() => setGhostModalApp(null)}
+          onSuccess={fetchApplications}
+        />
+      )}
+
+      {/* Bulk Ghost Modal */}
+      {bulkGhostCreators.length > 0 && (
+        <GhostActionModal
+          isOpen={bulkGhostCreators.length > 0}
+          actionType="bulk-ghost"
+          bulkCreators={bulkGhostCreators}
+          onClose={() => setBulkGhostCreators([])}
+          onSuccess={() => {
+            setBulkGhostCreators([])
+            setSelectedIds(new Set())
+            fetchApplications()
+          }}
+        />
+      )}
+
+      {/* Ghost Audit History Modal */}
+      {ghostHistoryApp && (
+        <GhostHistoryModal
+          isOpen={Boolean(ghostHistoryApp)}
+          applicationId={ghostHistoryApp.id}
+          creatorName={ghostHistoryApp.users?.full_name || 'Creator'}
+          brandName={ghostHistoryApp.campaigns?.brand_name}
+          onClose={() => setGhostHistoryApp(null)}
+        />
+      )}
 
       {/* Sent to Brand Modal */}
       <AnimatePresence>
