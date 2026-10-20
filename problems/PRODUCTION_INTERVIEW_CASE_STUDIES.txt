@@ -22,6 +22,7 @@ CASE 11: High-Scale Platform Analytics & Real-Time Stats Hub (Server-Side SQL Ag
 CASE 12: Meta App Review & OAuth Screencast Compliance: End-to-End Visual Verification & Reviewer Sandbox Architecture
 CASE 13: React Rules of Hooks Order Violation & Production Client-Side Exception (Early Return before useMemo)
 CASE 14: Guest Campaign Checkout & Zero-Friction Authentication Handshake (Direct Apply vs Account Gatekeeper)
+CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engine
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -431,6 +432,35 @@ Creators discovering campaigns via public links or social media on `users.1to7me
 
 [INTERVIEW STAR TAKEAWAY]
 "Balancing conversion velocity with identity security in consumer marketplaces requires deferring authentication friction. By adopting a 'Guest Checkout with Post-Submission Identity Claim' architecture, platforms eliminate the #1 source of top-of-funnel drop-off without exposing user accounts or issuing unverified session tokens."
+
+====================================================================================================
+CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engine
+====================================================================================================
+CATEGORIES: Backend Architecture / Event Sourcing / Admin Observability / Dispute Resolution / PostgreSQL
+INTERVIEW QUESTION: "How do you design a centralized dispute & accountability hub across disparate campaigns that balances immediate operational action with an immutable legal audit trail?"
+
+[SITUATION]
+As the 1to7 platform scaled to hundreds of brand campaigns and thousands of creators, ghosting tracking was fragmented across individual campaign application pages. While POCs could flag a creator as ghosted locally within a campaign, operations managers, brand directors, and platform executives lacked a single centralized dashboard to:
+1. Instantly see every creator currently locked/blocked across all campaigns.
+2. Inspect uploaded evidence proof screenshots (chat logs, tracking deliveries, call attempts).
+3. Access an immutable historical audit trail of all ghosting and restoration events with actor attribution, reasons, and timestamps.
+4. Export comprehensive accountability reports for client brand reconciliations.
+
+[ROOT CAUSE]
+Ghost state was architecturally stored across two tiers: a mutable boolean flag `is_ghosted` on `applications` (for high-speed gatekeeping during checkout and application validation), and an immutable append-only event table `application_ghost_events` (for dispute defense and event sourcing). However, there was no dedicated full-stack administrative aggregation view uniting these two tiers. Admins had to manually navigate between individual campaign tabs or creator profiles to locate ghosted creators or inspect event logs.
+
+[SOLUTION & ARCHITECTURE]
+1. Centralized Ghosted & Accountability Hub (`/admin/ghosted`):
+   - Integrated into the primary admin navigation sidebar under the `applications` permission scope.
+   - Live KPI overview: Active Ghosted Creators, Lifetime Incidents, Restored Creators, and Resolution/Recovery Rate.
+2. Dual-Tab Unified Architecture:
+   - Tab 1 (Active Ghosted List): Real-time query joining `applications (is_ghosted = true)` with `users`, `campaigns`, and the latest ghost event. Equipped with multi-field search (Name, ID, Instagram, Phone, Brand), proof thumbnail zoom previews via `ImageZoomModal`, one-click unghosting via `GhostActionModal`, and UTF-8 BOM CSV export.
+   - Tab 2 (Audit Logs & Timeline): Full platform-wide event log from `application_ghost_events`, showing who performed what action (`ghosted` vs `unghosted`), timestamps, reasons, justifications, and evidence galleries.
+3. Cross-Navigation Synergy:
+   - Added a direct callout banner on the main `/admin/applications` page when filtering by the 'Ghosted' status pill, allowing POCs to jump directly into the comprehensive Hub with zero friction.
+
+[INTERVIEW STAR TAKEAWAY]
+"In operational systems with fraud or disciplinary actions (like creator ghosting), storing the event log isn't enough; observability must be democratized for team leads and executives. Combining a high-speed active status table with an append-only event-sourced audit timeline in a unified dual-tab dashboard ensures complete transparency, audit compliance, and fast dispute resolution."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

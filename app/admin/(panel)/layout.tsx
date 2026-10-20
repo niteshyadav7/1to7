@@ -65,6 +65,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
   { href: '/admin/completion-details', label: 'Completion Details', icon: FileCheck, moduleKey: 'applications' },
+  { href: '/admin/ghosted', label: 'Ghosted Creators', icon: ShieldAlert, moduleKey: 'applications' },
   { href: '/admin/instagram-logs', label: 'Instagram Logs', icon: Instagram, moduleKey: 'applications' },
   { href: '/admin/payments', label: 'Payment Desk', icon: CreditCard, moduleKey: 'payments' },
   { href: '/admin/finance', label: 'Finance Payouts', icon: IndianRupee, moduleKey: 'payments' },
@@ -87,6 +88,7 @@ function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname.startsWith('/admin/applications')) return 'applications'
   if (pathname.startsWith('/admin/order-details')) return 'order_details'
   if (pathname.startsWith('/admin/completion-details')) return 'applications'
+  if (pathname.startsWith('/admin/ghosted')) return 'applications'
   if (pathname.startsWith('/admin/instagram-logs')) return 'applications'
   if (pathname.startsWith('/admin/finance')) return 'payments'
   if (pathname.startsWith('/admin/payments')) return 'payments'

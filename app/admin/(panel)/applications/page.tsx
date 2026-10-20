@@ -1930,6 +1930,23 @@ export default function AllApplicationsPage() {
         </div>
       </div>
 
+      {activeStatus === 'Ghosted' && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">👻</span>
+            <span>
+              Viewing ghosted applications. Want to see all historical logs, timeline proof, and recovery metrics?
+            </span>
+          </div>
+          <Link
+            href="/admin/ghosted"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500 text-white font-bold text-xs hover:bg-rose-600 transition-colors shadow-xs shrink-0"
+          >
+            Open Ghosted Hub & Logs <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* ─── Toolbar ────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">

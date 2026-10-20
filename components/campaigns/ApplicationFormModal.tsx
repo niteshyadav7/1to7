@@ -448,9 +448,9 @@ export default function ApplicationFormModal({
 
   if (!campaign) return null
 
-  // Logged-in users go straight to Form step
+  // Logged-in users go straight to Form step, but hide form once submitted successfully
   const isLoggedIn = !!user
-  const showFormStep = isLoggedIn || guestStep === 'application'
+  const showFormStep = guestStep !== 'success' && (isLoggedIn || guestStep === 'application')
   const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
 
   // Only show the top header if not in success state
@@ -723,95 +723,89 @@ export default function ApplicationFormModal({
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-5"
                   >
-                    <div className="text-center space-y-2 mb-6">
-                      <div className="mx-auto h-14 w-14 rounded-md bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
-                        <User className="h-7 w-7 text-primary" />
+                    <div className="text-center space-y-1.5 mb-5">
+                      <div className="mx-auto h-12 w-12 rounded-xl bg-primary-container/20 border border-primary-container/30 flex items-center justify-center">
+                        <FileText className="h-6 w-6 text-primary" />
                       </div>
-                      <h3 className="text-lg font-bold text-charcoal-surface">Quick Profile Setup</h3>
-                      <p className="text-sm text-secondary">Fill in a few details to apply instantly</p>
+                      <h3 className="text-lg font-bold text-charcoal-surface">Applicant Details</h3>
+                      <p className="text-xs text-secondary">Please fill in your basic details to apply for this campaign</p>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
-                          Full Name <span className="text-primary">*</span>
-                        </Label>
-                        <div className="relative group">
-                          <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                          <Input
-                            value={guestName}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            placeholder="Your full name"
-                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
-                            autoFocus
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
-                          Email Address <span className="text-primary">*</span>
-                        </Label>
-                        <div className="relative group">
-                          <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
-                          <Input
-                            type="email"
-                            value={guestEmail}
-                            onChange={(e) => setGuestEmail(e.target.value)}
-                            placeholder="your.email@example.com"
-                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 pl-11 pr-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                    <div className="space-y-3.5">
+                      {/* Row 1: Full Name & Email Address */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
                           <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
-                            Instagram Username <span className="text-primary">*</span>
+                            Full Name <span className="text-primary">*</span>
                           </Label>
-                          <Input
-                            value={guestInstagram}
-                            onChange={(e) => setGuestInstagram(e.target.value)}
-                            placeholder="@username"
-                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 px-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
-                          />
+                          <div className="relative group">
+                            <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                            <Input
+                              value={guestName}
+                              onChange={(e) => setGuestName(e.target.value)}
+                              placeholder="e.g. Rahul Sharma"
+                              className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-10 pl-10 pr-3 text-xs sm:text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                              autoFocus
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-2">
+
+                        <div className="space-y-1.5">
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            Email Address <span className="text-primary">*</span>
+                          </Label>
+                          <div className="relative group">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                            <Input
+                              type="email"
+                              value={guestEmail}
+                              onChange={(e) => setGuestEmail(e.target.value)}
+                              placeholder="e.g. rahul@gmail.com"
+                              className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-10 pl-10 pr-3 text-xs sm:text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Instagram Handle & Follower Count */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                            Instagram Handle <span className="text-primary">*</span>
+                          </Label>
+                          <div className="relative group">
+                            <Instagram className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-pink-500 transition-colors" />
+                            <Input
+                              value={guestInstagram}
+                              onChange={(e) => setGuestInstagram(e.target.value)}
+                              placeholder="@username"
+                              className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-10 pl-10 pr-3 text-xs sm:text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
                           <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
                             Followers <span className="text-primary">*</span>
                           </Label>
-                          <Input
-                            type="number"
-                            value={guestFollowers}
-                            onChange={(e) => setGuestFollowers(e.target.value)}
-                            placeholder="e.g. 10000"
-                            className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-11 px-4 text-sm rounded-md focus-visible:ring-primary-container transition-all"
-                          />
+                          <div className="relative group">
+                            <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary group-focus-within:text-primary transition-colors" />
+                            <Input
+                              type="number"
+                              value={guestFollowers}
+                              onChange={(e) => setGuestFollowers(e.target.value)}
+                              placeholder="e.g. 15000"
+                              className="bg-white border border-border-subtle text-foreground placeholder:text-secondary h-10 pl-10 pr-3 text-xs sm:text-sm rounded-md focus-visible:ring-primary-container transition-all"
+                            />
+                          </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
+                      {/* Row 3: State & City */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
                           <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
-                            Gender <span className="text-primary">*</span>
-                          </Label>
-                          <Select
-                            value={guestGender || ""}
-                            onValueChange={(v) => setGuestGender(v || '')}
-                          >
-                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md">
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg">
-                              <SelectItem value="Male" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Male</SelectItem>
-                              <SelectItem value="Female" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Female</SelectItem>
-                              <SelectItem value="Other" className="focus:bg-primary-container focus:text-black cursor-pointer py-2">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
-                            State <span className="text-primary">*</span>
+                            State / UT <span className="text-primary">*</span>
                           </Label>
                           <Select
                             value={guestState}
@@ -820,10 +814,10 @@ export default function ApplicationFormModal({
                               setGuestCity('')
                             }}
                           >
-                            <SelectTrigger className="bg-white border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md">
+                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-10 px-3 text-xs sm:text-sm focus:ring-primary-container rounded-md">
                               <SelectValue placeholder="Select State" />
                             </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[250px]">
+                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[220px]">
                               {STATES.map((state) => (
                                 <SelectItem key={state} value={state} className="focus:bg-primary-container focus:text-black cursor-pointer py-2 text-xs">
                                   {state}
@@ -832,7 +826,8 @@ export default function ApplicationFormModal({
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
+
+                        <div className="space-y-1.5">
                           <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
                             City <span className="text-primary">*</span>
                           </Label>
@@ -841,10 +836,10 @@ export default function ApplicationFormModal({
                             onValueChange={(v) => setGuestCity(v || '')}
                             disabled={!guestState}
                           >
-                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-11 px-4 text-sm focus:ring-primary-container rounded-md disabled:opacity-50">
+                            <SelectTrigger className="bg-white border border-border-subtle text-foreground h-10 px-3 text-xs sm:text-sm focus:ring-primary-container rounded-md disabled:opacity-50">
                               <SelectValue placeholder={guestState ? "Select City" : "State first"} />
                             </SelectTrigger>
-                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[250px]">
+                            <SelectContent side="bottom" className="bg-white border border-border-subtle text-charcoal-surface shadow-lg max-h-[220px]">
                               {guestState && INDIA_DATA[guestState as keyof typeof INDIA_DATA]?.map((city) => (
                                 <SelectItem key={city} value={city} className="focus:bg-primary-container focus:text-black cursor-pointer py-2 text-xs">
                                   {city}
@@ -852,6 +847,29 @@ export default function ApplicationFormModal({
                               ))}
                             </SelectContent>
                           </Select>
+                        </div>
+                      </div>
+
+                      {/* Row 4: Gender Pills */}
+                      <div className="space-y-1.5 pt-0.5">
+                        <Label className="text-secondary text-[11px] font-bold uppercase tracking-wider">
+                          Gender <span className="text-primary">*</span>
+                        </Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(['Female', 'Male', 'Other'] as const).map((g) => (
+                            <button
+                              key={g}
+                              type="button"
+                              onClick={() => setGuestGender(g)}
+                              className={`h-10 rounded-md text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center ${
+                                guestGender === g
+                                  ? 'bg-primary-container text-black border-primary-container font-bold shadow-xs'
+                                  : 'bg-white border-border-subtle text-secondary hover:text-foreground hover:bg-gray-muted'
+                              }`}
+                            >
+                              {g}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
