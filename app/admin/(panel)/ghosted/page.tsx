@@ -154,8 +154,10 @@ export default function GhostedManagementPage() {
 
     try {
       const res = await fetch('/api/admin/ghosted?tab=all')
-      if (!res.ok) throw new Error('Failed to load ghost records')
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to load ghost records (${res.status})`)
+      }
 
       if (data.summary) setSummary(data.summary)
       if (data.activeGhosted) setActiveGhosted(data.activeGhosted)

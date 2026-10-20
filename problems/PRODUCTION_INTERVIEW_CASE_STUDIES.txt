@@ -23,6 +23,7 @@ CASE 12: Meta App Review & OAuth Screencast Compliance: End-to-End Visual Verifi
 CASE 13: React Rules of Hooks Order Violation & Production Client-Side Exception (Early Return before useMemo)
 CASE 14: Guest Campaign Checkout & Zero-Friction Authentication Handshake (Direct Apply vs Account Gatekeeper)
 CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engine
+CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -461,6 +462,37 @@ Ghost state was architecturally stored across two tiers: a mutable boolean flag 
 
 [INTERVIEW STAR TAKEAWAY]
 "In operational systems with fraud or disciplinary actions (like creator ghosting), storing the event log isn't enough; observability must be democratized for team leads and executives. Combining a high-speed active status table with an append-only event-sourced audit timeline in a unified dual-tab dashboard ensures complete transparency, audit compliance, and fast dispute resolution."
+
+====================================================================================================
+CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic)
+====================================================================================================
+CATEGORIES: Database / PostgreSQL / API Resiliency / Schema Drift / Next.js
+INTERVIEW QUESTION: "How do you handle schema drift between TypeScript models and actual database schemas that cause 500 errors in raw SQL queries?"
+
+[SITUATION]
+Upon deploying the centralized Ghosted Creators Hub (/admin/ghosted), the admin interface failed with a red banner toast "Failed to load ghost records", while the dashboard displayed zero records across all metrics despite verified active ghosted records in the database.
+
+[ROOT CAUSE]
+1. TypeScript interfaces on the client side (ActiveGhostedItem, GhostEventItem, and legacy user schemas) defined avatar images as profile_photo?: string.
+2. However, in the underlying PostgreSQL database schema for public.users, the actual avatar image column is named instagram_profile_pic (there is no profile_photo column in the physical table).
+3. The new API route /api/admin/ghosted/route.ts executed a raw SQL query with explicit column projections: SELECT u.profile_photo, u.instagram_profile_pic FROM public.users u.
+4. PostgreSQL immediately rejected the query with error code 42703: column u.profile_photo does not exist, throwing a 500 Internal Server Error back to the client.
+5. In addition, the frontend fetch threw a generic error "Failed to load ghost records" without extracting the backend error payload, hiding the root cause in the UI.
+
+[SOLUTION & ARCHITECTURE]
+1. SQL Projection Rectification with Column Aliasing:
+   - Updated the query projection in /api/admin/ghosted/route.ts:
+     u.instagram_profile_pic as profile_photo, u.instagram_profile_pic
+     and for audit events:
+     u.instagram_profile_pic as creator_photo
+   - This preserved complete backwards compatibility with all existing frontend UI components expecting profile_photo or creator_photo, while referencing only columns physically present in PostgreSQL.
+2. Resilient Error Propagation on Client:
+   - Updated the client fetchData in app/admin/(panel)/ghosted/page.tsx to safely extract const data = await res.json().catch(() => ({})) and surface data?.error || Failed to load ghost records (${res.status}), ensuring diagnostic visibility in staging and production.
+3. Verification via Direct Database Probe:
+   - Validated the queries against the live Postgres instance, confirming successful return of active ghosted records (Vishakha Khatri Ahuja, campaign MyFitness F10023C201, with full reason and proof image URLs).
+
+[INTERVIEW STAR TAKEAWAY]
+"Raw SQL projections in high-performance endpoints give immense performance benefits over ORMs, but they bypass compile-time schema checking. When schema drift occurs (such as TypeScript models expecting profile_photo while PostgreSQL uses instagram_profile_pic), explicit aliasing in the SELECT clause (col as model_prop) provides zero-overhead schema reconciliation without requiring risky database migrations on high-traffic production tables."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

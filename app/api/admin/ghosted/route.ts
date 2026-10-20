@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
           u.mobile,
           u.instagram_username,
           u.followers,
-          u.profile_photo,
+          u.instagram_profile_pic as profile_photo,
           u.instagram_profile_pic,
           u.gender,
           u.state,
@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
           u.instagram_username,
           u.mobile as creator_mobile,
           u.email as creator_email,
-          u.profile_photo as creator_photo,
+          u.instagram_profile_pic as creator_photo,
           c.brand_name,
           c.campaign_code
         FROM public.application_ghost_events e
