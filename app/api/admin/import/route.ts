@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     if (mobiles.length > 0) {
       const { data: byMobiles } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile')
         .in('mobile', mobiles)
       
       byMobiles?.forEach(u => {
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     if (influencerIds.length > 0) {
       const { data: byIds } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile')
         .in('influencer_id', influencerIds)
       
       byIds?.forEach(u => {
@@ -133,7 +133,6 @@ export async function POST(request: Request) {
     const toUpdateUsers: { userId: string; updates: Record<string, any>; rowItem: typeof validRows[0] }[] = []
     const toCreateUsers: { rowItem: typeof validRows[0]; userData: any }[] = []
     const inBatchCreatedMobiles = new Map<string, any>()
-
 
     for (const item of validRows) {
       const { row, mobile, influencerId } = item
@@ -163,6 +162,24 @@ export async function POST(request: Request) {
         }
       }
 
+      // Extract any profile canonical answers from form_data if present
+      const fd = (row.form_data && typeof row.form_data === 'object') ? row.form_data : {}
+      const findFdVal = (patterns: RegExp[]): string | null => {
+        for (const [key, value] of Object.entries(fd)) {
+          if (patterns.some(p => p.test(key.trim()))) {
+            const val = String(value || '').trim()
+            if (val) return val
+          }
+        }
+        return null
+      }
+
+      const dobVal = findFdVal([/^(dob|d\.o\.b\.?|date\s*of\s*birth|birth\s*date|birthday)$/i])
+      const pincodeVal = findFdVal([/^(pincode|pin\s*code|zip|zipcode|postal\s*code|delivery\s*pincode)$/i])
+      const shoeVal = findFdVal([/^(shoe\s*size|footwear\s*size)$/i])
+      const tshirtVal = findFdVal([/^(t-?shirt\s*size|shirt\s*size|clothing\s*size|cloth\s*size)$/i])
+      const altMobileVal = findFdVal([/^(alt(ernate)?\s*(mobile|phone|contact)|whatsapp(\s*(number|no))?)$/i])
+
       if (existing) {
         // User already exists in DB - safely update missing fields only (never overwrite existing real data)
         const updates: Record<string, any> = {}
@@ -186,6 +203,11 @@ export async function POST(request: Request) {
           const parsed = parseInt(String(row.followers), 10)
           if (!isNaN(parsed)) updates.followers = parsed
         }
+        if (!existing.dob && dobVal) updates.dob = dobVal
+        if (!existing.pincode && pincodeVal) updates.pincode = pincodeVal
+        if (!existing.shoe_size && shoeVal) updates.shoe_size = shoeVal
+        if (!existing.tshirt_size && tshirtVal) updates.tshirt_size = tshirtVal
+        if (!existing.alt_mobile && altMobileVal) updates.alt_mobile = altMobileVal
 
         toUpdateUsers.push({ userId: existing.id, updates, rowItem: item })
       } else if (mobile && inBatchCreatedMobiles.has(mobile)) {
@@ -203,6 +225,11 @@ export async function POST(request: Request) {
           const parsed = parseInt(String(row.followers), 10)
           if (!isNaN(parsed)) previous.followers = parsed
         }
+        if (dobVal && !previous.dob) previous.dob = dobVal
+        if (pincodeVal && !previous.pincode) previous.pincode = pincodeVal
+        if (shoeVal && !previous.shoe_size) previous.shoe_size = shoeVal
+        if (tshirtVal && !previous.tshirt_size) previous.tshirt_size = tshirtVal
+        if (altMobileVal && !previous.alt_mobile) previous.alt_mobile = altMobileVal
       } else {
         // Brand new user
         const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
@@ -224,6 +251,11 @@ export async function POST(request: Request) {
           account_number: row.account_number?.trim() || null,
           ifsc_code: row.ifsc_code?.trim() || null,
           category: row.category?.trim() || null,
+          dob: dobVal || null,
+          pincode: pincodeVal || null,
+          shoe_size: shoeVal || null,
+          tshirt_size: tshirtVal || null,
+          alt_mobile: altMobileVal || null,
         }
 
         // If explicit influencer ID provided from CSV, preserve it; otherwise DB trigger assigns sequentially

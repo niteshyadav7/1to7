@@ -312,6 +312,7 @@ export default function ImportPage() {
   const [importProgress, setImportProgress] = useState<{ current: number; total: number; processed: number } | null>(null)
   const [importResults, setImportResults] = useState<ImportResults | null>(null)
   const [previewSearch, setPreviewSearch] = useState('')
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -839,68 +840,160 @@ export default function ImportPage() {
 
   // ─── Download dynamic template CSV based on selected campaign ───
   const downloadTemplate = async () => {
-    let headers = [
-      'Full Name',
-      'Mobile Number',
-      'Email',
-      'Instagram Username',
-      'Followers',
-      'Gender',
-      'State',
-      'City',
-      'Status',
-    ]
+    setDownloadingTemplate(true)
+    try {
+      const headers = [
+        'Full Name',
+        'Mobile Number',
+        'Email',
+        'Instagram Username',
+        'Followers',
+        'Gender',
+        'State',
+        'City',
+        'Status',
+      ]
 
-    let sampleRow: Record<string, string> = {
-      'Full Name': 'Pooja Sharma',
-      'Mobile Number': '9876543210',
-      'Email': 'pooja.sharma@example.com',
-      'Instagram Username': '@poojasharma',
-      'Followers': '45000',
-      'Gender': 'Female',
-      'State': 'Maharashtra',
-      'City': 'Mumbai',
-      'Status': 'Approved',
-    }
-
-    if (selectedCampaign) {
-      try {
-        const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}`)
-        const data = await res.json()
-        const camp = data.campaign || {}
-
-        // Add custom fields
-        if (Array.isArray(camp.custom_fields) && camp.custom_fields.length > 0) {
-          camp.custom_fields.forEach((field: any) => {
-            const fName = field.name || field.label || 'Custom Field'
-            if (!headers.includes(fName)) {
-              headers.push(fName)
-              sampleRow[fName] = field.type === 'select' && field.options?.[0] ? field.options[0] : 'Sample Response'
-            }
-          })
-        }
-
-        // Add commercial & bank fields for paid campaigns
-        headers.push('Agreed Commercial', 'Bank Account Number', 'IFSC Code', 'Account Holder Name')
-        sampleRow['Agreed Commercial'] = '5000'
-        sampleRow['Bank Account Number'] = '987654321098'
-        sampleRow['IFSC Code'] = 'HDFC0001234'
-        sampleRow['Account Holder Name'] = 'Pooja Sharma'
-      } catch {
-        headers.push('Agreed Commercial', 'Bank Account Number', 'IFSC Code')
+      const sampleRow: Record<string, string> = {
+        'Full Name': 'Pooja Sharma',
+        'Mobile Number': '9876543210',
+        'Email': 'pooja.sharma@example.com',
+        'Instagram Username': '@poojasharma',
+        'Followers': '45000',
+        'Gender': 'Female',
+        'State': 'Maharashtra',
+        'City': 'Mumbai',
+        'Status': 'Approved',
       }
-    }
 
-    const csvData = [sampleRow]
-    const csv = Papa.unparse({ fields: headers, data: csvData })
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Template_${selectedCampaign ? selectedCampaign.campaign_code : 'Influencer_Import'}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`Downloaded ${selectedCampaign ? selectedCampaign.campaign_code : 'General'} CSV template!`)
+      const getSampleFieldValue = (field: any) => {
+        if (field.type === 'dropdown' && Array.isArray(field.options) && field.options.length > 0) {
+          return field.options[0]
+        }
+        if (field.type === 'date') return '2000-01-15'
+        if (field.type === 'number') return '100'
+        const nameLower = (field.name || field.label || '').toLowerCase()
+        if (nameLower.includes('pincode') || nameLower.includes('pin code')) return '400001'
+        if (nameLower.includes('address') || nameLower.includes('adress')) return 'Flat 402, Sunshine Heights, MG Road'
+        if (nameLower.includes('shoe') || nameLower.includes('footwear')) return 'UK 7'
+        if (nameLower.includes('shirt') || nameLower.includes('cloth') || nameLower.includes('size')) return 'M'
+        return 'Sample Answer'
+      }
+
+      const addHeaderIfMissing = (headerName: string, sampleVal: string) => {
+        const cleanName = headerName.trim()
+        if (!cleanName) return
+        const exists = headers.some(h => h.toLowerCase() === cleanName.toLowerCase())
+        if (!exists) {
+          headers.push(cleanName)
+          sampleRow[cleanName] = sampleVal
+        }
+      }
+
+      let brandName = 'General'
+      let campaignCode = 'Influencer_Import'
+
+      if (selectedCampaign) {
+        brandName = selectedCampaign.brand_name || 'Campaign'
+        campaignCode = selectedCampaign.campaign_code || 'CAM'
+
+        try {
+          const res = await fetch(`/api/admin/campaigns/${selectedCampaign.id}`)
+          const data = await res.json()
+          const camp = data.campaign || {}
+
+          // 1. Align Demographics / Targeting Sample Values
+          if (camp.gender_required && camp.gender_required !== 'Any') {
+            sampleRow['Gender'] = camp.gender_required
+          }
+          if (Array.isArray(camp.target_states) && camp.target_states.length > 0) {
+            sampleRow['State'] = camp.target_states[0]
+          }
+          if (Array.isArray(camp.target_cities) && camp.target_cities.length > 0) {
+            sampleRow['City'] = camp.target_cities[0]
+          }
+
+          // 2. Add Custom Application Form Fields (form_fields or fallback to custom_fields)
+          const customFieldsList = Array.isArray(camp.form_fields) && camp.form_fields.length > 0
+            ? camp.form_fields
+            : (Array.isArray(camp.custom_fields) ? camp.custom_fields : [])
+
+          if (customFieldsList.length > 0) {
+            customFieldsList.forEach((field: any) => {
+              const fName = field.name || field.label
+              if (fName) {
+                addHeaderIfMissing(fName, getSampleFieldValue(field))
+              }
+            })
+          }
+
+          // 3. Add Order & Shipping Form Fields (if order_form enabled)
+          if (camp.order_form) {
+            addHeaderIfMissing('Order ID', 'ORD-982341')
+            if (Array.isArray(camp.order_form_fields) && camp.order_form_fields.length > 0) {
+              camp.order_form_fields.forEach((field: any) => {
+                const fName = field.name || field.label
+                if (fName) {
+                  addHeaderIfMissing(fName, getSampleFieldValue(field))
+                }
+              })
+            }
+          }
+
+          // 4. Add Commercial & Bank Details ONLY for Paid Campaigns (omit for Barter)
+          const budgetTypeStr = String(camp.budget_type || '').toLowerCase()
+          const isBarter = budgetTypeStr.includes('barter')
+          const isPaid = budgetTypeStr.includes('paid') || budgetTypeStr.includes('variable') || (!isBarter && Number(camp.budget_amount) > 0)
+
+          if (isPaid) {
+            addHeaderIfMissing('Agreed Commercial', '5000')
+            if (camp.partial_payment_enabled) {
+              addHeaderIfMissing('Partial Payment', '2500')
+            }
+            addHeaderIfMissing('Bank Account Number', '987654321098')
+            addHeaderIfMissing('IFSC Code', 'HDFC0001234')
+            addHeaderIfMissing('Account Holder Name', 'Pooja Sharma')
+
+            // Custom Payment Form Fields (if any)
+            if (Array.isArray(camp.payment_form_fields) && camp.payment_form_fields.length > 0) {
+              camp.payment_form_fields.forEach((field: any) => {
+                const fName = field.name || field.label
+                if (fName) {
+                  addHeaderIfMissing(fName, getSampleFieldValue(field))
+                }
+              })
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('Could not fetch complete campaign details for template, using base headers:', fetchErr)
+        }
+      }
+
+      // Format CSV with UTF-8 BOM (\uFEFF) to guarantee Excel character rendering
+      const csvData = [sampleRow]
+      const csv = '\uFEFF' + Papa.unparse({ fields: headers, data: csvData })
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cleanBrand = brandName.replace(/[^a-zA-Z0-9_-]/g, '_')
+      const cleanCode = campaignCode.replace(/[^a-zA-Z0-9_-]/g, '_')
+      a.download = `Template_${cleanBrand}_${cleanCode}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      if (selectedCampaign) {
+        toast.success(`Downloaded dynamic template for ${selectedCampaign.brand_name} (${selectedCampaign.campaign_code}) with ${headers.length} columns!`)
+      } else {
+        toast.info('Downloaded general template. Tip: Select a campaign to download its specific question template.')
+      }
+    } catch (err: any) {
+      toast.error('Failed to generate template: ' + (err.message || 'Unknown error'))
+    } finally {
+      setDownloadingTemplate(false)
+    }
   }
 
   // ─── Download failed / error rows as CSV ─────────────────
@@ -984,10 +1077,16 @@ export default function ImportPage() {
           </div>
           <button
             onClick={downloadTemplate}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+            disabled={downloadingTemplate}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800/80 text-slate-300 border border-white/10 hover:bg-slate-800 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+            title={selectedCampaign ? `Download custom question template for ${selectedCampaign.brand_name}` : 'Download general import template'}
           >
-            <Download className="h-3.5 w-3.5" />
-            Download Template
+            {downloadingTemplate ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span>{selectedCampaign ? `Template (${selectedCampaign.brand_name})` : 'Download Template'}</span>
           </button>
         </div>
       </SetAdminHeader>
@@ -1549,10 +1648,15 @@ export default function ImportPage() {
                     type="button"
                     size="sm"
                     onClick={downloadTemplate}
-                    className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm flex items-center gap-1.5"
+                    disabled={downloadingTemplate}
+                    className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    Download CSV
+                    {downloadingTemplate ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    {downloadingTemplate ? 'Generating...' : 'Download CSV'}
                   </Button>
                 </div>
 
@@ -1752,7 +1856,17 @@ export default function ImportPage() {
                           </td>
                           <td className="px-4 py-3 text-xs text-white font-mono">{row.influencer_id || '—'}</td>
                           <td className="px-4 py-3 text-xs text-slate-400 font-mono">{row.mobile || '—'}</td>
-                          <td className="px-4 py-3 text-xs text-slate-300">{row.full_name || <span className="text-slate-600">—</span>}</td>
+                          <td className="px-4 py-3 text-xs text-slate-300">
+                            <div>{row.full_name || <span className="text-slate-600">—</span>}</div>
+                            {(row as any).form_data && Object.keys((row as any).form_data).length > 0 && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[9px] text-indigo-300 font-mono mt-0.5 bg-indigo-500/15 px-1.5 py-0.5 rounded border border-indigo-500/30"
+                                title={Object.entries((row as any).form_data).map(([k, v]) => `${k}: ${v}`).join('\n')}
+                              >
+                                +{Object.keys((row as any).form_data).length} campaign fields
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-xs text-slate-400">{row.instagram_username || <span className="text-slate-600">—</span>}</td>
                           <td className="px-4 py-3 text-xs text-slate-400">{row.followers || <span className="text-slate-600">—</span>}</td>
                           <td className="px-4 py-3 text-xs text-slate-400">{row.gender || <span className="text-slate-600">—</span>}</td>

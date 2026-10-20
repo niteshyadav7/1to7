@@ -25,6 +25,7 @@ CASE 14: Guest Campaign Checkout & Zero-Friction Authentication Handshake (Direc
 CASE 15: Centralized Platform Ghosting Oversight & Append-Only Audit Trail Engine
 CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic)
 CASE 17: Multi-State Governance Action Collision & CSS Flexbox Reverse Overflow (Approve/Reject Overlay Disaster)
+CASE 18: Dynamic Multi-Campaign Bulk Import Template Engine & Schema Drift (Phantom custom_fields vs Normalized form_fields & Barter/Paid Budget Polymorphism)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -530,6 +531,57 @@ In the campaigns administration dashboard (`/admin/campaigns`), a new high-densi
 
 [INTERVIEW STAR TAKEAWAY]
 "Flexbox containers with `justify-content: flex-end` have an insidious failure mode: when content overflows, it extends to the left rather than the right. If the preceding sibling elements lack strict CSS grid track separation, overflowing buttons visually mask previous columns. Structuring action buttons with strict mutual exclusivity based on lifecycle state and backing them with explicit CSS Grid tracks prevents visual collisions entirely."
+
+====================================================================================================
+CASE 18: Dynamic Multi-Campaign Bulk Import Template Engine & Schema Drift
+====================================================================================================
+CATEGORIES: Full-Stack / Data Ingestion / Dynamic Schemas / CSV Engineering / Next.js / PostgreSQL
+INTERVIEW QUESTION: "How do you design an enterprise bulk import and CSV template generation system that must adapt dynamically to polymorphic entity schemas without breaking production workflows?"
+
+[SITUATION]
+Operations and campaign managers at 1to7 manage dozens of diverse influencer campaigns simultaneously (e.g. Plum, Origami, Lavie, Amazon, Myntra). Each campaign has unique creator intake requirements:
+1. Custom Creator Questions: Specific application fields configured by brand managers (e.g., "Delivery Pincode", "Date of Birth", "Shoe Size", "Are you from North India?").
+2. Dynamic Order Verification: Shipping address and order verification questions (e.g., "Order ID", "Shipping Address", "City", "State").
+3. Budget-Type Polymorphism: Paid campaigns demand financial reconciliation columns ("Agreed Commercial", "Bank Account Number", "IFSC Code", "Account Holder Name"), whereas Barter campaigns require zero banking info.
+
+When managers tried to bulk-import hundreds of creators for a selected campaign on `/admin/import`, clicking "Download Template" yielded a static, generic CSV that:
+- Failed to include ANY of the selected campaign's custom intake questions.
+- Unconditionally demanded bank account numbers and agreed commercial figures for Barter campaigns (such as Plum).
+- Led to manual column reconciliation errors, uncollected creator responses, and data rejection in production.
+
+[ROOT CAUSE INVESTIGATION]
+1. Phantom Property Schema Drift:
+   In the frontend template generator (`app/admin/(panel)/import/page.tsx`), the code attempted to access `camp.custom_fields`:
+   `if (Array.isArray(camp.custom_fields) && camp.custom_fields.length > 0) { ... }`
+   However, the database schema (`campaigns` table) and backend API route (`/api/admin/campaigns/[id]`) store dynamic custom questions in the JSONB column `form_fields` (and order questions in `order_form_fields`), not `custom_fields`. Because `camp.custom_fields` was undefined, the template generator silently skipped all custom campaign fields.
+2. Hardcoded Commercial Bias:
+   The generator unconditionally pushed commercial banking headers (`'Agreed Commercial'`, `'Bank Account Number'`, `'IFSC Code'`) onto the CSV header array without checking `camp.budget_type`. For Barter campaigns, this confused brand POCs and creators.
+3. Static Placeholder Sampling:
+   Custom field sample rows contained hardcoded generic strings (`'Sample Response'`) instead of utilizing the rich option sets already defined in the campaign configuration (e.g. dropdown options like "Yes" / "No", or city/state targeting lists).
+4. UTF-8 BOM Absence:
+   The generated CSV blob was exported without a UTF-8 Byte Order Mark (`\uFEFF`), which caused Excel on Windows systems to misinterpret accented characters or regional Indian script when opened by operations teams.
+
+[SOLUTION & ARCHITECTURE]
+1. Polymorphic Campaign Schema Resolver:
+   - Built a dynamic schema inspector that queries `/api/admin/campaigns/[id]` and normalizes:
+     - `camp.form_fields`: Custom application questions configured in the campaign builder.
+     - `camp.order_form_fields`: Shipping and order fields when `camp.order_form` is true.
+     - `camp.payment_form_fields`: Post-approval deliverable verification requirements.
+2. Context-Aware Budget & Banking Columns:
+   - If `camp.budget_type` contains 'Paid': Include 'Agreed Commercial', 'Bank Account Number', 'IFSC Code', 'Account Holder Name', and 'Partial Payment' (if `partial_payment_enabled` is true).
+   - If `camp.budget_type` contains 'Barter': Intelligently omit banking fields to maintain a clean, barter-focused data intake structure.
+3. Realistic Sample Row Generation:
+   - For dropdown fields (`field.type === 'dropdown'`), populate sample rows with `field.options[0]`.
+   - For date and number fields, provide syntactically valid dates (`YYYY-MM-DD`) and numerals.
+   - For location and demographic targeting, seed sample values from `camp.target_states`, `camp.target_cities`, and `camp.gender_required`.
+4. Robust File Generation & Encoding:
+   - Prefix the Papa.unparse CSV output with `\uFEFF` (UTF-8 BOM) for flawless cross-platform Excel and Google Sheets compatibility.
+   - Generate sanitized, human-readable download filenames: `Template_[BrandName]_[CampaignCode].csv`.
+5. Seamless Downstream Ingestion:
+   - The bulk import parser (`handleFile` and `/api/admin/import`) automatically captures unmapped campaign-specific headers into the `applications.form_data` JSONB column, where they are dynamically rendered in the `/admin/applications/[campaign_id]` portal without requiring table schema migrations.
+
+[INTERVIEW STAR TAKEAWAY]
+"When engineering bulk data tools for polymorphic domain entities, client-side template generators must never rely on static assumptions or unverified property names. Always synchronize the generator against the single source of truth—the database JSONB schema (`form_fields` vs `custom_fields`) and entity metadata (`budget_type`). Back the output with UTF-8 BOM encoding and intelligent sample defaults so operations teams can immediately work with clean, pre-validated spreadsheets."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
