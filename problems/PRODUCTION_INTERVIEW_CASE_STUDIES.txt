@@ -604,6 +604,7 @@ The ops manager asked for per-question filters on the Applications page (e.g. "s
 2. Builder auto-detects orphaned form_data keys for the campaign and offers one-click "link as previous wording" so renamed questions keep their history.
 3. Per-question `filterable` toggle in the campaign builder; the Applications page renders type-aware filters (number range with tolerant parsing of 5k / Rs 5,000, dropdown multi-select with case-insensitive matching, grouped distinct values for text, date/age range) only when exactly one campaign is selected.
 4. An "Unparseable / Not answered" bucket is always shown so nothing is silently dropped.
+5. CSS Stacking Context & Backdrop-Blur Z-Index Elevation: Dynamic question popovers are isolated in high z-index stacking contexts (`relative z-30` on container, `z-[60]` on active trigger, and `z-[100]` on the floating modal with backdrop-blur-2xl) so popups float cleanly over table headers and backdrop-filtered containers without getting clipped or trapped underneath.
 
 [INTERVIEW STAR TAKEAWAY]
 "Never key user data by mutable display text. Before shipping a filter, measure coverage against real production rows: our audit showed a filter on the current question would have hidden 69% of applicants. Stable IDs plus alias resolution fixed it additively, with no risky data migration."
