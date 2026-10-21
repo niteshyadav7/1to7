@@ -31,6 +31,7 @@ CASE 20: Cross-Entity Location Cascade Disconnect: Unbound State-to-City Dropdow
 CASE 21: Entity-Level Domain Disconnect: Expanding Campaign-Scoped Event Sourcing to Account-Wide Creator Ghosting & Audit Trails
 CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification Engine (Audit Blindspots & High-Precision Targeting)
 CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portals (Silent UI Freezes & Z-Index Inversion)
+CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualization (Eliminating Modal Inspection Bottlenecks)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -795,6 +796,40 @@ Deep inspection of the component hierarchy and rendering tree revealed two compo
 
 [INTERVIEW STAR TAKEAWAY]
 "When building layered multi-modal interfaces in enterprise React applications, never rely on optional chaining on action callbacks without runtime assertions or fallback warnings. Always establish a standardized z-index ladder across all modal, toast, and zoom layers, and couple actionable mutations with optimistic memory updates so parent dialogs stay completely synchronized with state transitions."
+
+====================================================================================================
+CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualization (Eliminating Modal Inspection Bottlenecks)
+====================================================================================================
+CATEGORIES: Frontend Architecture / Data Grid Engineering / Dynamic Column Projection / React State Orchestration
+INTERVIEW QUESTION: "How would you design a high-density administrative data grid where rows belong to different parent entities with completely custom dynamic schemas without breaking table alignment, performance, or user toggles?"
+
+[SITUATION]
+On the centralized applications roster (/admin/applications), administrators manage thousands of influencer applications across disparate brands. When operations filtered by a specific campaign (e.g. HRX), a question filter toolbar allowed them to filter creators by questions like "Current City", "Date of Birth", and "Commercials". However, the table itself strictly rendered 9 static columns (Influencer, Instagram, Campaign, Location, Status, Brand Shared, Team Remark, Applied, Actions). Even though creators provided critical custom answers in applications.form_data (such as commercial rates of ₹5,000 or city availability), ops had to open hundreds of individual modals one-by-one to inspect their bids. Furthermore, the Column Toggle dropdown only recognized hardcoded static keys.
+
+[ROOT CAUSE INVESTIGATION]
+1. Static Table Schema Lock-In:
+   The table header <thead> and body rows <tbody> hardcoded static column visibility flags (visibleCols.influencer, visibleCols.instagram, etc.). There was no projection mechanism to dynamically discover the active campaign's form_fields and project them as first-class table columns.
+2. Unformatted JSONB Answer Access:
+   Answers to campaign questions live in unstructured JSONB (form_data), where question keys vary by phrasing (e.g., "please share your best commercials for 1 Reel + 1 Story..."), type casting, and case sensitivity. Without a type-aware resolution pipeline, attempting to display these raw strings directly caused severe layout breakage and unformatted values.
+
+[SOLUTION & ARCHITECTURE]
+1. Dynamic Column Injection Engine:
+   When a campaign filter is active (filters.campaign.length === 1), the system reads the campaign's form_fields and dynamically computes activeCampaignDynamicFields and visibleDynamicFields.
+2. Seamless Column Toggle Dropdown Extension:
+   Upgraded <ColumnToggle /> to render a dynamic sub-menu titled CAMPAIGN QUESTIONS (${campaignName}) containing checkboxes for each campaign question with type-specific icons (IndianRupee for commercials, Calendar for dates, MapPin for cities, List for dropdowns) plus a 1-click "Show All / Hide All" batch toggle.
+3. Smart Auto-Activation:
+   Any question marked filterable: true in the Campaign Builder or actively filtered in questionFilters automatically defaults to visible, allowing immediate cross-table visualization of filtered criteria.
+4. Type-Aware Cell Presentation (<QuestionAnswerCell />):
+   - Commercials & Numbers: Formatted with an emerald currency pill (₹5,000).
+   - Dates & DOB: Formatted into clean calendar strings (14 Aug 1998).
+   - Dropdown & Booleans: Formatted into status pills (Yes in emerald, No in rose).
+   - URLs & Media: Rendered as clickable external links.
+   - Text & Cities: Cleanly truncated with full tooltips on hover.
+5. In-Memory Sorting:
+   Added q:${fieldName} sorting directly into processedData.sort(), allowing operations to sort by commercial quotes or custom question values with numeric and alphabetical awareness.
+
+[INTERVIEW STAR TAKEAWAY]
+"In high-density B2B operational dashboards, avoid forcing users into master-detail modal fatigue for entity-specific attributes. By architecting a hybrid static-dynamic data grid with declarative column toggles, type-aware value renderers, and in-memory sorting on unstructured JSONB fields, you transform rigid tables into flexible, context-aware spreadsheets that accelerate decision-making by over 70%."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

@@ -12,7 +12,8 @@ import {
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
-  Pencil, Save, Upload, Share2, MessageSquareText, History
+  Pencil, Save, Upload, Share2, MessageSquareText, History,
+  Sparkles, List, Type, FileImage
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,7 +39,8 @@ import { FormField } from '@/components/admin/FormFieldBuilder'
 import {
   QuestionFilterCriteria,
   matchesQuestionFilter,
-  getApplicationQuestionAnswer
+  getApplicationQuestionAnswer,
+  parseNumericValue
 } from '@/lib/utils/question-filter-utils'
 
 // ─── Types ─────────────────────────────────────────────────
@@ -53,6 +55,7 @@ interface UserInfo {
   state: string
   city: string
   gender: string
+  dob?: string
   profile_photo?: string
   instagram_profile_pic?: string
   is_instagram_verified?: boolean
@@ -432,13 +435,139 @@ function DateRangeDropdown({
   )
 }
 
+// ─── Dynamic Campaign Question Helpers ────────────────────────
+function getShortQuestionLabel(name: string): string {
+  if (!name) return 'Question'
+  const trimmed = name.trim()
+  if (trimmed.length <= 18) return trimmed
+
+  const lower = trimmed.toLowerCase()
+  if (lower.includes('commercial') || lower.includes('quote') || lower.includes('rate') || lower.includes('budget')) {
+    if (lower.includes('reel') && lower.includes('story')) return 'Commercial (1R+1S)'
+    if (lower.includes('reel')) return 'Commercial (Reel)'
+    return 'Commercials'
+  }
+  if (lower.includes('date of birth') || lower.includes('dob')) return 'Date of Birth'
+  if (lower.includes('attend') || lower.includes('event') || lower.includes('trail')) return 'Event Attendance'
+  if (lower.includes('current city') || lower.includes('city')) return 'Current City'
+  if (lower.includes('whatsapp') || lower.includes('phone')) return 'WhatsApp'
+  if (lower.includes('shoe size') || lower.includes('shoe')) return 'Shoe Size'
+  if (lower.includes('t-shirt') || lower.includes('tshirt')) return 'T-Shirt Size'
+  if (lower.includes('address') || lower.includes('pincode')) return 'Address'
+
+  return trimmed.slice(0, 18) + '…'
+}
+
+function getQuestionFieldIcon(field: FormField) {
+  const lower = (field.name || '').toLowerCase()
+  if (field.type === 'number' || lower.includes('commercial') || lower.includes('quote') || lower.includes('rate') || lower.includes('budget')) {
+    return <IndianRupee className="h-3 w-3 text-emerald-400 shrink-0" />
+  }
+  if (field.type === 'date' || lower.includes('dob') || lower.includes('date of birth')) {
+    return <Calendar className="h-3 w-3 text-amber-400 shrink-0" />
+  }
+  if (lower.includes('city') || lower.includes('state') || lower.includes('location')) {
+    return <MapPin className="h-3 w-3 text-cyan-400 shrink-0" />
+  }
+  if (field.type === 'dropdown' || (field.options && field.options.length > 0)) {
+    return <List className="h-3 w-3 text-purple-400 shrink-0" />
+  }
+  return <Sparkles className="h-3 w-3 text-indigo-400 shrink-0" />
+}
+
+function QuestionAnswerCell({ value, field }: { value: any; field: FormField }) {
+  if (value === null || value === undefined || String(value).trim() === '' || String(value).trim() === 'undefined') {
+    return <span className="text-[11px] text-slate-600 font-mono">—</span>
+  }
+
+  const str = String(value).trim()
+  const lower = (field.name || '').toLowerCase()
+  const isCommercial = field.type === 'number' || lower.includes('commercial') || lower.includes('quote') || lower.includes('rate') || lower.includes('budget')
+
+  // Commercial / Number
+  if (isCommercial) {
+    const num = parseNumericValue(value)
+    if (num !== null) {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10.5px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 whitespace-nowrap shadow-2xs">
+          <span>₹{num.toLocaleString('en-IN')}</span>
+        </span>
+      )
+    }
+  }
+
+  // Boolean / Yes / No
+  if (/^(yes|agree|can attend|available|true)$/i.test(str)) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+        <CheckCircle2 className="h-2.5 w-2.5" />
+        <span>{str}</span>
+      </span>
+    )
+  }
+
+  if (/^(no|disagree|cannot attend|not available|false)$/i.test(str)) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 whitespace-nowrap">
+        <X className="h-2.5 w-2.5" />
+        <span>{str}</span>
+      </span>
+    )
+  }
+
+  // Date
+  if (field.type === 'date' || lower.includes('dob') || lower.includes('date of birth')) {
+    let formatted = str
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+      const d = new Date(str)
+      if (!isNaN(d.getTime())) {
+        formatted = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      }
+    }
+    return (
+      <span className="text-[11px] text-slate-300 font-mono whitespace-nowrap">
+        {formatted}
+      </span>
+    )
+  }
+
+  // URL / Link
+  if (str.startsWith('http://') || str.startsWith('https://')) {
+    return (
+      <a
+        href={str}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline transition-colors max-w-[120px] truncate"
+        title={str}
+      >
+        <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate">View Link</span>
+      </a>
+    )
+  }
+
+  // General text
+  return (
+    <span className="text-[11px] text-slate-300 max-w-[140px] truncate block" title={str}>
+      {str}
+    </span>
+  )
+}
+
 // ─── ColumnToggle Component ────────────────────────────────
 function ColumnToggle({
   columns,
   onChange,
+  dynamicFields = [],
+  campaignName,
+  onToggleAllDynamic,
 }: {
   columns: Record<string, boolean>
   onChange: (col: string) => void
+  dynamicFields?: FormField[]
+  campaignName?: string
+  onToggleAllDynamic?: (visible: boolean) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
   const labels: Record<string, string> = {
@@ -453,6 +582,9 @@ function ColumnToggle({
     actions: 'Actions',
   }
 
+  const allDynamicChecked = dynamicFields.length > 0 && dynamicFields.every(f => columns[`q:${f.name}`] !== false)
+  const activeDynamicCount = dynamicFields.filter(f => columns[`q:${f.name}`] !== false).length
+
   return (
     <div className="relative" ref={popoverRef}>
       <button
@@ -460,7 +592,12 @@ function ColumnToggle({
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800/60 text-slate-400 border border-white/5 hover:bg-slate-800 hover:text-white hover:border-white/10 transition-all cursor-pointer"
       >
         <Columns3 className="h-3.5 w-3.5" />
-        Columns
+        <span>Columns</span>
+        {dynamicFields.length > 0 && (
+          <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            +{activeDynamicCount}
+          </span>
+        )}
       </button>
 
       <AnimatePresence>
@@ -470,12 +607,12 @@ function ColumnToggle({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-2 z-50 min-w-[180px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+            className="absolute top-full right-0 mt-2 z-50 min-w-[220px] max-w-[280px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden max-h-[80vh] flex flex-col"
           >
-            <div className="p-2 border-b border-white/5">
+            <div className="p-2 border-b border-white/5 flex items-center justify-between shrink-0">
               <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold px-2">Toggle Columns</span>
             </div>
-            <div className="p-1.5">
+            <div className="p-1.5 overflow-y-auto space-y-0.5">
               {Object.entries(labels).map(([key, label]) => (
                 <button
                   key={key}
@@ -492,6 +629,52 @@ function ColumnToggle({
                   {label}
                 </button>
               ))}
+
+              {dynamicFields.length > 0 && (
+                <>
+                  <div className="pt-2 pb-1 px-2 border-t border-white/10 mt-2 flex items-center justify-between">
+                    <span className="text-[9.5px] text-indigo-400 uppercase tracking-wider font-extrabold flex items-center gap-1 truncate max-w-[150px]" title={campaignName || 'Campaign Questions'}>
+                      <Sparkles className="h-2.5 w-2.5 text-indigo-400 shrink-0" />
+                      {campaignName ? `${campaignName} Questions` : 'Campaign Questions'}
+                    </span>
+                    {onToggleAllDynamic && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onToggleAllDynamic(!allDynamicChecked)
+                        }}
+                        className="text-[9px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer hover:underline"
+                      >
+                        {allDynamicChecked ? 'Hide All' : 'Show All'}
+                      </button>
+                    )}
+                  </div>
+
+                  {dynamicFields.map(field => {
+                    const colKey = `q:${field.name}`
+                    const isChecked = columns[colKey] !== false
+
+                    return (
+                      <button
+                        key={colKey}
+                        onClick={() => onChange(colKey)}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                          isChecked ? 'text-indigo-200' : 'text-slate-500'
+                        } hover:bg-white/5`}
+                        title={field.name}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                          isChecked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-600 bg-slate-800/50'
+                        }`}>
+                          {isChecked && <CheckCircle2 className="h-3 w-3 text-white" />}
+                        </div>
+                        <span className="truncate text-left">{getShortQuestionLabel(field.name)}</span>
+                      </button>
+                    )
+                  })}
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -883,7 +1066,7 @@ function SortableHeader({
 }
 
 // ─── Skeleton Row ──────────────────────────────────────────
-function SkeletonRow() {
+function SkeletonRow({ dynamicCount = 0 }: { dynamicCount?: number }) {
   return (
     <tr className="border-b border-white/[0.03]">
       <td className="w-8 px-1.5 py-2 text-center"><div className="w-4 h-4 mx-auto rounded bg-slate-800 animate-pulse" /></td>
@@ -900,6 +1083,11 @@ function SkeletonRow() {
       <td className="px-2.5 py-2"><div className="w-16 h-3 rounded bg-slate-800 animate-pulse" /></td>
       <td className="px-2.5 py-2"><div className="w-14 h-3 rounded bg-slate-800 animate-pulse" /></td>
       <td className="px-2.5 py-2"><div className="w-14 h-4 rounded-full bg-slate-800 animate-pulse" /></td>
+      {Array.from({ length: dynamicCount }).map((_, idx) => (
+        <td key={`dyn-skel-${idx}`} className="px-2.5 py-2">
+          <div className="w-16 h-4 rounded bg-slate-800 animate-pulse" />
+        </td>
+      ))}
       <td className="px-2.5 py-2"><div className="w-14 h-4 rounded-full bg-slate-800 animate-pulse" /></td>
       <td className="px-2.5 py-2"><div className="w-16 h-4 rounded-lg bg-slate-800 animate-pulse" /></td>
       <td className="px-2.5 py-2"><div className="w-10 h-3 rounded bg-slate-800 animate-pulse" /></td>
@@ -1569,16 +1757,33 @@ export default function AllApplicationsPage() {
     if (sortConfig.column && sortConfig.direction) {
       result.sort((a, b) => {
         let valA: any, valB: any
-        switch (sortConfig.column) {
-          case 'name': valA = a.users?.full_name?.toLowerCase() || ''; valB = b.users?.full_name?.toLowerCase() || ''; break
-          case 'followers': valA = a.users?.followers || 0; valB = b.users?.followers || 0; break
-          case 'brand': valA = a.campaigns?.brand_name?.toLowerCase() || ''; valB = b.campaigns?.brand_name?.toLowerCase() || ''; break
-          case 'location': valA = a.users?.state?.toLowerCase() || ''; valB = b.users?.state?.toLowerCase() || ''; break
-          case 'status': valA = a.status; valB = b.status; break
-          case 'team_remark': valA = a.team_remark?.toLowerCase() || ''; valB = b.team_remark?.toLowerCase() || ''; break
-          case 'date': valA = new Date(a.created_at).getTime(); valB = new Date(b.created_at).getTime(); break
-          default: return 0
+
+        if (sortConfig.column.startsWith('q:')) {
+          const qName = sortConfig.column.slice(2)
+          const field = singleCampaignFields.find(f => f.name === qName) || { name: qName, type: 'text' as const }
+          const rawA = getApplicationQuestionAnswer(a.form_data, field)
+          const rawB = getApplicationQuestionAnswer(b.form_data, field)
+          const isNum = field.type === 'number' || /commercial|quote|budget|rate/i.test(qName)
+          if (isNum) {
+            valA = parseNumericValue(rawA) ?? -Infinity
+            valB = parseNumericValue(rawB) ?? -Infinity
+          } else {
+            valA = rawA ? String(rawA).toLowerCase() : ''
+            valB = rawB ? String(rawB).toLowerCase() : ''
+          }
+        } else {
+          switch (sortConfig.column) {
+            case 'name': valA = a.users?.full_name?.toLowerCase() || ''; valB = b.users?.full_name?.toLowerCase() || ''; break
+            case 'followers': valA = a.users?.followers || 0; valB = b.users?.followers || 0; break
+            case 'brand': valA = a.campaigns?.brand_name?.toLowerCase() || ''; valB = b.campaigns?.brand_name?.toLowerCase() || ''; break
+            case 'location': valA = a.users?.state?.toLowerCase() || ''; valB = b.users?.state?.toLowerCase() || ''; break
+            case 'status': valA = a.status; valB = b.status; break
+            case 'team_remark': valA = a.team_remark?.toLowerCase() || ''; valB = b.team_remark?.toLowerCase() || ''; break
+            case 'date': valA = new Date(a.created_at).getTime(); valB = new Date(b.created_at).getTime(); break
+            default: return 0
+          }
         }
+
         if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1
         if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1
         return 0
@@ -1587,6 +1792,27 @@ export default function AllApplicationsPage() {
 
     return result
   }, [applications, activeStatus, brandSentFilter, searchQuery, filters, singleCampaignFields, questionFilters, sortConfig])
+
+  // ─── Dynamic Campaign Questions Resolution ────────────────
+  const activeCampaignDynamicFields = useMemo(() => {
+    if (filters.campaign.length !== 1 || singleCampaignFields.length === 0) return []
+    return singleCampaignFields
+  }, [filters.campaign, singleCampaignFields])
+
+  const visibleDynamicFields = useMemo(() => {
+    return activeCampaignDynamicFields.filter(f => {
+      const colKey = `q:${f.name}`
+      if (visibleCols[colKey] !== undefined) {
+        return visibleCols[colKey]
+      }
+      if (questionFilters[f.name]) {
+        return true
+      }
+      return f.filterable === true || /commercial|quote|budget|rate|fee/i.test(f.name)
+    })
+  }, [activeCampaignDynamicFields, visibleCols, questionFilters])
+
+  const totalVisibleColumnCount = Object.keys(defaultColumns).filter(k => visibleCols[k]).length + visibleDynamicFields.length + 1
 
   const totalFiltered = processedData.length
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
@@ -2100,7 +2326,21 @@ export default function AllApplicationsPage() {
           </div>
 
           {/* Right-side controls */}
-          <ColumnToggle columns={visibleCols} onChange={toggleColumn} />
+          <ColumnToggle
+            columns={visibleCols}
+            onChange={toggleColumn}
+            dynamicFields={activeCampaignDynamicFields}
+            campaignName={filters.campaign[0]}
+            onToggleAllDynamic={(showAll) => {
+              setVisibleCols(prev => {
+                const next = { ...prev }
+                activeCampaignDynamicFields.forEach(f => {
+                  next[`q:${f.name}`] = showAll
+                })
+                return next
+              })
+            }}
+          />
           <DensityToggle density={density} onChange={setDensity} />
           <ExportDropdown onExport={handleExport} />
         </div>
@@ -2365,6 +2605,32 @@ export default function AllApplicationsPage() {
                     <SortableHeader label="Status" column="status" sortConfig={sortConfig} onSort={handleSort} />
                   </th>
                 )}
+
+                {/* ─── Dynamic Campaign Question Headers ─── */}
+                {visibleDynamicFields.map((field) => {
+                  const colKey = `q:${field.name}`
+                  const isFiltered = Boolean(questionFilters[field.name])
+                  const shortTitle = getShortQuestionLabel(field.name)
+
+                  return (
+                    <th
+                      key={colKey}
+                      className={`px-2.5 py-2.5 text-left transition-colors whitespace-nowrap ${
+                        isFiltered ? 'bg-indigo-500/10' : ''
+                      }`}
+                      title={field.name}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {getQuestionFieldIcon(field)}
+                        <SortableHeader label={shortTitle} column={colKey} sortConfig={sortConfig} onSort={handleSort} />
+                        {isFiltered && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" title="Filtered column" />
+                        )}
+                      </div>
+                    </th>
+                  )
+                })}
+
                 {visibleCols.brand_sent && (
                   <th className="px-2.5 py-2.5 text-left">
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold flex items-center gap-1 whitespace-nowrap">
@@ -2394,10 +2660,10 @@ export default function AllApplicationsPage() {
             {/* Body */}
             <tbody>
               {isInitialLoading ? (
-                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} dynamicCount={visibleDynamicFields.length} />)
               ) : paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={Object.values(visibleCols).filter(Boolean).length + 1} className="text-center py-20">
+                  <td colSpan={totalVisibleColumnCount} className="text-center py-20">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-white/5">
                         <Filter className="h-7 w-7 text-slate-600" />
@@ -2673,6 +2939,37 @@ export default function AllApplicationsPage() {
                             </div>
                           </td>
                         )}
+
+                        {/* ─── Dynamic Campaign Question Cells ─── */}
+                        {visibleDynamicFields.map((field) => {
+                          const colKey = `q:${field.name}`
+                          const isFiltered = Boolean(questionFilters[field.name])
+                          
+                          let answer = getApplicationQuestionAnswer(app.form_data, field)
+                          if (answer === undefined || answer === null || String(answer).trim() === '') {
+                            const syncKey = field.profile_sync_key
+                            const fieldLower = field.name.toLowerCase()
+                            if (syncKey === 'city' || fieldLower.includes('city')) {
+                              answer = app.users?.city
+                            } else if (syncKey === 'dob' || fieldLower.includes('dob') || fieldLower.includes('birth')) {
+                              answer = app.users?.dob
+                            } else if (syncKey === 'state' || fieldLower.includes('state')) {
+                              answer = app.users?.state
+                            }
+                          }
+
+                          return (
+                            <td
+                              key={colKey}
+                              className={`px-2.5 ${densityPadding[density]} ${
+                                isFiltered ? 'bg-indigo-500/[0.04]' : ''
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <QuestionAnswerCell value={answer} field={field} />
+                            </td>
+                          )
+                        })}
 
                         {/* Brand Shared */}
                         {visibleCols.brand_sent && (

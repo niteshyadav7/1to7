@@ -109,5 +109,11 @@ describe('question-filter-utils', () => {
       expect(matchesQuestionFilter(null, 'number', criteriaWithoutEmpty)).toBe(false)
       expect(matchesQuestionFilter('', 'number', criteriaWithoutEmpty)).toBe(false)
     })
+
+    it('formats commercial values with parseNumericValue accurately for dynamic table columns', () => {
+      const qAnswers = ['₹5,000', '4.5k', 'Rs. 3000/-', '12000', 'Negotiable']
+      const parsed = qAnswers.map(ans => parseNumericValue(ans))
+      expect(parsed).toEqual([5000, 4500, 3000, 12000, null])
+    })
   })
 })
