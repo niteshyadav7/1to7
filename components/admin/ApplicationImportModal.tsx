@@ -111,13 +111,13 @@ const TARGET_FIELDS: FieldDefinition[] = [
     synonyms: ['gender', 'sex', 'male/female']
   },
   {
-    key: 'final_payment',
+    key: 'agreed_commercial',
     label: 'Agreed Commercial / Fee (₹)',
     required: false,
     description: 'Agreed fee or commercial quote in INR',
     synonyms: [
       'commercial', 'commercials', 'commercial quote', 'quotation', 'rate',
-      'quote for 1 reel', 'agreed commercial', 'deal amount', 'payout', 'fee', 'amount', 'commercial_quote'
+      'quote for 1 reel', 'agreed commercial', 'deal amount', 'payout', 'fee', 'amount', 'commercial_quote', 'final payment', 'final_payment'
     ]
   },
   {
@@ -453,8 +453,9 @@ export function ApplicationImportModal({
       const gender = mappings.gender ? row[mappings.gender]?.trim() : ''
       const category = mappings.category ? row[mappings.category]?.trim() : ''
 
-      const rawAmount = mappings.final_payment ? row[mappings.final_payment] : ''
-      const finalPayment = rawAmount ? Number(String(rawAmount).replace(/[^0-9.]/g, '')) || undefined : undefined
+      const rawAmount = (mappings.agreed_commercial ? row[mappings.agreed_commercial] : '') ||
+                        (mappings.final_payment ? row[mappings.final_payment] : '')
+      const agreedCommercial = rawAmount ? Number(String(rawAmount).replace(/[^0-9.]/g, '')) || undefined : undefined
 
       const rawStatus = mappings.status ? row[mappings.status] : ''
       const status = normalizeStatus(rawStatus, defaultStatus)
@@ -467,6 +468,9 @@ export function ApplicationImportModal({
           formData[header] = val
         }
       })
+      if (agreedCommercial !== undefined) {
+        formData.agreed_commercial = agreedCommercial
+      }
 
       const item = {
         _index: idx + 1,
@@ -479,7 +483,10 @@ export function ApplicationImportModal({
         state: state || undefined,
         gender: gender || undefined,
         category: category || undefined,
-        final_payment: finalPayment,
+        agreed_commercial: agreedCommercial,
+        pending_amount: agreedCommercial,
+        final_payment: status === 'Completed' ? agreedCommercial : 0,
+        partial_payment: 0,
         status: status,
         form_data: Object.keys(formData).length > 0 ? formData : undefined,
         rawRow: row

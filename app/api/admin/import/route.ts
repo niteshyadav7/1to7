@@ -17,6 +17,7 @@ interface ImportRow {
   city?: string
   status?: string
   form_data?: Record<string, any>
+  agreed_commercial?: number
   partial_payment?: number
   final_payment?: number
   pending_amount?: number
@@ -389,9 +390,25 @@ export async function POST(request: Request) {
             formData.order_details.orderId = row.order_id
             formData.order_details_approved = true
           }
-          if (row.final_payment !== undefined && !formData.agreed_commercial) {
-            formData.agreed_commercial = row.final_payment
+
+          // Commercial resolution: map fee/quote to agreed_commercial & pending_amount
+          const rawCommercial = row.agreed_commercial !== undefined
+            ? Number(row.agreed_commercial)
+            : (row.final_payment !== undefined ? Number(row.final_payment) : undefined)
+
+          if (rawCommercial !== undefined && !isNaN(rawCommercial) && rawCommercial > 0) {
+            if (!formData.agreed_commercial) {
+              formData.agreed_commercial = rawCommercial
+            }
+            if (row.pending_amount === undefined) {
+              row.pending_amount = rawCommercial
+            }
           }
+
+          // Financial Invariant: For non-completed applications, money has NOT been disbursed yet
+          const finalPaymentToSave = applicationStatus === 'Completed'
+            ? (row.final_payment !== undefined ? row.final_payment : 0)
+            : 0
 
           if (existingApp) {
             const updatePayload: Record<string, any> = {
@@ -399,7 +416,7 @@ export async function POST(request: Request) {
               updated_at: new Date().toISOString(),
             }
             if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
-            if (row.final_payment !== undefined) updatePayload.final_payment = row.final_payment
+            updatePayload.final_payment = finalPaymentToSave
             if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
 
             if (Object.keys(formData).length > 0) {
@@ -415,10 +432,10 @@ export async function POST(request: Request) {
               campaign_id: campaign_id,
               status: applicationStatus,
               form_data: formData,
+              final_payment: finalPaymentToSave,
+              pending_amount: row.pending_amount !== undefined ? row.pending_amount : (rawCommercial || 0),
+              partial_payment: row.partial_payment !== undefined ? row.partial_payment : 0,
             }
-            if (row.partial_payment !== undefined) appPayload.partial_payment = row.partial_payment
-            if (row.final_payment !== undefined) appPayload.final_payment = row.final_payment
-            if (row.pending_amount !== undefined) appPayload.pending_amount = row.pending_amount
 
             const { error: appError } = await supabase.from('applications').insert(appPayload)
             if (appError) {

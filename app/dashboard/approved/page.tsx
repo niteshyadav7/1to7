@@ -131,11 +131,13 @@ export default function ApprovedCampaignsPage() {
             const brandName = app.campaigns?.brand_name || 'Brand'
             const totalDeal = getApplicationCommercialAmount(app)
             const isPaid = isPaidCollaboration(app)
-            const received = (app.partial_payment || 0) + (app.final_payment || 0)
+            const isCompleted = app.status === 'Completed' || Boolean(app.form_data?.finance_payout_completed)
+            const received = isCompleted
+              ? ((app.partial_payment || 0) + (app.final_payment || 0))
+              : (app.form_data?.finance_payout_completed?.amount_paid || (app.partial_payment || 0))
             const hasRequested = !!app?.form_data?.payment_request
             const pending = hasRequested ? (app.pending_amount || 0) : Math.max(0, totalDeal - received)
             const progress = totalDeal > 0 ? (received / totalDeal) * 100 : 0
-            const isCompleted = app.status === 'Completed' || Boolean(app.form_data?.finance_payout_completed)
             const statusDisplay = (progress >= 100 && isCompleted) ? 'FULLY PAID' :
               app.status === 'Approved' ? 'APPROVED - ACTIVE' :
                 app.status === 'Payment Requested' ? 'PAYMENT REQUESTED' :

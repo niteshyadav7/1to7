@@ -36,6 +36,7 @@ CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence
 CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast Delivery Engine (Unmatched Parentheses & Bell Disconnect)
 CASE 27: Production Information Disclosure & Client-Side Console Sanitization (SWC Stripping, Runtime Neutralization & PII Leak Remediation)
 CASE 28: Third-Party SDK Silent CORS Hang & Failover Circuit Breaker (Vendor Script Failure & Service Worker Response Violation)
+CASE 29: Semantic Inversion in Bulk Financial Ingestion: Unearned Commercial Quotes Masked as Disbursed Payouts (Zero-Disbursement Invariant & Ledger Reconciliation)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -1005,6 +1006,44 @@ Creators attempting to register or log in on production (https://users.1to7media
 "Never trust a third-party vendor SDK's callback contract. External scripts can and do fail silently on CORS preflight, network partitions, or unhandled promise rejections without invoking their error callbacks. Every third-party boundary must be wrapped in a strict timeout circuit breaker (e.g. 5-6s failover) with fallback redundancy (e.g. Firebase SMS) to ensure 100% platform uptime and zero onboarding freeze."
 
 ====================================================================================================
+CASE 29: Semantic Inversion in Bulk Financial Ingestion: Unearned Commercial Quotes Masked as Disbursed Payouts (Zero-Disbursement Invariant & Ledger Reconciliation)
+====================================================================================================
+CATEGORIES: Financial Data Integrity / Bulk Ingestion / Semantic Invariants / State Inversion / UI Reconciliation
+INTERVIEW QUESTION: "How do you detect and architecturally prevent semantic inversion in bulk data ingestion pipelines where prospective liabilities get misclassified as completed disbursements?"
+
+[SITUATION]
+Creators viewing their approved collaborations on the Creator Dashboard (/dashboard/approved and virtual profile preview) observed a glaring financial discrepancy:
+1. Overview Card:
+   - TOTAL DEAL: ₹500
+   - RECEIVED: ₹500 (100% RECEIVED)
+   - PENDING: ₹0
+2. "View Details" Commercial Payout Modal:
+   - TOTAL AGREED DEAL: ₹500
+   - AMOUNT RECEIVED: ₹0
+   - PENDING BALANCE: ₹500
+No payments had ever been disbursed to these creators. Furthermore, creators were unable to understand why the overview card claimed they had received 100% of their money when their bank accounts had received zero transfers.
+
+[ROOT CAUSE INVESTIGATION]
+1. Column Inversion in Bulk Importer:
+   In `ApplicationImportModal.tsx` and `app/admin/(panel)/import/page.tsx`, the column mapper mapped incoming spreadsheet headers such as "Commercial Quote", "Agreed Commercial", and "Rate" to the database column `final_payment` instead of `form_data.agreed_commercial` or `pending_amount`.
+2. Financial Domain Modeling Violation:
+   In the 1to7 platform financial ledger, `final_payment` strictly signifies capital already disbursed through banking rails (`received = partial_payment + final_payment`). Storing the creator's prospective commercial fee (e.g. ₹500) into `final_payment` and leaving `pending_amount = 0` corrupted the application row into asserting that the creator had already received a full settlement.
+3. UI Logic Divergence:
+   The overview cards in `app/dashboard/approved/page.tsx` and `app/admin/(panel)/virtual-profile/[userId]/approved/page.tsx` calculated `received = (app.partial_payment || 0) + (app.final_payment || 0)`, evaluating to ₹500. Conversely, `ApprovedCampaignModal.tsx` applied a state machine guard: for campaigns in active `Approved` status, it ignored unverified `final_payment` and only counted verified finance disbursements (`form_data.finance_payout_completed.amount_paid`), evaluating to ₹0.
+
+[SOLUTION & ARCHITECTURE]
+1. Pipeline Ingestion Normalization:
+   - Updated `ApplicationImportModal.tsx`, `import/page.tsx`, and `app/api/admin/import/route.ts` to map incoming commercial fee headers to `form_data.agreed_commercial` and initialize `pending_amount = agreed_commercial`.
+   - Enforced an immutable financial ingestion guard: `final_payment` is strictly clamped to `0` unless `status === 'Completed'`.
+2. Dashboard Overview Card Alignment:
+   - Updated `app/dashboard/approved/page.tsx` and `app/admin/(panel)/virtual-profile/[userId]/approved/page.tsx` to align with the modal's state guard: active `Approved` applications never count uncompleted `final_payment` as disbursed.
+3. Automated Database Healing:
+   - Executed an automated migration across the production database restoring 12 corrupted records to their true state (`SET pending_amount = final_payment, final_payment = 0 WHERE status = 'Approved' AND final_payment > 0`).
+
+[INTERVIEW STAR TAKEAWAY]
+"In financial platforms, confusing a prospective liability (agreed quote / pending amount) with a realized disbursement (final_payment) leads to catastrophic reporting discrepancies and false settlement states. Enforce strict lifecycle invariants at the ingestion gateway: unearned quotes must always initialize as pending liabilities with disbursed balances clamped to zero until verified settlement events occur."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
@@ -1012,5 +1051,5 @@ SUMMARY CHECKLIST FOR INTERVIEWS:
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), and Case 28 (Third-party SDK silent CORS hang & failover circuit breaker).
 4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), and Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
-6. When asked about Resiliency: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), and Case 28 (Circuit-breaker timeout on third-party SDKs).
+6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), and Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation).
 ====================================================================================================
