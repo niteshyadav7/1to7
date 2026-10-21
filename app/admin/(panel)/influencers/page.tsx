@@ -1373,6 +1373,7 @@ export default function InfluencersDirectoryPage() {
       <AnimatePresence>
         {selectedProfile && (
           <ProfileModal
+            key="selected-profile-modal"
             user={selectedProfile}
             onClose={() => setSelectedProfile(null)}
             onViewGhostHistory={(id, name) => setHistoryModalUser({ id, name })}
@@ -1383,6 +1384,7 @@ export default function InfluencersDirectoryPage() {
         )}
         {customExportOpen && (
           <CustomExportModal
+            key="custom-export-modal"
             isOpen={customExportOpen}
             onClose={() => setCustomExportOpen(false)}
             initialCategory={categoryFilter}
@@ -1391,6 +1393,7 @@ export default function InfluencersDirectoryPage() {
         )}
         {historyModalUser && (
           <GhostHistoryModal
+            key={`ghost-history-${historyModalUser.id}`}
             isOpen={Boolean(historyModalUser)}
             onClose={() => setHistoryModalUser(null)}
             userId={historyModalUser.id}
@@ -1399,6 +1402,7 @@ export default function InfluencersDirectoryPage() {
         )}
         {ghostActionTarget.isOpen && ghostActionTarget.user && (
           <GhostActionModal
+            key={`ghost-action-${ghostActionTarget.user.id}`}
             isOpen={ghostActionTarget.isOpen}
             actionType={ghostActionTarget.actionType}
             targetCreator={{
