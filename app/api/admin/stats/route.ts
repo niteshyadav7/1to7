@@ -180,23 +180,28 @@ export async function GET(req: NextRequest) {
       FROM users
     `)
 
-    // 7. Creator Gender distribution
+    // 7. Creator Gender distribution (Normalized into canonical buckets)
     const genderPromise = pool.query(`
       SELECT 
-        LOWER(COALESCE(gender, 'unspecified')) as gender,
+        CASE 
+          WHEN LOWER(TRIM(COALESCE(gender, ''))) IN ('female', 'f', 'women', 'woman') THEN 'Female'
+          WHEN LOWER(TRIM(COALESCE(gender, ''))) IN ('male', 'm', 'men', 'man') THEN 'Male'
+          WHEN LOWER(TRIM(COALESCE(gender, ''))) IN ('other', 'others', 'non-binary', 'transgender') THEN 'Other'
+          ELSE 'Unspecified'
+        END as gender,
         COUNT(*) as count
       FROM users
-      GROUP BY LOWER(COALESCE(gender, 'unspecified'))
+      GROUP BY 1
       ORDER BY count DESC
     `)
 
     // 8. Campaign Budget Type distribution
     const budgetTypesPromise = pool.query(`
       SELECT 
-        COALESCE(budget_type, 'Unspecified') as budget_type,
+        COALESCE(NULLIF(INITCAP(TRIM(budget_type)), ''), 'Unspecified') as budget_type,
         COUNT(*) as count
       FROM campaigns
-      GROUP BY budget_type
+      GROUP BY 1
       ORDER BY count DESC
     `)
 
@@ -222,10 +227,10 @@ export async function GET(req: NextRequest) {
     // 10. Top States distribution
     const topStatesPromise = pool.query(`
       SELECT 
-        COALESCE(NULLIF(TRIM(state), ''), 'Not Specified') as state,
+        COALESCE(NULLIF(UPPER(TRIM(state)), ''), 'Not Specified') as state,
         COUNT(*) as count
       FROM users
-      GROUP BY state
+      GROUP BY 1
       ORDER BY count DESC
       LIMIT 7
     `)
@@ -350,22 +355,19 @@ export async function GET(req: NextRequest) {
 
     // Gender breakdown
     const genderTotal = genderRes.rows.reduce((acc: number, r: any) => acc + Number(r.count || 0), 0)
+    const genderColorMap: Record<string, string> = {
+      'Female': '#ec4899',
+      'Male': '#3b82f6',
+      'Other': '#a855f7',
+      'Unspecified': '#94a3b8'
+    }
     const gender = genderRes.rows.map((r: any) => {
-      const raw = String(r.gender || 'unspecified').toLowerCase()
-      let name = 'Unspecified'
-      let color = '#94a3b8'
-      if (raw.includes('female') || raw === 'f') {
-        name = 'Female'
-        color = '#ec4899'
-      } else if (raw.includes('male') || raw === 'm') {
-        name = 'Male'
-        color = '#3b82f6'
-      }
+      const name = String(r.gender || 'Unspecified')
       return {
         name,
         count: Number(r.count || 0),
         percentage: genderTotal > 0 ? Number(((Number(r.count || 0) / genderTotal) * 100).toFixed(1)) : 0,
-        color,
+        color: genderColorMap[name] || '#94a3b8',
       }
     })
 

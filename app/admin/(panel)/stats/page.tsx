@@ -726,9 +726,9 @@ export default function AdminStatsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
-              {data?.budgetTypes?.map((b) => (
+              {data?.budgetTypes?.map((b, idx) => (
                 <div
-                  key={b.type}
+                  key={`${b.type}-${idx}`}
                   className="p-3.5 rounded-xl bg-slate-950/80 border border-white/[0.06] hover:border-white/10 transition-all"
                 >
                   <div className="flex items-center gap-2 mb-1.5">
@@ -803,9 +803,9 @@ export default function AdminStatsPage() {
             </div>
 
             <div className="space-y-3.5 pt-2">
-              {data?.gender?.map((g) => (
+              {data?.gender?.map((g, idx) => (
                 <div
-                  key={g.name}
+                  key={`${g.name}-${idx}`}
                   className="p-3 rounded-xl bg-slate-950/70 border border-white/[0.06] flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2.5">
@@ -844,7 +844,7 @@ export default function AdminStatsPage() {
               ?.filter((s) => s.state !== 'Not Specified')
               ?.slice(0, 5)
               ?.map((s, idx) => (
-                <div key={s.state} className="flex items-center justify-between text-xs py-1">
+                <div key={`${s.state}-${idx}`} className="flex items-center justify-between text-xs py-1">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full bg-slate-800 text-[10px] font-bold text-slate-300 flex items-center justify-center">
                       {idx + 1}

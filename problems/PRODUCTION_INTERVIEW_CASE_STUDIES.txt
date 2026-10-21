@@ -316,6 +316,10 @@ If an application attempts to load raw records for 32,600+ creators and thousand
 4. Zero-Flicker Interactive UI with Recharts:
    - Built with responsive SVG charts (`ResponsiveContainer`, `AreaChart`, `BarChart`) with CSS glassmorphism, animated date switches, and CSV export capabilities.
    - Result: Response payload reduced from >25MB to <8KB, executing 11 parallel aggregations across 32,600+ users in ~450ms.
+5. Canonical Demographics Bucket Normalization (Key Collision Defense):
+   - When aggregating user attributes (gender, state, budget_type) containing nulls or unstructured text ('f', 'women', 'other', ''), naive SQL GROUP BY LOWER(gender) produced fragmented groups that JavaScript mapped into multiple rows with the exact same display name ('Unspecified').
+   - This triggered React key collisions (key={g.name}), breaking the Next.js dev overlay.
+   - Fixed by grouping directly on a canonical SQL CASE projection (GROUP BY 1), normalizing categories (Female, Male, Other, Unspecified) at the database layer, and using indexed compound keys (key={\-\}) in the UI.
 
 [INTERVIEW STAR TAKEAWAY]
 "Always push data aggregation to the database engine where B-Tree indexes, multi-core query execution, and parallel scans operate natively. Never transfer raw records to the application server or browser just to calculate counts and sums. A well-crafted SQL aggregation returning 5KB will always outperform megabytes of client-side JavaScript filtering, both in reliability and latency."
