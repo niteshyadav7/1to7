@@ -32,6 +32,7 @@ CASE 21: Entity-Level Domain Disconnect: Expanding Campaign-Scoped Event Sourcin
 CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification Engine (Audit Blindspots & High-Precision Targeting)
 CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portals (Silent UI Freezes & Z-Index Inversion)
 CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualization (Eliminating Modal Inspection Bottlenecks)
+CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence (Debounced History Sync & Hydration Race Prevention)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -830,6 +831,47 @@ On the centralized applications roster (/admin/applications), administrators man
 
 [INTERVIEW STAR TAKEAWAY]
 "In high-density B2B operational dashboards, avoid forcing users into master-detail modal fatigue for entity-specific attributes. By architecting a hybrid static-dynamic data grid with declarative column toggles, type-aware value renderers, and in-memory sorting on unstructured JSONB fields, you transform rigid tables into flexible, context-aware spreadsheets that accelerate decision-making by over 70%."
+
+====================================================================================================
+CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence (Debounced History Sync & Hydration Race Prevention)
+====================================================================================================
+CATEGORIES: Frontend Architecture / URL Synchronization / State Persistence / Browser Session Engineering / UX
+INTERVIEW QUESTION: "How do you design filter state persistence in a complex SaaS application so users can refresh (F5), share URLs, switch navigation tabs without losing context, and prevent hydration race conditions from wiping state?"
+
+[SITUATION]
+In an enterprise influencer operations portal (/admin/applications), team members apply complex combinations of status tabs ('Applied', 'Approved'), brand filters ('HRX'), search queries ('Mumbai'), gender/state filters, and custom JSONB campaign question filters ('Commercials <= ₹5,000').
+Operations complained that:
+1. Whenever they refreshed the page (F5) or shared a filtered link with a colleague, all active filters, question filters, and custom column selections vanished, resetting back to the blank default state.
+2. When switching between admin tabs (e.g., from Applications to Influencers or Campaigns and back), the admin navigation bar routed to /admin/applications without search params, completely wiping their multi-filter context and forcing them to re-select filters from scratch.
+3. If they attempted naive URL synchronization, race conditions during initial component mount would prematurely execute campaign reset handlers (e.g. filters.campaign.length !== 1), instantly wiping newly hydrated question filters.
+
+[ROOT CAUSE INVESTIGATION]
+1. Read-Only Initial Mount Effect:
+   The page had a legacy useEffect on mount that read ?status=... and ?campaign=..., but never wrote changes back to the browser URL when user interactions occurred.
+2. Lack of Session Recovery:
+   Clean navigation via the admin sidebar (/admin/applications) dropped all URL search parameters. Without a secondary sessionStorage layer, cross-tab navigation lost the operational context.
+3. Premature Campaign Change Wipe (The Hydration Race):
+   A reactive useEffect intended to reset questionFilters when a user switches campaigns checked if (filters.campaign.length !== 1). Because the component initialized with filters.campaign: [], this cleanup effect fired during initial hydration before URL/session parameters could resolve, silently erasing any restored question filters.
+4. History Stack Thrashing:
+   Directly calling history.pushState on every keystroke in search or phone inputs flooded the browser history stack, making the browser Back button practically unusable.
+
+[SOLUTION & ARCHITECTURE]
+1. Two-Tier Tiered Hydration Pipeline:
+   - Tier 1 (Explicit Shareable URL): On initial mount, the system inspects window.location.search for recognized query parameters (status, campaign, search, brand_sent, gender, state, followerRange, platform, phone, dateRange, q_filters). If present, URL takes absolute priority (enabling deep-linking & team collaboration).
+   - Tier 2 (Session Continuity): If the URL is clean (empty search parameters), the system seamlessly falls back to sessionStorage ('admin_applications_filters'), restoring the user's active session across internal sidebar navigation.
+2. Hydration Guard (isFilterHydratedRef & prevCampaignRef):
+   - We introduced an isFilterHydratedRef flag. The synchronization write-back effect is completely silenced until the hydration phase is 100% complete, preventing default empty states from overwriting stored filters.
+   - We track prevCampaignRef. The campaign cleanup handler now only resets questionFilters if prevCampaignRef was previously populated and actually changed, completely preventing initial mount wipe-outs.
+3. Debounced window.history.replaceState:
+   - Filter state modifications trigger a 250ms debounced synchronization routine.
+   - Instead of polluting the navigation history with pushState, it leverages window.history.replaceState(null, '', targetUrl), keeping the URL bar live and shareable while preserving a pristine Back/Forward browser history.
+4. Layout & Grid Persistence in localStorage:
+   - Extended persistence to visibleCols (including dynamic question columns), pageSize (10, 25, 50, 100), and row density ('compact', 'default', 'comfortable') via localStorage, ensuring personal grid ergonomics persist across browser restarts.
+5. Unified "Clear All" Clean-Up:
+   - When operations clicks "Clear all", the handler simultaneously resets React state, purges sessionStorage, and strips query parameters from window.location.pathname.
+
+[INTERVIEW STAR TAKEAWAY]
+"State persistence in data-dense B2B portals requires a hybrid approach: URL query parameters for shareability and deep-linking, sessionStorage for seamless internal navigation continuity, and localStorage for user-specific UI preferences. By combining debounced window.history.replaceState with strict hydration guards and previous-state tracking refs, you eliminate UI flickering, prevent destructive race conditions, and keep browser history clean."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

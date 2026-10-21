@@ -1330,10 +1330,18 @@ export default function AllApplicationsPage() {
   // Dynamic question filters (active when 1 campaign is selected)
   const [singleCampaignFields, setSingleCampaignFields] = useState<FormField[]>([])
   const [questionFilters, setQuestionFilters] = useState<Record<string, QuestionFilterCriteria>>({})
+  const isFilterHydratedRef = useRef(false)
+  const prevCampaignRef = useRef<string[] | null>(null)
 
   useEffect(() => {
     if (filters.campaign.length === 1) {
       const selected = filters.campaign[0]
+
+      // If campaign changed to a different campaign, reset question filters
+      if (prevCampaignRef.current && (prevCampaignRef.current.length !== 1 || prevCampaignRef.current[0] !== selected)) {
+        setQuestionFilters({})
+      }
+      prevCampaignRef.current = filters.campaign
 
       // 1. Instant local resolution from existing loaded applications
       const localApp = applications.find(a =>
@@ -1356,7 +1364,10 @@ export default function AllApplicationsPage() {
       return () => { isMounted = false }
     } else {
       setSingleCampaignFields([])
-      setQuestionFilters({})
+      if (prevCampaignRef.current && prevCampaignRef.current.length > 0) {
+        setQuestionFilters({})
+      }
+      prevCampaignRef.current = filters.campaign
     }
   }, [filters.campaign, applications])
 
@@ -1640,29 +1651,233 @@ export default function AllApplicationsPage() {
   // Auto-refresh when influencers apply or data changes
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
-  // Sync query parameters on initial page load (e.g. ?status=Applied&campaign=...)
+  // ─── Filter & View State Persistence (URL SearchParams + SessionStorage) ───
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const statusParam = params.get('status')
-    const campaignParam = params.get('campaign')
-    const searchParam = params.get('search')
 
-    if (statusParam) {
-      setActiveStatus(statusParam)
-    }
+    try {
+      // 1. Restore column visibility & layout preferences from localStorage
+      const savedCols = localStorage.getItem('admin_applications_visible_cols')
+      if (savedCols) {
+        try {
+          const parsedCols = JSON.parse(savedCols)
+          if (parsedCols && typeof parsedCols === 'object') {
+            setVisibleCols(prev => ({ ...prev, ...parsedCols }))
+          }
+        } catch {}
+      }
 
-    if (campaignParam) {
-      setFilters(prev => ({
-        ...prev,
-        campaign: prev.campaign.includes(campaignParam) ? prev.campaign : [...prev.campaign, campaignParam]
-      }))
-    }
+      const savedPageSize = localStorage.getItem('admin_applications_page_size')
+      if (savedPageSize) {
+        const ps = Number(savedPageSize)
+        if (ps > 0 && [10, 25, 50, 100].includes(ps)) setPageSize(ps)
+      }
 
-    if (searchParam) {
-      setSearchQuery(searchParam)
+      const savedDensity = localStorage.getItem('admin_applications_density')
+      if (savedDensity && ['compact', 'default', 'comfortable'].includes(savedDensity)) {
+        setDensity(savedDensity as RowDensity)
+      }
+
+      // 2. Filter restoration: URL SearchParams takes precedence over sessionStorage
+      const params = new URLSearchParams(window.location.search)
+      const hasUrlFilterParams = [
+        'status', 'campaign', 'search', 'brand_sent', 'gender', 'state',
+        'followerRange', 'platform', 'phone', 'dateRange', 'q_filters'
+      ].some(k => params.has(k))
+
+      if (hasUrlFilterParams) {
+        const statusParam = params.get('status')
+        if (statusParam) setActiveStatus(statusParam)
+
+        const brandSentParam = params.get('brand_sent')
+        if (brandSentParam === 'sent' || brandSentParam === 'not_sent' || brandSentParam === 'all') {
+          setBrandSentFilter(brandSentParam)
+        }
+
+        const searchParam = params.get('search')
+        if (searchParam) setSearchQuery(searchParam)
+
+        const campaignParam = params.get('campaign')
+        const genderParam = params.get('gender')
+        const stateParam = params.get('state')
+        const followerRangeParam = params.get('followerRange')
+        const platformParam = params.get('platform')
+        const phoneParam = params.get('phone')
+        const dateRangeParam = params.get('dateRange')
+
+        const nextFilters: Filters = {
+          campaign: campaignParam ? campaignParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          gender: genderParam ? genderParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          state: stateParam ? stateParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          followerRange: followerRangeParam ? followerRangeParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          platform: platformParam ? platformParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          phone: phoneParam || '',
+          dateRange: dateRangeParam || 'all',
+        }
+        setFilters(nextFilters)
+        if (nextFilters.campaign.length > 0) {
+          prevCampaignRef.current = nextFilters.campaign
+        }
+
+        const qFiltersParam = params.get('q_filters')
+        if (qFiltersParam) {
+          try {
+            let raw = qFiltersParam
+            if (raw.startsWith('%7B') || raw.startsWith('%7b')) {
+              raw = decodeURIComponent(raw)
+            }
+            const parsed = JSON.parse(raw)
+            if (parsed && typeof parsed === 'object') {
+              setQuestionFilters(parsed)
+            }
+          } catch (e) {
+            console.error('Failed to parse q_filters from URL', e)
+          }
+        }
+      } else {
+        // Fallback to sessionStorage if URL is clean
+        const savedSession = sessionStorage.getItem('admin_applications_filters')
+        if (savedSession) {
+          try {
+            const parsed = JSON.parse(savedSession)
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.activeStatus) setActiveStatus(parsed.activeStatus)
+              if (parsed.brandSentFilter) setBrandSentFilter(parsed.brandSentFilter)
+              if (parsed.searchQuery !== undefined) setSearchQuery(parsed.searchQuery)
+              if (parsed.filters && typeof parsed.filters === 'object') {
+                setFilters({
+                  campaign: Array.isArray(parsed.filters.campaign) ? parsed.filters.campaign : [],
+                  gender: Array.isArray(parsed.filters.gender) ? parsed.filters.gender : [],
+                  state: Array.isArray(parsed.filters.state) ? parsed.filters.state : [],
+                  followerRange: Array.isArray(parsed.filters.followerRange) ? parsed.filters.followerRange : [],
+                  platform: Array.isArray(parsed.filters.platform) ? parsed.filters.platform : [],
+                  phone: typeof parsed.filters.phone === 'string' ? parsed.filters.phone : '',
+                  dateRange: typeof parsed.filters.dateRange === 'string' ? parsed.filters.dateRange : 'all',
+                })
+                if (Array.isArray(parsed.filters.campaign) && parsed.filters.campaign.length > 0) {
+                  prevCampaignRef.current = parsed.filters.campaign
+                }
+              }
+              if (parsed.questionFilters && typeof parsed.questionFilters === 'object') {
+                setQuestionFilters(parsed.questionFilters)
+              }
+            }
+          } catch (e) {
+            console.error('Failed to parse admin_applications_filters from sessionStorage', e)
+          }
+        }
+      }
+    } finally {
+      isFilterHydratedRef.current = true
     }
   }, [])
+
+  // Bidirectional URL & SessionStorage synchronization on filter changes
+  useEffect(() => {
+    if (!isFilterHydratedRef.current || typeof window === 'undefined') return
+
+    const timer = setTimeout(() => {
+      const isDefault =
+        activeStatus === 'Applied' &&
+        brandSentFilter === 'all' &&
+        !searchQuery.trim() &&
+        filters.campaign.length === 0 &&
+        filters.gender.length === 0 &&
+        filters.state.length === 0 &&
+        filters.followerRange.length === 0 &&
+        filters.platform.length === 0 &&
+        !filters.phone.trim() &&
+        filters.dateRange === 'all' &&
+        Object.keys(questionFilters).length === 0
+
+      if (isDefault) {
+        try {
+          sessionStorage.removeItem('admin_applications_filters')
+        } catch {}
+        if (window.location.search) {
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+      } else {
+        try {
+          sessionStorage.setItem(
+            'admin_applications_filters',
+            JSON.stringify({
+              activeStatus,
+              brandSentFilter,
+              searchQuery,
+              filters,
+              questionFilters,
+            })
+          )
+        } catch {}
+
+        const params = new URLSearchParams()
+        if (activeStatus && activeStatus !== 'Applied') {
+          params.set('status', activeStatus)
+        }
+        if (brandSentFilter && brandSentFilter !== 'all') {
+          params.set('brand_sent', brandSentFilter)
+        }
+        if (searchQuery.trim()) {
+          params.set('search', searchQuery.trim())
+        }
+        if (filters.campaign.length > 0) {
+          params.set('campaign', filters.campaign.join(','))
+        }
+        if (filters.gender.length > 0) {
+          params.set('gender', filters.gender.join(','))
+        }
+        if (filters.state.length > 0) {
+          params.set('state', filters.state.join(','))
+        }
+        if (filters.followerRange.length > 0) {
+          params.set('followerRange', filters.followerRange.join(','))
+        }
+        if (filters.platform.length > 0) {
+          params.set('platform', filters.platform.join(','))
+        }
+        if (filters.phone.trim()) {
+          params.set('phone', filters.phone.trim())
+        }
+        if (filters.dateRange && filters.dateRange !== 'all') {
+          params.set('dateRange', filters.dateRange)
+        }
+        if (Object.keys(questionFilters).length > 0) {
+          params.set('q_filters', JSON.stringify(questionFilters))
+        }
+
+        const qs = params.toString()
+        const targetUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        if (window.location.search !== (qs ? `?${qs}` : '')) {
+          window.history.replaceState(null, '', targetUrl)
+        }
+      }
+    }, 250)
+
+    return () => clearTimeout(timer)
+  }, [activeStatus, brandSentFilter, searchQuery, filters, questionFilters])
+
+  // Persist column visibility, density, and page size to localStorage
+  useEffect(() => {
+    if (!isFilterHydratedRef.current || typeof window === 'undefined') return
+    try {
+      localStorage.setItem('admin_applications_visible_cols', JSON.stringify(visibleCols))
+    } catch {}
+  }, [visibleCols])
+
+  useEffect(() => {
+    if (!isFilterHydratedRef.current || typeof window === 'undefined') return
+    try {
+      localStorage.setItem('admin_applications_density', density)
+    } catch {}
+  }, [density])
+
+  useEffect(() => {
+    if (!isFilterHydratedRef.current || typeof window === 'undefined') return
+    try {
+      localStorage.setItem('admin_applications_page_size', String(pageSize))
+    } catch {}
+  }, [pageSize])
 
   // ─── Filter + Sort + Paginate ──────────────────────────
   const processedData = useMemo(() => {
@@ -1870,6 +2085,22 @@ export default function AllApplicationsPage() {
     setFilters({ campaign: [], phone: '', gender: [], state: [], followerRange: [], platform: [], dateRange: 'all' })
     setQuestionFilters({})
     setSelectedIds(new Set())
+    try {
+      sessionStorage.removeItem('admin_applications_filters')
+    } catch {}
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      params.delete('campaign')
+      params.delete('gender')
+      params.delete('state')
+      params.delete('followerRange')
+      params.delete('platform')
+      params.delete('phone')
+      params.delete('dateRange')
+      params.delete('q_filters')
+      const qs = params.toString()
+      window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+    }
   }, [])
 
   // ─── Bulk actions ──────────────────────────────────────
