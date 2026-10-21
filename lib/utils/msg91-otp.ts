@@ -27,7 +27,7 @@ declare global {
 
 let scriptLoadingPromise: Promise<boolean> | null = null
 
-export function initMsg91Widget(): Promise<boolean> {
+export function initMsg91Widget(timeoutMs: number = 4000): Promise<boolean> {
   if (typeof window === 'undefined') return Promise.resolve(false)
 
   // Already initialized
@@ -35,11 +35,22 @@ export function initMsg91Widget(): Promise<boolean> {
     return Promise.resolve(true)
   }
 
+  if (typeof document === 'undefined') return Promise.resolve(false)
+
   if (scriptLoadingPromise) {
     return scriptLoadingPromise
   }
 
   scriptLoadingPromise = new Promise((resolve) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        scriptLoadingPromise = null
+        resolve(false)
+      }
+    }, timeoutMs)
+
     const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID || '366a6f664b6d303031343336'
     const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH || '581511TUmVDywOEL6ad0758aP1'
 
@@ -60,12 +71,28 @@ export function initMsg91Widget(): Promise<boolean> {
         if (typeof window.initSendOTP === 'function') {
           window.initSendOTP(configuration)
           // Small tick to let methods bind to window
-          setTimeout(() => resolve(true), 150)
+          setTimeout(() => {
+            if (!settled) {
+              settled = true
+              clearTimeout(timer)
+              resolve(true)
+            }
+          }, 150)
         } else {
-          resolve(false)
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            scriptLoadingPromise = null
+            resolve(false)
+          }
         }
       } catch {
-        resolve(false)
+        if (!settled) {
+          settled = true
+          clearTimeout(timer)
+          scriptLoadingPromise = null
+          resolve(false)
+        }
       }
     }
 
@@ -77,7 +104,12 @@ export function initMsg91Widget(): Promise<boolean> {
       script.async = true
       script.onload = onScriptLoaded
       script.onerror = () => {
-        resolve(false)
+        if (!settled) {
+          settled = true
+          clearTimeout(timer)
+          scriptLoadingPromise = null
+          resolve(false)
+        }
       }
       document.body.appendChild(script)
     } else {
@@ -99,67 +131,157 @@ export function formatIndianMobile(raw: string): string {
   return digits
 }
 
-export async function sendMsg91Otp(rawMobile: string): Promise<any> {
-  await initMsg91Widget()
+export async function sendMsg91Otp(rawMobile: string, timeoutMs: number = 6000): Promise<any> {
+  const isReady =
+    typeof window !== 'undefined' && typeof window.sendOtp === 'function'
+      ? true
+      : await Promise.race([
+          initMsg91Widget(),
+          new Promise<boolean>((res) => setTimeout(() => res(false), 3500)),
+        ])
 
-  if (typeof window.sendOtp !== 'function') {
-    throw new Error('OTP service is initializing. Please try again in a moment.')
+  if (!isReady || typeof window.sendOtp !== 'function') {
+    throw new Error('MSG91 OTP service is unavailable or blocked. Triggering SMS fallback.')
   }
 
   const formatted = formatIndianMobile(rawMobile)
 
   return new Promise((resolve, reject) => {
-    window.sendOtp!(
-      formatted,
-      (data) => {
-        resolve(data)
-      },
-      (error) => {
-        const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to send OTP'
-        reject(new Error(errMsg))
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        reject(new Error('MSG91 OTP request timed out (CORS/Network error). Falling back to SMS...'))
       }
-    )
+    }, timeoutMs)
+
+    try {
+      window.sendOtp!(
+        formatted,
+        (data) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(data)
+          }
+        },
+        (error) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to send OTP'
+            reject(new Error(errMsg))
+          }
+        }
+      )
+    } catch (err: any) {
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        reject(err)
+      }
+    }
   })
 }
 
-export async function retryMsg91Otp(channel: '11' | '12' | null = null): Promise<any> {
-  await initMsg91Widget()
+export async function retryMsg91Otp(channel: '11' | '12' | null = null, timeoutMs: number = 6000): Promise<any> {
+  const isReady =
+    typeof window !== 'undefined' && typeof window.retryOtp === 'function'
+      ? true
+      : await Promise.race([
+          initMsg91Widget(),
+          new Promise<boolean>((res) => setTimeout(() => res(false), 3500)),
+        ])
 
-  if (typeof window.retryOtp !== 'function') {
-    throw new Error('OTP service is not ready. Please try again.')
+  if (!isReady || typeof window.retryOtp !== 'function') {
+    throw new Error('MSG91 OTP service is not ready. Falling back to alternative gateway.')
   }
 
   return new Promise((resolve, reject) => {
-    window.retryOtp!(
-      channel,
-      (data) => {
-        resolve(data)
-      },
-      (error) => {
-        const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to resend OTP'
-        reject(new Error(errMsg))
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        reject(new Error('MSG91 OTP retry request timed out. Falling back...'))
       }
-    )
+    }, timeoutMs)
+
+    try {
+      window.retryOtp!(
+        channel,
+        (data) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(data)
+          }
+        },
+        (error) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to resend OTP'
+            reject(new Error(errMsg))
+          }
+        }
+      )
+    } catch (err: any) {
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        reject(err)
+      }
+    }
   })
 }
 
-export async function verifyMsg91Otp(otp: string): Promise<any> {
-  await initMsg91Widget()
+export async function verifyMsg91Otp(otp: string, timeoutMs: number = 6000): Promise<any> {
+  const isReady =
+    typeof window !== 'undefined' && typeof window.verifyOtp === 'function'
+      ? true
+      : await Promise.race([
+          initMsg91Widget(),
+          new Promise<boolean>((res) => setTimeout(() => res(false), 3500)),
+        ])
 
-  if (typeof window.verifyOtp !== 'function') {
-    throw new Error('OTP service is not ready. Please try again.')
+  if (!isReady || typeof window.verifyOtp !== 'function') {
+    throw new Error('MSG91 OTP service is not ready. Please try again.')
   }
 
   return new Promise((resolve, reject) => {
-    window.verifyOtp!(
-      otp.trim(),
-      (data) => {
-        resolve(data)
-      },
-      (error) => {
-        const errMsg = typeof error === 'string' ? error : error?.message || 'Invalid OTP. Please check and try again.'
-        reject(new Error(errMsg))
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        reject(new Error('MSG91 OTP verification timed out. Please try again.'))
       }
-    )
+    }, timeoutMs)
+
+    try {
+      window.verifyOtp!(
+        otp.trim(),
+        (data) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(data)
+          }
+        },
+        (error) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            const errMsg = typeof error === 'string' ? error : error?.message || 'Invalid OTP. Please check and try again.'
+            reject(new Error(errMsg))
+          }
+        }
+      )
+    } catch (err: any) {
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        reject(err)
+      }
+    }
   })
 }

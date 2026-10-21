@@ -72,8 +72,18 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => {
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          const home = await caches.match('/');
+          if (home) return home;
+        }
+        return new Response('Network offline', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' },
+        });
       })
   );
 });

@@ -35,6 +35,7 @@ CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualiza
 CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence (Debounced History Sync & Hydration Race Prevention)
 CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast Delivery Engine (Unmatched Parentheses & Bell Disconnect)
 CASE 27: Production Information Disclosure & Client-Side Console Sanitization (SWC Stripping, Runtime Neutralization & PII Leak Remediation)
+CASE 28: Third-Party SDK Silent CORS Hang & Failover Circuit Breaker (Vendor Script Failure & Service Worker Response Violation)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -963,12 +964,53 @@ During a security audit of the platform, it was discovered that developers had l
 "Defense-in-depth against client-side information disclosure requires both compile-time elimination and runtime neutralization. By configuring Next.js compiler SWC console stripping, installing an early-execution client-side runtime stub, and rigorously auditing authentication pipelines for plain-text credential leaks, you guarantee zero sensitive data exposure to browser devtools."
 
 ====================================================================================================
+CASE 28: Third-Party SDK Silent CORS Hang & Failover Circuit Breaker (Vendor Script Failure & Service Worker Response Violation)
+====================================================================================================
+CATEGORIES: Authentication / Circuit Breakers / Resilience / Service Workers / CORS / Third-Party SDKs
+INTERVIEW QUESTION: "How do you design an authentication architecture that remains completely resilient when a third-party vendor SDK crashes silently on CORS preflight without calling error callbacks?"
+
+[SITUATION]
+Creators attempting to register or log in on production (https://users.1to7media.in/signup) were trapped in an infinite loading state. The submit button spun indefinitely without error messages or redirection. Inspection of the browser DevTools revealed two critical errors:
+1. CORS Preflight Violation:
+   `Access to fetch at 'https://passbknd.hostnsoft.com/' from origin 'https://users.1to7media.in' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: The value of the 'Access-Control-Allow-Origin' header in the response must not be the wildcard '*' when the request's credentials mode is 'include'. net::ERR_FAILED`
+2. Service Worker TypeError:
+   `Uncaught (in promise) TypeError: Failed to convert value to 'Response' sw.js:1`
+
+[ROOT CAUSE INVESTIGATION]
+1. MSG91 Widget CORS Misconfiguration:
+   MSG91's OTP widget (https://verify.msg91.com/otp-provider.js) issues an internal XMLHttpRequest/fetch to HostnSoft's backend (https://passbknd.hostnsoft.com/) with request credentials set to 'include'. Under W3C CORS specifications, credentialed requests reject wildcards ('*') in Access-Control-Allow-Origin. The browser aborted the request immediately.
+2. Silent Vendor Error Dropping:
+   Because the network abort occurred inside MSG91's preflight handler, MSG91 never invoked its client failure callback `failure(error)`.
+3. Unsettled Promise & Missing Timeout:
+   In lib/utils/msg91-otp.ts, `sendMsg91Otp` wrapped the vendor SDK in a native Promise with zero timeout protection. Because neither resolve nor reject was ever called, the promise remained permanently pending.
+4. Failover Starvation:
+   The application was designed with dual-gateway redundancy (MSG91 -> Firebase Phone Auth fallback). However, because `sendMsg91Otp` never rejected, the `catch` block in `sendFirebaseOTP` was never reached. The UI remained locked in `loading = true`.
+5. Service Worker Fallback Spec Violation:
+   In public/sw.js, the fetch handler's catch block returned `caches.match(event.request)`. On cache misses, this evaluated to `undefined`, violating the FetchEvent `respondWith` contract which strictly requires a valid `Response` object.
+
+[SOLUTION & ARCHITECTURE]
+1. Circuit Breaker & Timeout Boundary in lib/utils/msg91-otp.ts:
+   - Wrapped `sendMsg91Otp`, `retryMsg91Otp`, and `verifyMsg91Otp` with configurable timeout circuit breakers (default 6,000ms).
+   - If the vendor callback fails to settle within 6 seconds, the circuit breaker automatically rejects with an explicit error:
+     `MSG91 OTP request timed out (CORS/Network error). Falling back to SMS...`
+   - Added synchronous `try/catch` wrapping around `window.sendOtp!` to immediately catch unhandled preflight or SDK runtime exceptions.
+   - Added a 3,500ms initialization race in `initMsg91Widget()` so broken vendor CDNs or blocked script tags resolve cleanly to `false` without deadlocking client promises.
+   - Immediate Failover: When the 6s circuit breaker triggers, the `catch` block in `app/signup/page.tsx` executes seamlessly, initializing invisible Firebase reCAPTCHA and sending SMS via Firebase Phone Auth without user intervention.
+2. Service Worker Specification Compliance in public/sw.js:
+   - Updated the catch handler to verify cache existence. If missing, it falls back to `/` for navigation events or constructs a valid 503 `Response` object (`new Response('Network offline', { status: 503 })`), eliminating `TypeError: Failed to convert value to 'Response'`.
+3. Unit Test Verification:
+   - Added `tests/unit/msg91-otp.test.ts` covering phone formatting, vendor freeze simulation, 6s timeout circuit breakers, and success/error transitions (9/9 tests passing).
+
+[INTERVIEW STAR TAKEAWAY]
+"Never trust a third-party vendor SDK's callback contract. External scripts can and do fail silently on CORS preflight, network partitions, or unhandled promise rejections without invoking their error callbacks. Every third-party boundary must be wrapped in a strict timeout circuit breaker (e.g. 5-6s failover) with fallback redundancy (e.g. Firebase SMS) to ensure 100% platform uptime and zero onboarding freeze."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
-3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover) and Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof).
+3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), and Case 28 (Third-party SDK silent CORS hang & failover circuit breaker).
 4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), and Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting).
-5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), and Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper).
-6. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
+5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
+6. When asked about Resiliency: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), and Case 28 (Circuit-breaker timeout on third-party SDKs).
 ====================================================================================================
