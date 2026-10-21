@@ -153,6 +153,38 @@ export function getCitiesForState(stateStr: string): string[] {
 }
 
 /**
+ * Detects whether a form field represents Indian State / UT.
+ */
+export function isStateField(name?: string, syncKey?: string): boolean {
+  if (syncKey === 'state') return true
+  const n = (name || '').trim().toLowerCase()
+  return /^(state|state\s*\/\s*ut|state\s*name|select\s*state)$/i.test(n) || /\bstate\s*\/\s*ut\b/i.test(n)
+}
+
+/**
+ * Detects whether a form field represents Indian City / District.
+ */
+export function isCityField(name?: string, syncKey?: string): boolean {
+  if (syncKey === 'city') return true
+  const n = (name || '').trim().toLowerCase()
+  return /^(city|current\s*city|living\s*city|district|home\s*city|select\s*city)$/i.test(n) || /\bcurrent\s*city\b/i.test(n)
+}
+
+/**
+ * Checks whether a given city belongs to the specified state in INDIA_DATA.
+ */
+export function isCityInState(city: string, state: string): boolean {
+  if (!city || !state) return false
+  const stateCities = getCitiesForState(state)
+  if (!stateCities || stateCities.length === 0) return true
+  const normCity = normalizeLocationStr(city)
+  return stateCities.some(c => {
+    const normC = normalizeLocationStr(c)
+    return normC === normCity || normCity.includes(normC) || normC.includes(normCity)
+  })
+}
+
+/**
  * Checks if a given address city matches a target city.
  */
 export function doesCityMatch(addressCity: string, targetCity: string): boolean {

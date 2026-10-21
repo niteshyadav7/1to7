@@ -42,7 +42,8 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
     key: 'state',
     label: 'State',
     patterns: [
-      /^(state|province|region|state\s*name)$/i
+      /^(state|province|region|state\s*name|state\s*\/\s*ut|select\s*state)$/i,
+      /\bstate\s*\/\s*ut\b/i
     ]
   },
   {

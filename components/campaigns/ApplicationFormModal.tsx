@@ -13,22 +13,10 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { STATES, INDIA_DATA, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { checkFollowerEligibility, formatFollowerCount, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
-import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState } from '@/lib/utils/location-utils'
+import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
-
-function isStateField(name: string, syncKey?: string): boolean {
-  if (syncKey === 'state') return true
-  const n = (name || '').trim().toLowerCase()
-  return /^(state|state\s*\/\s*ut|state\s*name|select\s*state)$/i.test(n) || /\bstate\s*\/\s*ut\b/i.test(n)
-}
-
-function isCityField(name: string, syncKey?: string): boolean {
-  if (syncKey === 'city') return true
-  const n = (name || '').trim().toLowerCase()
-  return /^(city|current\s*city|living\s*city|district|home\s*city|select\s*city)$/i.test(n) || /\bcurrent\s*city\b/i.test(n)
-}
 
 function getActiveState(currentFormData: Record<string, string>, userObj: any): string {
   for (const [key, val] of Object.entries(currentFormData)) {
@@ -393,6 +381,31 @@ export default function ApplicationFormModal({
       }
     }
 
+    // Validate state & city relationship if present
+    const activeStateVal = getActiveState(formData, user)
+    if (activeStateVal) {
+      for (const field of fields) {
+        if (isCityField(field.field_name)) {
+          const cVal = formData[field.field_name]
+          if (cVal && !isCityInState(cVal, activeStateVal)) {
+            toast.error(`"${cVal}" is not a valid city/district for state "${activeStateVal}"`)
+            return
+          }
+        }
+      }
+      if (campaign.form_fields) {
+        for (const cf of campaign.form_fields) {
+          if (isCityField(cf.name, (cf as any).profile_sync_key)) {
+            const cVal = formData[cf.name]
+            if (cVal && !isCityInState(cVal, activeStateVal)) {
+              toast.error(`"${cVal}" is not a valid city/district for state "${activeStateVal}"`)
+              return
+            }
+          }
+        }
+      }
+    }
+
     if (!pitch.trim()) {
       toast.error('Please provide a pitch/comment for your application')
       return
@@ -457,27 +470,28 @@ export default function ApplicationFormModal({
   const showHeader = guestStep !== 'success'
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
+    <>
+      <AnimatePresence>
+        {isOpen && (
           <motion.div
+            key="application-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-charcoal-surface/40 backdrop-blur-sm z-50"
           />
-
-          {/* Modal */}
+        )}
+        {isOpen && (
           <motion.div
+            key="application-modal-dialog"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
-            <div className="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-md border border-border-subtle bg-white shadow-xl flex flex-col text-foreground">
+            <div className="relative w-full max-w-lg max-h-[90vh] overflow-hidden rounded-md border border-border-subtle bg-white shadow-xl flex flex-col text-foreground pointer-events-auto">
               {/* Close Button */}
               <button
                 onClick={onClose}
@@ -673,6 +687,7 @@ export default function ApplicationFormModal({
                       <AnimatePresence>
                         {mobileStatus === 'exists' && (
                           <motion.div 
+                            key="status-exists"
                             initial={{ opacity: 0, height: 0, y: -5 }} 
                             animate={{ opacity: 1, height: 'auto', y: 0 }} 
                             exit={{ opacity: 0, height: 0 }}
@@ -689,6 +704,7 @@ export default function ApplicationFormModal({
                         )}
                         {mobileStatus === 'new' && (
                           <motion.div 
+                            key="status-new"
                             initial={{ opacity: 0, height: 0, y: -5 }} 
                             animate={{ opacity: 1, height: 'auto', y: 0 }} 
                             exit={{ opacity: 0, height: 0 }}
@@ -1006,16 +1022,17 @@ export default function ApplicationFormModal({
                                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 z-10 pointer-events-none" />
                                         <Select
                                           value={formData[field.field_name] || ''}
+                                          disabled={!activeStateVal}
                                           onValueChange={(value) =>
                                             setFormData((prev) => ({ ...prev, [field.field_name]: value || '' }))
                                           }
                                         >
-                                          <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                          <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed">
                                             <SelectValue
                                               placeholder={
                                                 activeStateVal
                                                   ? `Select city in ${activeStateVal}`
-                                                  : 'Select City / District'
+                                                  : 'First select State / UT above'
                                               }
                                             />
                                           </SelectTrigger>
@@ -1181,16 +1198,17 @@ export default function ApplicationFormModal({
                                             <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 z-10 pointer-events-none" />
                                             <Select
                                               value={formData[field.name] || ''}
+                                              disabled={!activeStateVal}
                                               onValueChange={(value) =>
                                                 setFormData((prev) => ({ ...prev, [field.name]: value || '' }))
                                               }
                                             >
-                                              <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all">
+                                              <SelectTrigger className="w-full bg-white border-border-subtle text-foreground h-11 text-sm rounded-md pl-11 focus:ring-primary-container transition-all disabled:opacity-50 disabled:bg-slate-50 disabled:cursor-not-allowed">
                                                 <SelectValue
                                                   placeholder={
                                                     activeStateVal
                                                       ? `Select city in ${activeStateVal}`
-                                                      : 'Select City / District'
+                                                      : 'First select State / UT above'
                                                   }
                                                 />
                                               </SelectTrigger>
@@ -1444,11 +1462,13 @@ export default function ApplicationFormModal({
               </div>
             </div>
           </motion.div>
-        </>
-      )}
+        )}
+      </AnimatePresence>
+
       {/* Quick Add Address Modal for Location Targeting */}
       {campaign && (
         <QuickAddAddressModal
+          key="quick-add-address-modal"
           isOpen={quickAddressModalOpen}
           onClose={() => setQuickAddressModalOpen(false)}
           targetStates={campaign.target_states || []}
@@ -1459,7 +1479,7 @@ export default function ApplicationFormModal({
           }}
         />
       )}
-    </AnimatePresence>
+    </>
   )
 }
 

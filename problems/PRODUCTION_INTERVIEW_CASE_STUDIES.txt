@@ -27,6 +27,7 @@ CASE 16: Silent Schema Drift & 500 API Crash on Phantom Column (u.profile_photo 
 CASE 17: Multi-State Governance Action Collision & CSS Flexbox Reverse Overflow (Approve/Reject Overlay Disaster)
 CASE 18: Dynamic Multi-Campaign Bulk Import Template Engine & Schema Drift (Phantom custom_fields vs Normalized form_fields & Barter/Paid Budget Polymorphism)
 CASE 19: Question-Text-as-Key Drift: Renamed Campaign Questions Silently Orphan 69% of Answers (Per-Question Filter Audit)
+CASE 20: Cross-Entity Location Cascade Disconnect: Unbound State-to-City Dropdowns Corrupt Profile Sync & Eligibility (State/City Dependent Hierarchy)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -610,12 +611,55 @@ The ops manager asked for per-question filters on the Applications page (e.g. "s
 "Never key user data by mutable display text. Before shipping a filter, measure coverage against real production rows: our audit showed a filter on the current question would have hidden 69% of applicants. Stable IDs plus alias resolution fixed it additively, with no risky data migration."
 
 ====================================================================================================
+CASE 20: Cross-Entity Location Cascade Disconnect: Unbound State-to-City Dropdowns Corrupt Profile Sync & Eligibility
+====================================================================================================
+CATEGORIES: Frontend Architecture / Dynamic Form Engine / State Machine / Data Hygiene / Geographic Validation
+INTERVIEW QUESTION: "Tell me about a subtle form design flaw that caused data corruption across connected database tables, and how you architected a cascading dependency engine to eliminate it."
+
+[SITUATION]
+During campaign applications (e.g. Plum campaign CAM-MVF425OZ), creators encountered custom questions for "STATE / UT" and "CURRENT CITY". A creator was able to select "ASSAM" as their state, but the city dropdown listed "Kolkata" (the capital of West Bengal). The creator submitted the application with this geographically impossible pair ("Assam" + "Kolkata").
+Downstream, this corrupted data propagated into two critical systems:
+1. Creator Profile Sync: The application submission endpoint (/api/apply -> extractProfileUpdatesFromFormData) automatically synced the submitted form answers into the users table (users.state and users.city), permanently polluting the creator's profile.
+2. Campaign Eligibility & Logistics Targeting: When subsequent campaigns checked location eligibility (via checkCampaignLocationEligibility for state-exclusive or city-exclusive campaigns), users with mismatched states and cities triggered false negatives or bypassed geo-fences, while brand operations teams faced delivery dispatch failures due to invalid destination hubs.
+
+[ROOT CAUSE]
+1. Decoupled Static Dropdown Rendering:
+   In the campaign question builder (FormFieldBuilder.tsx), when an admin created a "Current City" question, the system defaulted field.options to TOP_METRO_CITIES (18 top tier-1 metro cities across India, including Kolkata, Delhi, and Mumbai).
+2. Missing Cascading State Machine in Application Modals:
+   In CampaignDetailModal.tsx (the primary creator dashboard application modal), custom campaign questions (campaign.form_fields) were rendered blindly as independent Select inputs. The city Select component rendered field.options without any dependency or reference to what the creator had selected in the "STATE / UT" field.
+3. Zero Reactive State Resetting:
+   Even if a user changed their state, the city field retained its previously selected value. There was no reactive listener to reset dependent child fields upon parent state transition.
+4. Total Absence of Cross-Field Boundary Validation:
+   Neither the client-side pre-submit requirement checker (getPendingCustomRequirements) nor the submit handlers checked whether the chosen city actually belonged to the selected state (INDIA_DATA[state]).
+
+[SOLUTION & ARCHITECTURE]
+1. Canonical Domain Classification & Utilities (lib/utils/location-utils.ts):
+   - Implemented regex-based classification functions:
+     * isStateField(name, syncKey): Accurately detects state questions across arbitrary naming schemes ("State / UT", "Current State", "Select State", profile_sync_key === 'state').
+     * isCityField(name, syncKey): Accurately detects city questions ("Current City", "City / District", profile_sync_key === 'city').
+     * isCityInState(city, state): Cross-checks city against the canonical INDIA_DATA dictionary of 36 Indian States/UTs and their official districts.
+2. Profile Sync Regex Normalization (lib/utils/profile-sync-utils.ts):
+   - Expanded CANONICAL_FIELDS.state patterns to match "State / UT" and case variations to guarantee accurate profile synchronization.
+3. Reactive Cascading Form Engine in Application Modals (CampaignDetailModal.tsx & ApplicationFormModal.tsx):
+   - Created a centralized, unified field renderer (renderCustomFormField) supporting both inline profile completion and custom campaign questions.
+   - Enforced State-First Dependency: The city Select input is strictly disabled (disabled={!activeState}) until the user selects a State, displaying a descriptive placeholder ("First select State / UT above").
+   - Dynamic District Projection: Upon state selection, city options dynamically project from INDIA_DATA[activeState] (e.g. selecting "ASSAM" dynamically loads all 33 Assam districts: Kamrup Metropolitan, Dibrugarh, Silchar, Jorhat, etc.).
+   - Visual Feedback Badge: Added an informative indicator below the city selector (e.g. "📍 Showing 33 cities in ASSAM") confirming the dynamic filter to the user.
+   - Auto-Eviction State Machine: When a creator changes the state, the form state machine inspects the dependent city. If the current city does not exist in the new state's district list, it is instantly wiped clean (formData[cityName] = '').
+4. Dual-Gate Cross-Entity Validation:
+   - Client Submission Gate: getPendingCustomRequirements and handleSubmit run isCityInState(city, state) and reject invalid combinations with a descriptive notification before the network request is initiated.
+   - Backend Defense: /api/apply ensures profile sync rejects invalid geographical pairings, preventing database corruption.
+
+[INTERVIEW STAR TAKEAWAY]
+"When building dynamic, form-driven platforms, hierarchically dependent entities (such as State and City) must never be modeled as independent, unconstrained dropdowns. A robust form engine must implement reactive cascading: child inputs must remain disabled until parent constraints are satisfied, child options must dynamically project from the parent entity's dictionary (INDIA_DATA[state]), stale child selections must be automatically evicted upon parent state changes, and cross-field boundary validations must guard both client submission and database ingestion."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover) and Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges) & Case 11 (Interactive Day/Week velocity charts).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), and Case 20 (Cascading State-to-City reactive form engine & geographical hygiene).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing) & Case 10 (Double peer approval).
 6. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
 ====================================================================================================

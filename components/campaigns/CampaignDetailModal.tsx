@@ -23,13 +23,41 @@ import { getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { STATES, INDIA_DATA } from '@/lib/constants/india-data'
+import { STATES, INDIA_DATA, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
-import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation } from '@/lib/utils/location-utils'
+import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
+
+function getActiveCustomState(
+  customData: Record<string, any>,
+  inlineData: Record<string, any>,
+  userObj: any,
+  formFields?: { name: string; profile_sync_key?: string }[]
+): string {
+  if (customData) {
+    for (const [key, val] of Object.entries(customData)) {
+      if (val && typeof val === 'string' && val.trim()) {
+        const fieldMeta = formFields?.find(f => f.name === key);
+        if (isStateField(key, (fieldMeta as any)?.profile_sync_key)) {
+          return val.trim();
+        }
+      }
+    }
+  }
+  if (inlineData?.state && typeof inlineData.state === 'string' && inlineData.state.trim()) {
+    return inlineData.state.trim();
+  }
+  if (userObj?.state && typeof userObj.state === 'string' && userObj.state.trim()) {
+    return userObj.state.trim();
+  }
+  if (userObj?.shipping_addresses?.[0]?.state) {
+    return String(userObj.shipping_addresses[0].state).trim();
+  }
+  return '';
+}
 
 interface Campaign {
   id: string
@@ -504,22 +532,184 @@ export default function CampaignDetailModal({
     </div>
   )
 
+  const renderCustomFormField = (field: any, idx: number, isInline: boolean) => {
+    const isFieldStateField = isStateField(field.name, field.profile_sync_key)
+    const isFieldCityField = isCityField(field.name, field.profile_sync_key)
+    const activeStateVal = getActiveCustomState(customFormData, inlineData, user, campaign?.form_fields)
+    const hasAttempted = isInline ? hasAttemptedInlineSubmit : hasAttemptedCustomSubmit
+    const hasError = hasAttempted && field.required && (!customFormData[field.name] || (typeof customFormData[field.name] === 'string' && customFormData[field.name].trim() === ''))
+
+    return (
+      <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2">
+        <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+          <span className="break-words min-w-0 leading-normal">{field.name}</span>
+          {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
+        </label>
+
+        {isFieldStateField ? (
+          <Select
+            value={customFormData[field.name] || ""}
+            onValueChange={(val) => {
+              setCustomFormData(p => {
+                const next = { ...p, [field.name]: val || "" }
+                const newCities = getCitiesForState(val || "")
+                if (campaign?.form_fields) {
+                  campaign.form_fields.forEach(cf => {
+                    if (isCityField(cf.name, (cf as any).profile_sync_key)) {
+                      const currentCity = next[cf.name]
+                      if (currentCity && newCities.length > 0 && !newCities.includes(currentCity)) {
+                        next[cf.name] = ""
+                      }
+                    }
+                  })
+                }
+                return next
+              })
+            }}
+          >
+            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+            }`}>
+              <SelectValue placeholder="Select State / UT" />
+            </SelectTrigger>
+            <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+              {(field.options && field.options.length > 0 ? field.options : STATES).map((opt: string) => (
+                <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : isFieldCityField ? (() => {
+          const stateCities = activeStateVal ? getCitiesForState(activeStateVal) : []
+          const cityOptions = stateCities.length > 0
+            ? stateCities
+            : (field.options && field.options.length > 0 ? field.options : TOP_METRO_CITIES)
+
+          return (
+            <div className="space-y-1.5">
+              <Select
+                disabled={!activeStateVal}
+                value={customFormData[field.name] || ""}
+                onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val || "" }))}
+              >
+                <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+                  hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                } ${!activeStateVal ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`}>
+                  <SelectValue placeholder={activeStateVal ? `Select city in ${activeStateVal}` : "Select State first"} />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+                  {cityOptions.map((opt: string) => (
+                    <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeStateVal && stateCities.length > 0 ? (
+                <p className="text-[10px] text-slate-500 flex items-center gap-1 pl-1 font-medium">
+                  <span>📍 Showing {stateCities.length} cities in</span>
+                  <strong className="text-slate-800">{activeStateVal}</strong>
+                </p>
+              ) : !activeStateVal ? (
+                <p className="text-[10px] text-amber-700/80 flex items-center gap-1 pl-1 font-medium">
+                  <span>⚠️ Please select State / UT above first to view matching cities</span>
+                </p>
+              ) : null}
+            </div>
+          )
+        })() : field.type === 'dropdown' ? (
+          <Select
+            value={customFormData[field.name] || ""}
+            onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
+          >
+            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
+              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+            }`}>
+              <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
+            </SelectTrigger>
+            <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+              {field.options?.map((opt: string) => (
+                <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : field.type === 'textarea' ? (
+          <textarea
+            value={customFormData[field.name] || ''}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
+            placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
+            rows={3}
+            className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
+              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+            }`}
+          />
+        ) : field.type === 'image' ? (
+          <div className="space-y-2">
+            {customFormData[field.name] ? (
+              <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
+                <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
+                <button
+                  type="button"
+                  onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
+                  className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
+                hasError ? 'border-red-400' : 'border-border-subtle'
+              }`}>
+                {uploadingFields[field.name] ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                    <span className="text-xs text-secondary">Uploading...</span>
+                  </div>
+                ) : (
+                  <>
+                    <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
+                    <span className="text-sm font-medium text-secondary">Tap to select image</span>
+                    <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  className="hidden"
+                  disabled={uploadingFields[field.name]}
+                  onChange={(e) => handleImageUpload(e, field.name, isInline)}
+                />
+              </label>
+            )}
+          </div>
+        ) : (
+          <Input
+            value={customFormData[field.name] || ''}
+            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+            placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
+            className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
+              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+            }`}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       <AnimatePresence>
         {isOpen && !isSuccess && (
-        <>
-          {/* Backdrop */}
           <motion.div
+            key="campaign-detail-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-charcoal-surface/40 backdrop-blur-sm z-[100]"
           />
-
-          {/* Modal */}
+        )}
+        {isOpen && !isSuccess && (
           <motion.div
+            key="campaign-detail-dialog"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -786,90 +976,7 @@ export default function CampaignDetailModal({
                                Campaign Questions
                              </p>
                            </div>
-                           {campaign.form_fields!.map((field, idx) => (
-                             <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                                 <span className="break-words min-w-0 leading-normal">{field.name}</span>
-                                 {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
-                               </label>
-                               {field.type === 'dropdown' ? (
-                                 <Select
-                                   value={customFormData[field.name] || ""}
-                                   onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
-                                 >
-                                   <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                                     hasAttemptedInlineSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                   }`}>
-                                     <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
-                                   </SelectTrigger>
-                                   <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
-                                     {field.options?.map(opt => (
-                                       <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
-                                     ))}
-                                   </SelectContent>
-                                 </Select>
-                               ) : field.type === 'textarea' ? (
-                                 <textarea
-                                   value={customFormData[field.name] || ''}
-                                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                                   placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
-                                   rows={3}
-                                   className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
-                                     hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                   }`}
-                                 />
-                               ) : field.type === 'image' ? (
-                                 <div className="space-y-2">
-                                   {customFormData[field.name] ? (
-                                     <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
-                                       <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
-                                       <button
-                                         type="button"
-                                         onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
-                                         className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
-                                       >
-                                         <X className="h-4 w-4" />
-                                       </button>
-                                     </div>
-                                   ) : (
-                                     <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
-                                       hasAttemptedInlineSubmit && field.required && !customFormData[field.name] ? 'border-red-400' : 'border-border-subtle'
-                                     }`}>
-                                       {uploadingFields[field.name] ? (
-                                         <div className="flex flex-col items-center gap-2">
-                                           <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                                           <span className="text-xs text-secondary">Uploading...</span>
-                                         </div>
-                                       ) : (
-                                         <>
-                                           <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
-                                           <span className="text-sm font-medium text-secondary">Tap to select image</span>
-                                           <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
-                                         </>
-                                       )}
-                                       <input
-                                         type="file"
-                                         accept="image/png, image/jpeg, image/webp"
-                                         className="hidden"
-                                         disabled={uploadingFields[field.name]}
-                                         onChange={(e) => handleImageUpload(e, field.name, false)}
-                                       />
-                                     </label>
-                                   )}
-                                 </div>
-                               ) : (
-                                 <Input
-                                   value={customFormData[field.name] || ''}
-                                   type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                                   placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
-                                   className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
-                                     hasAttemptedInlineSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                   }`}
-                                 />
-                               )}
-                             </div>
-                           ))}
+                           {campaign.form_fields!.map((field, idx) => renderCustomFormField(field, idx, true))}
                          </>
                        )}
                      </div>
@@ -954,91 +1061,7 @@ export default function CampaignDetailModal({
                         </motion.div>
                       )}
 
-                      {campaign.form_fields.map((field, idx) => (
-                        <div key={idx} className="space-y-1.5 sm:space-y-2">
-                           <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                              <span className="break-words min-w-0 leading-normal">{field.name}</span>
-                              {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
-                           </label>
-                           
-                           {field.type === 'dropdown' ? (
-                             <Select 
-                               value={customFormData[field.name] || ""} 
-                               onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
-                             >
-                                <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                                  hasAttemptedCustomSubmit && field.required && !customFormData[field.name] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                }`}>
-                                   <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
-                                   {field.options?.map(opt => (
-                                     <SelectItem key={opt} value={opt} className="cursor-pointer">{opt}</SelectItem>
-                                   ))}
-                                </SelectContent>
-                             </Select>
-                           ) : field.type === 'textarea' ? (
-                             <textarea
-                               value={customFormData[field.name] || ''}
-                               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
-                               placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
-                               rows={3}
-                               className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
-                                 hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || customFormData[field.name].trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                               }`}
-                             />
-                           ) : field.type === 'image' ? (
-                             <div className="space-y-2">
-                               {customFormData[field.name] ? (
-                                 <div className="relative rounded-md border border-border-subtle overflow-hidden bg-gray-muted aspect-video max-h-[200px] flex items-center justify-center">
-                                   <img src={customFormData[field.name]} alt={field.name} className="max-w-full max-h-full object-contain" />
-                                   <button
-                                     type="button"
-                                     onClick={() => setCustomFormData(p => ({ ...p, [field.name]: '' }))}
-                                     className="absolute top-2 right-2 p-1.5 rounded bg-black/50 text-white hover:bg-red-500/80 transition-colors cursor-pointer"
-                                   >
-                                     <X className="h-4 w-4" />
-                                   </button>
-                                 </div>
-                               ) : (
-                                 <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
-                                   hasAttemptedCustomSubmit && field.required && !customFormData[field.name] ? 'border-red-400' : 'border-border-subtle'
-                                 }`}>
-                                   {uploadingFields[field.name] ? (
-                                     <div className="flex flex-col items-center gap-2">
-                                       <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                                       <span className="text-xs text-secondary">Uploading...</span>
-                                     </div>
-                                   ) : (
-                                     <>
-                                       <UploadCloud className="h-8 w-8 text-secondary group-hover:text-primary mb-2 transition-colors" />
-                                       <span className="text-sm font-medium text-secondary">Tap to select image</span>
-                                       <span className="text-[10px] text-secondary mt-1">PNG, JPG formats supported</span>
-                                     </>
-                                   )}
-                                   <input
-                                     type="file"
-                                     accept="image/png, image/jpeg, image/webp"
-                                     className="hidden"
-                                     disabled={uploadingFields[field.name]}
-                                     onChange={(e) => handleImageUpload(e, field.name, false)}
-                                   />
-                                 </label>
-                               )}
-                             </div>
-                           ) : (
-                             <Input 
-                               value={customFormData[field.name] || ''}
-                               type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
-                               placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
-                               className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
-                                 hasAttemptedCustomSubmit && field.required && (!customFormData[field.name] || String(customFormData[field.name]).trim() === '') ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                               }`}
-                             />
-                           )}
-                        </div>
-                      ))}
+                      {campaign.form_fields.map((field, idx) => renderCustomFormField(field, idx, false))}
                     </div>
 
                     <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
@@ -1694,8 +1717,7 @@ export default function CampaignDetailModal({
               </div>
             </div>
           </motion.div>
-        </>
-      )}
+        )}
 
       {/* ===== SUCCESS SCREEN ===== */}
       {isOpen && isSuccess && campaign && (
