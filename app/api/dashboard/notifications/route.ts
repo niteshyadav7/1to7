@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import pool from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 
@@ -127,6 +128,88 @@ export async function GET() {
           })
         }
       }
+    }
+
+    // 3. In-App Broadcast Alerts targeting this user
+    try {
+      const userRes = await pool.query(
+        `SELECT id, influencer_id, mobile, email, account_number, ifsc_code FROM public.users WHERE id = $1`,
+        [payload.id]
+      )
+      if (userRes.rows.length > 0) {
+        const u = userRes.rows[0]
+        const hasBankDetails = Boolean(u.account_number?.trim() && u.ifsc_code?.trim())
+
+        const broadcastRes = await pool.query(
+          `
+          SELECT 
+            b.id,
+            b.title,
+            b.message,
+            b.type,
+            b.action_url,
+            b.created_at
+          FROM public.broadcast_alerts b
+          LEFT JOIN public.alert_acknowledgements ack 
+            ON b.id = ack.alert_id AND ack.user_id = $1
+          WHERE b.is_active = true
+            AND (
+              b.target_type = 'all'
+              OR (b.target_type = 'missing_bank' AND $2 = false)
+              OR (
+                b.target_type = 'specific_user' AND (
+                  b.target_user_id = $1
+                  OR (
+                    b.target_user_identifier IS NOT NULL AND (
+                      ($3 != '' AND LOWER(TRIM(b.target_user_identifier)) = LOWER(TRIM($3)))
+                      OR ($4 != '' AND TRIM(b.target_user_identifier) = TRIM($4))
+                      OR ($5 != '' AND LOWER(TRIM(b.target_user_identifier)) = LOWER(TRIM($5)))
+                      OR TRIM(b.target_user_identifier) = $1::text
+                    )
+                  )
+                )
+              )
+              OR (
+                b.target_type = 'campaign' 
+                AND b.target_campaign_id IS NOT NULL 
+                AND EXISTS (
+                  SELECT 1 FROM public.applications app 
+                  WHERE app.campaign_id = b.target_campaign_id 
+                    AND app.user_id = $1
+                    AND (
+                      b.target_campaign_status IS NULL 
+                      OR b.target_campaign_status = 'all' 
+                      OR app.status::text = b.target_campaign_status
+                    )
+                )
+              )
+            )
+            AND (ack.resolved IS NULL OR ack.resolved = false)
+          ORDER BY b.created_at DESC
+          LIMIT 15
+          `,
+          [
+            payload.id,
+            hasBankDetails,
+            u.influencer_id || '',
+            u.mobile || '',
+            u.email || '',
+          ]
+        )
+
+        for (const b of broadcastRes.rows) {
+          notifications.push({
+            id: `broadcast_${b.id}`,
+            type: 'broadcast',
+            title: `📢 ${b.title}`,
+            message: b.message,
+            link: b.action_url || '/dashboard',
+            createdAt: b.created_at,
+          })
+        }
+      }
+    } catch (bErr) {
+      console.error('Error fetching broadcast notifications:', bErr)
     }
 
     // Sort by date descending

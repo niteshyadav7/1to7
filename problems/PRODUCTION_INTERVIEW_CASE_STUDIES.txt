@@ -33,6 +33,7 @@ CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification
 CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portals (Silent UI Freezes & Z-Index Inversion)
 CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualization (Eliminating Modal Inspection Bottlenecks)
 CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence (Debounced History Sync & Hydration Race Prevention)
+CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast Delivery Engine (Unmatched Parentheses & Bell Disconnect)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -872,6 +873,46 @@ Operations complained that:
 
 [INTERVIEW STAR TAKEAWAY]
 "State persistence in data-dense B2B portals requires a hybrid approach: URL query parameters for shareability and deep-linking, sessionStorage for seamless internal navigation continuity, and localStorage for user-specific UI preferences. By combining debounced window.history.replaceState with strict hydration guards and previous-state tracking refs, you eliminate UI flickering, prevent destructive race conditions, and keep browser history clean."
+
+====================================================================================================
+CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast Delivery Engine (Unmatched Parentheses & Bell Disconnect)
+====================================================================================================
+CATEGORIES: Backend / PostgreSQL / Error Handling / Real-time In-App Notifications / System Architecture
+INTERVIEW QUESTION: "How do you detect, isolate, and debug silent API failures where database syntax errors are masked by overly generic try/catch blocks, resulting in total delivery failure for real-time notifications?"
+
+[SITUATION]
+Administrators on the operations team created targeted and platform-wide in-app broadcast alerts (/admin/broadcasts) with titles, messages, countdown timers, and action buttons aimed at specific creators (e.g. Yash Agrawal - HY1000). The admin dashboard showed the alerts as active. However, when target creators logged in, zero popups appeared on their screens, no notifications showed in the navbar Notification Bell, and the system appeared completely dead with no visual feedback.
+
+[ROOT CAUSE INVESTIGATION]
+1. Silent SQL Syntax Failure in /api/dashboard/alerts:
+   When the creator dashboard component (<InAppAlertPopup />) polled /api/dashboard/alerts, the PostgreSQL query failed with:
+     syntax error at or near "ORDER"
+   The complex WHERE clause—which handles target_type = 'all', 'missing_bank', 'specific_user' (matching UUID, influencer_id, mobile, or email), and 'campaign' (with an EXISTS subquery)—had unmatched parentheses around b.target_type = 'specific_user' AND (...).
+2. Masked Error Suppression:
+   The API route wrapped the pool.query execution in:
+     catch (error: any) { console.error(...); return NextResponse.json({ alerts: [] }) }
+   Because it caught the syntax error and returned a HTTP 200 with an empty array ({ alerts: [] }), client-side monitoring never saw an HTTP 500 error, and the UI silently rendered null.
+3. Notification Bell Disconnect:
+   The creator platform had a separate notification feed (/api/dashboard/notifications) powering the navbar Notification Bell. This endpoint only checked applications and new campaigns, completely omitting broadcast_alerts from its aggregation pipeline.
+4. Static Mount & Lack of Real-Time Reactivity:
+   The popup was only mounted inside /dashboard/layout.tsx (missing root pages) and only ran once on initial mount without Supabase Realtime table subscriptions or window focus listeners.
+
+[SOLUTION & ARCHITECTURE]
+1. SQL Parentheses & Dynamic Target Resolution Fix:
+   Restructured the SQL query with properly nested and isolated boolean blocks for all 4 targeting modes:
+   - Platform-wide: target_type = 'all'
+   - Compliance: target_type = 'missing_bank' AND $2 = false
+   - Targeted: target_type = 'specific_user' AND (b.target_user_id = $1 OR (target_user_identifier IS NOT NULL AND (...)))
+   - Campaign-specific: target_type = 'campaign' AND EXISTS (SELECT 1 FROM applications WHERE ...)
+2. Notification Bell Feed Aggregation:
+   Integrated active broadcast alerts into /api/dashboard/notifications with dedicated Megaphone icons and badges so creators have an audit history in their dropdown even after auto-dismissing popups.
+3. Real-Time Delivery via Supabase Realtime & Focus Hooks:
+   Wired useRealtime({ table: 'broadcast_alerts', onChange: fetchAlerts }) inside <InAppAlertPopup />, along with window focus and visibilitychange listeners, so alerts trigger on screen instantaneously when an admin clicks "Launch Broadcast" without requiring creators to refresh.
+4. Global Root Layout Mounting:
+   Lifted <InAppAlertPopup /> to app/layout.tsx with an internal route check (pathname.startsWith('/admin') ? null : popup) so creators receive alerts across the entire platform while admins remain uninterrupted.
+
+[INTERVIEW STAR TAKEAWAY]
+"Generic try/catch blocks that return empty fallback responses are dangerous anti-patterns because they convert fatal database crashes into silent functional outages. By pairing defensive database queries with automated unit testing, dual delivery channels (transient popups + persistent notification feeds), and real-time event-driven subscriptions, you ensure high-urgency operational broadcasts achieve 100% delivery guarantees."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

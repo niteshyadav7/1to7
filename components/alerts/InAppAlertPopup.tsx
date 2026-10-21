@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, AlertTriangle, Info, CheckCircle2, X, ArrowRight, Check, ShieldAlert } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
+import { useRealtime } from '@/hooks/useRealtime'
 
 interface BroadcastAlert {
   id: string
@@ -20,6 +21,7 @@ interface BroadcastAlert {
 
 export default function InAppAlertPopup() {
   const router = useRouter()
+  const pathname = usePathname()
   const [alerts, setAlerts] = useState<BroadcastAlert[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [visible, setVisible] = useState(false)
@@ -33,50 +35,73 @@ export default function InAppAlertPopup() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch active alerts for this creator
-  useEffect(() => {
-    let isMounted = true
+  const fetchAlerts = useCallback(async () => {
+    if (pathname?.startsWith('/admin')) return
 
-    const fetchAlerts = async () => {
+    try {
+      const res = await fetch('/api/dashboard/alerts')
+      if (!res.ok) return
+      const data = await res.json()
+      const list: BroadcastAlert[] = data.alerts || []
+
+      // Check session storage to see if an alert was closed recently (snoozed for 30 mins, unless critical)
+      let sessionDismissed: Record<string, number> = {}
       try {
-        const res = await fetch('/api/dashboard/alerts')
-        if (!res.ok) return
-        const data = await res.json()
-        const list: BroadcastAlert[] = data.alerts || []
+        const raw = sessionStorage.getItem('dismissed_alerts_snooze')
+        if (raw) sessionDismissed = JSON.parse(raw)
+      } catch { /* ignore */ }
 
-        // Check session storage to see if an alert was closed recently (snoozed for 30 mins, unless critical)
-        let sessionDismissed: Record<string, number> = {}
-        try {
-          const raw = sessionStorage.getItem('dismissed_alerts_snooze')
-          if (raw) sessionDismissed = JSON.parse(raw)
-        } catch { /* ignore */ }
-
-        const now = Date.now()
-        const unreadList = list.filter(a => {
-          if (a.type === 'critical') return true
-          const snoozedAt = sessionDismissed[a.id]
-          if (snoozedAt && now - snoozedAt < 30 * 60 * 1000) {
-            return false
-          }
-          return true
-        })
-
-        if (isMounted && unreadList.length > 0) {
-          setAlerts(unreadList)
-          setCurrentIndex(0)
-          setVisible(true)
+      const now = Date.now()
+      const unreadList = list.filter(a => {
+        if (a.type === 'critical') return true
+        const snoozedAt = sessionDismissed[a.id]
+        if (snoozedAt && now - snoozedAt < 30 * 60 * 1000) {
+          return false
         }
-      } catch (err) {
-        console.error('Failed to load dashboard alerts:', err)
-      }
-    }
+        return true
+      })
 
+      if (unreadList.length > 0) {
+        setAlerts(unreadList)
+        setCurrentIndex(0)
+        setProgress(100)
+        setVisible(true)
+      } else {
+        setAlerts([])
+        setVisible(false)
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard alerts:', err)
+    }
+  }, [pathname])
+
+  // Real-time listener for newly launched alerts via Supabase Realtime
+  useRealtime({ table: 'broadcast_alerts', onChange: fetchAlerts })
+
+  useEffect(() => {
     // Delay 200ms after mount so dashboard layout is painted
     const timeout = setTimeout(fetchAlerts, 200)
-    return () => {
-      isMounted = false
-      clearTimeout(timeout)
+
+    const handleFocus = () => {
+      fetchAlerts()
     }
-  }, [])
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchAlerts()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Polling every 25 seconds for background liveness
+    const interval = setInterval(fetchAlerts, 25000)
+
+    return () => {
+      clearTimeout(timeout)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearInterval(interval)
+    }
+  }, [fetchAlerts])
 
   // Auto-dismiss timer & progress bar
   useEffect(() => {

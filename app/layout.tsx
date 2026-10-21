@@ -7,6 +7,7 @@ import { NetworkStatusProvider } from "@/components/providers/NetworkStatusProvi
 import { ConditionalNavbar } from "@/components/ConditionalNavbar";
 import TitleWatcher from "@/components/TitleWatcher";
 import { Toaster } from "sonner";
+import InAppAlertPopup from "@/components/alerts/InAppAlertPopup";
 
 const fontSans = Montserrat({
   variable: "--font-sans",
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {children}
                 </main>
               </div>
+              <InAppAlertPopup />
               <Toaster theme="dark" position="top-center" richColors />
             </PwaProvider>
           </NetworkStatusProvider>

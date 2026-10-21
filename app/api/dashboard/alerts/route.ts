@@ -60,6 +60,8 @@ export async function GET() {
                   OR TRIM(b.target_user_identifier) = $1::text
                 )
               )
+            )
+          )
           OR (
             b.target_type = 'campaign' 
             AND b.target_campaign_id IS NOT NULL 

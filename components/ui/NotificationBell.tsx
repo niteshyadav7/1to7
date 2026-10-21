@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck, ExternalLink, Users, CreditCard, AlertCircle, FileText, Sparkles, X, Trash2, Clock, Rocket } from 'lucide-react'
+import { Bell, Check, CheckCheck, ExternalLink, Users, CreditCard, AlertCircle, FileText, Sparkles, X, Trash2, Clock, Rocket, Megaphone, AlertTriangle } from 'lucide-react'
 
 interface Notification {
   id: string
@@ -45,6 +45,8 @@ const notifConfig: Record<string, { icon: any; color: string; bgColor: string }>
   completed: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },
   partial_approved: { icon: Check, color: 'text-emerald-400', bgColor: 'bg-emerald-500/15' },
   partial_rejected: { icon: X, color: 'text-red-400', bgColor: 'bg-red-500/15' },
+  action_required: { icon: AlertTriangle, color: 'text-amber-400', bgColor: 'bg-amber-500/15' },
+  broadcast: { icon: Megaphone, color: 'text-purple-400', bgColor: 'bg-purple-500/15' },
 }
 
 export default function NotificationBell({ apiEndpoint, accentColor = 'indigo', storageKey = 'notif_read', isDark = false }: NotificationBellProps) {
