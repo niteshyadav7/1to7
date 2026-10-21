@@ -22,7 +22,9 @@ import {
   Check,
   Eye,
   SlidersHorizontal,
-  Sparkles
+  Sparkles,
+  Target,
+  User
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -35,9 +37,21 @@ interface BroadcastAlert {
   title: string
   message: string
   type: 'critical' | 'warning' | 'info' | 'success'
-  target_type: 'all' | 'missing_bank' | 'specific_user'
+  target_type: 'all' | 'missing_bank' | 'specific_user' | 'campaign'
   target_user_id?: string
   target_user_identifier?: string
+  target_user_name?: string
+  target_user_hy_id?: string
+  target_user_mobile?: string
+  target_user_email?: string
+  target_user_instagram?: string
+  target_campaign_id?: string
+  target_campaign_name?: string
+  target_campaign_code?: string
+  target_campaign_status?: string
+  campaign_brand_name?: string
+  campaign_code_resolved?: string
+  campaign_audience_count?: number
   action_label?: string
   action_url?: string
   auto_duration_seconds: number
@@ -46,6 +60,7 @@ interface BroadcastAlert {
   is_active: boolean
   created_by?: string
   created_at: string
+  updated_at?: string
   resolved_count: number
   total_acknowledged: number
 }
@@ -64,12 +79,34 @@ export default function AdminBroadcastsPage() {
   const [formTitle, setFormTitle] = useState('')
   const [formMessage, setFormMessage] = useState('')
   const [formType, setFormType] = useState<'critical' | 'warning' | 'info' | 'success'>('warning')
-  const [formTargetType, setFormTargetType] = useState<'all' | 'specific_user'>('all')
+  const [formTargetType, setFormTargetType] = useState<'all' | 'specific_user' | 'campaign'>('all')
   const [formUserIdentifier, setFormUserIdentifier] = useState('')
   const [formActionLabel, setFormActionLabel] = useState('View Details')
   const [formActionUrl, setFormActionUrl] = useState('/dashboard')
   const [formDuration, setFormDuration] = useState('10')
   const [formAllowDismiss, setFormAllowDismiss] = useState(true)
+
+  // Campaign Target State
+  const [campaignsList, setCampaignsList] = useState<Array<{ id: string; brand_name: string; campaign_code: string; status?: string; is_live?: boolean; platform?: string }>>([])
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+  const [formCampaignId, setFormCampaignId] = useState('')
+  const [formCampaignStatus, setFormCampaignStatus] = useState<'all' | 'Approved' | 'Completed'>('Approved')
+
+  const loadCampaigns = useCallback(async () => {
+    if (campaignsList.length > 0) return
+    setLoadingCampaigns(true)
+    try {
+      const res = await fetch('/api/admin/campaigns')
+      if (res.ok) {
+        const json = await res.json()
+        setCampaignsList(json.campaigns || json || [])
+      }
+    } catch (e) {
+      console.error('Failed to load campaigns:', e)
+    } finally {
+      setLoadingCampaigns(false)
+    }
+  }, [campaignsList.length])
 
   // Fetch Alerts
   const fetchAlerts = useCallback(async (isBackground = false) => {
@@ -116,6 +153,11 @@ export default function AdminBroadcastsPage() {
       return
     }
 
+    if (formTargetType === 'campaign' && !formCampaignId) {
+      toast.error('Please select a campaign for this broadcast alert')
+      return
+    }
+
     setCreating(true)
     try {
       const res = await fetch('/api/admin/broadcasts', {
@@ -127,6 +169,8 @@ export default function AdminBroadcastsPage() {
           type: formType,
           target_type: formTargetType,
           target_user_identifier: formTargetType === 'specific_user' ? formUserIdentifier.trim() : null,
+          target_campaign_id: formTargetType === 'campaign' ? formCampaignId : null,
+          target_campaign_status: formTargetType === 'campaign' ? formCampaignStatus : 'all',
           action_label: formActionLabel.trim(),
           action_url: formActionUrl.trim(),
           auto_duration_seconds: parseInt(formDuration, 10) || 8,
@@ -191,7 +235,7 @@ export default function AdminBroadcastsPage() {
       if (selectedStatus === 'active' && !a.is_active) return false
       if (selectedStatus === 'inactive' && a.is_active) return false
       if (q) {
-        const s = `${a.title} ${a.message} ${a.target_type} ${a.action_label} ${a.created_by}`.toLowerCase()
+        const s = `${a.title} ${a.message} ${a.target_type} ${a.action_label} ${a.created_by || ''} ${a.campaign_brand_name || a.target_campaign_name || ''} ${a.campaign_code_resolved || a.target_campaign_code || ''} ${a.target_user_name || ''} ${a.target_user_hy_id || ''}`.toLowerCase()
         if (!s.includes(q)) return false
       }
       return true
@@ -303,6 +347,8 @@ export default function AdminBroadcastsPage() {
               setFormType('warning')
               setFormTargetType('all')
               setFormUserIdentifier('')
+              setFormCampaignId('')
+              setFormCampaignStatus('Approved')
               setFormActionLabel('View Details')
               setFormActionUrl('/dashboard')
               setShowCreateModal(true)
@@ -373,31 +419,83 @@ export default function AdminBroadcastsPage() {
                         <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                           {alert.message}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-1 font-mono">
-                          Created {new Date(alert.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-white/5 text-[10px]">
+                          <span className="text-slate-300 flex items-center gap-1 font-medium bg-slate-800/90 px-2 py-0.5 rounded-md border border-white/5">
+                            <User className="h-3 w-3 text-indigo-400" />
+                            <span>By: <strong className="text-white">{alert.created_by || 'Admin'}</strong></span>
+                          </span>
+                          <span className="text-slate-400 flex items-center gap-1 font-mono">
+                            <Clock className="h-3 w-3 text-slate-500" />
+                            <span>
+                              {new Date(alert.created_at).toLocaleString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })}
+                            </span>
+                          </span>
+                          {alert.updated_at && new Date(alert.updated_at).getTime() - new Date(alert.created_at).getTime() > 60000 && (
+                            <span className="text-slate-500 text-[9px] italic">
+                              (Updated {new Date(alert.updated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })})
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Target Audience */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border inline-flex items-center gap-1.5 ${targetBadge}`}>
-                          {alert.target_type === 'missing_bank' ? (
-                            <>
-                              <CreditCard className="h-3 w-3" />
-                              <span>Missing Bank Details ({missingBankCount})</span>
-                            </>
-                          ) : alert.target_type === 'specific_user' ? (
-                            <>
+                      <td className="px-4 py-3.5">
+                        {alert.target_type === 'campaign' ? (
+                          <div className="space-y-1">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border inline-flex items-center gap-1.5 bg-indigo-500/15 text-indigo-300 border-indigo-500/30 shadow-sm">
+                              <Target className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                              <span className="font-bold">
+                                {alert.campaign_brand_name || alert.target_campaign_name || 'Campaign'}
+                              </span>
+                              {(alert.campaign_code_resolved || alert.target_campaign_code) && (
+                                <span className="text-[10px] text-indigo-400/80 font-mono">
+                                  ({alert.campaign_code_resolved || alert.target_campaign_code})
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-400 pl-0.5">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-medium">
+                                {alert.target_campaign_status === 'Approved' ? 'Approved Only' : alert.target_campaign_status === 'Completed' ? 'Completed Only' : 'All Applicants'}
+                              </span>
+                              {typeof alert.campaign_audience_count === 'number' && (
+                                <span className="text-slate-400 font-medium">
+                                  • {alert.campaign_audience_count} creator{alert.campaign_audience_count === 1 ? '' : 's'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : alert.target_type === 'missing_bank' ? (
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-300 border-amber-500/25">
+                            <CreditCard className="h-3 w-3" />
+                            <span>Missing Bank Details ({missingBankCount})</span>
+                          </span>
+                        ) : alert.target_type === 'specific_user' ? (
+                          <div className="space-y-0.5">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border inline-flex items-center gap-1.5 bg-purple-500/15 text-purple-300 border-purple-500/25">
                               <Users className="h-3 w-3" />
-                              <span>Specific: {alert.target_user_identifier || 'User'}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Users className="h-3 w-3" />
-                              <span>All Creators (Global)</span>
-                            </>
-                          )}
-                        </span>
+                              <span className="font-bold">
+                                {alert.target_user_name || alert.target_user_identifier || 'Specific Creator'}
+                              </span>
+                            </span>
+                            {(alert.target_user_hy_id || alert.target_user_mobile) && (
+                              <p className="text-[10px] text-purple-300/80 font-mono pl-1">
+                                {alert.target_user_hy_id ? `#${alert.target_user_hy_id}` : ''} {alert.target_user_mobile ? `• ${alert.target_user_mobile}` : ''}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border inline-flex items-center gap-1.5 bg-blue-500/15 text-blue-300 border-blue-500/25">
+                            <Users className="h-3 w-3" />
+                            <span>All Creators (Global)</span>
+                          </span>
+                        )}
                       </td>
 
                       {/* Action & Duration */}
@@ -503,11 +601,11 @@ export default function AdminBroadcastsPage() {
                   <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1.5 block">
                     Target Audience *
                   </label>
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       onClick={() => setFormTargetType('all')}
-                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-[11px] font-semibold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         formTargetType === 'all'
                           ? 'bg-indigo-600/25 border-indigo-500 text-indigo-200 shadow-sm font-bold'
                           : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
@@ -519,8 +617,27 @@ export default function AdminBroadcastsPage() {
 
                     <button
                       type="button"
+                      onClick={() => {
+                        setFormTargetType('campaign')
+                        loadCampaigns()
+                        if (formActionUrl === '/dashboard') {
+                          setFormActionUrl('/dashboard/approved')
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border text-[11px] font-semibold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        formTargetType === 'campaign'
+                          ? 'bg-indigo-600/25 border-indigo-500 text-indigo-200 shadow-sm font-bold'
+                          : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Target className="h-4 w-4" />
+                      <span>Specific Campaign</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setFormTargetType('specific_user')}
-                      className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`p-2.5 rounded-xl border text-[11px] font-semibold flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         formTargetType === 'specific_user'
                           ? 'bg-purple-600/25 border-purple-500 text-purple-200 shadow-sm font-bold'
                           : 'bg-slate-800/60 border-white/5 text-slate-400 hover:bg-slate-800'
@@ -531,6 +648,60 @@ export default function AdminBroadcastsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Campaign Selector & Stage Filter */}
+                {formTargetType === 'campaign' && (
+                  <div className="space-y-3 p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20">
+                    <div>
+                      <label className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mb-1 block">
+                        Select Campaign *
+                      </label>
+                      <select
+                        value={formCampaignId}
+                        onChange={e => {
+                          setFormCampaignId(e.target.value)
+                          const selected = campaignsList.find(c => c.id === e.target.value)
+                          if (selected && !formTitle.trim()) {
+                            setFormTitle(`Action Required: ${selected.brand_name}`)
+                          }
+                        }}
+                        className="w-full bg-slate-800 border border-white/10 text-white text-xs h-10 rounded-xl px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                        required
+                      >
+                        <option value="">-- Choose a Campaign ({campaignsList.length} loaded) --</option>
+                        {campaignsList.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.brand_name} ({c.campaign_code}) {c.platform ? `• ${c.platform}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {loadingCampaigns && (
+                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin text-indigo-400" />
+                          Loading active campaigns...
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mb-1 block">
+                        Target Participant Stage *
+                      </label>
+                      <select
+                        value={formCampaignStatus}
+                        onChange={e => setFormCampaignStatus(e.target.value as any)}
+                        className="w-full bg-slate-800 border border-white/10 text-white text-xs h-10 rounded-xl px-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                      >
+                        <option value="Approved">Approved Creators Only (Recommended for Deliverables)</option>
+                        <option value="all">All Registered Applicants (Active & Applied)</option>
+                        <option value="Completed">Completed Creators Only</option>
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Only creators matching this campaign stage will receive this popup alert on their dashboard.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Specific User identifier input */}
                 {formTargetType === 'specific_user' && (

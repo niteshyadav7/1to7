@@ -60,6 +60,18 @@ export async function GET() {
                   OR TRIM(b.target_user_identifier) = $1::text
                 )
               )
+          OR (
+            b.target_type = 'campaign' 
+            AND b.target_campaign_id IS NOT NULL 
+            AND EXISTS (
+              SELECT 1 FROM public.applications app 
+              WHERE app.campaign_id = b.target_campaign_id 
+                AND app.user_id = $1
+                AND (
+                  b.target_campaign_status IS NULL 
+                  OR b.target_campaign_status = 'all' 
+                  OR app.status::text = b.target_campaign_status
+                )
             )
           )
         )

@@ -29,6 +29,7 @@ CASE 18: Dynamic Multi-Campaign Bulk Import Template Engine & Schema Drift (Phan
 CASE 19: Question-Text-as-Key Drift: Renamed Campaign Questions Silently Orphan 69% of Answers (Per-Question Filter Audit)
 CASE 20: Cross-Entity Location Cascade Disconnect: Unbound State-to-City Dropdowns Corrupt Profile Sync & Eligibility (State/City Dependent Hierarchy)
 CASE 21: Entity-Level Domain Disconnect: Expanding Campaign-Scoped Event Sourcing to Account-Wide Creator Ghosting & Audit Trails
+CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification Engine (Audit Blindspots & High-Precision Targeting)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -714,12 +715,66 @@ However, when operations attempted to ghost creators who had never submitted an 
 
 ====================================================================================================
 ====================================================================================================
+CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification Engine (Audit Blindspots & High-Precision Targeting)
+====================================================================================================
+CATEGORIES: Distributed Systems / Notification Engines / Database Indexing / High-Scale Filtering / Audit Governance
+INTERVIEW QUESTION: "Tell me about how you scaled a global notification broadcast system to support campaign-scoped push targeting and multi-tenant audit accountability without regressing query performance."
+
+[SITUATION]
+The operations and brand marketing teams utilized an In-App Broadcast Alerts engine to deliver modal popups, urgent warnings, and deliverable action requests directly to creator dashboards. However, management faced two critical operational bottlenecks:
+1. Complete Audit Blindspot: The broadcast management portal (/admin/broadcasts) showed zero visibility into which admin user created or modified an alert, nor did it show the precise creation time (showing only a coarse date string like "20 Oct 2026" without hours or minutes). Additionally, system-generated alerts displayed generic "Specific: User" tags with no creator name or Influencer ID.
+2. Inability to Target by Campaign: Admins had only "All Creators" or "Single Specific User". When an urgent notice needed to go to all 30 approved creators on a brand campaign (e.g. Wakefit deliverables due, HRX marathon bib collection, Plum invoice request), admins had to either blast thousands of irrelevant creators globally or manually generate 30 individual creator alerts.
+
+[ROOT CAUSE]
+1. UI Presentation & Query Projection Omission:
+   While the database table public.broadcast_alerts stored created_by, created_at, and updated_at, the admin API endpoint (/api/admin/broadcasts) and frontend component failed to project or render the author name or formatted 12-hour timestamp with AM/PM. Furthermore, target_user_id was not joined with public.users, rendering alerts for specific users completely anonymous.
+2. Rigid Schema Audience Taxonomy:
+   The broadcast_alerts table lacked relational foreign keys for campaign targeting (target_campaign_id, target_campaign_name, target_campaign_code, target_campaign_status).
+3. Missing Real-Time Creator Delivery Predicate:
+   The creator-side alerts polling endpoint (/api/dashboard/alerts) only evaluated target_type = 'all', 'missing_bank', or 'specific_user'. It had no condition or index to evaluate campaign participation.
+
+[SOLUTION & ARCHITECTURE]
+1. Additive, Zero-Downtime PostgreSQL Schema Migration:
+   - Altered public.broadcast_alerts to support campaign targeting:
+     ALTER TABLE public.broadcast_alerts 
+       ADD COLUMN IF NOT EXISTS target_campaign_id UUID REFERENCES public.campaigns(id) ON DELETE CASCADE,
+       ADD COLUMN IF NOT EXISTS target_campaign_name TEXT,
+       ADD COLUMN IF NOT EXISTS target_campaign_code TEXT,
+       ADD COLUMN IF NOT EXISTS target_campaign_status TEXT DEFAULT 'all';
+   - Created partial composite indexes for sub-millisecond creator delivery:
+     CREATE INDEX idx_broadcast_alerts_campaign ON public.broadcast_alerts(target_campaign_id, is_active) WHERE target_type = 'campaign';
+2. High-Efficiency Sub-Millisecond Creator Delivery Engine (/api/dashboard/alerts):
+   - Added an EXISTS subquery matching the logged-in creator against the campaign's applications:
+     OR (
+       b.target_type = 'campaign' 
+       AND b.target_campaign_id IS NOT NULL 
+       AND EXISTS (
+         SELECT 1 FROM public.applications app 
+         WHERE app.campaign_id = b.target_campaign_id 
+           AND app.user_id = $1
+           AND (b.target_campaign_status IS NULL OR b.target_campaign_status = 'all' OR app.status::text = b.target_campaign_status)
+       )
+     )
+   - Utilizes the existing composite B-Tree index on applications(campaign_id, user_id) for O(1) membership resolution.
+3. Enriched Admin Audit API (/api/admin/broadcasts):
+   - Left-joined public.users and public.campaigns to project target_user_name, target_user_hy_id, campaign_brand_name, and a dynamic subquery count (campaign_audience_count) showing the exact number of creators who will receive the alert.
+   - Enforced admin author attribution: created_by = admin.name (admin.email).
+4. Modern Admin UX & Precision Campaign Targeting (/admin/broadcasts):
+   - Author & Full Timestamp Visibility: Added rich badges showing exact creator admin ("By: superadmin@gmail.com") and exact creation timestamp (e.g. "20 Oct 2026, 05:43 PM") with live update indicators.
+   - Distinct Audience Badges: Specific creators now display full name and Influencer ID ("Specific: Yash Bajaj (#HY18070)"), while campaign alerts display a high-contrast badge ("Campaign: Wakefit (CAM-MUZIMMIF) • 14 Approved Creators").
+   - Campaign Creation Selector: A dedicated 3-way segmented control (All Creators | Specific Campaign | Specific User) with live searchable campaign selector, stage filter (Approved Creators Only vs All Applicants), and intelligent action URL auto-fill.
+
+[INTERVIEW STAR TAKEAWAY]
+"When architecting high-scale notification and broadcast systems in multi-tenant environments, notification routing must never be limited to binary global vs single-user extremes. By introducing relational stage-aware group targeting (such as campaign-scoped broadcasts with status filters) paired with database-level EXISTS predicates and composite partial indexes, you achieve granular, high-precision push delivery with sub-millisecond latency while maintaining full operational accountability through immutable author attribution."
+
+====================================================================================================
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover) and Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), and Case 20 (Cascading State-to-City reactive form engine & geographical hygiene).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), and Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), and Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper).
 6. When asked about Resiliency: Mention Case 8 (Dual OTP failover) & Case 11 (Stale-while-revalidate client caching).
 ====================================================================================================

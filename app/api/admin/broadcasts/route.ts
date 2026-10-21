@@ -9,15 +9,30 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Fetch alerts along with acknowledgement & resolution stats
+    // Fetch alerts along with acknowledgement & resolution stats, author & target entity details
     const res = await pool.query(`
       SELECT 
         b.*,
         COUNT(a.id) FILTER (WHERE a.resolved = true) AS resolved_count,
-        COUNT(a.id) AS total_acknowledged
+        COUNT(a.id) AS total_acknowledged,
+        u.full_name AS target_user_name,
+        u.influencer_id AS target_user_hy_id,
+        u.mobile AS target_user_mobile,
+        u.email AS target_user_email,
+        u.instagram_username AS target_user_instagram,
+        c.brand_name AS campaign_brand_name,
+        c.campaign_code AS campaign_code_resolved,
+        (
+          SELECT COUNT(*)::int 
+          FROM public.applications app 
+          WHERE app.campaign_id = b.target_campaign_id
+            AND (b.target_campaign_status IS NULL OR b.target_campaign_status = 'all' OR app.status::text = b.target_campaign_status)
+        ) AS campaign_audience_count
       FROM public.broadcast_alerts b
       LEFT JOIN public.alert_acknowledgements a ON b.id = a.alert_id
-      GROUP BY b.id
+      LEFT JOIN public.users u ON b.target_user_id = u.id
+      LEFT JOIN public.campaigns c ON b.target_campaign_id = c.id
+      GROUP BY b.id, u.id, c.id
       ORDER BY b.created_at DESC
     `)
 
@@ -55,6 +70,8 @@ export async function POST(request: Request) {
       target_type = 'all',
       target_user_id = null,
       target_user_identifier = null,
+      target_campaign_id = null,
+      target_campaign_status = 'all',
       action_label = 'Resolve Issue',
       action_url = '/dashboard/profile',
       auto_duration_seconds = 8,
@@ -68,6 +85,10 @@ export async function POST(request: Request) {
 
     let resolvedUserId: string | null = target_user_id || null
     let resolvedIdentifier: string | null = target_user_identifier ? String(target_user_identifier).trim() : null
+    let resolvedCampaignId: string | null = null
+    let resolvedCampaignName: string | null = null
+    let resolvedCampaignCode: string | null = null
+    let resolvedCampaignStatus: string = target_campaign_status || 'all'
 
     if (target_type === 'specific_user') {
       if (!resolvedIdentifier && !resolvedUserId) {
@@ -99,20 +120,43 @@ export async function POST(request: Request) {
         resolvedUserId = matched.id
         resolvedIdentifier = matched.influencer_id || resolvedIdentifier
       }
+    } else if (target_type === 'campaign') {
+      if (!target_campaign_id) {
+        return NextResponse.json(
+          { error: 'Campaign selection is required for campaign broadcast alerts' },
+          { status: 400 }
+        )
+      }
+
+      const campLookup = await pool.query(
+        `SELECT id, brand_name, campaign_code FROM public.campaigns WHERE id = $1`,
+        [target_campaign_id]
+      )
+
+      if (campLookup.rows.length === 0) {
+        return NextResponse.json({ error: 'Selected campaign does not exist' }, { status: 404 })
+      }
+
+      const camp = campLookup.rows[0]
+      resolvedCampaignId = camp.id
+      resolvedCampaignName = camp.brand_name
+      resolvedCampaignCode = camp.campaign_code
     } else {
       resolvedUserId = null
       resolvedIdentifier = null
     }
 
-    const adminName = admin.name || admin.email || 'Admin'
+    const adminName = admin.name 
+      ? `${admin.name} (${admin.email || 'Admin'})` 
+      : (admin.email || 'Admin')
 
     const insertRes = await pool.query(
       `
       INSERT INTO public.broadcast_alerts (
         title, message, type, target_type, target_user_id, target_user_identifier,
         action_label, action_url, auto_duration_seconds, allow_dismiss, auto_resolve_on_bank,
-        created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        created_by, target_campaign_id, target_campaign_name, target_campaign_code, target_campaign_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
       `,
       [
@@ -128,6 +172,10 @@ export async function POST(request: Request) {
         Boolean(allow_dismiss),
         Boolean(auto_resolve_on_bank),
         adminName,
+        resolvedCampaignId,
+        resolvedCampaignName,
+        resolvedCampaignCode,
+        resolvedCampaignStatus,
       ]
     )
 
