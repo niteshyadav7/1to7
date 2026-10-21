@@ -72,8 +72,8 @@ export async function GET(request: Request) {
           .in('user_id', userIds),
         supabase
           .from('application_ghost_events')
-          .select('id, user_id, event_type')
-          .eq('event_type', 'ghosted')
+          .select('id, user_id, action')
+          .eq('action', 'ghosted')
           .in('user_id', userIds),
       ])
 
@@ -96,12 +96,18 @@ export async function GET(request: Request) {
       }
     }
 
-    const enrichedInfluencers = (influencers || []).map((u: any) => ({
-      ...u,
-      is_ghosted: (ghostedUserMap[u.id]?.activeGhostCount || 0) > 0,
-      active_ghost_count: ghostedUserMap[u.id]?.activeGhostCount || 0,
-      lifetime_ghost_count: ghostedUserMap[u.id]?.lifetimeGhostCount || 0,
-    }))
+    const enrichedInfluencers = (influencers || []).map((u: any) => {
+      const isAccountGhosted = Boolean(u.is_ghosted)
+      const appGhostCount = ghostedUserMap[u.id]?.activeGhostCount || 0
+      const activeCount = appGhostCount + (isAccountGhosted && appGhostCount === 0 ? 1 : 0)
+
+      return {
+        ...u,
+        is_ghosted: isAccountGhosted || appGhostCount > 0,
+        active_ghost_count: activeCount,
+        lifetime_ghost_count: ghostedUserMap[u.id]?.lifetimeGhostCount || 0,
+      }
+    })
 
     // Get global stats (total count, verified email count, etc)
     const { count: totalInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true })

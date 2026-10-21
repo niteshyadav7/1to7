@@ -455,8 +455,8 @@ export class GhostService {
         e.actor_name,
         e.actor_role,
         e.created_at,
-        c.brand_name,
-        c.campaign_code
+        COALESCE(c.brand_name, 'Account Direct Action') as brand_name,
+        COALESCE(c.campaign_code, 'USER-LEVEL') as campaign_code
       FROM public.application_ghost_events e
       LEFT JOIN public.campaigns c ON e.campaign_id = c.id
       WHERE ${conditions.join(' AND ')}
@@ -470,8 +470,201 @@ export class GhostService {
   /**
    * Retrieves overall ghost statistics for a creator across their entire history
    */
+  /**
+   * Mark a creator/user account directly as ghosted (account-wide).
+   * Also updates any currently active applications for this user so all gates close.
+   */
+  static async ghostUser(
+    userId: string,
+    payload: {
+      reason_category: string
+      comment: string
+      proof_urls: string[]
+    },
+    admin: AdminPayload
+  ): Promise<{ success: boolean; message: string }> {
+    const client = await pool.connect()
+
+    try {
+      await client.query('BEGIN')
+
+      // Check if user exists
+      const userRes = await client.query(
+        `SELECT id, full_name, email, is_ghosted FROM public.users WHERE id = $1 FOR UPDATE`,
+        [userId]
+      )
+      if (userRes.rows.length === 0) {
+        throw new Error('User not found')
+      }
+      const user = userRes.rows[0]
+
+      if (user.is_ghosted) {
+        throw new Error('This creator account is already marked as ghosted')
+      }
+
+      // 1. Update user account ghosting flags
+      await client.query(
+        `UPDATE public.users 
+         SET is_ghosted = true, 
+             ghosted_at = timezone('utc'::text, now()), 
+             ghosted_by = $2, 
+             ghost_reason = $3
+         WHERE id = $1`,
+        [userId, admin.id, payload.reason_category]
+      )
+
+      // 2. Also flag any active/ongoing applications
+      await client.query(
+        `UPDATE public.applications 
+         SET is_ghosted = true, 
+             ghosted_at = timezone('utc'::text, now()), 
+             ghosted_by = $2
+         WHERE user_id = $1 AND is_ghosted = false`,
+        [userId, admin.id]
+      )
+
+      // 3. Record immutable audit event in application_ghost_events
+      await client.query(
+        `INSERT INTO public.application_ghost_events (
+          user_id,
+          application_id,
+          campaign_id,
+          action,
+          reason_category,
+          comment,
+          proof_urls,
+          actor_admin_id,
+          actor_name,
+          actor_role
+        ) VALUES ($1, null, null, 'ghosted', $2, $3, $4, $5, $6, $7)`,
+        [
+          userId,
+          payload.reason_category,
+          payload.comment,
+          payload.proof_urls,
+          admin.id,
+          admin.name || admin.email,
+          admin.role || 'admin',
+        ]
+      )
+
+      await client.query('COMMIT')
+
+      return {
+        success: true,
+        message: 'Creator account has been marked as ghosted with proof. Future applications are blocked.',
+      }
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * Un-ghost a creator/user account directly.
+   * Restores user account and clears ghost flags on applications.
+   */
+  static async unghostUser(
+    userId: string,
+    payload: {
+      reason_category: string
+      comment: string
+      proof_urls: string[]
+    },
+    admin: AdminPayload
+  ): Promise<{ success: boolean; message: string }> {
+    const client = await pool.connect()
+
+    try {
+      await client.query('BEGIN')
+
+      const userRes = await client.query(
+        `SELECT id, full_name, email, is_ghosted FROM public.users WHERE id = $1 FOR UPDATE`,
+        [userId]
+      )
+      if (userRes.rows.length === 0) {
+        throw new Error('User not found')
+      }
+      const user = userRes.rows[0]
+
+      // Check if user or any of their applications are ghosted
+      const ghostedAppsRes = await client.query(
+        `SELECT id FROM public.applications WHERE user_id = $1 AND is_ghosted = true`,
+        [userId]
+      )
+
+      if (!user.is_ghosted && ghostedAppsRes.rows.length === 0) {
+        throw new Error('This creator is not currently marked as ghosted')
+      }
+
+      // 1. Restore user account
+      await client.query(
+        `UPDATE public.users 
+         SET is_ghosted = false, 
+             ghosted_at = null, 
+             ghosted_by = null, 
+             ghost_reason = null
+         WHERE id = $1`,
+        [userId]
+      )
+
+      // 2. Restore all applications
+      await client.query(
+        `UPDATE public.applications 
+         SET is_ghosted = false, 
+             ghosted_at = null, 
+             ghosted_by = null
+         WHERE user_id = $1 AND is_ghosted = true`,
+        [userId]
+      )
+
+      // 3. Append immutable unghost event to audit log
+      await client.query(
+        `INSERT INTO public.application_ghost_events (
+          user_id,
+          application_id,
+          campaign_id,
+          action,
+          reason_category,
+          comment,
+          proof_urls,
+          actor_admin_id,
+          actor_name,
+          actor_role
+        ) VALUES ($1, null, null, 'unghosted', $2, $3, $4, $5, $6, $7)`,
+        [
+          userId,
+          payload.reason_category,
+          payload.comment,
+          payload.proof_urls,
+          admin.id,
+          admin.name || admin.email,
+          admin.role || 'admin',
+        ]
+      )
+
+      await client.query('COMMIT')
+
+      return {
+        success: true,
+        message: 'Creator account successfully un-ghosted and unblocked from campaigns.',
+      }
+    } catch (err) {
+      await client.query('ROLLBACK')
+      throw err
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * Retrieves overall ghost statistics for a creator across their entire history
+   */
   static async getUserGhostSummary(userId: string): Promise<UserGhostSummary> {
-    const [activeRes, historyRes] = await Promise.all([
+    const [userRes, activeRes, historyRes] = await Promise.all([
+      pool.query(`SELECT is_ghosted, ghosted_at FROM public.users WHERE id = $1`, [userId]),
       pool.query(
         `SELECT COUNT(*) FROM public.applications WHERE user_id = $1 AND is_ghosted = true`,
         [userId]
@@ -484,20 +677,22 @@ export class GhostService {
       ),
     ])
 
-    const activeGhostedCount = parseInt(activeRes.rows[0]?.count || '0', 10)
+    const isUserAccountGhosted = Boolean(userRes.rows[0]?.is_ghosted)
+    const appGhostedCount = parseInt(activeRes.rows[0]?.count || '0', 10)
+    const activeGhostedCount = appGhostedCount + (isUserAccountGhosted && appGhostedCount === 0 ? 1 : 0)
     const totalLifetimeGhostEvents = parseInt(
       historyRes.rows[0]?.total_events || '0',
       10
     )
     const lastGhostedAt = historyRes.rows[0]?.last_ghosted_at
       ? new Date(historyRes.rows[0].last_ghosted_at).toISOString()
-      : null
+      : (userRes.rows[0]?.ghosted_at ? new Date(userRes.rows[0].ghosted_at).toISOString() : null)
 
     return {
       activeGhostedCount,
       totalLifetimeGhostEvents,
       lastGhostedAt,
-      isCurrentlyGhosted: activeGhostedCount > 0,
+      isCurrentlyGhosted: isUserAccountGhosted || appGhostedCount > 0,
     }
   }
 }

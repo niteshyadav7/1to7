@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     ] = await Promise.all([
       supabase
         .from('users')
-        .select('id, email, full_name, followers, instagram_username, instagram_profiles, state, city, shipping_addresses, dob, custom_attributes, gender, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages')
+        .select('id, email, full_name, followers, instagram_username, instagram_profiles, state, city, shipping_addresses, dob, custom_attributes, gender, pincode, alt_mobile, shoe_size, tshirt_size, bio, youtube, languages, is_ghosted')
         .eq('id', userId)
         .single(),
       supabase
@@ -205,6 +205,17 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Your account appears to have been deleted. Please clear your cookies/return to home page.' },
         { status: 401 }
+      )
+    }
+
+    // Account-wide Ghosting Gatekeeper
+    if (user.is_ghosted) {
+      return NextResponse.json(
+        {
+          error: 'Your creator account is currently restricted from applying to campaigns due to unfulfilled collaboration deliverables or policy compliance review. Please contact support.',
+          code: 'CREATOR_GHOSTED',
+        },
+        { status: 403 }
       )
     }
 

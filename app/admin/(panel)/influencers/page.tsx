@@ -17,6 +17,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
+import { GhostActionModal } from '@/components/admin/ghost/GhostActionModal'
 
 // ─── Types ─────────────────────────────────────────────────
 export interface ShippingAddress {
@@ -109,10 +110,12 @@ function ProfileModal({
   user,
   onClose,
   onViewGhostHistory,
+  onGhostAction,
 }: {
   user: Influencer
   onClose: () => void
   onViewGhostHistory?: (userId: string, name: string) => void
+  onGhostAction?: (actionType: 'ghost' | 'unghost', user: Influencer) => void
 }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -123,7 +126,38 @@ function ProfileModal({
         {/* Header (Cover & Avatar) */}
         <div className="relative h-32 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border-b border-white/5 shrink-0">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 mixed-blend-overlay"></div>
-          <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+          <div className="absolute top-4 right-4 flex items-center gap-2 z-10 flex-wrap justify-end">
+            {user.is_ghosted ? (
+              <button
+                type="button"
+                onClick={() => onGhostAction?.('unghost', user)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                title="Un-ghost and restore creator account"
+              >
+                <span>🛡️ Un-ghost</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onGhostAction?.('ghost', user)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-500/20 transition-all cursor-pointer"
+                title="Ghost creator account"
+              >
+                <span>👻 Ghost Creator</span>
+              </button>
+            )}
+
+            {(user.is_ghosted || (user.lifetime_ghost_count || 0) > 0) && onViewGhostHistory && (
+              <button
+                type="button"
+                onClick={() => onViewGhostHistory(user.id, user.full_name)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-white/10 shadow-sm transition-all cursor-pointer"
+                title="View complete accountability logs"
+              >
+                <span>📜 Logs</span>
+              </button>
+            )}
+
             <Link
               href={`/admin/virtual-profile/${user.id}`}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-pink-500/20 transition-all cursor-pointer"
@@ -186,25 +220,38 @@ function ProfileModal({
                  <div>
                    <h4 className={`text-sm font-bold ${user.is_ghosted ? 'text-rose-300' : 'text-amber-300'}`}>
                      {user.is_ghosted 
-                       ? `Currently Ghosted on ${user.active_ghost_count} Ongoing Campaign(s)` 
+                       ? (user.active_ghost_count 
+                           ? `Currently Ghosted on ${user.active_ghost_count} Active Campaign(s)` 
+                           : `Creator is Directly Ghosted at Account Level`)
                        : `Creator has ${user.lifetime_ghost_count} Past Ghost Incident(s)`}
                    </h4>
                    <p className="text-xs text-slate-400 mt-0.5">
                      {user.is_ghosted 
-                       ? 'This creator is unresponsive and blocked from applying to new campaigns until resolved.' 
-                       : 'All previous ghosting cases have been unghosted or resolved with proof.'}
+                       ? 'This creator is unresponsive and blocked from applying to all campaigns until un-ghosted with verified proof.' 
+                       : 'All previous ghosting cases have been un-ghosted or resolved with proof.'}
                    </p>
                  </div>
                </div>
-               {onViewGhostHistory && (
-                 <button
-                   type="button"
-                   onClick={() => onViewGhostHistory(user.id, user.full_name)}
-                   className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-slate-200 hover:text-white hover:bg-white/10 shrink-0 text-xs font-semibold cursor-pointer transition-colors"
-                 >
-                   View Ghost Audit Log
-                 </button>
-               )}
+               <div className="flex items-center gap-2 flex-wrap">
+                 {user.is_ghosted && onGhostAction && (
+                   <button
+                     type="button"
+                     onClick={() => onGhostAction('unghost', user)}
+                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shrink-0 text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                   >
+                     🛡️ Un-ghost Creator
+                   </button>
+                 )}
+                 {onViewGhostHistory && (
+                   <button
+                     type="button"
+                     onClick={() => onViewGhostHistory(user.id, user.full_name)}
+                     className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-slate-200 hover:text-white hover:bg-white/10 shrink-0 text-xs font-semibold cursor-pointer transition-colors"
+                   >
+                     📜 View Full Audit Trail
+                   </button>
+                 )}
+               </div>
              </div>
            )}
 
@@ -1140,6 +1187,11 @@ export default function InfluencersDirectoryPage() {
   const [selectedProfile, setSelectedProfile] = useState<Influencer | null>(null)
   const [customExportOpen, setCustomExportOpen] = useState(false)
   const [historyModalUser, setHistoryModalUser] = useState<{ id: string; name: string } | null>(null)
+  const [ghostActionTarget, setGhostActionTarget] = useState<{
+    isOpen: boolean
+    actionType: 'ghost' | 'unghost'
+    user: Influencer | null
+  }>({ isOpen: false, actionType: 'ghost', user: null })
 
   // Export State
   const [isExporting, setIsExporting] = useState(false)
@@ -1773,6 +1825,33 @@ export default function InfluencersDirectoryPage() {
                        {/* Status Blocks */}
                        <td className="px-4 py-3">
                          <div className="flex flex-col gap-1.5 items-start">
+                           <div className="flex items-center gap-1.5 flex-wrap">
+                             {user.is_ghosted ? (
+                               <button
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation()
+                                   setGhostActionTarget({ isOpen: true, actionType: 'unghost', user })
+                                 }}
+                                 className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 px-1.5 py-0.5 rounded border border-emerald-500/30 cursor-pointer transition-colors"
+                                 title="Click to un-ghost creator account"
+                               >
+                                 🛡️ Un-ghost
+                               </button>
+                             ) : (
+                               <button
+                                 type="button"
+                                 onClick={(e) => {
+                                   e.stopPropagation()
+                                   setGhostActionTarget({ isOpen: true, actionType: 'ghost', user })
+                                 }}
+                                 className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-300/80 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/20 cursor-pointer transition-colors"
+                                 title="Click to ghost creator account"
+                               >
+                                 👻 Ghost
+                               </button>
+                             )}
+                           </div>
                            {user.is_ghosted ? (
                              <button
                                type="button"

@@ -22,7 +22,12 @@ export async function GET(request: NextRequest) {
 
     // 1. Compute Platform Summary Metrics
     const [activeCountRes, eventsCountRes] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::int as count FROM public.applications WHERE is_ghosted = true`),
+      pool.query(`
+        SELECT (
+          (SELECT COUNT(*)::int FROM public.applications WHERE is_ghosted = true) +
+          (SELECT COUNT(*)::int FROM public.users WHERE is_ghosted = true AND id NOT IN (SELECT DISTINCT user_id FROM public.applications WHERE is_ghosted = true))
+        )::int as count
+      `),
       pool.query(`
         SELECT 
           COUNT(*)::int as total_events,
@@ -52,72 +57,189 @@ export async function GET(request: NextRequest) {
 
     // 2. Fetch Active Ghosted Creators (if tab is 'active' or 'all')
     if (tab === 'active' || tab === 'all') {
-      const activeConditions: string[] = ['a.is_ghosted = true']
       const activeValues: any[] = []
-
-      if (search) {
-        activeValues.push(`%${search}%`)
-        const idx = activeValues.length
-        activeConditions.push(`(
-          u.full_name ILIKE $${idx} OR
-          u.influencer_id ILIKE $${idx} OR
-          u.mobile ILIKE $${idx} OR
-          u.email ILIKE $${idx} OR
-          u.instagram_username ILIKE $${idx} OR
-          c.brand_name ILIKE $${idx} OR
-          c.campaign_code ILIKE $${idx}
-        )`)
-      }
+      let activeQuery = ''
 
       if (campaignId) {
         activeValues.push(campaignId)
-        activeConditions.push(`a.campaign_id = $${activeValues.length}`)
-      }
+        const campaignCond = `a.campaign_id = $${activeValues.length}`
+        let searchCond = ''
+        if (search) {
+          activeValues.push(`%${search}%`)
+          const sIdx = activeValues.length
+          searchCond = `AND (
+            u.full_name ILIKE $${sIdx} OR
+            u.influencer_id ILIKE $${sIdx} OR
+            u.mobile ILIKE $${sIdx} OR
+            u.email ILIKE $${sIdx} OR
+            u.instagram_username ILIKE $${sIdx} OR
+            c.brand_name ILIKE $${sIdx} OR
+            c.campaign_code ILIKE $${sIdx}
+          )`
+        }
 
-      const activeQuery = `
-        SELECT 
-          a.id as application_id,
-          a.user_id,
-          a.campaign_id,
-          a.status as application_status,
-          a.is_ghosted,
-          a.ghosted_at,
-          a.created_at as applied_at,
-          a.form_data,
-          u.full_name,
-          u.influencer_id,
-          u.email,
-          u.mobile,
-          u.instagram_username,
-          u.followers,
-          u.instagram_profile_pic as profile_photo,
-          u.instagram_profile_pic,
-          u.gender,
-          u.state,
-          u.city,
-          c.brand_name,
-          c.campaign_code,
-          c.platform,
-          c.manager_phone,
-          ge.reason_category as latest_reason,
-          ge.comment as latest_comment,
-          ge.proof_urls as latest_proof_urls,
-          ge.actor_name as latest_actor_name,
-          ge.actor_role as latest_actor_role,
-          ge.created_at as latest_event_at
-        FROM public.applications a
-        JOIN public.users u ON a.user_id = u.id
-        JOIN public.campaigns c ON a.campaign_id = c.id
-        LEFT JOIN LATERAL (
-          SELECT reason_category, comment, proof_urls, actor_name, actor_role, created_at
-          FROM public.application_ghost_events
-          WHERE application_id = a.id AND action = 'ghosted'
-          ORDER BY created_at DESC
-          LIMIT 1
-        ) ge ON true
-        WHERE ${activeConditions.join(' AND ')}
-        ORDER BY a.ghosted_at DESC NULLS LAST, a.created_at DESC
-      `
+        activeQuery = `
+          SELECT 
+            a.id as application_id,
+            a.user_id,
+            a.campaign_id,
+            a.status as application_status,
+            a.is_ghosted,
+            a.ghosted_at,
+            a.created_at as applied_at,
+            a.form_data,
+            u.full_name,
+            u.influencer_id,
+            u.email,
+            u.mobile,
+            u.instagram_username,
+            u.followers,
+            u.instagram_profile_pic as profile_photo,
+            u.instagram_profile_pic,
+            u.gender,
+            u.state,
+            u.city,
+            c.brand_name,
+            c.campaign_code,
+            c.platform,
+            c.manager_phone,
+            ge.reason_category as latest_reason,
+            ge.comment as latest_comment,
+            ge.proof_urls as latest_proof_urls,
+            ge.actor_name as latest_actor_name,
+            ge.actor_role as latest_actor_role,
+            ge.created_at as latest_event_at
+          FROM public.applications a
+          JOIN public.users u ON a.user_id = u.id
+          JOIN public.campaigns c ON a.campaign_id = c.id
+          LEFT JOIN LATERAL (
+            SELECT reason_category, comment, proof_urls, actor_name, actor_role, created_at
+            FROM public.application_ghost_events
+            WHERE application_id = a.id AND action = 'ghosted'
+            ORDER BY created_at DESC
+            LIMIT 1
+          ) ge ON true
+          WHERE a.is_ghosted = true AND ${campaignCond} ${searchCond}
+          ORDER BY a.ghosted_at DESC NULLS LAST, a.created_at DESC
+        `
+      } else {
+        let appSearchCond = ''
+        let userSearchCond = ''
+        if (search) {
+          activeValues.push(`%${search}%`)
+          appSearchCond = `AND (
+            u.full_name ILIKE $1 OR
+            u.influencer_id ILIKE $1 OR
+            u.mobile ILIKE $1 OR
+            u.email ILIKE $1 OR
+            u.instagram_username ILIKE $1 OR
+            c.brand_name ILIKE $1 OR
+            c.campaign_code ILIKE $1
+          )`
+          userSearchCond = `AND (
+            u.full_name ILIKE $1 OR
+            u.influencer_id ILIKE $1 OR
+            u.mobile ILIKE $1 OR
+            u.email ILIKE $1 OR
+            u.instagram_username ILIKE $1
+          )`
+        }
+
+        activeQuery = `
+          WITH app_ghosted AS (
+            SELECT 
+              a.id as application_id,
+              a.user_id,
+              a.campaign_id,
+              a.status as application_status,
+              a.is_ghosted,
+              a.ghosted_at,
+              a.created_at as applied_at,
+              a.form_data,
+              u.full_name,
+              u.influencer_id,
+              u.email,
+              u.mobile,
+              u.instagram_username,
+              u.followers,
+              u.instagram_profile_pic as profile_photo,
+              u.instagram_profile_pic,
+              u.gender,
+              u.state,
+              u.city,
+              c.brand_name,
+              c.campaign_code,
+              c.platform,
+              c.manager_phone,
+              ge.reason_category as latest_reason,
+              ge.comment as latest_comment,
+              ge.proof_urls as latest_proof_urls,
+              ge.actor_name as latest_actor_name,
+              ge.actor_role as latest_actor_role,
+              ge.created_at as latest_event_at
+            FROM public.applications a
+            JOIN public.users u ON a.user_id = u.id
+            JOIN public.campaigns c ON a.campaign_id = c.id
+            LEFT JOIN LATERAL (
+              SELECT reason_category, comment, proof_urls, actor_name, actor_role, created_at
+              FROM public.application_ghost_events
+              WHERE application_id = a.id AND action = 'ghosted'
+              ORDER BY created_at DESC
+              LIMIT 1
+            ) ge ON true
+            WHERE a.is_ghosted = true ${appSearchCond}
+          ),
+          user_direct_ghosted AS (
+            SELECT 
+              NULL::uuid as application_id,
+              u.id as user_id,
+              NULL::uuid as campaign_id,
+              'account_ghosted' as application_status,
+              u.is_ghosted,
+              u.ghosted_at,
+              u.created_at as applied_at,
+              '{}'::jsonb as form_data,
+              u.full_name,
+              u.influencer_id,
+              u.email,
+              u.mobile,
+              u.instagram_username,
+              u.followers,
+              u.instagram_profile_pic as profile_photo,
+              u.instagram_profile_pic,
+              u.gender,
+              u.state,
+              u.city,
+              'Direct Account Action' as brand_name,
+              'USER-LEVEL' as campaign_code,
+              'Account' as platform,
+              NULL::text as manager_phone,
+              ge.reason_category as latest_reason,
+              ge.comment as latest_comment,
+              ge.proof_urls as latest_proof_urls,
+              ge.actor_name as latest_actor_name,
+              ge.actor_role as latest_actor_role,
+              ge.created_at as latest_event_at
+            FROM public.users u
+            LEFT JOIN LATERAL (
+              SELECT reason_category, comment, proof_urls, actor_name, actor_role, created_at
+              FROM public.application_ghost_events
+              WHERE user_id = u.id AND action = 'ghosted'
+              ORDER BY created_at DESC
+              LIMIT 1
+            ) ge ON true
+            WHERE u.is_ghosted = true
+              AND u.id NOT IN (SELECT user_id FROM public.applications WHERE is_ghosted = true)
+              ${userSearchCond}
+          )
+          SELECT * FROM (
+            SELECT * FROM app_ghosted
+            UNION ALL
+            SELECT * FROM user_direct_ghosted
+          ) combined_active
+          ORDER BY ghosted_at DESC NULLS LAST, applied_at DESC
+        `
+      }
 
       const activeRes = await pool.query(activeQuery, activeValues)
       responseData.activeGhosted = activeRes.rows

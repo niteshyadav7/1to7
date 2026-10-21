@@ -38,9 +38,9 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 
 interface ActiveGhostedItem {
-  application_id: string
+  application_id?: string | null
   user_id: string
-  campaign_id: string
+  campaign_id?: string | null
   application_status: string
   is_ghosted: boolean
   ghosted_at: string | null
@@ -141,7 +141,8 @@ export default function GhostedManagementPage() {
   // Modals state
   const [zoomImage, setZoomImage] = useState<{ src: string; title: string } | null>(null)
   const [historyTarget, setHistoryTarget] = useState<{
-    applicationId: string
+    applicationId?: string
+    userId?: string
     creatorName: string
     brandName?: string
   } | null>(null)
@@ -629,7 +630,7 @@ export default function GhostedManagementPage() {
                     <tbody className="divide-y divide-white/5 text-xs">
                       {filteredActiveGhosted.map((item) => (
                         <tr
-                          key={item.application_id}
+                          key={item.application_id || item.user_id}
                           className="hover:bg-white/[0.02] transition-colors group"
                         >
                           {/* Creator Column */}
@@ -780,7 +781,8 @@ export default function GhostedManagementPage() {
                                 variant="outline"
                                 onClick={() =>
                                   setHistoryTarget({
-                                    applicationId: item.application_id,
+                                    applicationId: item.application_id || undefined,
+                                    userId: item.user_id,
                                     creatorName: item.full_name,
                                     brandName: item.brand_name,
                                   })
@@ -796,7 +798,8 @@ export default function GhostedManagementPage() {
                                 size="sm"
                                 onClick={() =>
                                   setUnghostTarget({
-                                    applicationId: item.application_id,
+                                    applicationId: item.application_id || undefined,
+                                    userId: item.user_id,
                                     creatorName: item.full_name,
                                     instagramUsername: item.instagram_username,
                                     brandName: item.brand_name,
@@ -1007,6 +1010,7 @@ export default function GhostedManagementPage() {
         <GhostHistoryModal
           isOpen={Boolean(historyTarget)}
           applicationId={historyTarget.applicationId}
+          userId={historyTarget.userId}
           creatorName={historyTarget.creatorName}
           brandName={historyTarget.brandName}
           onClose={() => setHistoryTarget(null)}

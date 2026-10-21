@@ -22,7 +22,8 @@ import { GHOST_REASONS, UNGHOST_REASONS } from '@/lib/constants/ghost-reasons'
 export type GhostActionType = 'ghost' | 'unghost' | 'bulk-ghost'
 
 export interface TargetCreatorItem {
-  applicationId: string
+  applicationId?: string
+  userId?: string
   creatorName: string
   instagramUsername?: string | null
   brandName?: string
@@ -203,10 +204,16 @@ export function GhostActionModal({
         onClose()
       } else {
         // Single Ghost or Unghost
-        const appId = targetCreator?.applicationId
-        if (!appId) throw new Error('Target application not specified')
+        const isUserLevel = Boolean(targetCreator?.userId && !targetCreator?.applicationId)
+        const endpoint = isUserLevel
+          ? `/api/admin/influencers/${targetCreator!.userId}/ghost`
+          : `/api/admin/applications/${targetCreator?.applicationId}/ghost`
 
-        const res = await fetch(`/api/admin/applications/${appId}/ghost`, {
+        if (!targetCreator?.userId && !targetCreator?.applicationId) {
+          throw new Error('Target creator or application not specified')
+        }
+
+        const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -283,7 +290,7 @@ export function GhostActionModal({
                   {isBulk
                     ? `Assigning shared ghosting violation to ${bulkCreators.length} selected creators`
                     : `${targetCreator?.creatorName || 'Creator'} • ${
-                        targetCreator?.brandName || 'Campaign'
+                        targetCreator?.brandName || (targetCreator?.userId ? 'Direct Account Action' : 'Campaign')
                       }`}
                 </p>
               </div>
