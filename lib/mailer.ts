@@ -58,11 +58,8 @@ export async function sendNotificationEmail({ to, subject, bodyHtml }: SendEmail
       subject,
       html: wrapInTemplate(bodyHtml),
     })
-
-    console.log(`[EMAIL] Sent "${subject}" to ${to}`)
   } catch (error) {
     // Never let email failures propagate — they should not break the main flow
-    console.error(`[EMAIL ERROR] Failed to send "${subject}" to ${to}:`, error)
   }
 }
 

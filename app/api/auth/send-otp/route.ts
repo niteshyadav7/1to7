@@ -38,9 +38,6 @@ export async function POST(request: Request) {
     }
 
     // MOCK Sending SMS (Replace with Fast2SMS integration)
-    console.log(`\n\n===========================================`)
-    console.log(`[MOCK SMS] OTP for ${mobile} is: ${otp}`)
-    console.log(`===========================================\n\n`)
     
     // Example Fast2SMS Request (Commented out):
     /*

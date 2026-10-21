@@ -67,7 +67,6 @@ export async function POST(request: Request) {
     }
 
     // 4. Send email
-    console.log(`[EMAIL OTP] (${type}) To: ${cleanEmail}, OTP: ${otp}`)
     if (type === 'signup') {
       await sendSignupOtpEmail(cleanEmail, otp)
     } else {

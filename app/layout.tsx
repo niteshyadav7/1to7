@@ -60,6 +60,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Security: Prevent sensitive data logging in browser console
+              (function() {
+                if (typeof window !== 'undefined') {
+                  var noop = function() {};
+                  window.console.log = noop;
+                  window.console.debug = noop;
+                  window.console.info = noop;
+                  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    window.console.warn = noop;
+                    window.console.error = noop;
+                  }
+                }
+              })();
               window.__deferredPwaPrompt = null;
               window.addEventListener('beforeinstallprompt', function(e) {
                 e.preventDefault();

@@ -34,6 +34,7 @@ CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portal
 CASE 24: Polymorphic Dynamic Column Projection & Type-Aware Data Grid Virtualization (Eliminating Modal Inspection Bottlenecks)
 CASE 25: Bidirectional URL SearchParam & SessionStorage Filter State Persistence (Debounced History Sync & Hydration Race Prevention)
 CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast Delivery Engine (Unmatched Parentheses & Bell Disconnect)
+CASE 27: Production Information Disclosure & Client-Side Console Sanitization (SWC Stripping, Runtime Neutralization & PII Leak Remediation)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -913,6 +914,53 @@ Administrators on the operations team created targeted and platform-wide in-app 
 
 [INTERVIEW STAR TAKEAWAY]
 "Generic try/catch blocks that return empty fallback responses are dangerous anti-patterns because they convert fatal database crashes into silent functional outages. By pairing defensive database queries with automated unit testing, dual delivery channels (transient popups + persistent notification feeds), and real-time event-driven subscriptions, you ensure high-urgency operational broadcasts achieve 100% delivery guarantees."
+
+====================================================================================================
+CASE 27: Production Information Disclosure & Client-Side Console Sanitization (SWC Stripping, Runtime Neutralization & PII Leak Remediation)
+====================================================================================================
+CATEGORIES: Web Security / Information Disclosure (OWASP A01/A04) / Next.js Compiler / Client Hardening
+INTERVIEW QUESTION: "How do you protect a production Next.js enterprise web application from leaking sensitive user PII, authentication tokens, and OTPs through client-side console statements?"
+
+[SITUATION]
+During a security audit of the platform, it was discovered that developers had left debugging console statements across key authentication and onboarding workflows. When users opened browser DevTools (F12) during authentication:
+1. Full user database objects, phone numbers, and email addresses were logged by AuthProvider.
+2. Instagram OAuth responses (raw access tokens, user IDs, profile data) were printed to the console.
+3. Backend routes (send-otp, forgot-password, send-email-otp) logged plain-text OTPs and recipient numbers.
+4. Third-party SDK integrations (MSG91 OTP provider) output raw JSON payload responses into browser logs.
+
+[ROOT CAUSE INVESTIGATION]
+1. Lack of Next.js Compiler Stripping:
+   The Next.js build configuration (next.config.mjs) lacked the compiler.removeConsole setting, allowing console.log statements to be compiled directly into production client-side JavaScript bundles.
+2. Unprotected Development Debug Hooks:
+   AuthProvider had legacy debug hooks that explicitly dumped full JSON objects into the browser console using styled console.log calls.
+3. Plain-text Credential Logging in Server Endpoints:
+   Temporary development logs in OTP generation routes printed active one-time passwords directly to standard output, creating log-exposure vulnerabilities in server log aggregators.
+
+[SOLUTION & ARCHITECTURE]
+1. Multi-Tiered Console Sanitization:
+   - Tier 1 (Compile-Time SWC Removal): Configured compiler: { removeConsole: process.env.NODE_ENV === 'production' } in next.config.mjs. During next build, the SWC minifier automatically strips console.* invocations from all output chunks.
+   - Tier 2 (Runtime Global Neutralization): Injected a lightweight, zero-dependency security IIFE at the top of app/layout.tsx:
+     (function() {
+       if (typeof window !== 'undefined') {
+         var noop = function() {};
+         window.console.log = noop;
+         window.console.debug = noop;
+         window.console.info = noop;
+         if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+           window.console.warn = noop;
+           window.console.error = noop;
+         }
+       }
+     })();
+     This overrides console methods before third-party scripts or client components can invoke them, ensuring even uncompiled runtime code or external widgets cannot print sensitive data to the browser devtools.
+2. Source Code Sanitization:
+   - Removed all token and profile logs from app/api/auth/instagram/callback/route.ts.
+   - Removed plain-text OTP logs from app/api/auth/send-otp/route.ts, send-email-otp, and forgot-password.
+   - Sanitized AuthProvider.tsx to clear debug cookies silently without printing user database objects.
+   - Removed OTP response logging from lib/utils/msg91-otp.ts.
+
+[INTERVIEW STAR TAKEAWAY]
+"Defense-in-depth against client-side information disclosure requires both compile-time elimination and runtime neutralization. By configuring Next.js compiler SWC console stripping, installing an early-execution client-side runtime stub, and rigorously auditing authentication pipelines for plain-text credential leaks, you guarantee zero sensitive data exposure to browser devtools."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

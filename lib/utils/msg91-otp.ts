@@ -48,12 +48,8 @@ export function initMsg91Widget(): Promise<boolean> {
       tokenAuth,
       exposeMethods: true,
       captchaRenderId: '',
-      success: (data: any) => {
-        console.log('[MSG91] Widget global success:', data)
-      },
-      failure: (error: any) => {
-        console.warn('[MSG91] Widget global failure:', error)
-      },
+      success: () => {},
+      failure: () => {},
     }
 
     const scriptId = 'msg91-otp-script'
@@ -66,11 +62,9 @@ export function initMsg91Widget(): Promise<boolean> {
           // Small tick to let methods bind to window
           setTimeout(() => resolve(true), 150)
         } else {
-          console.warn('[MSG91] initSendOTP not found on window')
           resolve(false)
         }
-      } catch (err) {
-        console.error('[MSG91] init error:', err)
+      } catch {
         resolve(false)
       }
     }
@@ -83,7 +77,6 @@ export function initMsg91Widget(): Promise<boolean> {
       script.async = true
       script.onload = onScriptLoaded
       script.onerror = () => {
-        console.error('[MSG91] Failed to load otp-provider.js')
         resolve(false)
       }
       document.body.appendChild(script)
@@ -119,11 +112,9 @@ export async function sendMsg91Otp(rawMobile: string): Promise<any> {
     window.sendOtp!(
       formatted,
       (data) => {
-        console.log('[MSG91] OTP sent successfully:', data)
         resolve(data)
       },
       (error) => {
-        console.error('[MSG91] Send OTP failed:', error)
         const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to send OTP'
         reject(new Error(errMsg))
       }
@@ -142,11 +133,9 @@ export async function retryMsg91Otp(channel: '11' | '12' | null = null): Promise
     window.retryOtp!(
       channel,
       (data) => {
-        console.log('[MSG91] Resend OTP success:', data)
         resolve(data)
       },
       (error) => {
-        console.error('[MSG91] Resend OTP error:', error)
         const errMsg = typeof error === 'string' ? error : error?.message || 'Failed to resend OTP'
         reject(new Error(errMsg))
       }
@@ -165,11 +154,9 @@ export async function verifyMsg91Otp(otp: string): Promise<any> {
     window.verifyOtp!(
       otp.trim(),
       (data) => {
-        console.log('[MSG91] OTP verified:', data)
         resolve(data)
       },
       (error) => {
-        console.error('[MSG91] Verify OTP failed:', error)
         const errMsg = typeof error === 'string' ? error : error?.message || 'Invalid OTP. Please check and try again.'
         reject(new Error(errMsg))
       }

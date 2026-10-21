@@ -36,8 +36,6 @@ export async function POST(request: Request) {
     }
 
     // 4. Send OTP email via Nodemailer (Gmail)
-    console.log(`[FORGOT PASSWORD OTP] To: ${email}, OTP: ${otp}`)
-
     const gmailUser = process.env.GMAIL_USER
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
 

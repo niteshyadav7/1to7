@@ -151,11 +151,9 @@ export async function POST(request: Request) {
             </div>
           `
         })
-        console.log(`Welcome email with ID ${newUser.influencer_id} sent to ${email}`)
       }
-    } catch (emailError) {
+    } catch {
       // Don't fail signup if welcome email fails
-      console.error('Failed to send welcome email:', emailError)
     }
 
     const { password_hash, ...userWithoutPassword } = newUser

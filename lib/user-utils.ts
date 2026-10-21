@@ -11,16 +11,10 @@ export async function generateSequentialInfluencerId(): Promise<string> {
     const { data, error } = await supabase.rpc('get_next_influencer_id')
 
     if (!error && data && typeof data === 'number') {
-      const nextId = `HY${data}`
-      console.log(`[InfluencerID] Generated atomic sequential ID: ${nextId}`)
-      return nextId
+      return `HY${data}`
     }
-
-    if (error) {
-      console.warn('[InfluencerID] RPC get_next_influencer_id failed, using deterministic fallback:', error.message)
-    }
-  } catch (err: any) {
-    console.warn('[InfluencerID] Exception in atomic ID generation, falling back:', err?.message)
+  } catch {
+    // fallback
   }
 
   // 2. Deterministic Fallback: query highest actual ID from users table and add 1
@@ -43,15 +37,10 @@ export async function generateSequentialInfluencerIdBatch(count: number): Promis
       for (let i = 0; i < count; i++) {
         ids.push(`HY${startNum + i}`)
       }
-      console.log(`[InfluencerID] Generated atomic batch of ${count} IDs: ${ids[0]} to ${ids[ids.length - 1]}`)
       return ids
     }
-
-    if (error) {
-      console.warn('[InfluencerID] RPC get_next_influencer_id_batch failed, using deterministic fallback:', error.message)
-    }
-  } catch (err: any) {
-    console.warn('[InfluencerID] Exception in batch atomic ID generation, falling back:', err?.message)
+  } catch {
+    // fallback
   }
 
   // Fallback: one-by-one deterministic

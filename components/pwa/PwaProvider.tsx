@@ -87,12 +87,7 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((reg) => {
-          console.log('SW: Registered successfully with scope:', reg.scope)
-        })
-        .catch((err) => {
-          console.warn('SW: Registration failed:', err)
-        })
+        .catch(() => {})
     }
 
     // 6. Handle beforeinstallprompt event for Android / Chrome / Edge

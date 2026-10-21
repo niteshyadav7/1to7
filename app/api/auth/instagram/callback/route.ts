@@ -51,11 +51,7 @@ export async function GET(request: Request) {
     })
     const tokenData = await tokenRes.json()
 
-    console.log('\n========== INSTAGRAM CALLBACK DEBUG ==========')
-    console.log('[STEP 1] Token Exchange Response:', tokenRes.status, JSON.stringify(tokenData))
-
     if (!tokenRes.ok || !tokenData.access_token) {
-      console.error('Instagram Token Exchange Error:', tokenData)
       throw new Error(tokenData.error_message || 'Failed to exchange Instagram auth code')
     }
 
@@ -82,7 +78,6 @@ export async function GET(request: Request) {
     try {
       const res = await fetch(`https://graph.instagram.com/v21.0/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
       const data = await res.json()
-      console.log('[STEP 3a] v21.0 extended fields response:', JSON.stringify(data))
       if (data && !data.error && (data.username || data.id)) {
         profileData = { ...profileData, ...data }
       }
@@ -95,7 +90,6 @@ export async function GET(request: Request) {
       try {
         const res = await fetch(`https://graph.instagram.com/me?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
         const data = await res.json()
-        console.log('[STEP 3b] Fallback /me fields response:', JSON.stringify(data))
         if (data && !data.error && (data.username || data.id)) {
           profileData = { ...profileData, ...data }
         }
@@ -109,7 +103,6 @@ export async function GET(request: Request) {
       try {
         const res = await fetch(`https://graph.instagram.com/v21.0/${userId}?fields=id,username,name,account_type,profile_picture_url,followers_count,media_count,biography,website&access_token=${accessToken}`)
         const data = await res.json()
-        console.log('[STEP 3c] By userId response:', JSON.stringify(data))
         if (data && !data.error && (data.username || data.id)) {
           profileData = { ...profileData, ...data }
         }
@@ -117,8 +110,6 @@ export async function GET(request: Request) {
         console.warn('[STEP 3c] Query by userId failed:', e)
       }
     }
-
-    console.log('[STEP 3 FINAL] Resolved profileData:', JSON.stringify(profileData))
 
     const instaId = profileData.user_id || profileData.id || userId
 
@@ -148,18 +139,6 @@ export async function GET(request: Request) {
     const instaBio = profileData.biography || ''
     const instaWebsite = profileData.website || ''
     const instaAccountType = profileData.account_type || ''
-
-    console.log('\n======================================================')
-    console.log('📸 [INSTAGRAM OAUTH PROFILE RESOLVED]:')
-    console.log(JSON.stringify({
-      instaId,
-      instaUsername,
-      metaName,
-      instaFollowers,
-      instaMediaCount,
-      instaAccountType
-    }, null, 2))
-    console.log('======================================================\n')
 
     // Read pending verified mobile from cookie (from /login flow)
     const pendingMobile = cookieStore.get('pending_instagram_mobile')?.value || cookieStore.get('pending_mobile')?.value || null

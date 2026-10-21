@@ -24,10 +24,6 @@ export async function GET() {
       .eq('id', payload.id)
       .single()
 
-    console.log('[DEBUG] Profile query for user id:', payload.id)
-    console.log('[DEBUG] Supabase error:', error ? JSON.stringify(error) : 'none')
-    console.log('[DEBUG] Fetched user from Supabase:', JSON.stringify(user, null, 2))
-
     if (error || !user) {
       // Fallback: try select(*) to check if user exists but column names are wrong
       const { data: fallbackUser, error: fallbackError } = await supabase
@@ -35,12 +31,8 @@ export async function GET() {
         .select('*')
         .eq('id', payload.id)
         .single()
-
-      console.log('[DEBUG] Fallback query result:', fallbackUser ? 'FOUND' : 'NOT FOUND', 'error:', fallbackError ? JSON.stringify(fallbackError) : 'none')
       
       if (fallbackUser) {
-        // User exists! The column-specific query failed - return with select(*)
-        console.log('[DEBUG] User found with select(*), column name issue detected. Keys:', Object.keys(fallbackUser))
         return NextResponse.json({ user: fallbackUser })
       }
 

@@ -90,25 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUserProfile().finally(() => {
       setIsLoading(false)
 
-      // Check for Instagram debug data cookie (set during Instagram login callback)
+      // Clear the debug cookie if present
       try {
-        const igDebugCookie = document.cookie
+        const hasDebugCookie = document.cookie
           .split('; ')
-          .find(row => row.startsWith('instagram_debug='))
-        if (igDebugCookie) {
-          const igData = JSON.parse(decodeURIComponent(igDebugCookie.split('=').slice(1).join('=')))
-          console.log('\n%c🔷 ========== INSTAGRAM LOGIN DATA ==========', 'color: #E1306C; font-size: 16px; font-weight: bold;')
-          console.log('📦 INSTAGRAM RAW API RESPONSE OBJECT:', igData.raw_profile_from_instagram)
-          console.log('🔑 ALL AVAILABLE KEYS FROM INSTAGRAM:', igData.fields_available)
-          console.log('✅ PARSED INSTAGRAM OBJECT:', igData.parsed)
-          console.log('⏰ LOGIN TIMESTAMP:', igData.timestamp)
-          console.log('%c🔷 ==========================================\n', 'color: #E1306C; font-size: 16px; font-weight: bold;')
-          
-          // Clear the debug cookie after reading
+          .some(row => row.startsWith('instagram_debug='))
+        if (hasDebugCookie) {
           document.cookie = 'instagram_debug=; path=/; max-age=0'
         }
-      } catch (e) {
-        console.warn('Could not parse instagram_debug cookie', e)
+      } catch {
+        // ignore
       }
     })
   }, [])
@@ -120,13 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUserProfile = async () => {
     try {
-      console.log('[AuthProvider] refreshUserProfile() called')
       const res = await fetch('/api/dashboard/profile')
-      console.log('[AuthProvider] /api/dashboard/profile status:', res.status)
       if (res.ok) {
         const data = await res.json()
         if (data.user) {
-          console.log('📸 FULL USER DATABASE OBJECT:', data.user)
           setUser(data.user)
           localStorage.setItem('user_cache', JSON.stringify(data.user))
           return
@@ -135,12 +123,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // If unauthorized (401/403) or server indicates invalid session:
       if (res.status === 401 || res.status === 403 || !res.ok) {
-        console.warn('[AuthProvider] Session expired or invalid on server - clearing stale user_cache')
         setUser(null)
         localStorage.removeItem('user_cache')
       }
-    } catch (e) {
-      console.error('[AuthProvider] Failed to refresh profile', e)
+    } catch {
+      // ignore
     }
   }
 
