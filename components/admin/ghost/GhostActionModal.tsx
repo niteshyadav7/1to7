@@ -252,7 +252,7 @@ export function GhostActionModal({
     <AnimatePresence>
       <div
         onPaste={handlePaste}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}

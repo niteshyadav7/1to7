@@ -30,6 +30,7 @@ CASE 19: Question-Text-as-Key Drift: Renamed Campaign Questions Silently Orphan 
 CASE 20: Cross-Entity Location Cascade Disconnect: Unbound State-to-City Dropdowns Corrupt Profile Sync & Eligibility (State/City Dependent Hierarchy)
 CASE 21: Entity-Level Domain Disconnect: Expanding Campaign-Scoped Event Sourcing to Account-Wide Creator Ghosting & Audit Trails
 CASE 22: In-App Broadcast Governance & Dynamic Campaign-Scoped Push Notification Engine (Audit Blindspots & High-Precision Targeting)
+CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portals (Silent UI Freezes & Z-Index Inversion)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -768,6 +769,33 @@ The operations and brand marketing teams utilized an In-App Broadcast Alerts eng
 "When architecting high-scale notification and broadcast systems in multi-tenant environments, notification routing must never be limited to binary global vs single-user extremes. By introducing relational stage-aware group targeting (such as campaign-scoped broadcasts with status filters) paired with database-level EXISTS predicates and composite partial indexes, you achieve granular, high-precision push delivery with sub-millisecond latency while maintaining full operational accountability through immutable author attribution."
 
 ====================================================================================================
+====================================================================================================
+CASE 23: Modal Stacking Context & Callback Severing in Multi-Tiered Admin Portals (Silent UI Freezes & Z-Index Inversion)
+====================================================================================================
+CATEGORIES: Frontend Architecture / React Component Composition / Z-Index Stacking Contexts / State Synchronization
+INTERVIEW QUESTION: "Tell me about a production bug where a mission-critical action button silently did nothing when clicked without throwing any console errors or network requests."
+
+[SITUATION]
+Operations administrators trying to mark an unresponsive creator as ghosted from the comprehensive Influencers Directory (/admin/influencers) opened the creator's profile detail modal and clicked the prominent red "Ghost Creator" button. The button click was completely dead: no modal opened, no network request was triggered, and the browser console showed zero errors (only the standard background creator auth 401 polling). The action appeared frozen, forcing administrators to navigate away to individual campaign rosters to apply penalties.
+
+[ROOT CAUSE INVESTIGATION]
+Deep inspection of the component hierarchy and rendering tree revealed two compounding architectural oversights:
+1. Severed Callback Prop Delegation:
+   The `<ProfileModal />` component declared optional prop `onGhostAction?: (actionType, user) => void` and bound its header action button to `onClick={() => onGhostAction?.('ghost', user)}`. However, in the parent `InfluencersDirectoryPage`, the modal invocation `{selectedProfile && <ProfileModal user={selectedProfile} onClose={...} onViewGhostHistory={...} />}` completely omitted passing `onGhostAction`. The optional chaining `?.` silently absorbed the invocation as `undefined()`, yielding zero execution, zero network traffic, and zero runtime error.
+2. Unmounted Dialog Instance & Z-Index Trap:
+   Even if the parent's `ghostActionTarget` state had been triggered, `<GhostActionModal />` was never mounted within the page's JSX or `<AnimatePresence>` tree. Furthermore, audit of modal stacking contexts showed that `<ProfileModal />` possessed `z-[100]`, while `<GhostActionModal />` and `<GhostHistoryModal />` were configured with default Tailwind `z-50`. Even if mounted, child dialogs would have been trapped behind `ProfileModal`'s backdrop overlay.
+
+[SOLUTION & ARCHITECTURE]
+1. Explicit Callback Binding & Dynamic Lifecycle Hook:
+   Passed `onGhostAction={(actionType, user) => setGhostActionTarget({ isOpen: true, actionType, user })}` to `<ProfileModal />`.
+2. Stacking Context Inversion & Hierarchical Z-Index Elevation:
+   Elevated `<GhostActionModal />` and `<GhostHistoryModal />` overlays from `z-50` to `z-[120]` with backdrop-blur, ensuring they render cleanly on top of `ProfileModal` (`z-[100]`) while remaining below fullscreen proof zoom inspect viewers (`z-[150]`).
+3. Declarative Sub-Modal Mounting & Optimistic Real-Time Cache Sync:
+   Mounted `<GhostActionModal />` inside the parent `<AnimatePresence>` block. On successful submission (`onSuccess`), the component automatically mutates the currently open `selectedProfile` in local memory (`is_ghosted: true`, `active_ghost_count: 1`, `lifetime_ghost_count: count + 1`), instantly converting the modal's red "Ghost Creator" button into the emerald "Un-ghost" control and rendering the active violation banner without requiring a manual page refresh.
+
+[INTERVIEW STAR TAKEAWAY]
+"When building layered multi-modal interfaces in enterprise React applications, never rely on optional chaining on action callbacks without runtime assertions or fallback warnings. Always establish a standardized z-index ladder across all modal, toast, and zoom layers, and couple actionable mutations with optimistic memory updates so parent dialogs stay completely synchronized with state transitions."
+
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------

@@ -1376,6 +1376,9 @@ export default function InfluencersDirectoryPage() {
             user={selectedProfile}
             onClose={() => setSelectedProfile(null)}
             onViewGhostHistory={(id, name) => setHistoryModalUser({ id, name })}
+            onGhostAction={(actionType, user) => {
+              setGhostActionTarget({ isOpen: true, actionType, user })
+            }}
           />
         )}
         {customExportOpen && (
@@ -1392,6 +1395,32 @@ export default function InfluencersDirectoryPage() {
             onClose={() => setHistoryModalUser(null)}
             userId={historyModalUser.id}
             title={`Ghost Audit History — ${historyModalUser.name}`}
+          />
+        )}
+        {ghostActionTarget.isOpen && ghostActionTarget.user && (
+          <GhostActionModal
+            isOpen={ghostActionTarget.isOpen}
+            actionType={ghostActionTarget.actionType}
+            targetCreator={{
+              userId: ghostActionTarget.user.id,
+              creatorName: ghostActionTarget.user.full_name,
+              instagramUsername: ghostActionTarget.user.instagram_username,
+            }}
+            onClose={() => setGhostActionTarget({ isOpen: false, actionType: 'ghost', user: null })}
+            onSuccess={() => {
+              const updatedUserId = ghostActionTarget.user?.id
+              const wasUnghost = ghostActionTarget.actionType === 'unghost'
+              setGhostActionTarget({ isOpen: false, actionType: 'ghost', user: null })
+              if (selectedProfile && selectedProfile.id === updatedUserId) {
+                setSelectedProfile(prev => prev ? {
+                  ...prev,
+                  is_ghosted: !wasUnghost,
+                  active_ghost_count: wasUnghost ? 0 : 1,
+                  lifetime_ghost_count: wasUnghost ? prev.lifetime_ghost_count : (prev.lifetime_ghost_count || 0) + 1
+                } : null)
+              }
+              fetchInfluencers(true)
+            }}
           />
         )}
       </AnimatePresence>
