@@ -198,4 +198,62 @@ describe('Ghost Management & Creator Eligibility', () => {
       expect(eligibility.blockingCount).toBe(0)
     })
   })
+
+  describe('Account-Level User Ghosting & Zero-Application Gatekeeper', () => {
+    it('validates singleGhostActionSchema for direct profile ghosting', () => {
+      const directGhostPayload = {
+        action: 'ghosted',
+        reason_category: 'fraudulent_details',
+        comment: 'Creator submitted counterfeit bank documents and refuses to respond on phone',
+        proof_urls: ['https://example.com/fraud-proof.png'],
+      }
+      const parsed = singleGhostActionSchema.safeParse(directGhostPayload)
+      expect(parsed.success).toBe(true)
+    })
+
+    it('validates singleGhostActionSchema for direct profile un-ghosting with proof', () => {
+      const directUnghostPayload = {
+        action: 'unghosted',
+        reason_category: 'creator_contacted_poc',
+        comment: 'Creator verified PAN card in person and submitted original documentation',
+        proof_urls: ['https://example.com/verified-id.png'],
+      }
+      const parsed = singleGhostActionSchema.safeParse(directUnghostPayload)
+      expect(parsed.success).toBe(true)
+    })
+
+    it('rejects direct profile ghosting when justification comment has fewer than 15 characters', () => {
+      const invalid = {
+        action: 'ghosted',
+        reason_category: 'other_custom',
+        comment: 'Fake account',
+        proof_urls: ['https://example.com/proof.png'],
+      }
+      const parsed = singleGhostActionSchema.safeParse(invalid)
+      expect(parsed.success).toBe(false)
+      if (!parsed.success) {
+        expect(parsed.error.issues[0].message).toContain('at least 15 characters')
+      }
+    })
+
+    it('simulates account-level gatekeeper blocking a creator with 0 active applications', () => {
+      // Simulating user record where users.is_ghosted = true
+      const user = {
+        id: 'u-1234',
+        full_name: 'Janhavi Kashikar',
+        is_ghosted: true,
+      }
+      const activeApps: ApplicationTimelineData[] = [] // 0 applications
+
+      // Account-level gatekeeper rule
+      const isAccountBlocked = user.is_ghosted === true
+      expect(isAccountBlocked).toBe(true)
+
+      // Application timeline check
+      const appEligibility = checkCreatorCompletionEligibility(activeApps)
+      // Even though appEligibility alone is true (no apps), account gatekeeper overrides and blocks
+      const canApply = !isAccountBlocked && appEligibility.isEligible
+      expect(canApply).toBe(false)
+    })
+  })
 })

@@ -204,7 +204,7 @@ export function GhostHistoryModal({
                           {/* Remarks / Comment */}
                           <div className="mt-2.5 p-3 rounded-lg bg-black/40 border border-white/5">
                             <p className="text-xs text-slate-300 leading-relaxed italic">
-                              "{event.comment}"
+                              &ldquo;{event.comment}&rdquo;
                             </p>
                           </div>
 

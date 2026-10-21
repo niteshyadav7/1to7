@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
               a.id as application_id,
               a.user_id,
               a.campaign_id,
-              a.status as application_status,
+              a.status::text as application_status,
               a.is_ghosted,
               a.ghosted_at,
               a.created_at as applied_at,
