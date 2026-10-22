@@ -583,7 +583,7 @@ function AddressConfirmationContent() {
   const isAlreadyConfirmed = applicationData?.address_confirmed || isSuccess
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4 pb-12">
+    <div className="w-full space-y-4 pb-12">
       {/* Top Header Card */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-2xs">
         <div className="flex items-center gap-3">
