@@ -57,6 +57,67 @@ interface AddressEntry {
 
 const pageSizes = [10, 25, 50, 100]
 
+function AddressSkeletonRow() {
+  return (
+    <tr className="border-b border-white/5 animate-pulse">
+      {/* Creator Profile */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="flex items-start gap-2.5">
+          <div className="h-8 w-8 rounded-full bg-slate-800 shrink-0 shimmer" />
+          <div className="space-y-1.5 pt-0.5">
+            <div className="h-3.5 w-28 rounded bg-slate-800 shimmer" />
+            <div className="h-2.5 w-16 rounded bg-slate-800/60 shimmer" />
+            <div className="h-2.5 w-24 rounded bg-slate-800/40 shimmer" />
+          </div>
+        </div>
+      </td>
+
+      {/* Campaign */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="space-y-1.5">
+          <div className="h-3.5 w-24 rounded bg-slate-800 shimmer" />
+          <div className="h-4 w-20 rounded bg-slate-800/80 border border-white/5 shimmer" />
+          <div className="h-2.5 w-16 rounded bg-slate-800/40 shimmer" />
+        </div>
+      </td>
+
+      {/* Delivery Address */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="space-y-1.5 max-w-[320px]">
+          <div className="h-3.5 w-36 rounded bg-slate-800 shimmer" />
+          <div className="h-3 w-56 rounded bg-slate-800/70 shimmer" />
+          <div className="h-3 w-40 rounded bg-slate-800/50 shimmer" />
+          <div className="flex gap-1.5 pt-1">
+            <div className="h-4 w-20 rounded bg-slate-800/60 shimmer" />
+            <div className="h-4 w-24 rounded bg-slate-800/60 shimmer" />
+          </div>
+        </div>
+      </td>
+
+      {/* Contact Phone */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="space-y-1.5">
+          <div className="h-3.5 w-28 rounded bg-slate-800 shimmer" />
+          <div className="h-2.5 w-20 rounded bg-slate-800/50 shimmer" />
+        </div>
+      </td>
+
+      {/* Status */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="h-6 w-24 rounded-full bg-slate-800/80 border border-white/5 shimmer" />
+      </td>
+
+      {/* Verification Action */}
+      <td className="py-3.5 px-4 align-top text-right">
+        <div className="flex items-center justify-end gap-1.5">
+          <div className="h-8 w-16 rounded-lg bg-slate-800 shimmer" />
+          <div className="h-8 w-16 rounded-lg bg-slate-800/60 shimmer" />
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export default function AdminAddressConfirmationPage() {
   const [entries, setEntries] = useState<AddressEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -361,7 +422,9 @@ export default function AdminAddressConfirmationPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Total Tracked</span>
             <Package className="h-4 w-4 text-indigo-400" />
           </div>
-          <p className="text-2xl font-bold text-white">{metrics.total}</p>
+          <p className="text-2xl font-bold text-white">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.total}
+          </p>
           <p className="text-[11px] text-slate-400 mt-1">Barter campaigns</p>
         </div>
 
@@ -370,7 +433,9 @@ export default function AdminAddressConfirmationPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Pending Review</span>
             <Clock className="h-4 w-4 text-amber-400" />
           </div>
-          <p className="text-2xl font-bold text-amber-300">{metrics.pending}</p>
+          <p className="text-2xl font-bold text-amber-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.pending}
+          </p>
           <p className="text-[11px] text-amber-300/70 mt-1">Needs verification</p>
         </div>
 
@@ -379,7 +444,9 @@ export default function AdminAddressConfirmationPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Verified / Approved</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           </div>
-          <p className="text-2xl font-bold text-emerald-300">{metrics.approved}</p>
+          <p className="text-2xl font-bold text-emerald-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.approved}
+          </p>
           <p className="text-[11px] text-emerald-300/70 mt-1">Ready for courier dispatch</p>
         </div>
 
@@ -388,7 +455,9 @@ export default function AdminAddressConfirmationPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Changes Requested</span>
             <XCircle className="h-4 w-4 text-rose-400" />
           </div>
-          <p className="text-2xl font-bold text-rose-300">{metrics.rejected}</p>
+          <p className="text-2xl font-bold text-rose-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.rejected}
+          </p>
           <p className="text-[11px] text-rose-300/70 mt-1">Creator asked to update</p>
         </div>
       </div>
@@ -459,7 +528,7 @@ export default function AdminAddressConfirmationPage() {
               >
                 {tab === 'All' ? 'All Submissions' : tab === 'Pending' ? 'Pending Verification' : tab === 'Approved' ? 'Verified / Approved' : 'Rejected'}
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-emerald-500/30 text-emerald-200' : 'bg-white/10 text-slate-400'}`}>
-                  {count}
+                  {loading ? <span className="inline-block w-4 h-2 rounded bg-white/20 shimmer align-middle" /> : count}
                 </span>
               </button>
             )
@@ -470,9 +539,24 @@ export default function AdminAddressConfirmationPage() {
       {/* Address Table */}
       <div className="rounded-2xl border border-white/5 bg-slate-900/60 overflow-hidden backdrop-blur-lg">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-            <p className="text-xs font-semibold">Loading address confirmation entries...</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Creator Profile</th>
+                  <th className="py-3 px-4">Campaign</th>
+                  <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
+                  <th className="py-3 px-4">Contact Phone</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Verification Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <AddressSkeletonRow key={i} />
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400 text-center px-4">
