@@ -188,6 +188,21 @@ export default function ProfilePage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [direction, setDirection] = useState(0)
 
+  // Auto-navigate to step if query parameter is provided (e.g. ?tab=address or ?step=2)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search)
+      const stepParam = sp.get('step') || sp.get('tab')
+      if (stepParam === '2' || stepParam === 'address') {
+        setCurrentStep(2)
+      } else if (stepParam === '3' || stepParam === 'payout') {
+        setCurrentStep(3)
+      } else if (stepParam === '4' || stepParam === 'instagram') {
+        setCurrentStep(4)
+      }
+    }
+  }, [])
+
   const isInitialLoaded = useRef(false)
   const lastSavedPayload = useRef<string>('')
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -1198,6 +1213,11 @@ export default function ProfilePage() {
                   >
                     <span className="sm:hidden">{step.shortTitle.replace(/^\d+\.\s*/, '')}</span>
                     <span className="hidden sm:inline">{step.title}</span>
+                    {step.id === 2 && (formData.shipping_addresses || []).length > 0 && (
+                      <span className="ml-1 text-[9px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold inline-block">
+                        {(formData.shipping_addresses || []).length}
+                      </span>
+                    )}
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium hidden md:block truncate">{step.subtitle}</p>
                 </div>
@@ -1677,7 +1697,89 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Captured Campaign Attributes Box (only displays truly custom campaign-specific questions) */}
+                  {/* Delivery Address & Courier Logistics Card */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50/60 via-teal-50/40 to-indigo-50/40 border border-emerald-200/90 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-emerald-600" />
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          Primary Delivery Location & Courier Logistics
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => goToStep(2)}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        {(formData.shipping_addresses || []).length > 0 ? (
+                          <>Manage All Addresses ({(formData.shipping_addresses || []).length} Saved) →</>
+                        ) : (
+                          <>+ Add Delivery Address →</>
+                        )}
+                      </button>
+                    </div>
+
+                    {(() => {
+                      const addrs = formData.shipping_addresses || []
+                      const primary = addrs.find((a: any) => a.is_default) || addrs[0]
+
+                      if (primary) {
+                        return (
+                          <div className="p-3 bg-white/95 rounded-xl border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-xs text-slate-900">
+                                  {primary.recipient_name || (primary as any).name || formData.full_name}
+                                </span>
+                                {primary.title && (
+                                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                    {primary.title}
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Default for Barter Dispatch
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-700 line-clamp-1">
+                                {primary.address_line1} {primary.address_line2 ? `, ${primary.address_line2}` : ''}
+                                {primary.landmark ? ` (Near ${primary.landmark})` : ''}
+                              </p>
+                              <p className="text-[11px] font-medium text-slate-500">
+                                {primary.city}, {primary.state} — <span className="font-mono font-bold text-slate-800">{primary.pincode}</span>{primary.mobile || authUser?.mobile ? ` • Contact: ${primary.mobile || authUser?.mobile}` : ''}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => goToStep(2)}
+                              className="h-8 text-xs font-semibold text-slate-700 hover:text-emerald-700 border-slate-200 bg-white hover:bg-emerald-50/50 shrink-0 cursor-pointer shadow-2xs"
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-1 text-slate-400" /> Edit Address
+                            </Button>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2 text-xs text-amber-900">
+                            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                            <span>No delivery address saved yet. Brands require a shipping address to send barter products.</span>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => goToStep(2)}
+                            className="h-8 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shrink-0 cursor-pointer shadow-xs"
+                          >
+                            + Add Address Now
+                          </Button>
+                        </div>
+                      )
+                    })()}
+                  </div>
+
                   {(() => {
                     const extraCustomEntries = Object.entries(formData.custom_attributes || {}).filter(([slug, item]) => {
                       const itemObj = typeof item === 'object' && item !== null ? (item as any) : null

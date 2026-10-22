@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   MessageSquareHeart,
   Download,
+  MapPin,
 } from 'lucide-react'
 import FeedbackModal from '@/components/modals/FeedbackModal'
 import NotificationBell from '@/components/ui/NotificationBell'
@@ -39,6 +40,7 @@ import {
 const sidebarLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/campaigns', label: 'Applied', icon: Send },
+  { href: '/dashboard/address-confirmation', label: 'Address Confirmation', icon: MapPin },
   { href: '/dashboard/approved', label: 'Approved', icon: CheckCircle2 },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
   { href: '/dashboard/feedback', label: 'Feedback', icon: MessageSquareHeart },
@@ -50,6 +52,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isInstallable, isInstalled, installApp } = usePwa()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [pendingAddressCount, setPendingAddressCount] = useState(0)
+
+  // Fetch pending address count for creator
+  useEffect(() => {
+    if (!user) return
+    const checkPendingAddresses = async () => {
+      try {
+        const res = await fetch('/api/dashboard/applications')
+        const data = await res.json()
+        const apps = data.applications || []
+        const pending = apps.filter((a: any) => {
+          const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+          return needsAddress && !a.form_data?.address_confirmed
+        }).length
+        setPendingAddressCount(pending)
+      } catch { /* ignore */ }
+    }
+    checkPendingAddresses()
+  }, [user])
 
   // Load saved sidebar collapse preference
   useEffect(() => {
@@ -119,23 +140,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Nav Links */}
         <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
           {sidebarLinks.map((link) => {
-            const isActive = pathname === link.href
+            const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(link.href))
+            const isAddressLink = link.href === '/dashboard/address-confirmation'
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 prefetch={true}
                 onClick={() => setSidebarOpen(false)}
-                title={isCollapsed ? link.label : undefined}
+                title={isCollapsed ? (isAddressLink && pendingAddressCount > 0 ? `${link.label} (${pendingAddressCount} Action Required)` : link.label) : undefined}
                 className={`flex items-center ${isCollapsed ? 'lg:justify-center lg:px-0' : 'gap-3 px-3.5'} rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 group cursor-pointer border ${
                   isActive
                     ? 'bg-primary-container text-black border-primary-container/30 shadow-sm'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white border-transparent'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-black' : 'text-slate-400 group-hover:text-white'}`} />
+                <div className="relative shrink-0">
+                  <link.icon className={`h-4.5 w-4.5 ${isActive ? 'text-black' : 'text-slate-400 group-hover:text-white'}`} />
+                  {isCollapsed && isAddressLink && pendingAddressCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                </div>
                 {!isCollapsed && <span>{link.label}</span>}
-                {!isCollapsed && isActive && <ChevronRight className="ml-auto h-4 w-4 text-black shrink-0" />}
+                {!isCollapsed && isAddressLink && pendingAddressCount > 0 && (
+                  <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-500 text-black animate-pulse shadow-xs">
+                    {pendingAddressCount}
+                  </span>
+                )}
+                {!isCollapsed && isActive && (!isAddressLink || pendingAddressCount === 0) && (
+                  <ChevronRight className="ml-auto h-4 w-4 text-black shrink-0" />
+                )}
               </Link>
             )
           })}

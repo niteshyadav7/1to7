@@ -6,7 +6,7 @@ import { usePathname, useParams, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Send, CheckCircle2, User, ChevronRight, ChevronLeft,
   PanelLeft, MessageSquareHeart, ArrowLeft, Loader2, Menu, LogOut, Sparkles,
-  Eye, ShieldCheck
+  Eye, ShieldCheck, MapPin
 } from 'lucide-react'
 import Logo from '@/components/ui/Logo'
 
@@ -35,6 +35,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
   const sidebarLinks = [
     { href: basePath, label: 'Overview', icon: LayoutDashboard },
     { href: `${basePath}/applied`, label: 'Applied', icon: Send },
+    { href: `${basePath}/profile?step=2`, label: 'Address Confirmation', icon: MapPin },
     { href: `${basePath}/approved`, label: 'Approved', icon: CheckCircle2 },
     { href: `${basePath}/profile`, label: 'Profile', icon: User },
     { href: `${basePath}/feedback`, label: 'Feedback', icon: MessageSquareHeart },
@@ -83,6 +84,16 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
 
   const isActive = (href: string) => {
     if (href === basePath) return pathname === basePath
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search)
+      const step = sp.get('step')
+      if (href.includes('?step=2')) {
+        return pathname === `${basePath}/profile` && step === '2'
+      }
+      if (href === `${basePath}/profile`) {
+        return pathname === `${basePath}/profile` && step !== '2'
+      }
+    }
     return pathname.startsWith(href)
   }
 

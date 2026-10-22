@@ -104,7 +104,7 @@ export default function AppliedCampaignsPage() {
   }
 
   const isActionRequiredApp = (app: Application) => {
-    if (app.status === 'Approved') {
+    if (app.status === 'Approved' || app.status === 'Under Process' || app.status === 'Applied') {
       return isMissingAddress(app) || isMissingOrderForm(app)
     }
     return false
@@ -120,7 +120,7 @@ export default function AppliedCampaignsPage() {
     // For campaigns with order forms: keep in Applied until order_details are approved by admin
     if (app.campaigns?.order_form && !app.form_data?.order_details_approved) return true
     // For campaigns requiring delivery address: keep in Applied until address is confirmed/approved
-    if (app.campaigns?.address_required && !app.form_data?.address_confirmed) return true
+    if ((app.campaigns?.address_required || app.campaigns?.order_form) && !app.form_data?.address_confirmed) return true
     return false
   })
 

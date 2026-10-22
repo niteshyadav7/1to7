@@ -367,6 +367,21 @@ export default function AdminVirtualProfileEditPage() {
     fetchProfile()
   }, [userId])
 
+  // Support direct deep links e.g. /profile?step=2 or ?tab=address
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search)
+      const stepParam = sp.get('step') || sp.get('tab')
+      if (stepParam === '2' || stepParam === 'address' || stepParam === 'shipping') {
+        setCurrentStep(2)
+      } else if (stepParam === '3' || stepParam === 'bank' || stepParam === 'payout') {
+        setCurrentStep(3)
+      } else if (stepParam === '4' || stepParam === 'instagram') {
+        setCurrentStep(4)
+      }
+    }
+  }, [])
+
   // Core save handler via Admin Gateway PUT (Super Admin only)
   const performSave = async (dataToSave = formData, isAutoSave = false) => {
     if (!userId) return
@@ -1003,6 +1018,11 @@ export default function AdminVirtualProfileEditPage() {
                   >
                     <span className="sm:hidden">{step.shortTitle.replace(/^\d+\.\s*/, '')}</span>
                     <span className="hidden sm:inline">{step.title}</span>
+                    {step.id === 2 && Array.isArray(formData.shipping_addresses) && formData.shipping_addresses.length > 0 && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700">
+                        {formData.shipping_addresses.length} Saved
+                      </span>
+                    )}
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium hidden md:block">
                     {step.subtitle}
@@ -1078,6 +1098,7 @@ export default function AdminVirtualProfileEditPage() {
                   toggleCategory={toggleCategory}
                   selectedLanguages={selectedLanguages}
                   toggleLanguage={toggleLanguage}
+                  onGoToAddresses={() => goToStep(2)}
                 />
               )}
 

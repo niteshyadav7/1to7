@@ -16,6 +16,7 @@ import {
   Languages,
   ShieldCheck,
   Lock,
+  MapPin,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,6 +40,7 @@ interface Step1PersonalDetailsProps {
   toggleCategory: (cat: string) => void
   selectedLanguages: string[]
   toggleLanguage: (lang: string) => void
+  onGoToAddresses?: () => void
 }
 
 export const Step1PersonalDetails: React.FC<Step1PersonalDetailsProps> = ({
@@ -56,6 +58,7 @@ export const Step1PersonalDetails: React.FC<Step1PersonalDetailsProps> = ({
   toggleCategory,
   selectedLanguages,
   toggleLanguage,
+  onGoToAddresses,
 }) => {
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
@@ -597,6 +600,53 @@ export const Step1PersonalDetails: React.FC<Step1PersonalDetailsProps> = ({
             />
           </div>
         </div>
+
+        {/* Primary Delivery Address Glance Card */}
+        {(() => {
+          const primaryAddr = (formData.shipping_addresses || []).find((a: any) => a.is_default) || (formData.shipping_addresses || [])[0]
+          return (
+            <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 shrink-0 mt-0.5">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">Primary Delivery Location</span>
+                    {primaryAddr ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        {primaryAddr.title || 'Saved'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        None Configured
+                      </span>
+                    )}
+                  </div>
+                  {primaryAddr ? (
+                    <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-1">
+                      {primaryAddr.address_line1}, {primaryAddr.city}, {primaryAddr.state} - {primaryAddr.pincode}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      No shipping address saved yet. Brands need this for barter product dispatches.
+                    </p>
+                  )}
+                </div>
+              </div>
+              {onGoToAddresses && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onGoToAddresses}
+                  className="h-8 text-xs font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0 self-start sm:self-auto cursor-pointer"
+                >
+                  {primaryAddr ? 'Manage Addresses (Step 2) →' : '+ Add Address (Step 2) →'}
+                </Button>
+              )}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

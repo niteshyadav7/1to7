@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, CheckCircle2, AlertCircle, ArrowLeft, Loader2,
   Phone, User, Home, Building2, Sparkles, ShieldCheck,
-  Check, Edit3, Plus, ArrowRight, Package, Clock
+  Check, Edit3, Plus, ArrowRight, Package, Clock, Truck
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
@@ -26,6 +26,8 @@ function AddressConfirmationContent() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [applicationData, setApplicationData] = useState<any>(null)
+  const [hubApplications, setHubApplications] = useState<any[]>([])
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -59,50 +61,78 @@ function AddressConfirmationContent() {
     }
   }, [authLoading, user, router])
 
-  // Fetch application & address data
+  // Fetch application & address data (Single mode or Hub mode)
   useEffect(() => {
-    if (!appId || !user) return
+    if (!user) return
 
-    const fetchAppAddress = async () => {
+    const fetchData = async () => {
       setLoading(true)
       setErrorMsg(null)
       try {
-        const res = await fetch(`/api/dashboard/applications/${appId}/address`)
-        const data = await res.json()
+        if (appId) {
+          // Single Campaign Address Mode
+          const res = await fetch(`/api/dashboard/applications/${appId}/address`)
+          const data = await res.json()
 
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load application details')
-        }
-
-        setApplicationData(data.application)
-
-        // Load dynamic campaign order fields & pre-existing answers
-        const rawCampFields = data.application?.campaign?.order_form_fields || []
-        setCampaignOrderFields(Array.isArray(rawCampFields) ? rawCampFields : [])
-        setOrderDetails(data.application?.order_details || {})
-
-        const addr = data.application?.current_address
-        if (addr) {
-          setRecipientName(addr.recipient_name || addr.name || data.application.creator?.full_name || '')
-          setMobile(addr.mobile || data.application.creator?.mobile || '')
-          setAltMobile(addr.alt_mobile || '')
-          setAddressLine1(addr.address_line1 || '')
-          setAddressLine2(addr.address_line2 || '')
-          setLandmark(addr.landmark || '')
-          setSelectedState(addr.state || '')
-          setSelectedCity(addr.city || '')
-          setPincode(addr.pincode || '')
-          setDeliveryRemarks(addr.delivery_remarks || addr.delivery_notes || '')
-          if (addr.title || addr.address_type) {
-            const t = (addr.title || addr.address_type || '').toLowerCase()
-            setAddressType(t === 'office' ? 'Office' : t === 'other' ? 'Other' : 'Home')
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to load application details')
           }
-          setIsEditing(false)
+
+          setApplicationData(data.application)
+
+          // Load dynamic campaign order fields & pre-existing answers
+          const rawCampFields = data.application?.campaign?.order_form_fields || []
+          setCampaignOrderFields(Array.isArray(rawCampFields) ? rawCampFields : [])
+          setOrderDetails(data.application?.order_details || {})
+
+          const addr = data.application?.current_address
+          if (addr) {
+            setRecipientName(addr.recipient_name || addr.name || data.application.creator?.full_name || '')
+            setMobile(addr.mobile || data.application.creator?.mobile || '')
+            setAltMobile(addr.alt_mobile || '')
+            setAddressLine1(addr.address_line1 || '')
+            setAddressLine2(addr.address_line2 || '')
+            setLandmark(addr.landmark || '')
+            setSelectedState(addr.state || '')
+            setSelectedCity(addr.city || '')
+            setPincode(addr.pincode || '')
+            setDeliveryRemarks(addr.delivery_remarks || addr.delivery_notes || '')
+            if (addr.title || addr.address_type) {
+              const t = (addr.title || addr.address_type || '').toLowerCase()
+              setAddressType(t === 'office' ? 'Office' : t === 'other' ? 'Other' : 'Home')
+            }
+            setIsEditing(false)
+          } else {
+            // New address needed
+            setRecipientName(data.application?.creator?.full_name || user.full_name || '')
+            setMobile(data.application?.creator?.mobile || user.mobile || '')
+            setIsEditing(true)
+          }
         } else {
-          // New address needed
-          setRecipientName(data.application?.creator?.full_name || user.full_name || '')
-          setMobile(data.application?.creator?.mobile || user.mobile || '')
-          setIsEditing(true)
+          // Hub Mode: Fetch user's applications & saved profile shipping addresses
+          const [appsRes, profileRes] = await Promise.all([
+            fetch('/api/dashboard/applications'),
+            fetch('/api/dashboard/profile').catch(() => null)
+          ])
+
+          const appsData = await appsRes.json()
+          if (!appsRes.ok) {
+            throw new Error(appsData.error || 'Failed to load applications')
+          }
+
+          setHubApplications(appsData.applications || [])
+
+          if (profileRes && profileRes.ok) {
+            const pData = await profileRes.json()
+            const u = pData.user
+            let addrs: any[] = []
+            if (Array.isArray(u?.shipping_addresses) && u.shipping_addresses.length > 0) {
+              addrs = u.shipping_addresses
+            } else if (u?.shipping_address && (u.shipping_address.address_line1 || u.shipping_address.street_address)) {
+              addrs = [u.shipping_address]
+            }
+            setSavedAddresses(addrs)
+          }
         }
       } catch (err: any) {
         console.error(err)
@@ -112,7 +142,7 @@ function AddressConfirmationContent() {
       }
     }
 
-    fetchAppAddress()
+    fetchData()
   }, [appId, user])
 
   // Handle Submission
@@ -255,6 +285,282 @@ function AddressConfirmationContent() {
     )
   }
 
+  // Hub Mode View (When user visits /dashboard/address-confirmation directly from sidebar)
+  if (!appId) {
+    const pendingApps = hubApplications.filter((a: any) => {
+      const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+      return needsAddress && !a.form_data?.address_confirmed
+    })
+
+    const confirmedApps = hubApplications.filter((a: any) => {
+      const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+      return needsAddress && Boolean(a.form_data?.address_confirmed)
+    })
+
+    const primarySaved = savedAddresses.find((a: any) => a.is_default) || savedAddresses[0]
+
+    return (
+      <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
+        {/* Header Bar */}
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/dashboard/campaigns">
+            <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer">
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to Collaborations</span>
+            </button>
+          </Link>
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 flex items-center gap-1">
+            <ShieldCheck className="h-3 w-3" />
+            Courier & Dispatch Verification
+          </span>
+        </div>
+
+        {/* Hero Card */}
+        <div className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-slate-950 p-6 sm:p-8 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
+                Logistics & Dispatch Desk
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1.5">
+                Address Confirmation Hub
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-xl mt-1 leading-relaxed">
+                Confirm delivery locations and courier specifications for your barter product collaborations. Brands require verified addresses before shipping products.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="p-3 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 shrink-0">
+                <Truck className="h-6 w-6" />
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="mt-6 pt-4 border-t border-white/5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-3 rounded-2xl bg-slate-950/40 border border-white/5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Pending Confirmation</span>
+              <span className={`text-xl font-black mt-0.5 block ${pendingApps.length > 0 ? 'text-amber-400 animate-pulse' : 'text-slate-300'}`}>
+                {pendingApps.length} Action Needed
+              </span>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-950/40 border border-white/5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Confirmed Shipments</span>
+              <span className="text-xl font-black text-emerald-400 mt-0.5 block">
+                {confirmedApps.length} Locked
+              </span>
+            </div>
+            <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-slate-950/40 border border-white/5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Profile Saved Addresses</span>
+              <span className="text-xl font-black text-indigo-400 mt-0.5 block">
+                {savedAddresses.length} Available
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 1: Pending Confirmations (Priority Alert) */}
+        {pendingApps.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                <h2 className="text-sm font-extrabold text-amber-300 uppercase tracking-wider">
+                  Action Required — Confirm Delivery Address ({pendingApps.length})
+                </h2>
+              </div>
+              <span className="text-[11px] text-amber-400/80 font-medium hidden sm:inline">
+                Brands are waiting to dispatch packages
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {pendingApps.map((app: any) => {
+                const c = app.campaigns || {}
+                return (
+                  <div
+                    key={app.id}
+                    className="rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-slate-900/90 to-slate-950 p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Awaiting Address
+                        </span>
+                        <span className="text-xs font-mono text-slate-400">
+                          {c.campaign_code || 'CAM'}
+                        </span>
+                        {c.platform && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white/5 text-slate-300">
+                            {c.platform}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-bold text-white truncate">
+                        {c.brand_name || 'Brand Collaboration'}
+                      </h3>
+                      {c.deliverables && (
+                        <p className="text-xs text-slate-300 line-clamp-1">
+                          <span className="text-slate-500">Deliverable:</span> {c.deliverables}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <Link href={`/dashboard/address-confirmation?id=${app.id}`}>
+                        <Button className="h-10 px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/20 cursor-pointer">
+                          Confirm Address Now <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Section 2: Confirmed Shipments */}
+        {confirmedApps.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                Confirmed Deliveries ({confirmedApps.length})
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {confirmedApps.map((app: any) => {
+                const c = app.campaigns || {}
+                const addr = app.form_data?.shipping_address || app.form_data?.address || {}
+                return (
+                  <div
+                    key={app.id}
+                    className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 space-y-3 backdrop-blur-xl"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-mono text-slate-400">{c.campaign_code}</span>
+                        <h4 className="text-sm font-bold text-white truncate">{c.brand_name}</h4>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0">
+                        ✓ Confirmed
+                      </span>
+                    </div>
+
+                    {addr.address_line1 && (
+                      <div className="text-xs text-slate-300 bg-slate-950/40 p-2.5 rounded-xl border border-white/5 space-y-0.5">
+                        <p className="font-semibold text-white">{addr.recipient_name || addr.name || 'Recipient'}</p>
+                        <p className="text-slate-400 truncate">{addr.address_line1}</p>
+                        <p className="text-indigo-300 text-[11px] font-medium">{addr.city}, {addr.state} - {addr.pincode}</p>
+                      </div>
+                    )}
+
+                    <div className="pt-1 flex items-center justify-end">
+                      <Link href={`/dashboard/address-confirmation?id=${app.id}`}>
+                        <Button variant="ghost" className="h-8 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg">
+                          <Edit3 className="h-3 w-3 mr-1.5" />
+                          Review / Update
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Section 3: Primary Saved Profile Address */}
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 space-y-4 shadow-xl backdrop-blur-xl">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-indigo-400" />
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                Saved Profile Delivery Addresses
+              </h3>
+            </div>
+            <Link href="/dashboard/profile?step=2">
+              <Button variant="outline" className="h-8 text-xs font-bold border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/15 rounded-xl cursor-pointer">
+                <Edit3 className="h-3 w-3 mr-1.5" />
+                Manage in Profile (Step 2)
+              </Button>
+            </Link>
+          </div>
+
+          {primarySaved ? (
+            <div className="rounded-2xl bg-slate-950/60 border border-white/5 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white">{primarySaved.recipient_name || primarySaved.name || user?.full_name}</span>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {primarySaved.title || 'Default'}
+                  </span>
+                </div>
+                {primarySaved.mobile && (
+                  <span className="text-xs text-slate-400 font-mono">+91 {primarySaved.mobile}</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300">
+                {primarySaved.address_line1 || primarySaved.street_address}
+                {primarySaved.address_line2 ? `, ${primarySaved.address_line2}` : ''}
+                {primarySaved.landmark ? `, Near ${primarySaved.landmark}` : ''}
+              </p>
+              <p className="text-xs font-semibold text-indigo-300">
+                {primarySaved.city}, {primarySaved.state} — <span className="font-mono text-emerald-400">{primarySaved.pincode || primarySaved.postal_code}</span>
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center space-y-3">
+              <div className="w-10 h-10 rounded-full bg-white/5 text-slate-400 flex items-center justify-center mx-auto">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <p className="text-xs text-slate-300">
+                No delivery address saved in your profile yet.
+              </p>
+              <Link href="/dashboard/profile?step=2">
+                <Button className="h-8 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl">
+                  Add Delivery Address Now
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Empty State when no campaigns need delivery */}
+        {pendingApps.length === 0 && confirmedApps.length === 0 && (
+          <div className="rounded-3xl border border-white/10 bg-slate-900/40 p-8 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto">
+              <Package className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">No Physical Deliveries Pending</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+                You do not have any barter collaborations awaiting product dispatch confirmation right now. Your default profile delivery location is saved and ready for upcoming collaborations.
+              </p>
+            </div>
+            <div className="pt-2 flex items-center justify-center gap-3">
+              <Link href="/dashboard/campaigns">
+                <Button className="h-9 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl px-5">
+                  View Collaborations
+                </Button>
+              </Link>
+              <Link href="/dashboard/profile?step=2">
+                <Button variant="outline" className="h-9 border-white/10 text-slate-300 text-xs rounded-xl">
+                  Edit Delivery Profile
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const campaign = applicationData?.campaign || {}
   const isAlreadyConfirmed = applicationData?.address_confirmed || isSuccess
 
@@ -262,10 +568,10 @@ function AddressConfirmationContent() {
     <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
       {/* Header Bar */}
       <div className="flex items-center justify-between gap-4">
-        <Link href="/dashboard/campaigns">
+        <Link href="/dashboard/address-confirmation">
           <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer">
             <ArrowLeft className="h-4 w-4" />
-            <span>My Collaborations</span>
+            <span>All Delivery Requests</span>
           </button>
         </Link>
         <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 flex items-center gap-1">
@@ -318,16 +624,21 @@ function AddressConfirmationContent() {
           <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
             The brand team has received your confirmed delivery address. Your barter package will be packed and dispatched for delivery.
           </p>
-          <div className="pt-2 flex items-center justify-center gap-3">
-            <Link href="/dashboard/campaigns">
+          <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
+            <Link href="/dashboard/address-confirmation">
               <Button className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl px-5">
+                Delivery Hub
+              </Button>
+            </Link>
+            <Link href="/dashboard/campaigns">
+              <Button variant="outline" className="border-white/10 text-slate-300 text-xs rounded-xl">
                 View My Campaigns
               </Button>
             </Link>
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setIsSuccess(false)}
-              className="border-white/10 text-slate-300 text-xs rounded-xl"
+              className="text-slate-400 hover:text-white text-xs rounded-xl"
             >
               Review Address
             </Button>
