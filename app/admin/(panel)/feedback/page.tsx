@@ -444,9 +444,10 @@ export default function AdminFeedbackPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User & Rating</th>
-                    <th className="px-5 py-3.5">Category</th>
-                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">User / Creator</th>
+                    <th className="px-4 py-3.5">Rating</th>
+                    <th className="px-4 py-3.5">Category</th>
+                    <th className="px-4 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Suggestion / Message</th>
                     <th className="px-5 py-3.5 text-right">Action</th>
                   </tr>
@@ -456,15 +457,23 @@ export default function AdminFeedbackPage() {
                     <tr key={idx} className="animate-pulse border-b border-slate-800/60">
                       <td className="px-5 py-4">
                         <div className="space-y-1.5">
-                          <div className="w-32 h-3.5 rounded bg-slate-800" />
-                          <div className="w-24 h-2.5 rounded bg-slate-800/60" />
-                          <div className="w-20 h-2 rounded bg-slate-800/40" />
+                          <div className="w-28 h-3.5 rounded bg-slate-800" />
+                          <div className="w-36 h-2.5 rounded bg-slate-800/60" />
+                          <div className="w-24 h-2 rounded bg-slate-800/40" />
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map(s => (
+                            <div key={s} className="w-3 h-3 rounded bg-slate-800" />
+                          ))}
+                        </div>
+                        <div className="w-8 h-2 rounded bg-slate-800/60 mt-1" />
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="w-24 h-5 rounded-md bg-slate-800" />
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-4">
                         <div className="w-16 h-5 rounded-full bg-slate-800" />
                       </td>
                       <td className="px-5 py-4">
@@ -496,9 +505,10 @@ export default function AdminFeedbackPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User & Rating</th>
-                    <th className="px-5 py-3.5">Category</th>
-                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">User / Creator</th>
+                    <th className="px-4 py-3.5">Rating</th>
+                    <th className="px-4 py-3.5">Category</th>
+                    <th className="px-4 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Suggestion / Message</th>
                     <th className="px-5 py-3.5 text-right">Action</th>
                   </tr>
@@ -514,21 +524,14 @@ export default function AdminFeedbackPage() {
                           isResolved ? 'hover:bg-slate-800/30 opacity-80 hover:opacity-100' : 'hover:bg-slate-800/50 bg-amber-500/[0.01]'
                         }`}
                       >
-                        {/* Column 1: Merged User, Rating, Date & Email */}
+                        {/* Column 1: User / Creator + Date & Email */}
                         <td className="px-5 py-3.5 align-top">
                           <div className="space-y-1">
-                            {/* Creator Name & Rating Badge */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-white text-sm">
-                                {item.full_name || 'Anonymous Creator'}
-                              </span>
-                              <div className="flex items-center gap-1 bg-amber-400/10 border border-amber-400/25 px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-400 shrink-0">
-                                <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
-                                <span>{item.rating}/5</span>
-                              </div>
-                            </div>
+                            <span className="font-bold text-white text-sm block">
+                              {item.full_name || 'Anonymous Creator'}
+                            </span>
 
-                            {/* Influencer ID & Date in smaller font */}
+                            {/* Influencer ID & Date merged in smaller text */}
                             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium flex-wrap">
                               <span className="font-mono text-amber-400 font-semibold">{item.influencer_id || 'No ID'}</span>
                               <span className="text-slate-600">•</span>
@@ -552,15 +555,34 @@ export default function AdminFeedbackPage() {
                           </div>
                         </td>
 
-                        {/* Column 2: Category */}
-                        <td className="px-5 py-3.5 align-top whitespace-nowrap">
+                        {/* Column 2: Compact Rating Stars */}
+                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`h-3 w-3 ${
+                                  star <= item.rating
+                                    ? 'text-amber-400 fill-amber-400'
+                                    : 'text-slate-700'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 mt-1 block">
+                            {item.rating} / 5
+                          </span>
+                        </td>
+
+                        {/* Column 3: Category */}
+                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
                           <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
                             {item.category}
                           </span>
                         </td>
 
-                        {/* Column 3: Status */}
-                        <td className="px-5 py-3.5 align-top whitespace-nowrap">
+                        {/* Column 4: Status */}
+                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
                           {isResolved ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                               <CheckCircle2 className="h-3 w-3" /> Resolved
@@ -573,7 +595,7 @@ export default function AdminFeedbackPage() {
                           )}
                         </td>
 
-                        {/* Column 4: Suggestion / Message */}
+                        {/* Column 5: Suggestion / Message */}
                         <td className="px-5 py-3.5 align-top">
                           <p className="text-slate-300 font-medium line-clamp-2 leading-relaxed">
                             "{item.message}"
@@ -585,7 +607,7 @@ export default function AdminFeedbackPage() {
                           )}
                         </td>
 
-                        {/* Column 5: Action */}
+                        {/* Column 6: Action */}
                         <td className="px-5 py-3.5 text-right align-top whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             {isResolved ? (
