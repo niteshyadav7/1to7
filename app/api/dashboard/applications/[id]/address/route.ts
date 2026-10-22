@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { getAdminFromRequest } from '@/lib/admin-auth'
 
 export async function GET(
   request: Request,
@@ -11,14 +12,18 @@ export async function GET(
     const { id } = await params
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
+    const admin = await getAdminFromRequest()
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized. Please login.' }, { status: 401 })
+    let requestingUserId: string | null = null
+    if (token) {
+      const payload = await verifyToken(token)
+      if (payload?.id) {
+        requestingUserId = payload.id
+      }
     }
 
-    const payload = await verifyToken(token)
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: 'Invalid session. Please login again.' }, { status: 401 })
+    if (!admin && !requestingUserId) {
+      return NextResponse.json({ error: 'Unauthorized. Please login.' }, { status: 401 })
     }
 
     // Fetch application with campaign and user info
@@ -61,8 +66,8 @@ export async function GET(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
-    // Verify ownership
-    if (app.user_id !== payload.id) {
+    // Verify ownership (allow creator owner or authorized admin)
+    if (!admin && app.user_id !== requestingUserId) {
       return NextResponse.json(
         { error: 'Forbidden. This application belongs to another account.' },
         { status: 403 }
@@ -133,14 +138,18 @@ export async function POST(
     const { id } = await params
     const cookieStore = await cookies()
     const token = cookieStore.get('auth_token')?.value
+    const admin = await getAdminFromRequest()
 
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized. Please login.' }, { status: 401 })
+    let requestingUserId: string | null = null
+    if (token) {
+      const payload = await verifyToken(token)
+      if (payload?.id) {
+        requestingUserId = payload.id
+      }
     }
 
-    const payload = await verifyToken(token)
-    if (!payload || !payload.id) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    if (!admin && !requestingUserId) {
+      return NextResponse.json({ error: 'Unauthorized. Please login.' }, { status: 401 })
     }
 
     const body = await request.json()
@@ -196,7 +205,7 @@ export async function POST(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
 
-    if (application.user_id !== payload.id) {
+    if (!admin && application.user_id !== requestingUserId) {
       return NextResponse.json({ error: 'Forbidden. Not your application.' }, { status: 403 })
     }
 
@@ -269,7 +278,7 @@ export async function POST(
       const { data: userProfile } = await supabase
         .from('users')
         .select('id, shipping_addresses, city, state, pincode')
-        .eq('id', payload.id)
+        .eq('id', application.user_id)
         .single()
 
       if (userProfile) {
@@ -311,7 +320,7 @@ export async function POST(
             pincode,
             updated_at: nowIso,
           })
-          .eq('id', payload.id)
+          .eq('id', application.user_id)
       }
     }
 

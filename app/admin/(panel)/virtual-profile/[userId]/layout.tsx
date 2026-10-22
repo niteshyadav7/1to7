@@ -35,11 +35,13 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
   const sidebarLinks = [
     { href: basePath, label: 'Overview', icon: LayoutDashboard },
     { href: `${basePath}/applied`, label: 'Applied', icon: Send },
-    { href: `${basePath}/profile?step=2`, label: 'Address', icon: MapPin },
+    { href: `${basePath}/address`, label: 'Address', icon: MapPin },
     { href: `${basePath}/approved`, label: 'Approved', icon: CheckCircle2 },
     { href: `${basePath}/profile`, label: 'Profile', icon: User },
     { href: `${basePath}/feedback`, label: 'Feedback', icon: MessageSquareHeart },
   ]
+
+  const [pendingAddressCount, setPendingAddressCount] = useState(0)
 
   useEffect(() => {
     try {
@@ -82,18 +84,41 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
       .finally(() => setLoadingUser(false))
   }, [userId])
 
-  const isActive = (href: string) => {
-    if (href === basePath) return pathname === basePath
+  // Fetch pending address count for virtual creator
+  useEffect(() => {
+    if (!userId) return
+    const checkPendingAddresses = async () => {
+      try {
+        const res = await fetch(`/api/admin/virtual-profile/${userId}?action=applications`)
+        const data = await res.json()
+        const apps = data.applications || []
+        const pending = apps.filter((a: any) => {
+          if (a.status === 'Rejected') return false
+          const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+          return needsAddress && !a.form_data?.address_confirmed
+        }).length
+        setPendingAddressCount(pending)
+      } catch { /* ignore */ }
+    }
+    checkPendingAddresses()
+
+    const handleAddressEvent = () => checkPendingAddresses()
     if (typeof window !== 'undefined') {
-      const sp = new URLSearchParams(window.location.search)
-      const step = sp.get('step')
-      if (href.includes('?step=2')) {
-        return pathname === `${basePath}/profile` && step === '2'
-      }
-      if (href === `${basePath}/profile`) {
-        return pathname === `${basePath}/profile` && step !== '2'
+      window.addEventListener('address-confirmed', handleAddressEvent)
+      window.addEventListener('focus', handleAddressEvent)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('address-confirmed', handleAddressEvent)
+        window.removeEventListener('focus', handleAddressEvent)
       }
     }
+  }, [userId, pathname])
+
+  const isActive = (href: string) => {
+    if (href === basePath) return pathname === basePath
+    if (href === `${basePath}/address`) return pathname.startsWith(`${basePath}/address`)
+    if (href === `${basePath}/profile`) return pathname.startsWith(`${basePath}/profile`)
     return pathname.startsWith(href)
   }
 
@@ -152,6 +177,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
         <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
           {sidebarLinks.map((link) => {
             const active = isActive(link.href)
+            const isAddressLink = link.label === 'Address'
             return (
               <Link
                 key={link.href}
@@ -165,9 +191,21 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
                     : 'text-slate-300 hover:bg-white/10 hover:text-white border-transparent'
                 }`}
               >
-                <link.icon className={`h-4.5 w-4.5 shrink-0 ${active ? 'text-black' : 'text-slate-400 group-hover:text-white'}`} />
+                <div className="relative shrink-0">
+                  <link.icon className={`h-4.5 w-4.5 ${active ? 'text-black' : 'text-slate-400 group-hover:text-white'}`} />
+                  {isCollapsed && isAddressLink && pendingAddressCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  )}
+                </div>
                 {!isCollapsed && <span>{link.label}</span>}
-                {!isCollapsed && active && <ChevronRight className="ml-auto h-4 w-4 text-black shrink-0" />}
+                {!isCollapsed && isAddressLink && pendingAddressCount > 0 && (
+                  <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-500 text-black animate-pulse shadow-xs">
+                    {pendingAddressCount}
+                  </span>
+                )}
+                {!isCollapsed && active && (!isAddressLink || pendingAddressCount === 0) && (
+                  <ChevronRight className="ml-auto h-4 w-4 text-black shrink-0" />
+                )}
               </Link>
             )
           })}

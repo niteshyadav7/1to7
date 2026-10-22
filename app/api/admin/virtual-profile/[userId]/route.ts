@@ -60,10 +60,10 @@ export async function GET(
           .from('applications')
           .select(`
             id, status, form_data, partial_payment, final_payment, pending_amount,
-            selected_store, created_at, updated_at,
+            selected_store, created_at, updated_at, address_status, address_verified_at,
             campaigns (
               id, campaign_code, brand_name, platform, category,
-              budget_type, deliverables, order_form, order_form_fields, payment_form_fields
+              budget_type, deliverables, order_form, order_form_fields, payment_form_fields, address_required
             )
           `)
           .eq('user_id', userId)
