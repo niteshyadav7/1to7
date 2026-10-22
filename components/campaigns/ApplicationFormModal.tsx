@@ -16,7 +16,8 @@ import { checkFollowerEligibility, formatFollowerCount, getEffectiveUserFollower
 import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
-import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
+import AddressSelectorField from '@/components/campaigns/AddressSelectorField'
+import { getPrefillValueForField, isAddressField } from '@/lib/utils/profile-sync-utils'
 
 function getActiveState(currentFormData: Record<string, string>, userObj: any): string {
   for (const [key, val] of Object.entries(currentFormData)) {
@@ -74,7 +75,7 @@ export default function ApplicationFormModal({
   onSuccess: () => void
 }) {
   const [fields, setFields] = useState<FormField[]>([])
-  const [formData, setFormData] = useState<Record<string, string>>({})
+  const [formData, setFormData] = useState<Record<string, any>>({})
   const [pitch, setPitch] = useState('')
   const [loading, setLoading] = useState(false)
   const [fieldsLoading, setFieldsLoading] = useState(false)
@@ -964,9 +965,33 @@ export default function ApplicationFormModal({
                           )}
 
                           {fields.length > 0 && fields.map((field) => {
+                            const isFieldAddr = isAddressField(field.field_name)
                             const isFieldState = isStateField(field.field_name)
                             const isFieldCity = isCityField(field.field_name)
                             const activeStateVal = getActiveState(formData, user)
+
+                            if (isFieldAddr) {
+                              return (
+                                <div key={field.id} className="space-y-2">
+                                  <AddressSelectorField
+                                    fieldName={field.field_name}
+                                    label={field.field_name}
+                                    required={field.is_required}
+                                    value={formData[field.field_name]}
+                                    targetState={campaign?.target_states?.[0]}
+                                    targetCity={campaign?.target_cities?.[0]}
+                                    onChange={(formattedAddr, addrObj) => {
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        [field.field_name]: formattedAddr,
+                                        shipping_address: addrObj,
+                                        [`${field.field_name}_details`]: addrObj
+                                      }))
+                                    }}
+                                  />
+                                </div>
+                              )
+                            }
 
                             return (
                               <div key={field.id} className="space-y-2.5">

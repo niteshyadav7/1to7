@@ -13,7 +13,7 @@ import {
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
   Pencil, Save, Upload, Share2, MessageSquareText, History,
-  Sparkles, List, Type, FileImage
+  Sparkles, List, Type, FileImage, Copy, Link2, Building2
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -65,6 +65,7 @@ interface UserInfo {
   instagram_biography?: string
   instagram_website?: string
   instagram_profiles?: any[]
+  shipping_addresses?: any[]
 }
 
 interface CampaignInfo {
@@ -75,6 +76,7 @@ interface CampaignInfo {
 
 interface Application {
   id: string
+  campaign_id?: string
   status: string
   form_data: Record<string, any>
   selected_store?: { name?: string; city?: string; state?: string; area?: string; address?: string; google_maps_url?: string } | null
@@ -127,6 +129,7 @@ interface Filters {
   phone: string
   gender: string[]
   state: string[]
+  city: string[]
   followerRange: string[]
   platform: string[]
   dateRange: string
@@ -1321,6 +1324,7 @@ export default function AllApplicationsPage() {
     phone: '',
     gender: [],
     state: [],
+    city: [],
     followerRange: [],
     platform: [],
     dateRange: 'all',
@@ -1579,10 +1583,21 @@ export default function AllApplicationsPage() {
     [...new Set(applications.map(a => a.campaigns?.brand_name).filter(Boolean))].sort(),
     [applications]
   )
-  const uniqueStates = useMemo(() =>
-    [...new Set(applications.map(a => a.users?.state).filter(Boolean))].sort(),
-    [applications]
-  )
+  const uniqueStates = useMemo(() => {
+    const states = new Set<string>()
+    applications.forEach(a => {
+      const s = a.users?.state ||
+        a.form_data?.shipping_address?.state ||
+        a.form_data?.state ||
+        a.form_data?.State ||
+        a.form_data?.['Current State'] ||
+        a.form_data?.['current_state']
+      if (s && typeof s === 'string' && s.trim()) {
+        states.add(s.trim())
+      }
+    })
+    return [...states].sort()
+  }, [applications])
   const uniquePlatforms = useMemo(() =>
     [...new Set(applications.map(a => a.campaigns?.platform).filter(Boolean))].sort(),
     [applications]
@@ -1591,6 +1606,53 @@ export default function AllApplicationsPage() {
     [...new Set(applications.map(a => a.users?.gender).filter(Boolean))].sort(),
     [applications]
   )
+
+  // Strictly campaign-specific applications (used for question filters & campaign-wise city selection)
+  const campaignApplications = useMemo(() => {
+    if (filters.campaign.length !== 1) return applications
+    const targetBrand = filters.campaign[0].toLowerCase().trim()
+    return applications.filter(a => {
+      const bName = (a.campaigns?.brand_name || '').toLowerCase().trim()
+      const cCode = (a.campaigns?.campaign_code || '').toLowerCase().trim()
+      const cId = (a.campaigns?.id || (a as any).campaign_id || '').toLowerCase().trim()
+      return bName === targetBrand || cCode === targetBrand || cId === targetBrand
+    })
+  }, [applications, filters.campaign])
+
+  // Campaign-wise & state-aware unique cities (only cities available in selected campaign/state)
+  const uniqueCities = useMemo(() => {
+    const cities = new Set<string>()
+    const targetApps = filters.campaign.length > 0
+      ? applications.filter(a => {
+          const b = (a.campaigns?.brand_name || '').toLowerCase().trim()
+          const c = (a.campaigns?.campaign_code || '').toLowerCase().trim()
+          return filters.campaign.some(fc => {
+            const fLow = fc.toLowerCase().trim()
+            return fLow === b || fLow === c
+          })
+        })
+      : applications
+
+    targetApps.forEach(a => {
+      if (filters.state.length > 0) {
+        const s = a.users?.state || a.form_data?.shipping_address?.state || a.form_data?.state || a.form_data?.State
+        if (!s || !filters.state.some(fs => fs.toLowerCase() === String(s).toLowerCase().trim())) {
+          return
+        }
+      }
+
+      const c = a.users?.city ||
+        a.form_data?.current_city ||
+        a.form_data?.['Current City'] ||
+        a.form_data?.shipping_address?.city ||
+        a.form_data?.city ||
+        a.form_data?.City
+      if (c && typeof c === 'string' && c.trim()) {
+        cities.add(c.trim())
+      }
+    })
+    return [...cities].sort()
+  }, [applications, filters.campaign, filters.state])
 
   // ─── Active filter count ───────────────────────────────
   const activeQuestionFilterCount = useMemo(() => {
@@ -1611,6 +1673,7 @@ export default function AllApplicationsPage() {
     filters.campaign.length +
     filters.gender.length +
     filters.state.length +
+    filters.city.length +
     filters.followerRange.length +
     filters.platform.length +
     (filters.phone.trim() ? 1 : 0) +
@@ -1700,6 +1763,7 @@ export default function AllApplicationsPage() {
         const campaignParam = params.get('campaign')
         const genderParam = params.get('gender')
         const stateParam = params.get('state')
+        const cityParam = params.get('city')
         const followerRangeParam = params.get('followerRange')
         const platformParam = params.get('platform')
         const phoneParam = params.get('phone')
@@ -1709,6 +1773,7 @@ export default function AllApplicationsPage() {
           campaign: campaignParam ? campaignParam.split(',').map(s => s.trim()).filter(Boolean) : [],
           gender: genderParam ? genderParam.split(',').map(s => s.trim()).filter(Boolean) : [],
           state: stateParam ? stateParam.split(',').map(s => s.trim()).filter(Boolean) : [],
+          city: cityParam ? cityParam.split(',').map(s => s.trim()).filter(Boolean) : [],
           followerRange: followerRangeParam ? followerRangeParam.split(',').map(s => s.trim()).filter(Boolean) : [],
           platform: platformParam ? platformParam.split(',').map(s => s.trim()).filter(Boolean) : [],
           phone: phoneParam || '',
@@ -1749,6 +1814,7 @@ export default function AllApplicationsPage() {
                   campaign: Array.isArray(parsed.filters.campaign) ? parsed.filters.campaign : [],
                   gender: Array.isArray(parsed.filters.gender) ? parsed.filters.gender : [],
                   state: Array.isArray(parsed.filters.state) ? parsed.filters.state : [],
+                  city: Array.isArray(parsed.filters.city) ? parsed.filters.city : [],
                   followerRange: Array.isArray(parsed.filters.followerRange) ? parsed.filters.followerRange : [],
                   platform: Array.isArray(parsed.filters.platform) ? parsed.filters.platform : [],
                   phone: typeof parsed.filters.phone === 'string' ? parsed.filters.phone : '',
@@ -1784,6 +1850,7 @@ export default function AllApplicationsPage() {
         filters.campaign.length === 0 &&
         filters.gender.length === 0 &&
         filters.state.length === 0 &&
+        filters.city.length === 0 &&
         filters.followerRange.length === 0 &&
         filters.platform.length === 0 &&
         !filters.phone.trim() &&
@@ -1829,6 +1896,9 @@ export default function AllApplicationsPage() {
         }
         if (filters.state.length > 0) {
           params.set('state', filters.state.join(','))
+        }
+        if (filters.city.length > 0) {
+          params.set('city', filters.city.join(','))
         }
         if (filters.followerRange.length > 0) {
           params.set('followerRange', filters.followerRange.join(','))
@@ -1935,7 +2005,26 @@ export default function AllApplicationsPage() {
       result = result.filter(a => filters.gender.includes(a.users?.gender))
     }
     if (filters.state.length > 0) {
-      result = result.filter(a => filters.state.includes(a.users?.state))
+      result = result.filter(a => {
+        const s = a.users?.state ||
+          a.form_data?.shipping_address?.state ||
+          a.form_data?.state ||
+          a.form_data?.State ||
+          a.form_data?.['Current State'] ||
+          a.form_data?.['current_state']
+        return s ? filters.state.some(fs => fs.toLowerCase() === String(s).toLowerCase().trim()) : false
+      })
+    }
+    if (filters.city.length > 0) {
+      result = result.filter(a => {
+        const c = a.users?.city ||
+          a.form_data?.current_city ||
+          a.form_data?.['Current City'] ||
+          a.form_data?.shipping_address?.city ||
+          a.form_data?.city ||
+          a.form_data?.City
+        return c ? filters.city.some(fc => fc.toLowerCase() === String(c).toLowerCase().trim()) : false
+      })
     }
     if (filters.platform.length > 0) {
       result = result.filter(a => filters.platform.includes(a.campaigns?.platform))
@@ -2068,7 +2157,7 @@ export default function AllApplicationsPage() {
   }, [])
 
   // ─── Filter toggle helpers ─────────────────────────────
-  const toggleFilter = useCallback((key: 'campaign' | 'gender' | 'state' | 'followerRange' | 'platform', val: string) => {
+  const toggleFilter = useCallback((key: 'campaign' | 'gender' | 'state' | 'city' | 'followerRange' | 'platform', val: string) => {
     setFilters(prev => ({
       ...prev,
       [key]: prev[key].includes(val) ? prev[key].filter((v: string) => v !== val) : [...prev[key], val],
@@ -2082,7 +2171,7 @@ export default function AllApplicationsPage() {
   }, [])
 
   const clearAllFilters = useCallback(() => {
-    setFilters({ campaign: [], phone: '', gender: [], state: [], followerRange: [], platform: [], dateRange: 'all' })
+    setFilters({ campaign: [], phone: '', gender: [], state: [], city: [], followerRange: [], platform: [], dateRange: 'all' })
     setQuestionFilters({})
     setSelectedIds(new Set())
     try {
@@ -2093,6 +2182,7 @@ export default function AllApplicationsPage() {
       params.delete('campaign')
       params.delete('gender')
       params.delete('state')
+      params.delete('city')
       params.delete('followerRange')
       params.delete('platform')
       params.delete('phone')
@@ -2246,9 +2336,42 @@ export default function AllApplicationsPage() {
     }
   }
 
+  // ─── Resolve Application Address Helper ────────────────────
+  const resolveApplicationAddress = (app: Application) => {
+    let addr: any = null
+    if (app.form_data?.shipping_address && typeof app.form_data.shipping_address === 'object') {
+      addr = app.form_data.shipping_address
+    } else if (app.form_data) {
+      for (const [k, v] of Object.entries(app.form_data)) {
+        if (k.endsWith('_details') && typeof v === 'object' && v !== null && (v as any).address_line1) {
+          addr = v
+          break
+        }
+      }
+    }
+    if (!addr && Array.isArray((app.users as any)?.shipping_addresses) && (app.users as any).shipping_addresses.length > 0) {
+      addr = (app.users as any).shipping_addresses.find((a: any) => a.is_default) || (app.users as any).shipping_addresses[0]
+    }
+
+    const fullText = addr
+      ? [
+          addr.address_line1,
+          addr.address_line2,
+          addr.landmark ? `Near ${addr.landmark}` : null,
+          addr.city,
+          addr.state,
+          addr.pincode ? `PIN: ${addr.pincode}` : null,
+        ].filter(Boolean).join(', ')
+      : (typeof app.form_data?.shipping_address === 'string' ? app.form_data.shipping_address : '')
+
+    return { addr, fullText }
+  }
+
   // ─── Export ────────────────────────────────────────────
   const handleExport = useCallback((format: 'csv' | 'json') => {
     const data = processedData.map(a => {
+      const { addr, fullText } = resolveApplicationAddress(a)
+
       const base = {
         name: a.users?.full_name || '',
         influencer_id: a.users?.influencer_id || '',
@@ -2258,8 +2381,21 @@ export default function AllApplicationsPage() {
         instagram_url: a.users?.instagram_username ? getInstagramUrl(a.users.instagram_username) : '',
         followers: a.users?.followers || 0,
         gender: a.users?.gender || '',
-        state: a.users?.state || '',
-        city: a.users?.city || '',
+        state: addr?.state || a.users?.state || '',
+        city: addr?.city || a.users?.city || '',
+        delivery_recipient: addr?.name || a.users?.full_name || '',
+        delivery_phone: addr?.mobile || a.users?.mobile || '',
+        delivery_alt_phone: addr?.alt_mobile || '',
+        delivery_line1: addr?.address_line1 || '',
+        delivery_line2: addr?.address_line2 || '',
+        delivery_landmark: addr?.landmark || '',
+        delivery_city: addr?.city || a.users?.city || '',
+        delivery_state: addr?.state || a.users?.state || '',
+        delivery_pincode: addr?.pincode || '',
+        delivery_full_address: fullText || '',
+        delivery_remarks: addr?.delivery_notes || '',
+        address_verified_by_creator: a.form_data?.address_confirmed ? 'Yes' : 'No',
+        address_verified_at: a.form_data?.address_confirmed_at ? new Date(a.form_data.address_confirmed_at).toLocaleDateString('en-IN') : '',
         brand: a.campaigns?.brand_name || '',
         campaign_code: a.campaigns?.campaign_code || '',
         platform: a.campaigns?.platform || '',
@@ -2283,7 +2419,7 @@ export default function AllApplicationsPage() {
             Object.entries(v).forEach(([ok, ov]) => {
               customFields[`order_details_${ok}`] = typeof ov === 'object' ? JSON.stringify(ov) : String(ov)
             })
-          } else if (k === 'order_history' || k === 'payment_requests') {
+          } else if (k === 'order_history' || k === 'payment_requests' || k === 'shipping_address') {
             customFields[k] = JSON.stringify(v)
           } else {
             customFields[k] = typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)
@@ -2611,6 +2747,14 @@ export default function AllApplicationsPage() {
                   onClear={() => clearFilter('state')}
                 />
                 <FilterDropdown
+                  label="City"
+                  icon={Building2}
+                  options={uniqueCities}
+                  selected={filters.city}
+                  onToggle={(v) => toggleFilter('city', v)}
+                  onClear={() => clearFilter('city')}
+                />
+                <FilterDropdown
                   label="Followers"
                   icon={Users}
                   options={followerRanges.map(r => r.label)}
@@ -2701,6 +2845,13 @@ export default function AllApplicationsPage() {
                 <X className="h-2.5 w-2.5 cursor-pointer hover:text-white" onClick={() => toggleFilter('state', s)} />
               </span>
             ))}
+            {filters.city.map(c => (
+              <span key={`ci-${c}`} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[11px] border border-indigo-500/15">
+                <Building2 className="h-3 w-3 text-indigo-400" />
+                {c}
+                <X className="h-2.5 w-2.5 cursor-pointer hover:text-white" onClick={() => toggleFilter('city', c)} />
+              </span>
+            ))}
             {filters.followerRange.map(r => (
               <span key={`f-${r}`} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[11px] border border-indigo-500/15">
                 {r}
@@ -2748,6 +2899,7 @@ export default function AllApplicationsPage() {
             totalCount={applications.length}
             filteredCount={processedData.length}
             campaignName={filters.campaign[0]}
+            applications={campaignApplications}
           />
         </div>
       )}
@@ -3305,6 +3457,142 @@ export default function AllApplicationsPage() {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Courier & Delivery Address Card */}
+                                {(() => {
+                                  const { addr, fullText } = resolveApplicationAddress(app)
+                                  if (!addr && !fullText) return null
+
+                                  return (
+                                    <div className="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/30 via-slate-900/60 to-slate-950/80 p-4 space-y-3 shadow-lg shadow-indigo-950/20">
+                                      <div className="flex items-center justify-between flex-wrap gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-base">📦</span>
+                                          <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                                            Delivery & Courier Details
+                                          </p>
+                                          {app.form_data?.address_confirmed ? (
+                                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                              <CheckCircle2 className="h-2.5 w-2.5" />
+                                              Confirmed by Creator
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                              Pending Confirmation
+                                            </span>
+                                          )}
+                                          {addr?.address_type && (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                              {addr.address_type}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          {/* 1. Copy Formatted Courier Address */}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              const copyLines = [
+                                                `Recipient: ${addr?.name || app.users?.full_name || 'N/A'}`,
+                                                `Phone: ${addr?.mobile || app.users?.mobile || 'N/A'}${addr?.alt_mobile ? ` / ${addr.alt_mobile}` : ''}`,
+                                                `Address: ${fullText || 'N/A'}`,
+                                                addr?.landmark ? `Landmark: Near ${addr.landmark}` : null,
+                                                addr?.city ? `City: ${addr.city}` : null,
+                                                addr?.state ? `State: ${addr.state}` : null,
+                                                addr?.pincode ? `Pincode: ${addr.pincode}` : null,
+                                                addr?.delivery_notes ? `Notes: ${addr.delivery_notes}` : null,
+                                              ].filter(Boolean).join('\n')
+                                              navigator.clipboard.writeText(copyLines)
+                                              toast.success('Courier address copied to clipboard!')
+                                            }}
+                                            className="text-[11px] font-semibold text-indigo-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 transition-all cursor-pointer shadow-sm"
+                                            title="Copy address for courier label"
+                                          >
+                                            <Copy className="h-3 w-3" />
+                                            <span>Copy Address</span>
+                                          </button>
+
+                                          {/* 2. Copy Direct Link to send to Influencer */}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              const origin = typeof window !== 'undefined' ? window.location.origin : 'https://1to7.in'
+                                              const link = `${origin}/dashboard/address-confirmation?id=${app.id}`
+                                              navigator.clipboard.writeText(link)
+                                              toast.success('Address confirmation link copied!')
+                                            }}
+                                            className="text-[11px] font-semibold text-purple-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 transition-all cursor-pointer shadow-sm"
+                                            title="Copy link to send to influencer"
+                                          >
+                                            <Link2 className="h-3 w-3" />
+                                            <span>Copy Link</span>
+                                          </button>
+
+                                          {/* 3. Send WhatsApp Request */}
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              const origin = typeof window !== 'undefined' ? window.location.origin : 'https://1to7.in'
+                                              const link = `${origin}/dashboard/address-confirmation?id=${app.id}`
+                                              const creatorName = app.users?.full_name || 'Creator'
+                                              const brand = app.campaigns?.brand_name || 'Brand'
+                                              const text = `Hi ${creatorName}! 🎉 Congratulations on your selection for the ${brand} collaboration on 1to7.\n\nBrand team needs your confirmed delivery address to dispatch your barter package. Please confirm or update your delivery address here:\n👉 ${link}\n\nThank you!`
+                                              
+                                              const phone = (addr?.mobile || app.users?.mobile || '').replace(/\D/g, '')
+                                              if (phone && phone.length === 10) {
+                                                window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(text)}`, '_blank')
+                                              } else {
+                                                navigator.clipboard.writeText(text)
+                                                toast.success('WhatsApp text copied to clipboard!')
+                                              }
+                                            }}
+                                            className="text-[11px] font-semibold text-emerald-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+                                            title="Send address confirmation request on WhatsApp"
+                                          >
+                                            <Share2 className="h-3 w-3" />
+                                            <span>WhatsApp Request</span>
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs bg-slate-950/50 rounded-xl p-3 border border-white/5">
+                                        <div>
+                                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Recipient Name</span>
+                                          <span className="text-slate-200 font-semibold">{addr?.name || app.users?.full_name || '—'}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Phone / Alt Phone</span>
+                                          <span className="text-slate-200 font-semibold">
+                                            {addr?.mobile || app.users?.mobile || '—'}
+                                            {addr?.alt_mobile && <span className="text-slate-400 font-normal"> (Alt: {addr.alt_mobile})</span>}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Pincode</span>
+                                          <span className="text-emerald-400 font-mono font-bold">{addr?.pincode || '—'}</span>
+                                        </div>
+                                        <div className="sm:col-span-2 lg:col-span-3">
+                                          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Complete Address</span>
+                                          <p className="text-slate-300 mt-0.5 leading-relaxed">{fullText || '—'}</p>
+                                          {addr?.landmark && (
+                                            <p className="text-slate-400 text-[11px] mt-0.5">Landmark: {addr.landmark}</p>
+                                          )}
+                                        </div>
+                                        {addr?.delivery_notes && (
+                                          <div className="sm:col-span-2 lg:col-span-3 text-[11px] bg-amber-500/10 text-amber-300 p-2 rounded-lg border border-amber-500/20">
+                                            <strong>Courier Instructions:</strong> {addr.delivery_notes}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
+
                                 {/* Influencer Profile Details */}
                                 <div>
                                   <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-bold mb-3 flex items-center gap-1.5">

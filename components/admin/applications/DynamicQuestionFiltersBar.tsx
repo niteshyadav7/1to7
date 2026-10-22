@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Filter, X, ChevronDown, Hash, List, Type, Calendar,
-  Sparkles, Check, RotateCcw, AlertCircle
+  Sparkles, Check, RotateCcw, AlertCircle, Search
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FormField } from '@/components/admin/FormFieldBuilder'
-import { QuestionFilterCriteria } from '@/lib/utils/question-filter-utils'
+import { QuestionFilterCriteria, getApplicationQuestionAnswer } from '@/lib/utils/question-filter-utils'
 
 interface DynamicQuestionFiltersBarProps {
   fields: FormField[]
@@ -17,6 +17,7 @@ interface DynamicQuestionFiltersBarProps {
   totalCount?: number
   filteredCount?: number
   campaignName?: string
+  applications?: any[]
 }
 
 export function DynamicQuestionFiltersBar({
@@ -27,10 +28,86 @@ export function DynamicQuestionFiltersBar({
   totalCount,
   filteredCount,
   campaignName,
+  applications,
 }: DynamicQuestionFiltersBarProps) {
   const [openField, setOpenField] = useState<string | null>(null)
+  const [optionSearchQuery, setOptionSearchQuery] = useState('')
   const [showAllQuestions, setShowAllQuestions] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Clear inner option search when opened field changes
+  useEffect(() => {
+    setOptionSearchQuery('')
+  }, [openField])
+
+  // Extract all distinct answers submitted by applicants for each question
+  const fieldAnswersMap = useMemo(() => {
+    const map: Record<string, { value: string; count: number }[]> = {}
+    if (!fields || fields.length === 0) return map
+
+    fields.forEach(field => {
+      const counts: Record<string, number> = {}
+
+      if (applications && Array.isArray(applications)) {
+        applications.forEach(app => {
+          const rawAns = getApplicationQuestionAnswer(app?.form_data, field)
+          let valStr = ''
+
+          if (rawAns !== undefined && rawAns !== null && rawAns !== '') {
+            if (typeof rawAns === 'object') {
+              if (rawAns.city) valStr = String(rawAns.city).trim()
+              else if (rawAns.state) valStr = String(rawAns.state).trim()
+              else if (rawAns.name || rawAns.title) valStr = String(rawAns.name || rawAns.title).trim()
+              else valStr = JSON.stringify(rawAns)
+            } else {
+              valStr = String(rawAns).trim()
+            }
+          } else if (/state/i.test(field.name)) {
+            const fallback = app?.users?.state || app?.form_data?.shipping_address?.state || app?.form_data?.state || app?.form_data?.State
+            if (fallback && typeof fallback === 'string' && fallback.trim()) {
+              valStr = fallback.trim()
+            }
+          } else if (/city/i.test(field.name)) {
+            const fallback = app?.users?.city || app?.form_data?.shipping_address?.city || app?.form_data?.city || app?.form_data?.City
+            if (fallback && typeof fallback === 'string' && fallback.trim()) {
+              valStr = fallback.trim()
+            }
+          }
+
+          if (valStr) {
+            counts[valStr] = (counts[valStr] || 0) + 1
+          }
+        })
+      }
+
+      // Merge predefined options from form definition if any
+      if (field.options && Array.isArray(field.options)) {
+        field.options.forEach(opt => {
+          const trimmed = String(opt).trim()
+          if (trimmed) {
+            const existingKey = Object.keys(counts).find(k => k.toLowerCase() === trimmed.toLowerCase())
+            if (!existingKey) {
+              counts[trimmed] = 0
+            }
+          }
+        })
+      }
+
+      // Only keep options that have actual answers (count > 0) or are explicitly in field.options
+      // Strictly campaign-wise: do not inject unrelated external states/cities
+      const list = Object.entries(counts)
+        .filter(([value, count]) => count > 0 || (field.options && Array.isArray(field.options) && field.options.includes(value)))
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => {
+          if (a.count !== b.count) return b.count - a.count
+          return a.value.localeCompare(b.value)
+        })
+
+      map[field.name] = list
+    })
+
+    return map
+  }, [applications, fields])
 
   // Close popup if clicking outside
   useEffect(() => {
@@ -140,7 +217,13 @@ export function DynamicQuestionFiltersBar({
             } else if (currentFilter?.min !== undefined) {
               activeSummary = `≥ ${currentFilter.min}`
             } else if (currentFilter?.selectedOptions && currentFilter.selectedOptions.length > 0) {
-              activeSummary = currentFilter.selectedOptions.join(', ')
+              if (currentFilter.selectedOptions.length === 1) {
+                activeSummary = currentFilter.selectedOptions[0]
+              } else if (currentFilter.selectedOptions.length === 2) {
+                activeSummary = currentFilter.selectedOptions.join(', ')
+              } else {
+                activeSummary = `${currentFilter.selectedOptions[0]} (+${currentFilter.selectedOptions.length - 1})`
+              }
             } else if (currentFilter?.textSearch) {
               activeSummary = `"${currentFilter.textSearch}"`
             }
@@ -282,68 +365,156 @@ export function DynamicQuestionFiltersBar({
                       </div>
                     )}
 
-                    {/* Dropdown Multi-Select */}
-                    {field.type === 'dropdown' && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                          Select Options:
-                        </label>
-                        <div className="max-h-40 overflow-y-auto space-y-1 p-1 bg-slate-950/60 rounded-xl border border-white/5">
-                          {field.options && field.options.length > 0 ? (
-                            field.options.map(opt => {
-                              const selected = currentFilter?.selectedOptions?.includes(opt)
-                              return (
+                    {/* Selectable Options from Form Answers / Dropdown / Text */}
+                    {!isCommercial && field.type !== 'number' && (() => {
+                      const allOptions = fieldAnswersMap[field.name] || []
+                      const filteredOptions = allOptions.filter(opt =>
+                        !optionSearchQuery.trim() ||
+                        opt.value.toLowerCase().includes(optionSearchQuery.toLowerCase().trim())
+                      )
+                      const submittedCount = allOptions.filter(o => o.count > 0).length
+
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1.5">
+                              <span>Options from Form:</span>
+                              {submittedCount > 0 ? (
+                                <span className="text-emerald-400 font-mono font-bold bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                                  {submittedCount} answered
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">({allOptions.length} total)</span>
+                              )}
+                            </span>
+                            {allOptions.length > 0 && (
+                              <div className="flex items-center gap-1.5">
                                 <button
-                                  key={opt}
                                   type="button"
                                   onClick={() => {
-                                    const prev = currentFilter?.selectedOptions || []
-                                    const next = prev.includes(opt)
-                                      ? prev.filter(x => x !== opt)
-                                      : [...prev, opt]
+                                    const allVals = allOptions.map(o => o.value)
                                     onFilterChange(field.name, {
                                       ...(currentFilter || {}),
-                                      selectedOptions: next,
+                                      selectedOptions: allVals,
                                     })
                                   }}
-                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
-                                    selected
-                                      ? 'bg-indigo-600/30 text-white border border-indigo-500/40'
-                                      : 'text-slate-300 hover:bg-slate-800'
-                                  }`}
+                                  className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
                                 >
-                                  <span className="truncate">{opt}</span>
-                                  {selected && <Check className="h-3.5 w-3.5 text-indigo-400 shrink-0" />}
+                                  Select All
                                 </button>
-                              )
-                            })
-                          ) : (
-                            <p className="text-[11px] text-slate-500 p-2">No predefined options found</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                                <span className="text-slate-600">•</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onFilterChange(field.name, {
+                                      ...(currentFilter || {}),
+                                      selectedOptions: [],
+                                    })
+                                  }}
+                                  className="text-slate-400 hover:text-slate-300 font-semibold cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            )}
+                          </div>
 
-                    {/* Text Search */}
-                    {field.type === 'text' && !isCommercial && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                          Search answer text:
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Search text..."
-                          value={currentFilter?.textSearch || ''}
-                          onChange={(e) => {
-                            onFilterChange(field.name, {
-                              ...(currentFilter || {}),
-                              textSearch: e.target.value,
-                            })
-                          }}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 text-white text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-                    )}
+                          {/* Search within available options */}
+                          {allOptions.length > 4 && (
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500" />
+                              <input
+                                type="text"
+                                placeholder={`Filter ${allOptions.length} options...`}
+                                value={optionSearchQuery}
+                                onChange={(e) => setOptionSearchQuery(e.target.value)}
+                                className="w-full pl-7.5 pr-6 py-1.5 rounded-lg bg-slate-950/80 border border-white/10 text-white text-xs focus:ring-1 focus:ring-indigo-500 outline-none placeholder:text-slate-500"
+                              />
+                              {optionSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOptionSearchQuery('')}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Options list with checkbox and count */}
+                          <div className="max-h-48 overflow-y-auto space-y-1 p-1 bg-slate-950/70 rounded-xl border border-white/5 no-scrollbar">
+                            {filteredOptions.length > 0 ? (
+                              filteredOptions.map(opt => {
+                                const isSelected = currentFilter?.selectedOptions?.includes(opt.value) || false
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => {
+                                      const prev = currentFilter?.selectedOptions || []
+                                      const next = prev.includes(opt.value)
+                                        ? prev.filter(x => x !== opt.value)
+                                        : [...prev, opt.value]
+                                      onFilterChange(field.name, {
+                                        ...(currentFilter || {}),
+                                        selectedOptions: next,
+                                      })
+                                    }}
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-indigo-600/35 text-white border border-indigo-500/50 shadow-xs'
+                                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                                      <div className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                                        isSelected
+                                          ? 'bg-indigo-500 border-indigo-400 text-white'
+                                          : 'border-slate-600 bg-slate-900'
+                                      }`}>
+                                        {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                                      </div>
+                                      <span className="truncate">{opt.value}</span>
+                                    </div>
+                                    {opt.count > 0 ? (
+                                      <span className="shrink-0 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                        {opt.count}
+                                      </span>
+                                    ) : (
+                                      <span className="shrink-0 text-[10px] text-slate-600">0</span>
+                                    )}
+                                  </button>
+                                )
+                              })
+                            ) : (
+                              <p className="text-[11px] text-slate-500 p-2 text-center">
+                                No matching options found
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Free-text search fallback */}
+                          <div className="pt-2 border-t border-white/5 space-y-1">
+                            <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                              Or search custom keyword text:
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Type custom text..."
+                              value={currentFilter?.textSearch || ''}
+                              onChange={(e) => {
+                                onFilterChange(field.name, {
+                                  ...(currentFilter || {}),
+                                  textSearch: e.target.value,
+                                })
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-white/10 text-white text-xs focus:ring-1 focus:ring-indigo-500 outline-none placeholder:text-slate-500"
+                            />
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Historical Aliases Info */}
                     {field.aliases && field.aliases.length > 0 && (

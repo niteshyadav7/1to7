@@ -29,7 +29,8 @@ import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLa
 import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
-import { getPrefillValueForField } from '@/lib/utils/profile-sync-utils'
+import AddressSelectorField from '@/components/campaigns/AddressSelectorField'
+import { getPrefillValueForField, isAddressField, isStandardProfileField } from '@/lib/utils/profile-sync-utils'
 
 function getActiveCustomState(
   customData: Record<string, any>,
@@ -533,16 +534,48 @@ export default function CampaignDetailModal({
   )
 
   const renderCustomFormField = (field: any, idx: number, isInline: boolean) => {
+    const isFieldAddress = isAddressField(field.name, field.profile_sync_key)
     const isFieldStateField = isStateField(field.name, field.profile_sync_key)
     const isFieldCityField = isCityField(field.name, field.profile_sync_key)
     const activeStateVal = getActiveCustomState(customFormData, inlineData, user, campaign?.form_fields)
     const hasAttempted = isInline ? hasAttemptedInlineSubmit : hasAttemptedCustomSubmit
     const hasError = hasAttempted && field.required && (!customFormData[field.name] || (typeof customFormData[field.name] === 'string' && customFormData[field.name].trim() === ''))
 
+    if (isFieldAddress) {
+      return (
+        <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2">
+          <AddressSelectorField
+            fieldName={field.name}
+            label={field.name}
+            required={field.required}
+            hasError={hasError}
+            value={customFormData[field.name]}
+            targetState={campaign?.target_states?.[0]}
+            targetCity={campaign?.target_cities?.[0]}
+            onChange={(formattedAddr, addrObj) => {
+              setCustomFormData(p => ({
+                ...p,
+                [field.name]: formattedAddr,
+                shipping_address: addrObj,
+                [`${field.name}_details`]: addrObj
+              }))
+            }}
+          />
+        </div>
+      )
+    }
+
     return (
       <div key={`cf-${idx}`} className="space-y-1.5 sm:space-y-2">
         <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-          <span className="break-words min-w-0 leading-normal">{field.name}</span>
+          <span className="break-words min-w-0 leading-normal flex items-center gap-1.5">
+            <span>{field.name}</span>
+            {customFormData[field.name] && (field.sync_to_profile || isStandardProfileField(field.name) || (field.profile_sync_key && field.profile_sync_key !== 'none')) && (
+              <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.2 rounded font-semibold normal-case">
+                ✓ Synced
+              </span>
+            )}
+          </span>
           {field.required && <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>}
         </label>
 

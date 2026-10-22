@@ -351,25 +351,49 @@ export default function FormFieldBuilder({
 
                 {/* Target Profile Field Selector (When Sync is ON) */}
                 {isSyncOn && (
-                  <div className="flex items-center gap-2 shrink-0 animate-in fade-in">
+                  <div className="flex items-center gap-2 shrink-0 animate-in fade-in flex-wrap">
                     <Label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Target Field:</Label>
                     <select
-                      value={field.profile_sync_key && field.profile_sync_key !== 'none' && field.profile_sync_key !== 'auto' ? field.profile_sync_key : (getCanonicalField(field.name) || 'dob')}
-                      onChange={(e) => updateField(index, { sync_to_profile: true, profile_sync_key: e.target.value })}
+                      value={
+                        ['shipping_address', 'dob', 'shoe_size', 'tshirt_size', 'languages', 'alt_mobile', 'city', 'state', 'pincode', 'gender', 'bio', 'youtube'].includes(field.profile_sync_key || '')
+                          ? field.profile_sync_key
+                          : (getCanonicalField(field.name) || 'custom_dynamic')
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === 'custom_dynamic') {
+                          const autoKey = field.name ? field.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') : 'custom_attr'
+                          updateField(index, { sync_to_profile: true, profile_sync_key: autoKey })
+                        } else {
+                          updateField(index, { sync_to_profile: true, profile_sync_key: val })
+                        }
+                      }}
                       className="h-7 bg-slate-950 border border-emerald-500/40 text-emerald-300 font-bold text-[11px] rounded-md px-2 focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
                     >
+                      <option value="shipping_address">📦 Delivery Address (Courier / Barter)</option>
+                      <option value="city">🏙️ Current City</option>
+                      <option value="state">📍 State / UT</option>
+                      <option value="pincode">📮 Pincode</option>
                       <option value="dob">🎂 Date of Birth</option>
                       <option value="shoe_size">👟 Shoe Size</option>
                       <option value="tshirt_size">👕 T-Shirt / Cloth Size</option>
                       <option value="languages">🗣️ Spoken Languages</option>
                       <option value="alt_mobile">📱 WhatsApp / Alt Mobile</option>
-                      <option value="city">🏙️ Current City</option>
-                      <option value="state">📍 State / UT</option>
-                      <option value="pincode">📮 Pincode</option>
                       <option value="gender">👤 Gender</option>
                       <option value="bio">📝 Bio / About</option>
                       <option value="youtube">🎥 YouTube Channel</option>
+                      <option value="custom_dynamic">✨ Custom Dynamic Attribute</option>
                     </select>
+
+                    {!['shipping_address', 'dob', 'shoe_size', 'tshirt_size', 'languages', 'alt_mobile', 'city', 'state', 'pincode', 'gender', 'bio', 'youtube', 'none', 'auto'].includes(field.profile_sync_key || '') && (
+                      <Input
+                        value={field.profile_sync_key || ''}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(index, { profile_sync_key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                        placeholder="attribute_key"
+                        className="h-7 w-28 bg-slate-950 border border-emerald-500/40 text-emerald-300 font-mono text-[10px] rounded px-2"
+                        title="Key name in creator custom_attributes"
+                      />
+                    )}
                   </div>
                 )}
               </div>

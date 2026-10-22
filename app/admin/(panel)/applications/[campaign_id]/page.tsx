@@ -10,7 +10,7 @@ import {
   Instagram, Users, MapPin, ChevronDown, ChevronUp,
   IndianRupee, Phone, Save, Search, Clock, RotateCcw, Trash2,
   History, Sparkles, Store, ExternalLink, ShieldCheck, Calendar, AlertTriangle,
-  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X, Upload, MessageSquareText, Pencil
+  Share2, Download, CheckSquare, Square, Tag, RefreshCw, X, Upload, MessageSquareText, Pencil, Copy, Link2
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,6 +53,7 @@ interface UserInfo {
   instagram_biography?: string
   instagram_website?: string
   instagram_profiles?: any[]
+  shipping_addresses?: any[]
 }
 
 interface Application {
@@ -255,29 +256,93 @@ export default function AdminApplicationsPage() {
     }
   }
 
+  const resolveApplicationAddress = (app: Application) => {
+    let addr: any = null
+    if (app.form_data?.shipping_address && typeof app.form_data.shipping_address === 'object') {
+      addr = app.form_data.shipping_address
+    } else if (app.form_data) {
+      for (const [k, v] of Object.entries(app.form_data)) {
+        if (k.endsWith('_details') && typeof v === 'object' && v !== null && (v as any).address_line1) {
+          addr = v
+          break
+        }
+      }
+    }
+    if (!addr && Array.isArray(app.users?.shipping_addresses) && app.users.shipping_addresses.length > 0) {
+      addr = app.users.shipping_addresses.find((a: any) => a.is_default) || app.users.shipping_addresses[0]
+    }
+
+    const fullText = addr
+      ? [
+          addr.address_line1,
+          addr.address_line2,
+          addr.landmark ? `Near ${addr.landmark}` : null,
+          addr.city,
+          addr.state,
+          addr.pincode ? `PIN: ${addr.pincode}` : null,
+        ].filter(Boolean).join(', ')
+      : (typeof app.form_data?.shipping_address === 'string' ? app.form_data.shipping_address : '')
+
+    return { addr, fullText }
+  }
+
   const handleExportBrandCSV = (appsToExport: Application[]) => {
     if (appsToExport.length === 0) {
       toast.error('No applicant profiles to export')
       return
     }
 
-    const exportData = appsToExport.map((a, idx) => ({
-      'Sr No': idx + 1,
-      'Creator Name': a.users?.full_name || '',
-      'User ID': a.users?.influencer_id || '',
-      'Instagram Handle': a.users?.instagram_username ? getInstagramDisplayHandle(a.users.instagram_username) : '',
-      'Instagram URL': a.users?.instagram_username ? getInstagramUrl(a.users.instagram_username) : '',
-      'Followers': a.users?.followers || 0,
-      'City': a.users?.city || '',
-      'State': a.users?.state || '',
-      'Gender': a.users?.gender || '',
-      'Application Status': a.status || '',
-      'Commercial Quote (INR)': a.form_data?.agreed_commercial || a.form_data?.commercial_amount || a.form_data?.total_deal || '',
-      'Sent to Brand Status': a.form_data?.sent_to_brand?.is_sent ? `Sent (${a.form_data.sent_to_brand.batch_label || 'Batch'})` : 'Not Sent',
-      'Sent Date': a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
-      'Team Remark': a.team_remark || '',
-      'Remark By': a.team_remark_by || '',
-    }))
+    const exportData = appsToExport.map((a, idx) => {
+      const { addr, fullText } = resolveApplicationAddress(a)
+
+      const row: Record<string, any> = {
+        'Sr No': idx + 1,
+        'Creator Name': a.users?.full_name || '',
+        'User ID': a.users?.influencer_id || '',
+        'Instagram Handle': a.users?.instagram_username ? getInstagramDisplayHandle(a.users.instagram_username) : '',
+        'Instagram URL': a.users?.instagram_username ? getInstagramUrl(a.users.instagram_username) : '',
+        'Followers': a.users?.followers || 0,
+        'City': addr?.city || a.users?.city || '',
+        'State': addr?.state || a.users?.state || '',
+        'Gender': a.users?.gender || '',
+        'Application Status': a.status || '',
+        'Commercial Quote (INR)': a.form_data?.agreed_commercial || a.form_data?.commercial_amount || a.form_data?.total_deal || '',
+        'Sent to Brand Status': a.form_data?.sent_to_brand?.is_sent ? `Sent (${a.form_data.sent_to_brand.batch_label || 'Batch'})` : 'Not Sent',
+        'Sent Date': a.form_data?.sent_to_brand?.sent_at ? new Date(a.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : '',
+
+        // ── Logistics & Courier Dispatch Columns for Brands ──
+        'Delivery Recipient': addr?.name || a.users?.full_name || '',
+        'Delivery Phone': addr?.mobile || a.users?.mobile || '',
+        'Delivery Alt Phone': addr?.alt_mobile || '',
+        'Delivery Line 1': addr?.address_line1 || '',
+        'Delivery Line 2': addr?.address_line2 || '',
+        'Delivery Landmark': addr?.landmark || '',
+        'Delivery City': addr?.city || a.users?.city || '',
+        'Delivery State': addr?.state || a.users?.state || '',
+        'Delivery Pincode': addr?.pincode || '',
+        'Delivery Full Address': fullText || '',
+        'Delivery Remarks': addr?.delivery_notes || '',
+        'Address Verified by Creator': a.form_data?.address_confirmed ? 'Yes' : 'No',
+        'Address Verified At': a.form_data?.address_confirmed_at ? new Date(a.form_data.address_confirmed_at).toLocaleDateString('en-IN') : '',
+
+        'Team Remark': a.team_remark || '',
+        'Remark By': a.team_remark_by || '',
+      }
+
+      // Append any dynamic custom fields asked in the campaign (sizes, specs, preferences, etc.)
+      if (campaign?.form_fields) {
+        for (const field of campaign.form_fields) {
+          if (!field.name || field.name.toLowerCase().includes('address')) continue
+          const fieldLabel = field.name.replace(/[_-]/g, ' ')
+          if (!(fieldLabel in row)) {
+            const val = a.form_data?.[field.name]
+            row[fieldLabel] = typeof val === 'object' && val !== null ? JSON.stringify(val) : (val ?? '')
+          }
+        }
+      }
+
+      return row
+    })
 
     const csv = Papa.unparse(exportData)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -287,7 +352,7 @@ export default function AdminApplicationsPage() {
     link.download = `Brand_Profiles_${campaign?.campaign_code || 'Export'}_${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    toast.success(`Exported ${appsToExport.length} creator profiles to CSV!`)
+    toast.success(`Exported ${appsToExport.length} creator profiles with courier details to CSV!`)
   }
 
   const updateApplicationTimeline = async (
@@ -746,6 +811,7 @@ export default function AdminApplicationsPage() {
             totalCount={applications.length}
             filteredCount={filtered.length}
             campaignName={campaign.brand_name || campaign.campaign_code}
+            applications={applications}
           />
         </div>
       )}
@@ -921,6 +987,21 @@ export default function AdminApplicationsPage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-medium border ${statusColors[app.status] || 'bg-slate-500/15 text-slate-300 border-slate-500/20'}`}>
                       {app.status}
                     </span>
+
+                    {app.form_data?.address_confirmed ? (
+                      <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30" title="Delivery address verified & confirmed by creator">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
+                        Addr Confirmed
+                      </span>
+                    ) : app.form_data?.shipping_address ? (
+                      <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/15 text-blue-300 border border-blue-500/25" title="Has saved address, pending creator confirmation">
+                        📦 Addr Saved
+                      </span>
+                    ) : (
+                      <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25" title="Address missing. Send confirmation link to creator">
+                        ⏳ Addr Needed
+                      </span>
+                    )}
                     {app.status === 'Rejected' && app.form_data?.rejection_reason && (
                       <span className="text-[10px] text-rose-300 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-md max-w-[170px] truncate" title={`Reason: ${app.form_data.rejection_reason}`}>
                         💬 {app.form_data.rejection_reason}
@@ -1292,24 +1373,183 @@ export default function AdminApplicationsPage() {
                       )
                     })()}
 
-                    {/* Form Data */}
-                    {app.form_data && Object.keys(app.form_data).length > 0 && (
-                      <div>
-                        <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Application Form Responses</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
-                          {Object.entries(app.form_data).map(([key, value]) => (
-                            <div key={key}>
-                              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-                                {key.replace(/[_-]/g, ' ')}
+                    {/* Courier & Delivery Address Card */}
+                    {(() => {
+                      const { addr, fullText } = resolveApplicationAddress(app)
+                      if (!addr && !fullText) return null
+
+                      return (
+                        <div className="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-950/30 via-slate-900/60 to-slate-950/80 p-4 space-y-3 shadow-lg shadow-indigo-950/20">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-base">📦</span>
+                              <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
+                                Delivery & Courier Details
                               </p>
-                              <p className="text-slate-300 break-words">
-                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (String(value) || '—')}
-                              </p>
+                              {app.form_data?.address_confirmed ? (
+                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                  <CheckCircle2 className="h-2.5 w-2.5" />
+                                  Confirmed by Creator
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                  Pending Confirmation
+                                </span>
+                              )}
+                              {addr?.address_type && (
+                                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                  {addr.address_type}
+                                </span>
+                              )}
                             </div>
-                          ))}
+
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* 1. Copy Formatted Courier Address */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const copyLines = [
+                                    `Recipient: ${addr?.name || app.users?.full_name || 'N/A'}`,
+                                    `Phone: ${addr?.mobile || app.users?.mobile || 'N/A'}${addr?.alt_mobile ? ` / ${addr.alt_mobile}` : ''}`,
+                                    `Address: ${fullText || 'N/A'}`,
+                                    addr?.landmark ? `Landmark: Near ${addr.landmark}` : null,
+                                    addr?.city ? `City: ${addr.city}` : null,
+                                    addr?.state ? `State: ${addr.state}` : null,
+                                    addr?.pincode ? `Pincode: ${addr.pincode}` : null,
+                                    addr?.delivery_notes ? `Notes: ${addr.delivery_notes}` : null,
+                                  ].filter(Boolean).join('\n')
+                                  navigator.clipboard.writeText(copyLines)
+                                  toast.success('Courier address copied to clipboard!')
+                                }}
+                                className="text-[11px] font-semibold text-indigo-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/30 border border-indigo-500/30 transition-all cursor-pointer shadow-sm"
+                                title="Copy full address label for courier dispatch"
+                              >
+                                <Copy className="h-3 w-3" />
+                                <span>Copy Address</span>
+                              </button>
+
+                              {/* 2. Copy Direct Link to send to Influencer */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://1to7.in'
+                                  const link = `${origin}/dashboard/address-confirmation?id=${app.id}`
+                                  navigator.clipboard.writeText(link)
+                                  toast.success('Address confirmation link copied!')
+                                }}
+                                className="text-[11px] font-semibold text-purple-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 transition-all cursor-pointer shadow-sm"
+                                title="Copy link to send to influencer"
+                              >
+                                <Link2 className="h-3 w-3" />
+                                <span>Copy Link</span>
+                              </button>
+
+                              {/* 3. Send WhatsApp Request */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://1to7.in'
+                                  const link = `${origin}/dashboard/address-confirmation?id=${app.id}`
+                                  const creatorName = app.users?.full_name || 'Creator'
+                                  const brand = campaign?.brand_name || 'Brand'
+                                  const text = `Hi ${creatorName}! 🎉 Congratulations on your selection for the ${brand} collaboration on 1to7.\n\nBrand team needs your confirmed delivery address to dispatch your barter package. Please confirm or update your delivery address here:\n👉 ${link}\n\nThank you!`
+                                  
+                                  const phone = (addr?.mobile || app.users?.mobile || '').replace(/\D/g, '')
+                                  if (phone && phone.length === 10) {
+                                    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(text)}`, '_blank')
+                                  } else {
+                                    navigator.clipboard.writeText(text)
+                                    toast.success('WhatsApp text copied to clipboard!')
+                                  }
+                                }}
+                                className="text-[11px] font-semibold text-emerald-300 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+                                title="Send address confirmation request on WhatsApp"
+                              >
+                                <Share2 className="h-3 w-3" />
+                                <span>WhatsApp Request</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs bg-slate-950/50 rounded-xl p-3 border border-white/5">
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Recipient Name</span>
+                              <span className="text-slate-200 font-semibold">{addr?.name || app.users?.full_name || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Phone / Alt Phone</span>
+                              <span className="text-slate-200 font-semibold">
+                                {addr?.mobile || app.users?.mobile || '—'}
+                                {addr?.alt_mobile && <span className="text-slate-400 font-normal"> (Alt: {addr.alt_mobile})</span>}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Pincode</span>
+                              <span className="text-emerald-400 font-mono font-bold">{addr?.pincode || '—'}</span>
+                            </div>
+                            <div className="sm:col-span-2 lg:col-span-3">
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium block">Complete Address</span>
+                              <p className="text-slate-300 mt-0.5 leading-relaxed">{fullText || '—'}</p>
+                              {addr?.landmark && (
+                                <p className="text-slate-400 text-[11px] mt-0.5">Landmark: {addr.landmark}</p>
+                              )}
+                            </div>
+                            {addr?.delivery_notes && (
+                              <div className="sm:col-span-2 lg:col-span-3 text-[11px] bg-amber-500/10 text-amber-300 p-2 rounded-lg border border-amber-500/20">
+                                <strong>Courier Instructions:</strong> {addr.delivery_notes}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )
+                    })()}
+
+                    {/* Form Data */}
+                    {app.form_data && Object.keys(app.form_data).length > 0 && (() => {
+                      const hiddenKeys = new Set([
+                        'order_details', 'completion_submission', 'completion_history', 'rejection_reason',
+                        'completion_approved', 'order_history', 'payment_requests', 'payment_request',
+                        'payment_request_amount', 'payment_request_reason', 'supporting_document', 'live_date',
+                        'payment_reason', 'payment_amount', 'payment_initiated', 'payment_rejection',
+                        'payment_rejections', 'payment_initiation', 'payment_transactions', 'finance_payout_completed',
+                        'requests', 'order_details_approved', 'order_details_approved_at', 'order_details_approved_by_id',
+                        'order_details_approved_by_name', 'order_rejected_by_name', 'team_remark_by',
+                        'team_remark_updated_at', 'Campaign ID user id', 'FINAL APPROVEL', 'PROFILE APPROVEL',
+                        'sent_to_brand', 'agreed_commercial', 'commercial_amount', 'total_deal', '-Mobile Number',
+                        'User id', 'Campaign ID', 'ORDER SS IF REQ', 'ORDER ID', 'REFUND AMOUNT', '_edited_by_admin',
+                        'revoked_at', 'revocation_note', 'negotiation', 'shipping_address'
+                      ])
+
+                      const visibleEntries = Object.entries(app.form_data).filter(([key, val]) => {
+                        if (hiddenKeys.has(key)) return false
+                        if (key.startsWith('_')) return false
+                        if (key.endsWith('_details') && typeof val === 'object') return false
+                        return true
+                      })
+
+                      if (visibleEntries.length === 0) return null
+
+                      return (
+                        <div>
+                          <p className="text-[11px] text-indigo-400 uppercase tracking-wider font-semibold mb-3">Application Form Responses</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+                            {visibleEntries.map(([key, value]) => (
+                              <div key={key}>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+                                  {key.replace(/[_-]/g, ' ')}
+                                </p>
+                                <p className="text-slate-300 break-words">
+                                  {typeof value === 'boolean'
+                                    ? (value ? 'Yes' : 'No')
+                                    : (typeof value === 'object' && value !== null ? JSON.stringify(value) : (String(value) || '—'))}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Negotiation Status Card */}
                     {(() => {

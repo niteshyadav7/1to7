@@ -117,6 +117,15 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
     ]
   },
   {
+    key: 'shipping_address',
+    label: 'Delivery / Shipping Address',
+    patterns: [
+      /^(delivery\s*address|shipping\s*address|courier\s*address|postal\s*address|delivery\s*details|dispatch\s*address|complete\s*address|residential\s*address|barter\s*address)$/i,
+      /\b(delivery\s*address|shipping\s*address|courier\s*address)\b/i,
+      /^address$/i
+    ]
+  },
+  {
     key: 'pan_card',
     label: 'PAN Card Number',
     patterns: [
@@ -147,6 +156,17 @@ export interface ProfileFieldPreset {
 }
 
 export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
+  {
+    id: 'shipping_address',
+    label: 'Delivery Address',
+    icon: '📦',
+    name: 'Delivery Address',
+    type: 'text',
+    required: true,
+    options: [],
+    description: 'Auto-fills 1-click from saved creator addresses & updates profile for courier shipping',
+    canonicalKey: 'shipping_address'
+  },
   {
     id: 'pan_card',
     label: 'PAN Card Number',
@@ -391,6 +411,31 @@ export function getCanonicalField(rawLabel: string): string | null {
 }
 
 /**
+ * Detects whether a question is asking for a delivery/shipping address.
+ */
+export function isAddressField(rawLabel?: string | null, profileSyncKey?: string | null): boolean {
+  if (profileSyncKey === 'shipping_address') return true
+  if (!rawLabel) return false
+  const canonical = getCanonicalField(rawLabel)
+  if (canonical === 'shipping_address') return true
+  const norm = cleanQuestionLabel(rawLabel).toLowerCase()
+  return (
+    norm === 'address' ||
+    norm === 'delivery address' ||
+    norm === 'shipping address' ||
+    norm === 'courier address' ||
+    norm === 'postal address' ||
+    norm === 'dispatch address' ||
+    norm === 'complete address' ||
+    norm === 'delivery location' ||
+    norm === 'shipping location' ||
+    norm === 'barter address' ||
+    norm === 'product address' ||
+    /delivery\s*address|shipping\s*address|courier\s*address|dispatch\s*address|barter\s*address/i.test(norm)
+  )
+}
+
+/**
  * Transient campaign question slugs that should NEVER be stored in creator permanent profiles
  */
 export const TRANSIENT_CAMPAIGN_SLUGS = [
@@ -444,6 +489,7 @@ export function extractProfileUpdatesFromFormData(
     bio?: string | null
     youtube?: string | null
     languages?: string | null
+    shipping_addresses?: any[] | null
     custom_attributes?: Record<string, any> | null
     [key: string]: any
   } | null,
@@ -474,11 +520,68 @@ export function extractProfileUpdatesFromFormData(
     }
   }
 
+  // 0. Check and sync structured shipping address if present
+  let shippingAddrCandidate: any = null
+  if (formData.shipping_address && typeof formData.shipping_address === 'object') {
+    shippingAddrCandidate = formData.shipping_address
+  } else {
+    for (const [k, v] of Object.entries(formData)) {
+      if (k.endsWith('_details') && typeof v === 'object' && v !== null && (v as any).address_line1) {
+        shippingAddrCandidate = v
+        break
+      } else if (typeof v === 'object' && v !== null && (v as any).address_line1) {
+        shippingAddrCandidate = v
+        break
+      }
+    }
+  }
+
+  if (shippingAddrCandidate && shippingAddrCandidate.address_line1) {
+    const existingAddresses: any[] = Array.isArray(existingProfile?.shipping_addresses)
+      ? [...existingProfile.shipping_addresses]
+      : []
+
+    const normalizedAddr = {
+      id: shippingAddrCandidate.id || `addr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      title: shippingAddrCandidate.title || 'Studio / Alternate',
+      recipient_name: shippingAddrCandidate.recipient_name || existingProfile?.full_name || '',
+      mobile: shippingAddrCandidate.mobile || existingProfile?.mobile || '',
+      alt_mobile: shippingAddrCandidate.alt_mobile || undefined,
+      address_line1: String(shippingAddrCandidate.address_line1 || '').trim(),
+      address_line2: shippingAddrCandidate.address_line2 ? String(shippingAddrCandidate.address_line2).trim() : undefined,
+      landmark: shippingAddrCandidate.landmark ? String(shippingAddrCandidate.landmark).trim() : undefined,
+      city: String(shippingAddrCandidate.city || existingProfile?.city || '').trim(),
+      state: String(shippingAddrCandidate.state || existingProfile?.state || '').trim(),
+      pincode: String(shippingAddrCandidate.pincode || existingProfile?.pincode || '').trim(),
+      delivery_remarks: shippingAddrCandidate.delivery_remarks ? String(shippingAddrCandidate.delivery_remarks).trim() : undefined,
+      is_default: existingAddresses.length === 0 ? true : Boolean(shippingAddrCandidate.is_default),
+      created_at: shippingAddrCandidate.created_at || new Date().toISOString()
+    }
+
+    if (normalizedAddr.address_line1) {
+      const matchIdx = existingAddresses.findIndex(a => a.id === normalizedAddr.id)
+      if (matchIdx >= 0) {
+        existingAddresses[matchIdx] = { ...existingAddresses[matchIdx], ...normalizedAddr }
+      } else {
+        if (existingAddresses.length >= 6) {
+          existingAddresses.pop()
+        }
+        existingAddresses.push(normalizedAddr)
+      }
+
+      profileUpdates.shipping_addresses = existingAddresses
+      if (normalizedAddr.city) profileUpdates.city = normalizedAddr.city
+      if (normalizedAddr.state) profileUpdates.state = normalizedAddr.state
+      if (normalizedAddr.pincode) profileUpdates.pincode = normalizedAddr.pincode
+      hasChanges = true
+    }
+  }
+
   for (const [rawKey, rawValue] of Object.entries(formData)) {
     if (rawValue === undefined || rawValue === null || rawValue === '') continue
 
-    const valueStr = typeof rawValue === 'string' ? rawValue.trim() : String(rawValue)
-    if (!valueStr) continue
+    const valueStr = typeof rawValue === 'string' ? rawValue.trim() : (typeof rawValue === 'object' ? '' : String(rawValue))
+    if (!valueStr && typeof rawValue !== 'object') continue
 
     const rawKeyLower = rawKey.trim().toLowerCase()
     const cleanedKeyLower = cleanQuestionLabel(rawKey).toLowerCase()
@@ -501,7 +604,10 @@ export function extractProfileUpdatesFromFormData(
       }
 
       if (targetCanonical) {
-        if (targetCanonical === 'dob') {
+        if (targetCanonical === 'shipping_address') {
+          // Address synced above via shippingAddrCandidate
+          continue
+        } else if (targetCanonical === 'dob') {
           profileUpdates.dob = valueStr
           hasChanges = true
         } else if (targetCanonical === 'gender') {
@@ -517,23 +623,52 @@ export function extractProfileUpdatesFromFormData(
         } else if (['city', 'state', 'pincode', 'shoe_size', 'tshirt_size', 'bio', 'youtube', 'languages'].includes(targetCanonical)) {
           profileUpdates[targetCanonical] = valueStr
           hasChanges = true
+        } else {
+          // Dynamic custom attribute specified by admin (e.g. skin_type, food_preference, height)
+          const customKey = createAttributeSlug(targetCanonical)
+          if (customKey && !TRANSIENT_CAMPAIGN_SLUGS.includes(customKey)) {
+            customAttributes[customKey] = {
+              label: configuredField.name,
+              value: valueStr,
+              updated_at: new Date().toISOString()
+            }
+            hasChanges = true
+          }
         }
 
-        // Clean from customAttributes
-        delete customAttributes[targetCanonical]
-        const slug = createAttributeSlug(rawKey)
-        if (slug) delete customAttributes[slug]
+        // Clean from customAttributes if standard
+        if (isStandardProfileField(targetCanonical)) {
+          delete customAttributes[targetCanonical]
+          const slug = createAttributeSlug(rawKey)
+          if (slug) delete customAttributes[slug]
+        }
         continue
       }
 
-      // If sync_to_profile is false or unmapped, DO NOT save to profile
+      // If sync_to_profile is true but unmapped canonical, save as dynamic custom attribute
+      if (configuredField.sync_to_profile === true) {
+        const customKey = configuredField.profile_sync_key && configuredField.profile_sync_key !== 'auto' && configuredField.profile_sync_key !== 'none'
+          ? createAttributeSlug(configuredField.profile_sync_key)
+          : createAttributeSlug(configuredField.name)
+        if (customKey && !TRANSIENT_CAMPAIGN_SLUGS.includes(customKey) && !isStandardProfileField(customKey)) {
+          customAttributes[customKey] = {
+            label: configuredField.name,
+            value: valueStr,
+            updated_at: new Date().toISOString()
+          }
+          hasChanges = true
+        }
+      }
       continue
     }
 
     // 2. If campaignFormFields not provided (fallback), only match strictly known canonical fields
     const canonicalKey = getCanonicalField(rawKey)
     if (canonicalKey) {
-      if (canonicalKey === 'dob') {
+      if (canonicalKey === 'shipping_address') {
+        // Handled via shippingAddrCandidate
+        continue
+      } else if (canonicalKey === 'dob') {
         profileUpdates.dob = valueStr
         hasChanges = true
       } else if (canonicalKey === 'gender') {
@@ -628,13 +763,26 @@ export function getPrefillValueForField(rawLabel: string, user: any): string {
     if (val) return val
   }
 
-  // Check saved shipping addresses (for state, city, pincode)
-  if ((canonicalKey === 'state' || canonicalKey === 'city' || canonicalKey === 'pincode') &&
-      user.shipping_addresses && Array.isArray(user.shipping_addresses) && user.shipping_addresses.length > 0) {
+  // Check saved shipping addresses (for state, city, pincode, or shipping_address)
+  if (user.shipping_addresses && Array.isArray(user.shipping_addresses) && user.shipping_addresses.length > 0) {
     const defaultAddr = user.shipping_addresses.find((a: any) => a.is_default) || user.shipping_addresses[0]
-    if (defaultAddr && defaultAddr[canonicalKey]) {
-      const val = String(defaultAddr[canonicalKey]).trim()
-      if (val) return val
+    if (defaultAddr) {
+      if (canonicalKey === 'shipping_address' || isAddressField(rawLabel)) {
+        const parts = [
+          defaultAddr.address_line1,
+          defaultAddr.address_line2,
+          defaultAddr.landmark ? `Near ${defaultAddr.landmark}` : null,
+          defaultAddr.city,
+          defaultAddr.state,
+          defaultAddr.pincode ? `PIN: ${defaultAddr.pincode}` : null
+        ].filter(Boolean)
+        if (parts.length > 0) return parts.join(', ')
+      }
+
+      if (canonicalKey === 'state' || canonicalKey === 'city' || canonicalKey === 'pincode') {
+        const val = String(defaultAddr[canonicalKey] || '').trim()
+        if (val) return val
+      }
     }
   }
 

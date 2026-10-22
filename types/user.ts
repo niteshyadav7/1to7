@@ -7,6 +7,7 @@ export interface ShippingAddress {
   title: string
   recipient_name: string
   mobile: string
+  alt_mobile?: string
   address_line1: string
   address_line2?: string
   landmark?: string

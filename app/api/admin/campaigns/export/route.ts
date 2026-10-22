@@ -228,7 +228,7 @@ export async function GET(request: Request) {
     })
     const customKeys = Array.from(customKeysSet)
 
-    // Standard headers mapping 100% 1:1 with /admin/import
+    // Standard headers mapping 100% 1:1 with /admin/import plus courier logistics dispatch columns
     const baseHeaders = [
       'User ID',
       'Name',
@@ -253,6 +253,16 @@ export async function GET(request: Request) {
       'IFSC',
       'Store Location',
       'Shipping Address',
+      'Delivery Recipient',
+      'Delivery Phone',
+      'Delivery Alt Phone',
+      'Delivery Line 1',
+      'Delivery Line 2',
+      'Delivery Landmark',
+      'Delivery City',
+      'Delivery State',
+      'Delivery Pincode',
+      'Delivery Remarks',
       'Applied Date',
       'Completion Live Date',
       'Completion Link',
@@ -265,11 +275,32 @@ export async function GET(request: Request) {
     const csvLines: string[] = [allHeaders.map(h => escapeCSV(h)).join(',')]
 
     for (const app of applications) {
-      // Parse shipping address
+      // Resolve structured shipping address (prioritizing the specific address submitted with this application)
+      let addr: any = null
+      if (app.form_data?.shipping_address && typeof app.form_data.shipping_address === 'object') {
+        addr = app.form_data.shipping_address
+      } else if (app.form_data) {
+        for (const [k, v] of Object.entries(app.form_data)) {
+          if (k.endsWith('_details') && typeof v === 'object' && v !== null && (v as any).address_line1) {
+            addr = v
+            break
+          }
+        }
+      }
+      if (!addr && Array.isArray(app.shipping_addresses) && app.shipping_addresses.length > 0) {
+        addr = app.shipping_addresses.find((a: any) => a.is_default) || app.shipping_addresses[0]
+      }
+
       let shipStr = ''
-      if (Array.isArray(app.shipping_addresses) && app.shipping_addresses.length > 0) {
-        const addr = app.shipping_addresses[0]
-        shipStr = [addr.address_line1, addr.address_line2, addr.landmark, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')
+      if (addr) {
+        shipStr = [
+          addr.address_line1,
+          addr.address_line2,
+          addr.landmark ? `Near ${addr.landmark}` : null,
+          addr.city,
+          addr.state,
+          addr.pincode ? `PIN: ${addr.pincode}` : null
+        ].filter(Boolean).join(', ')
       }
 
       // Parse store location
@@ -320,6 +351,16 @@ export async function GET(request: Request) {
         escapeCSV(app.ifsc_code || ''),
         escapeCSV(storeStr),
         escapeCSV(shipStr),
+        escapeCSV(addr?.recipient_name || app.full_name || ''),
+        escapeCSV(addr?.mobile || app.mobile || ''),
+        escapeCSV(addr?.alt_mobile || ''),
+        escapeCSV(addr?.address_line1 || ''),
+        escapeCSV(addr?.address_line2 || ''),
+        escapeCSV(addr?.landmark || ''),
+        escapeCSV(addr?.city || app.city || ''),
+        escapeCSV(addr?.state || app.state || ''),
+        escapeCSV(addr?.pincode || ''),
+        escapeCSV(addr?.delivery_remarks || ''),
         escapeCSV(app.applied_at ? new Date(app.applied_at).toISOString() : ''),
         escapeCSV(compLiveDate),
         escapeCSV(compLink),
