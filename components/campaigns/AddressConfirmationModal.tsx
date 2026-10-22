@@ -62,6 +62,10 @@ export default function AddressConfirmationModal({
   const [addressType, setAddressType] = useState<'Home' | 'Office' | 'Other'>('Home')
   const [saveToProfile, setSaveToProfile] = useState(true)
 
+  // Dynamic campaign/courier fields (e.g. Size, Color, Preferences)
+  const [campaignOrderFields, setCampaignOrderFields] = useState<Array<{ name: string; type: string; required?: boolean; options?: string[] }>>([])
+  const [orderDetails, setOrderDetails] = useState<Record<string, any>>({})
+
   // Cities for the chosen state
   const availableCities = selectedState && INDIA_DATA[selectedState] ? INDIA_DATA[selectedState] : []
 
@@ -80,6 +84,11 @@ export default function AddressConfirmationModal({
         if (res.ok && data.application) {
           const addrs: ShippingAddress[] = data.application.saved_addresses || []
           setSavedAddresses(addrs)
+
+          // Load dynamic campaign order fields & pre-existing answers
+          const rawCampFields = data.application.campaign?.order_form_fields || application.campaigns?.order_form_fields || []
+          setCampaignOrderFields(Array.isArray(rawCampFields) ? rawCampFields : [])
+          setOrderDetails(data.application.order_details || application.form_data?.order_details || {})
 
           const currentAddr = data.application.current_address
           if (addrs.length > 0) {
@@ -193,6 +202,14 @@ export default function AddressConfirmationModal({
       }
     }
 
+    // Validate any required campaign order/dispatch fields
+    for (const f of campaignOrderFields) {
+      if (f.required && (!orderDetails[f.name] || String(orderDetails[f.name]).trim() === '')) {
+        toast.error(`Please provide ${f.name} for dispatch`)
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch(`/api/dashboard/applications/${application.id}/address`, {
@@ -200,6 +217,7 @@ export default function AddressConfirmationModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shipping_address: payloadAddress,
+          order_details: orderDetails,
           save_to_profile: saveToProfile,
         }),
       })
@@ -554,6 +572,54 @@ export default function AddressConfirmationModal({
                           Save to my Profile for future campaigns (Auto-fills next time)
                         </span>
                       </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Section: Dynamic Campaign / Dispatch Specifications (e.g. Size, Color, Preferences) */}
+                {campaignOrderFields.length > 0 && (
+                  <div className="rounded-xl border border-indigo-200/70 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/30 p-4 space-y-3 mt-4 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-indigo-600" />
+                        <span className="text-xs font-bold text-slate-800">
+                          Campaign / Product Details for Dispatch
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                        Required by Brand
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {campaignOrderFields.map(field => (
+                        <div key={field.name} className="space-y-1">
+                          <Label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                            <span>{field.name}</span>
+                            {field.required && <span className="text-rose-500 font-bold">*</span>}
+                          </Label>
+                          {field.type === 'select' && Array.isArray(field.options) && field.options.length > 0 ? (
+                            <select
+                              value={orderDetails[field.name] || ''}
+                              onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              className="w-full h-10 px-3 text-xs rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
+                              required={field.required}
+                            >
+                              <option value="">Select {field.name}...</option>
+                              {field.options.map((opt: string) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <Input
+                              value={orderDetails[field.name] || ''}
+                              onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                              placeholder={`Enter ${field.name}`}
+                              className="h-10 text-xs bg-white border-slate-200 focus-visible:ring-emerald-500"
+                              required={field.required}
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

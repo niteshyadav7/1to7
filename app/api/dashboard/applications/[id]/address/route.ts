@@ -37,7 +37,9 @@ export async function GET(
           platform,
           deliverables,
           budget_type,
-          requirements
+          requirements,
+          order_form,
+          order_form_fields
         ),
         users (
           id,
@@ -100,6 +102,7 @@ export async function GET(
         address_confirmed_at: fd.address_confirmed_at || null,
         current_address: currentAddress,
         saved_addresses: userAddresses,
+        order_details: fd.order_details || {},
         creator: {
           full_name: (app.users as any)?.full_name,
           mobile: (app.users as any)?.mobile,
@@ -230,12 +233,17 @@ export async function POST(
 
     // 1. Update application form_data
     const currentFormData = application.form_data || {}
+    const incomingOrderDetails = body.order_details || body.extra_details || {}
     const updatedFormData = {
       ...currentFormData,
       shipping_address: normalizedAddress,
       formatted_shipping_address: formattedAddressString,
       address_confirmed: true,
       address_confirmed_at: nowIso,
+      order_details: {
+        ...(currentFormData.order_details || {}),
+        ...incomingOrderDetails,
+      },
     }
 
     const { error: appUpdateErr } = await supabase

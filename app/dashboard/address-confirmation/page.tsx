@@ -44,6 +44,10 @@ function AddressConfirmationContent() {
   const [addressType, setAddressType] = useState<'Home' | 'Office' | 'Other'>('Home')
   const [saveToProfile, setSaveToProfile] = useState(true)
 
+  // Dynamic campaign/courier fields (e.g. Size, Color, Preferences)
+  const [campaignOrderFields, setCampaignOrderFields] = useState<Array<{ name: string; type: string; required?: boolean; options?: string[] }>>([])
+  const [orderDetails, setOrderDetails] = useState<Record<string, any>>({})
+
   // Cities for selected state
   const availableCities = selectedState && INDIA_DATA[selectedState] ? INDIA_DATA[selectedState] : []
 
@@ -71,6 +75,11 @@ function AddressConfirmationContent() {
         }
 
         setApplicationData(data.application)
+
+        // Load dynamic campaign order fields & pre-existing answers
+        const rawCampFields = data.application?.campaign?.order_form_fields || []
+        setCampaignOrderFields(Array.isArray(rawCampFields) ? rawCampFields : [])
+        setOrderDetails(data.application?.order_details || {})
 
         const addr = data.application?.current_address
         if (addr) {
@@ -145,6 +154,14 @@ function AddressConfirmationContent() {
       return
     }
 
+    // Validate any required campaign order/dispatch fields
+    for (const f of campaignOrderFields) {
+      if (f.required && (!orderDetails[f.name] || String(orderDetails[f.name]).trim() === '')) {
+        toast.error(`Please provide ${f.name} for dispatch`)
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       const payload = {
@@ -162,6 +179,7 @@ function AddressConfirmationContent() {
           pincode: cleanPin,
           delivery_remarks: deliveryRemarks.trim() || undefined,
         },
+        order_details: orderDetails,
         save_to_profile: saveToProfile,
       }
 
@@ -641,6 +659,54 @@ function AddressConfirmationContent() {
               className="bg-slate-950/60 border-white/10 text-white rounded-xl text-xs h-10"
             />
           </div>
+
+          {/* Dynamic Campaign / Dispatch Specifications */}
+          {campaignOrderFields.length > 0 && (
+            <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 via-slate-950/40 to-purple-500/10 p-4 space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-indigo-400" />
+                  <span className="text-xs font-bold text-white">
+                    Campaign / Product Details for Dispatch
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Required by Brand
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {campaignOrderFields.map(field => (
+                  <div key={field.name} className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span>{field.name}</span>
+                      {field.required && <span className="text-rose-400 font-bold">*</span>}
+                    </Label>
+                    {field.type === 'select' && Array.isArray(field.options) && field.options.length > 0 ? (
+                      <select
+                        value={orderDetails[field.name] || ''}
+                        onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                        className="w-full h-10 px-3 text-xs rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-medium"
+                        required={field.required}
+                      >
+                        <option value="">Select {field.name}...</option>
+                        {field.options.map((opt: string) => (
+                          <option key={opt} value={opt} className="bg-slate-900 text-white">{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        value={orderDetails[field.name] || ''}
+                        onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                        placeholder={`Enter ${field.name}`}
+                        className="bg-slate-950/60 border-white/10 text-white rounded-xl text-xs h-10"
+                        required={field.required}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Save to Profile Toggle */}
           <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950/40 border border-white/5 cursor-pointer">

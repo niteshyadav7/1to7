@@ -35,6 +35,7 @@ interface AddressEntry {
     deliverables?: string
     address_required?: boolean
     order_form?: boolean
+    order_form_fields?: Array<{ name: string; type: string; required?: boolean; options?: string[] }>
   }
   users: {
     id: string
@@ -223,12 +224,30 @@ export default function AdminAddressConfirmationPage() {
     }
   }
 
-  // Sprint 4: Export to CSV (Courier standard: Delhivery / Shiprocket / BlueDart format)
+  // Sprint 4: Export to CSV (Courier standard: Delhivery / Shiprocket / BlueDart format + Dynamic Custom Fields)
   const handleExportCSV = () => {
     if (filteredEntries.length === 0) {
       toast.error('No address records available to export')
       return
     }
+
+    // Collect all dynamic custom order / courier fields across filtered entries
+    const dynamicKeysSet = new Set<string>()
+    filteredEntries.forEach(entry => {
+      const orderDetails = entry.form_data?.order_details
+      if (orderDetails && typeof orderDetails === 'object') {
+        Object.keys(orderDetails).forEach(k => {
+          if (k && !k.startsWith('_')) dynamicKeysSet.add(k)
+        })
+      }
+      const campFields = entry.campaigns?.order_form_fields
+      if (Array.isArray(campFields)) {
+        campFields.forEach((f: any) => {
+          if (f?.name) dynamicKeysSet.add(f.name)
+        })
+      }
+    })
+    const dynamicKeys = Array.from(dynamicKeysSet)
 
     const exportRows = filteredEntries.map((entry, index) => {
       const addr = entry.form_data?.shipping_address || {}
@@ -246,7 +265,7 @@ export default function AdminAddressConfirmationPage() {
 
       const fullStreet = [line1, line2, landmark].filter(Boolean).join(', ')
 
-      return {
+      const baseRow: Record<string, any> = {
         'Sr. No': index + 1,
         'Application ID': entry.id,
         'Brand Name': entry.campaigns?.brand_name || '',
@@ -267,6 +286,15 @@ export default function AdminAddressConfirmationPage() {
         'Verification Status': getVerificationStatus(entry),
         'Verified Date': entry.address_verified_at ? new Date(entry.address_verified_at).toLocaleDateString('en-IN') : 'N/A',
       }
+
+      // Append dynamic custom order / courier specifications as separate columns
+      const orderDetails = entry.form_data?.order_details || {}
+      dynamicKeys.forEach(key => {
+        const val = orderDetails[key]
+        baseRow[key] = val !== undefined && val !== null ? String(val) : 'N/A'
+      })
+
+      return baseRow
     })
 
     const csv = Papa.unparse(exportRows)
@@ -281,7 +309,7 @@ export default function AdminAddressConfirmationPage() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    toast.success(`Exported ${exportRows.length} addresses for courier dispatch!`)
+    toast.success(`Exported ${exportRows.length} addresses with custom courier fields!`)
   }
 
   return (
@@ -519,6 +547,16 @@ export default function AdminAddressConfirmationPage() {
                               <p className="text-[11px] text-amber-300/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mt-1">
                                 Note: {addr.delivery_remarks}
                               </p>
+                            )}
+                            {/* Dynamic Custom Courier / Product Details */}
+                            {entry.form_data?.order_details && Object.keys(entry.form_data.order_details).length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 mt-2 pt-1.5 border-t border-white/5">
+                                {Object.entries(entry.form_data.order_details).map(([k, v]) => (
+                                  <span key={k} className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                    <span className="font-semibold text-slate-300">{k}:</span> {String(v)}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ) : (

@@ -35,7 +35,8 @@ export async function GET(request: Request) {
           'platform', c.platform,
           'deliverables', c.deliverables,
           'address_required', c.address_required,
-          'order_form', c.order_form
+          'order_form', c.order_form,
+          'order_form_fields', c.order_form_fields
         ) AS campaigns,
         json_build_object(
           'id', u.id,
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
           'city', u.city,
           'state', u.state,
           'pincode', u.pincode,
-          'profile_photo', u.profile_photo,
+          'profile_photo', u.instagram_profile_pic,
           'instagram_profile_pic', u.instagram_profile_pic,
           'shipping_addresses', u.shipping_addresses
         ) AS users
