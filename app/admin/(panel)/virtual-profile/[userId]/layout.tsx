@@ -35,7 +35,7 @@ export default function VirtualProfileLayout({ children }: { children: React.Rea
   const sidebarLinks = [
     { href: basePath, label: 'Overview', icon: LayoutDashboard },
     { href: `${basePath}/applied`, label: 'Applied', icon: Send },
-    { href: `${basePath}/profile?step=2`, label: 'Address Confirmation', icon: MapPin },
+    { href: `${basePath}/profile?step=2`, label: 'Address', icon: MapPin },
     { href: `${basePath}/approved`, label: 'Approved', icon: CheckCircle2 },
     { href: `${basePath}/profile`, label: 'Profile', icon: User },
     { href: `${basePath}/feedback`, label: 'Feedback', icon: MessageSquareHeart },

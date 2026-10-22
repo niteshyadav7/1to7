@@ -40,7 +40,7 @@ import {
 const sidebarLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/campaigns', label: 'Applied', icon: Send },
-  { href: '/dashboard/address-confirmation', label: 'Address Confirmation', icon: MapPin },
+  { href: '/dashboard/address-confirmation', label: 'Address', icon: MapPin },
   { href: '/dashboard/approved', label: 'Approved', icon: CheckCircle2 },
   { href: '/dashboard/profile', label: 'Profile', icon: User },
   { href: '/dashboard/feedback', label: 'Feedback', icon: MessageSquareHeart },
