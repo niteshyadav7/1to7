@@ -71,6 +71,7 @@ interface CampaignData {
   order_form?: boolean
   order_form_fields?: FormField[]
   show_order_form?: boolean
+  address_required?: boolean
   payment_form_fields?: FormField[]
   completion_days?: number
   completion_deadline?: string
@@ -117,6 +118,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     form_link: '',
     order_form: false,
     show_order_form: true,
+    address_required: false,
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
@@ -177,6 +179,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         form_link: data.campaign.form_link || '',
         order_form: data.campaign.order_form || false,
         show_order_form: data.campaign.show_order_form !== false,
+        address_required: Boolean(data.campaign.address_required),
         completion_days: data.campaign.completion_days ? String(data.campaign.completion_days) : '7',
         completion_deadline: data.campaign.completion_deadline ? data.campaign.completion_deadline.split('T')[0] : '',
         enforce_completion_deadline: data.campaign.enforce_completion_deadline !== false,
@@ -227,6 +230,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,
+        address_required: formData.address_required,
         payment_form_fields: paymentFormFields.filter(f => f.name.trim()),
         completion_days: formData.completion_days ? parseInt(formData.completion_days, 10) || 7 : 7,
         completion_deadline: formData.completion_deadline || null,
@@ -1031,6 +1035,45 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
             <h3 className="text-sm font-semibold text-white">Application Settings</h3>
           </div>
           <div className="p-6 space-y-5">
+            {/* Delivery Address Required Toggle */}
+            <div className="space-y-1.5 pb-2 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  Delivery Address Required? (Physical Shipping / Barter)
+                </Label>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
+                  Logistics & Courier
+                </span>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, address_required: true })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    formData.address_required
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  📦 Yes — Collect / Verify Delivery Address
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, address_required: false })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    !formData.address_required
+                      ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  📱 No — Digital Collab / No Shipping
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                When enabled, shortlisted creators confirm or submit their delivery address via an in-place modal, and verified addresses appear in the Address Confirmation desk.
+              </p>
+            </div>
+
             {/* Order Form Toggle */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">Order Form Required?</Label>

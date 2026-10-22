@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText, Eye, RotateCcw } from 'lucide-react'
+import { Send, Instagram, Youtube, ShoppingBag, Loader2, Filter, UploadCloud, CheckCircle2, ClipboardList, Info, MessageSquare, ExternalLink, IndianRupee, Image, FileText, Eye, RotateCcw, MapPin, Sparkles } from 'lucide-react'
 import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
+import AddressConfirmationModal from '@/components/campaigns/AddressConfirmationModal'
 import CampaignDetailModal from '@/components/campaigns/CampaignDetailModal'
 import ApplicationReviewModal from '@/components/modals/ApplicationReviewModal'
 import { useAuth } from '@/components/providers/AuthProvider'
@@ -31,6 +32,7 @@ interface Application {
     deliverables: string
     order_form?: boolean
     order_form_fields?: any[]
+    address_required?: boolean
   }
 }
 
@@ -48,13 +50,14 @@ const statusColors: Record<string, string> = {
 
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
-const statuses = ['All', 'Applied', 'Under Process', 'Rejected']
+const statuses = ['All', 'Action Required', 'Applied', 'Under Process', 'Rejected']
 
 export default function AppliedCampaignsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
+  const [addressApp, setAddressApp] = useState<Application | null>(null)
   const [reviewApp, setReviewApp] = useState<Application | null>(null)
   const [reApplyCampaign, setReApplyCampaign] = useState<any | null>(null)
   const { user } = useAuth()
@@ -90,20 +93,43 @@ export default function AppliedCampaignsPage() {
   // Auto-refresh when admin updates any application
   useRealtime({ table: 'applications', onChange: fetchApplications })
 
+  // Helper to check if campaign requires address or order form details
+  const isMissingAddress = (app: Application) => {
+    const needsAddress = Boolean(app.campaigns?.address_required || app.campaigns?.order_form)
+    return needsAddress && !app.form_data?.address_confirmed
+  }
+
+  const isMissingOrderForm = (app: Application) => {
+    return Boolean(app.campaigns?.order_form && !app.form_data?.order_details && !app.form_data?.order_details_approved)
+  }
+
+  const isActionRequiredApp = (app: Application) => {
+    if (app.status === 'Approved') {
+      return isMissingAddress(app) || isMissingOrderForm(app)
+    }
+    return false
+  }
+
   // Only show Applied & Rejected here — Approved and beyond are on the Approved page
-  // BUT: if the campaign requires an order form and order_details haven't been approved yet,
-  // keep it visible on the Applied page so the influencer can fill the order form
+  // BUT: if the campaign requires an order form or delivery address and details haven't been approved yet,
+  // keep it visible on the Applied page so the influencer can fill details
   const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
   const appliedPageApps = applications.filter(app => {
     // Always show Applied & Rejected
     if (!approvedStatuses.includes(app.status)) return true
     // For campaigns with order forms: keep in Applied until order_details are approved by admin
     if (app.campaigns?.order_form && !app.form_data?.order_details_approved) return true
+    // For campaigns requiring delivery address: keep in Applied until address is confirmed/approved
+    if (app.campaigns?.address_required && !app.form_data?.address_confirmed) return true
     return false
   })
 
+  const actionRequiredCount = applications.filter(isActionRequiredApp).length
+
   const filteredApps = activeFilter === 'All'
     ? appliedPageApps
+    : activeFilter === 'Action Required'
+    ? applications.filter(isActionRequiredApp)
     : appliedPageApps.filter((app) => app.status === activeFilter)
 
   if (loading) {
@@ -124,22 +150,58 @@ export default function AppliedCampaignsPage() {
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Filter className="h-3.5 w-3.5 text-secondary mr-1 shrink-0" />
-          {statuses.map((status) => (
-            <button
-              key={status}
-              onClick={() => setActiveFilter(status)}
-              className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-all cursor-pointer ${activeFilter === status
-                  ? 'bg-primary-container text-black border-primary-container/30 shadow-2xs'
-                  : 'bg-slate-50 text-secondary border-slate-200 hover:bg-slate-100 hover:text-charcoal-surface'
+          {statuses.map((status) => {
+            const isActionRequired = status === 'Action Required'
+            return (
+              <button
+                key={status}
+                onClick={() => setActiveFilter(status)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeFilter === status
+                    ? 'bg-primary-container text-black border-primary-container/30 shadow-2xs'
+                    : isActionRequired && actionRequiredCount > 0
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold hover:bg-amber-100'
+                    : 'bg-slate-50 text-secondary border-slate-200 hover:bg-slate-100 hover:text-charcoal-surface'
                 }`}
-            >
-              {status}
-            </button>
-          ))}
+              >
+                {status}
+                {isActionRequired && actionRequiredCount > 0 && (
+                  <span className="h-4 min-w-4 px-1 rounded-full bg-amber-600 text-white text-[10px] font-extrabold flex items-center justify-center">
+                    {actionRequiredCount}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
+
+      {/* Prominent Action Required Alert Banner */}
+      {actionRequiredCount > 0 && activeFilter !== 'Action Required' && (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-3.5 sm:p-4 rounded-xl border border-emerald-200/90 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-emerald-600 text-white shadow-2xs shrink-0 mt-0.5 sm:mt-0">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">
+                🎉 Congratulations! You have {actionRequiredCount} shortlisted campaign{actionRequiredCount > 1 ? 's' : ''} requiring details!
+              </p>
+              <p className="text-[11px] text-slate-600 font-medium">
+                Please confirm your delivery address or submit order details so products can be dispatched to you.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveFilter('Action Required')}
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer whitespace-nowrap self-start sm:self-auto"
+          >
+            Review Missing Details ({actionRequiredCount}) →
+          </button>
+        </div>
+      )}
 
       {/* Applications List */}
       {filteredApps.length === 0 ? (
@@ -290,6 +352,27 @@ export default function AppliedCampaignsPage() {
                     </button>
                   )}
 
+                  {/* Confirm Delivery Address Button (In-Place Modal, Zero Redirect) */}
+                  {(app.status === 'Approved' || app.status === 'Under Process') && (app.campaigns?.address_required || app.campaigns?.order_form) && (
+                    <>
+                      {!app.form_data?.address_confirmed ? (
+                        <button
+                          type="button"
+                          onClick={() => setAddressApp(app)}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all cursor-pointer active:scale-95"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          Confirm Delivery Address
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Address Submitted {app.form_data?.address_status === 'Approved' ? '(Verified)' : '(Pending Verification)'}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   {/* Upload Order Details - only show if approved, or if rejected AFTER they already submitted order details */}
                   {((app.status === 'Approved') || (app.status === 'Rejected' && !!app.form_data?.order_details)) && app.campaigns?.order_form && (
                     <button
@@ -297,7 +380,7 @@ export default function AppliedCampaignsPage() {
                       disabled={!!app.form_data?.order_details && app.status !== 'Rejected'}
                       className={`flex items-center gap-2 px-4 py-2.5 rounded-md transition-all text-xs font-semibold ${!!app.form_data?.order_details && app.status !== 'Rejected'
                           ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer'
                         }`}
                     >
                       {app.form_data?.order_details ? (
@@ -319,6 +402,13 @@ export default function AppliedCampaignsPage() {
           ))}
         </div>
       )}
+
+      <AddressConfirmationModal
+        isOpen={!!addressApp}
+        onClose={() => setAddressApp(null)}
+        application={addressApp}
+        onSuccess={fetchApplications}
+      />
 
       <OrderVerificationModal
         isOpen={!!selectedApplication}

@@ -62,6 +62,7 @@ export default function AdminCreateCampaignPage() {
     form_link: '',
     order_form: false,
     show_order_form: true,
+    address_required: false,
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
@@ -119,6 +120,7 @@ export default function AdminCreateCampaignPage() {
       form_link: source.form_link || '',
       order_form: Boolean(source.order_form),
       show_order_form: source.show_order_form !== false,
+      address_required: Boolean(source.address_required),
       completion_days: source.completion_days ? String(source.completion_days) : '7',
       completion_deadline: source.completion_deadline || '',
       enforce_completion_deadline: source.enforce_completion_deadline !== false,
@@ -292,6 +294,7 @@ export default function AdminCreateCampaignPage() {
       form_link: '',
       order_form: false,
       show_order_form: true,
+      address_required: false,
       completion_days: '7',
       completion_deadline: '',
       enforce_completion_deadline: true,
@@ -335,6 +338,7 @@ export default function AdminCreateCampaignPage() {
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,
+        address_required: formData.address_required,
         payment_form_fields: paymentFormFields.filter(f => f.name.trim()),
       }
 
@@ -1212,6 +1216,46 @@ export default function AdminCreateCampaignPage() {
               placeholder="e.g. https://forms.gle/xyz (If provided, creators apply via this link)"
               className="bg-slate-950/70 border-white/10 !text-white placeholder:text-slate-500 h-11 text-sm focus-visible:ring-indigo-500 rounded-xl"
             />
+          </div>
+
+          {/* Delivery Address Required Toggle */}
+          <div className="space-y-2 pt-2 border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                Delivery Address Required? (Physical Shipping / Barter)
+              </Label>
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
+                Logistics & Courier
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, address_required: true })}
+                className={`h-12 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                  formData.address_required
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                    : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                📦 Yes — Collect / Verify Delivery Address
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, address_required: false })}
+                className={`h-12 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                  !formData.address_required
+                    ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                    : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                }`}
+              >
+                📱 No — Digital Collab / No Shipping
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              When enabled, shortlisted creators are prompted to confirm or submit their delivery address in-place, and verified addresses appear in the Address Confirmation desk for courier dispatch.
+            </p>
           </div>
 
           {/* Order Form Toggle */}

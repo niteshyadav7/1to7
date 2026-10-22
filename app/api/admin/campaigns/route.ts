@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       order_form_fields,
       show_order_form,
       payment_form_fields,
+      address_required,
       brief_document_url,
       completion_days,
       completion_deadline,
@@ -131,14 +132,14 @@ export async function POST(request: Request) {
         location, location_type, target_states, target_cities, store_locations, enforce_location,
         looking_for, followers, min_followers, enforce_followers, additional_info, 
         collab_date, form_link, form_fields, order_form, 
-        order_form_fields, show_order_form, payment_form_fields, status, is_live, 
+        order_form_fields, show_order_form, payment_form_fields, address_required, status, is_live, 
         completion_days, completion_deadline, enforce_completion_deadline, display_order, brief_document_url,
         approval_status, created_by_admin_id, created_by_admin_name, created_by_admin_email,
         last_edited_by_admin_id, last_edited_by_admin_name, last_edited_by_admin_email, last_edited_at,
         approved_by_admin_id, approved_by_admin_name, approved_by_admin_email, approved_at,
         is_test_mode, test_user_ids, test_creators, poc_admin_ids, manager_phone
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55
       ) RETURNING *
     `
     const values = [
@@ -172,6 +173,7 @@ export async function POST(request: Request) {
       JSON.stringify(order_form_fields || []),
       show_order_form !== false,
       JSON.stringify(payment_form_fields || []),
+      Boolean(address_required),
       campaignStatus,
       isLive,
       completion_days !== undefined && completion_days !== null ? parseInt(completion_days, 10) || 7 : 7,

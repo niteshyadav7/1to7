@@ -57,6 +57,7 @@ export async function PUT(
       'looking_for', 'followers', 'min_followers', 'enforce_followers', 'additional_info',
       'collab_date', 'form_link', 'form_fields',
       'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
+      'address_required',
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
       'display_order', 'brief_document_url',
       'is_test_mode', 'test_user_ids', 'test_creators',

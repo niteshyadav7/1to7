@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles, Phone, MessageCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles, Phone, MessageCircle, MapPin, Package, ArrowRight, Clock } from 'lucide-react'
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
+import AddressConfirmationModal from '@/components/campaigns/AddressConfirmationModal'
 import { useRealtime } from '@/hooks/useRealtime'
 import BrandLoader from '@/components/ui/BrandLoader'
 import { getApplicationCommercialAmount, isPaidCollaboration } from '@/lib/utils/commercial-utils'
@@ -38,6 +39,7 @@ interface Application {
     manager_phone?: string | null
     order_form?: boolean
     payment_form_fields?: any[]
+    address_required?: boolean
   }
 }
 
@@ -45,8 +47,10 @@ import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 
 export default function ApprovedCampaignsPage() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [pendingDetailsApps, setPendingDetailsApps] = useState<Application[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
+  const [addressApp, setAddressApp] = useState<Application | null>(null)
 
   const fetchApproved = useCallback(async (isBackground = false) => {
     if (!isBackground && applications.length === 0) {
@@ -56,7 +60,18 @@ export default function ApprovedCampaignsPage() {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
       const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
-      const filtered = (data.applications || []).filter((app: Application) => {
+      const allApps = data.applications || []
+
+      // Identify approved campaigns that need missing details
+      const missingDetails = allApps.filter((app: Application) => {
+        if (app.status !== 'Approved') return false
+        const needsOrder = Boolean(app.campaigns?.order_form && !app.form_data?.order_details_approved)
+        const needsAddr = Boolean((app.campaigns?.address_required || app.campaigns?.order_form) && !app.form_data?.address_confirmed)
+        return needsOrder || needsAddr
+      })
+      setPendingDetailsApps(missingDetails)
+
+      const filtered = allApps.filter((app: Application) => {
         if (!validStatuses.includes(app.status)) return false
         if (app.campaigns?.order_form && app.status === 'Approved') {
           if (!app.form_data?.order_details_approved) {
@@ -111,6 +126,83 @@ export default function ApprovedCampaignsPage() {
           Total: {applications.length}
         </div>
       </div>
+
+      {/* Prominent Section: Approved & Missing Details */}
+      {pendingDetailsApps.length > 0 && (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-white p-4 sm:p-5 rounded-2xl border border-emerald-200/90 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-emerald-600 text-white shadow-2xs">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  Action Required: Approved & Missing Details
+                  <span className="h-5 px-2 rounded-full bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center">
+                    {pendingDetailsApps.length}
+                  </span>
+                </h2>
+                <p className="text-[11px] text-slate-600 font-medium mt-0.5">
+                  You are shortlisted for these campaigns! Complete the required details below to begin:
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {pendingDetailsApps.map((pApp) => {
+              const needsAddress = Boolean((pApp.campaigns?.address_required || pApp.campaigns?.order_form) && !pApp.form_data?.address_confirmed)
+              const needsOrder = Boolean(pApp.campaigns?.order_form && !pApp.form_data?.order_details_approved)
+
+              return (
+                <div
+                  key={pApp.id}
+                  className="bg-white p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs flex flex-col justify-between gap-3 hover:border-emerald-400 transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-bold text-slate-900">
+                        {pApp.campaigns?.brand_name || 'Campaign'}
+                      </span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        Shortlisted
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Code: <span className="font-mono font-bold text-slate-700">{pApp.campaigns?.campaign_code}</span>
+                    </p>
+                    <div className="mt-2 text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 rounded-lg p-2 font-medium flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                      {needsAddress ? 'Delivery address required' : 'Order details verification required'}
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    {needsAddress ? (
+                      <button
+                        type="button"
+                        onClick={() => setAddressApp(pApp)}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Confirm Delivery Address
+                      </button>
+                    ) : (
+                      <Link
+                        href="/dashboard/campaigns"
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-all"
+                      >
+                        <FileCheck className="h-3.5 w-3.5" />
+                        Submit Order Form →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {applications.length === 0 ? (
         <div className="rounded-md border border-border-subtle bg-white p-12 text-center shadow-sm">
@@ -344,6 +436,14 @@ export default function ApprovedCampaignsPage() {
         onClose={() => setSelectedApp(null)}
         onRefresh={() => { fetchApproved(); setSelectedApp(null) }}
         application={selectedApp}
+      />
+
+      {/* In-Place Address Confirmation Modal (Zero Redirect) */}
+      <AddressConfirmationModal
+        isOpen={!!addressApp}
+        onClose={() => setAddressApp(null)}
+        application={addressApp}
+        onSuccess={fetchApproved}
       />
     </div>
   )

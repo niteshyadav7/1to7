@@ -242,6 +242,7 @@ export async function POST(
       .from('applications')
       .update({
         form_data: updatedFormData,
+        address_status: 'Pending',
         updated_at: nowIso,
       })
       .eq('id', id)
