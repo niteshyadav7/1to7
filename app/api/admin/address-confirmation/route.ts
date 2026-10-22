@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const campaignId = searchParams.get('campaign_id') || ''
     const statusFilter = searchParams.get('status') || 'All'
     const search = (searchParams.get('search') || '').trim().toLowerCase()
+    const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '5000', 10)), 10000)
 
     let query = `
       SELECT 
@@ -100,7 +101,8 @@ export async function GET(request: Request) {
       )`
     }
 
-    query += ` ORDER BY a.updated_at DESC LIMIT 500`
+    params.push(limit)
+    query += ` ORDER BY a.updated_at DESC LIMIT $${params.length}`
 
     const res = await pool.query(query, params)
 

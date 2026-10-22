@@ -7,7 +7,8 @@ import {
   Instagram, Users, Phone, Search, Filter,
   Megaphone, Download, Clock, Package,
   ExternalLink, Sparkles, AlertCircle, FileSpreadsheet,
-  Check, X, RefreshCw
+  Check, X, RefreshCw,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,8 @@ interface AddressEntry {
   }
 }
 
+const pageSizes = [10, 25, 50, 100]
+
 export default function AdminAddressConfirmationPage() {
   const [entries, setEntries] = useState<AddressEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -61,6 +64,8 @@ export default function AdminAddressConfirmationPage() {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All')
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all')
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   // Rejection reason modal
   const [rejectModalEntry, setRejectModalEntry] = useState<AddressEntry | null>(null)
@@ -69,7 +74,7 @@ export default function AdminAddressConfirmationPage() {
   const fetchAddresses = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/address-confirmation')
+      const res = await fetch('/api/admin/address-confirmation?limit=5000')
       const data = await res.json()
       if (res.ok && data.addresses) {
         setEntries(data.addresses)
@@ -169,6 +174,30 @@ export default function AdminAddressConfirmationPage() {
 
     return { total: entries.length, pending, approved, rejected, notSubmitted }
   }, [entries])
+
+  // Pagination calculations
+  const totalFiltered = filteredEntries.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
+
+  // Reset page to 1 when filters or page size change
+  useEffect(() => {
+    setPage(1)
+  }, [selectedCampaignId, statusFilter, searchQuery, pageSize])
+
+  // Clamp current page within bounds if data shrinks
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const paginatedEntries = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredEntries.slice(start, start + pageSize)
+  }, [filteredEntries, page, pageSize])
+
+  const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1
+  const endIndex = Math.min(page * pageSize, totalFiltered)
 
   // Approve Address Action
   const handleApprove = async (entry: AddressEntry) => {
@@ -467,7 +496,7 @@ export default function AdminAddressConfirmationPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredEntries.map((entry) => {
+                {paginatedEntries.map((entry) => {
                   const vStatus = getVerificationStatus(entry)
                   const addr = entry.form_data?.shipping_address || {}
                   const hasSubmittedAddress = Boolean(entry.form_data?.address_confirmed || addr.address_line1)
@@ -652,6 +681,93 @@ export default function AdminAddressConfirmationPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Toolbar */}
+        {!loading && filteredEntries.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3.5 border-t border-white/5 bg-slate-950/40 text-xs text-slate-400">
+            <div className="flex items-center gap-3">
+              <span>
+                Showing <span className="font-bold text-white">{totalFiltered === 0 ? '0' : `${startIndex}–${endIndex}`}</span> of{' '}
+                <span className="font-bold text-white">{totalFiltered}</span>
+              </span>
+              <div className="h-3 w-px bg-white/10" />
+              <div className="flex items-center gap-1.5">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-slate-800 border border-white/10 text-white text-xs rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  {pageSizes.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="First Page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Previous Page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="flex items-center gap-1 mx-2">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number
+                  if (totalPages <= 5) {
+                    pageNum = i + 1
+                  } else if (page <= 3) {
+                    pageNum = i + 1
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i
+                  } else {
+                    pageNum = page - 2 + i
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        page === pageNum
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'text-slate-500 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Next Page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Last Page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>

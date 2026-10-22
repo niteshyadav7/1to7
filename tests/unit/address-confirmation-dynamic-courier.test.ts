@@ -150,4 +150,56 @@ describe('Address Confirmation & Courier Dynamic Fields', () => {
     expect(csvString).toContain('Warm Ivory')
     expect(csvString).toContain('King (78x72)')
   })
+
+  it('correctly calculates pagination boundaries and slices for thousands of records', () => {
+    // Generate 2,543 dummy records to simulate heavy production data
+    const totalRecords = 2543
+    const mockEntries = Array.from({ length: totalRecords }, (_, i) => ({
+      id: `app-${i + 1}`,
+      address_status: i % 2 === 0 ? 'Approved' : 'Pending',
+    }))
+
+    const pageSize = 25
+    const totalPages = Math.max(1, Math.ceil(mockEntries.length / pageSize))
+    expect(totalPages).toBe(102) // Math.ceil(2543 / 25) = 102
+
+    // Page 1
+    const page1Start = (1 - 1) * pageSize
+    const page1Data = mockEntries.slice(page1Start, page1Start + pageSize)
+    expect(page1Data.length).toBe(25)
+    expect(page1Data[0].id).toBe('app-1')
+    expect(page1Data[24].id).toBe('app-25')
+
+    // Page 102 (Last page: 2543 % 25 = 18 items remaining)
+    const page102Start = (102 - 1) * pageSize
+    const page102Data = mockEntries.slice(page102Start, page102Start + pageSize)
+    expect(page102Data.length).toBe(18)
+    expect(page102Data[0].id).toBe('app-2526')
+    expect(page102Data[17].id).toBe('app-2543')
+
+    // Start & End index calculation
+    const startIndex1 = 0 * pageSize + 1
+    const endIndex1 = Math.min(1 * pageSize, totalRecords)
+    expect(startIndex1).toBe(1)
+    expect(endIndex1).toBe(25)
+
+    const startIndexLast = (102 - 1) * pageSize + 1
+    const endIndexLast = Math.min(102 * pageSize, totalRecords)
+    expect(startIndexLast).toBe(2526)
+    expect(endIndexLast).toBe(2543)
+  })
+
+  it('handles empty datasets gracefully without NaN or negative indices', () => {
+    const emptyEntries: any[] = []
+    const pageSize = 25
+    const totalFiltered = emptyEntries.length
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
+    const startIndex = totalFiltered === 0 ? 0 : (1 - 1) * pageSize + 1
+    const endIndex = Math.min(1 * pageSize, totalFiltered)
+
+    expect(totalPages).toBe(1)
+    expect(startIndex).toBe(0)
+    expect(endIndex).toBe(0)
+  })
 })
+

@@ -43,6 +43,7 @@ CASE 32: Decoupled Post-Approval Address Confirmation & Dual-Sync System (Secure
 CASE 33: Zero-Redirect In-Place Address Confirmation, Action-Required Navigation Resilience & Brand Logistics Dispatch Engine (Eliminating Post-Approval Drop-Off & Address Disappearance)
 CASE 34: Operational State Stripping & Vacuous Truth Inversion in Dual-Governance Pipelines (Silent Live Toggle Reversion on Page Refresh)
 CASE 35: PostgreSQL 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic) & Dynamic Courier Specification Pipeline
+CASE 36: Query Ceiling Blindspots & Large-Scale Admin Grid Virtual Slicing (Scaling Beyond 500-Row Hardcoded Limits to Thousands of Logistics Records)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -1324,6 +1325,45 @@ Concurrently, operations requested that if a brand requires extra courier or pro
 
 [INTERVIEW STAR TAKEAWAY]
 "When raw SQL joins are used for high-performance multi-table projections, always guard against phantom column references caused by TypeScript interface drift—alias physical database columns (`col AS model_prop`) rather than assuming client property names exist verbatim in SQL. Furthermore, when designing courier dispatch pipelines, couple rigid physical address standards with an open-ended dynamic payload aggregator so custom product specifications (like size, color, or delivery slot) automatically project into export spreadsheets without requiring schema migrations per campaign."
+
+====================================================================================================
+CASE 36: Query Ceiling Blindspots & Large-Scale Admin Grid Virtual Slicing (Scaling Beyond 500-Row Hardcoded Limits to Thousands of Logistics Records)
+====================================================================================================
+CATEGORIES: Full-Stack / Database Optimization / Next.js / UI Virtualization & Pagination / Logistics Operations
+INTERVIEW QUESTION: "How do you handle scaling an internal operations dashboard when dataset volume grows from hundreds of rows to thousands without compromising server throughput, memory footprint, or client-side responsiveness?"
+
+[SITUATION]
+With creator adoption surging across active campaigns (Deconstruct, JioTag, Plum), the Address Confirmation admin desk (`/admin/address-confirmation`) began loading hundreds of submitted delivery addresses.
+However, two critical production bottlenecks emerged:
+1. Operations observed that the table was becoming sluggish to scroll as hundreds of DOM nodes with complex profile avatars, address multiline blocks, and action buttons were mounted simultaneously.
+2. In the backend API route (`/api/admin/address-confirmation/route.ts`), the query was hardcoded with `LIMIT 500`. Once total creator submissions across campaigns exceeded 500, older records were silently truncated from the dashboard and from Courier CSV exports.
+
+[ROOT CAUSE INVESTIGATION]
+1. Backend Query Clamping:
+   Similar to Case 1's PostgREST row clamping, developers often place arbitrary safety limits (`LIMIT 500`) during rapid prototyping. When total applications surpassed 500, creators waiting for address verification or dispatch were omitted from query results without any warning or error, creating an invisible operational backlog.
+2. DOM Node Bloat & Client Sluggishness:
+   The admin page rendered all fetched records in a single unpaginated `<table>`. In modern browsers, rendering thousands of complex table rows with SVGs, tooltips, and badges leads to layout thrashing, high garbage collection pauses, and degraded responsiveness on mobile or low-spec admin devices.
+
+[SOLUTION & ARCHITECTURE]
+1. Scalable Dynamic Backend Limit & Parameterization:
+   In `/api/admin/address-confirmation/route.ts`, replaced the hardcoded `LIMIT 500` with a parameterized query:
+   `const limit = Math.min(Math.max(1, parseInt(searchParams.get('limit') || '5000', 10)), 10000)`
+   `params.push(limit)`
+   `query += ' ORDER BY a.updated_at DESC LIMIT $' + params.length`
+   This allows fetching up to 5,000 (or customizable limit up to 10,000) records without truncation.
+2. High-Performance Client-Side Grid Slicing & Pagination:
+   In `/admin/address-confirmation/page.tsx`:
+   - Introduced standard page sizes (`[10, 25, 50, 100]`) with a default of 25 rows per page.
+   - Sliced the DOM rendering via `useMemo`:
+     `const paginatedEntries = useMemo(() => filteredEntries.slice((page - 1) * pageSize, page * pageSize), [filteredEntries, page, pageSize])`
+   - Added full navigation controls: Jump to First (`<<`), Previous (`<`), Dynamic 5-page numeric window (`1, 2, 3, 4, 5`), Next (`>`), and Last (`>>`).
+   - Added automatic page reset to 1 whenever filters (`searchQuery`, `statusFilter`, `selectedCampaignId`, `pageSize`) change.
+   - Added automatic page bounds clamping if the filtered dataset shrinks.
+3. Decoupled CSV Export Integrity:
+   Preserved the critical invariant that the "Export Courier Sheet" button continues to process the entire `filteredEntries` dataset (all thousands of records matching the filter), ensuring 3PL dispatch sheets are never accidentally truncated to the visible 25-row page slice.
+
+[INTERVIEW STAR TAKEAWAY]
+"When scaling operations dashboards from hundreds to thousands of records, separate DOM rendering from data completeness. Never let UI pagination restrict background workflows like batch CSV exports—render only a virtualized or sliced page of 25–50 rows to keep DOM operations lightweight and butter-smooth, while ensuring backend query limits scale safely (or paginate via cursor/offset) so critical logistics data is never silently dropped."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
