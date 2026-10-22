@@ -444,12 +444,10 @@ export default function AdminFeedbackPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User / Creator</th>
-                    <th className="px-5 py-3.5">Rating</th>
+                    <th className="px-5 py-3.5">User & Rating</th>
                     <th className="px-5 py-3.5">Category</th>
                     <th className="px-5 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Suggestion / Message</th>
-                    <th className="px-5 py-3.5">Date</th>
                     <th className="px-5 py-3.5 text-right">Action</th>
                   </tr>
                 </thead>
@@ -458,34 +456,25 @@ export default function AdminFeedbackPage() {
                     <tr key={idx} className="animate-pulse border-b border-slate-800/60">
                       <td className="px-5 py-4">
                         <div className="space-y-1.5">
-                          <div className="w-28 h-3.5 rounded bg-slate-800" />
-                          <div className="w-16 h-2.5 rounded bg-slate-800/60" />
+                          <div className="w-32 h-3.5 rounded bg-slate-800" />
+                          <div className="w-24 h-2.5 rounded bg-slate-800/60" />
+                          <div className="w-20 h-2 rounded bg-slate-800/40" />
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3, 4, 5].map(s => (
-                            <div key={s} className="w-3.5 h-3.5 rounded bg-slate-800" />
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="w-20 h-5 rounded-full bg-slate-800" />
+                        <div className="w-24 h-5 rounded-md bg-slate-800" />
                       </td>
                       <td className="px-5 py-4">
                         <div className="w-16 h-5 rounded-full bg-slate-800" />
                       </td>
                       <td className="px-5 py-4">
-                        <div className="space-y-1 max-w-xs">
-                          <div className="w-48 h-3 rounded bg-slate-800" />
-                          <div className="w-32 h-2.5 rounded bg-slate-800/60" />
+                        <div className="space-y-1 max-w-md">
+                          <div className="w-64 h-3 rounded bg-slate-800" />
+                          <div className="w-40 h-2.5 rounded bg-slate-800/60" />
                         </div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="w-16 h-3 rounded bg-slate-800" />
-                      </td>
                       <td className="px-5 py-4 text-right">
-                        <div className="w-14 h-6 rounded-lg bg-slate-800 ml-auto" />
+                        <div className="w-20 h-7 rounded-lg bg-slate-800 ml-auto" />
                       </td>
                     </tr>
                   ))}
@@ -507,12 +496,10 @@ export default function AdminFeedbackPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User / Creator</th>
-                    <th className="px-5 py-3.5">Rating</th>
+                    <th className="px-5 py-3.5">User & Rating</th>
                     <th className="px-5 py-3.5">Category</th>
                     <th className="px-5 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Suggestion / Message</th>
-                    <th className="px-5 py-3.5">Date</th>
                     <th className="px-5 py-3.5 text-right">Action</th>
                   </tr>
                 </thead>
@@ -527,34 +514,53 @@ export default function AdminFeedbackPage() {
                           isResolved ? 'hover:bg-slate-800/30 opacity-80 hover:opacity-100' : 'hover:bg-slate-800/50 bg-amber-500/[0.01]'
                         }`}
                       >
-                        <td className="px-5 py-4">
-                          <div className="font-bold text-white text-sm">{item.full_name || 'Anonymous Creator'}</div>
-                          <div className="text-[11px] text-amber-400 font-mono mt-0.5">{item.influencer_id || 'No ID'}</div>
-                          {item.email && <div className="text-[10px] text-slate-400 truncate max-w-[160px]">{item.email}</div>}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-3.5 w-3.5 ${
-                                  star <= item.rating
-                                    ? 'text-amber-400 fill-amber-400'
-                                    : 'text-slate-700'
-                                }`}
-                              />
-                            ))}
+                        {/* Column 1: Merged User, Rating, Date & Email */}
+                        <td className="px-5 py-3.5 align-top">
+                          <div className="space-y-1">
+                            {/* Creator Name & Rating Badge */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-white text-sm">
+                                {item.full_name || 'Anonymous Creator'}
+                              </span>
+                              <div className="flex items-center gap-1 bg-amber-400/10 border border-amber-400/25 px-1.5 py-0.5 rounded text-[10px] font-bold text-amber-400 shrink-0">
+                                <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                <span>{item.rating}/5</span>
+                              </div>
+                            </div>
+
+                            {/* Influencer ID & Date in smaller font */}
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium flex-wrap">
+                              <span className="font-mono text-amber-400 font-semibold">{item.influencer_id || 'No ID'}</span>
+                              <span className="text-slate-600">•</span>
+                              <span className="text-slate-400">
+                                {new Date(item.created_at).toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+
+                            {/* Email */}
+                            {item.email && (
+                              <div className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                                {item.email}
+                              </div>
+                            )}
                           </div>
-                          <span className="text-[10px] font-bold text-slate-400 mt-1 inline-block">
-                            {item.rating} / 5
-                          </span>
                         </td>
-                        <td className="px-5 py-4">
+
+                        {/* Column 2: Category */}
+                        <td className="px-5 py-3.5 align-top whitespace-nowrap">
                           <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
                             {item.category}
                           </span>
                         </td>
-                        <td className="px-5 py-4">
+
+                        {/* Column 3: Status */}
+                        <td className="px-5 py-3.5 align-top whitespace-nowrap">
                           {isResolved ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                               <CheckCircle2 className="h-3 w-3" /> Resolved
@@ -566,7 +572,9 @@ export default function AdminFeedbackPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-4 max-w-sm">
+
+                        {/* Column 4: Suggestion / Message */}
+                        <td className="px-5 py-3.5 align-top">
                           <p className="text-slate-300 font-medium line-clamp-2 leading-relaxed">
                             "{item.message}"
                           </p>
@@ -576,16 +584,9 @@ export default function AdminFeedbackPage() {
                             </p>
                           )}
                         </td>
-                        <td className="px-5 py-4 text-slate-400 whitespace-nowrap text-[11px]">
-                          {new Date(item.created_at).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-                        <td className="px-5 py-4 text-right">
+
+                        {/* Column 5: Action */}
+                        <td className="px-5 py-3.5 text-right align-top whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             {isResolved ? (
                               <Button
