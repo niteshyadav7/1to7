@@ -583,44 +583,74 @@ function AddressConfirmationContent() {
   const isAlreadyConfirmed = applicationData?.address_confirmed || isSuccess
 
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 space-y-6">
-      {/* Header Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <Link href="/dashboard/address-confirmation">
-          <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer">
+    <div className="max-w-3xl mx-auto space-y-4 pb-12">
+      {/* Top Header Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/address-confirmation"
+            className="h-9 w-9 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
+            title="Back to Address Hub"
+          >
             <ArrowLeft className="h-4 w-4" />
-            <span>All Delivery Requests</span>
-          </button>
-        </Link>
-        <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
-          <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-          Secure Dispatch Verification
-        </span>
-      </div>
-
-      {/* Campaign Info Hero */}
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs relative overflow-hidden">
-        <div className="flex items-start justify-between gap-4">
+          </Link>
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-              Barter Product Delivery
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-2">
-              {campaign.brand_name || 'Brand Collaboration'}
-            </h1>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Campaign Code: {campaign.campaign_code || 'CAM-001'}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-sm sm:text-base font-extrabold text-charcoal-surface tracking-tight">
+                Confirm Delivery Address
+              </h1>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                Barter Collaboration
+              </span>
+            </div>
+            <p className="text-[11px] text-secondary">
+              Review and lock your shipping address so the brand can dispatch your parcel
             </p>
           </div>
+        </div>
 
-          <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl shrink-0 shadow-2xs">
-            📦
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            Verified Dispatch Desk
+          </span>
+        </div>
+      </div>
+
+      {/* Campaign Details Card */}
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
+        <div className="bg-slate-50 border-b border-slate-200/80 px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-primary-container text-black font-extrabold text-base shrink-0 shadow-2xs">
+              {campaign.brand_name?.charAt(0) || 'B'}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm sm:text-base font-extrabold text-slate-900">
+                  {campaign.brand_name || 'Brand Collaboration'}
+                </span>
+                <span className="font-mono text-[11px] font-bold px-2 py-0.5 bg-slate-200/70 text-slate-700 rounded-md">
+                  {campaign.campaign_code || 'CAM'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Barter Product Collaboration • Physical Dispatch
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Approved for Dispatch
+            </span>
           </div>
         </div>
 
         {campaign.deliverables && (
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-600">
-            <span className="text-slate-400 font-semibold">Deliverable:</span>
+          <div className="px-4 sm:px-5 py-3 bg-white flex items-center gap-2 text-xs text-slate-700">
+            <Package className="h-4 w-4 text-slate-400 shrink-0" />
+            <span className="text-slate-400 font-medium">Deliverables:</span>
             <span className="font-semibold text-slate-800">{campaign.deliverables}</span>
           </div>
         )}
@@ -631,30 +661,30 @@ function AddressConfirmationContent() {
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 text-center space-y-3 shadow-2xs"
+          className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-6 text-center space-y-3 shadow-2xs"
         >
           <div className="w-12 h-12 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center mx-auto">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-extrabold text-slate-900">Delivery Address Confirmed!</h2>
+          <h2 className="text-base sm:text-lg font-extrabold text-slate-900">Delivery Address Confirmed!</h2>
           <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-            The brand team has received your confirmed delivery address. Your barter package will be packed and dispatched for delivery.
+            The brand logistics team has received your confirmed delivery address. Your barter package will be packed and dispatched for delivery.
           </p>
           <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
             <Link href="/dashboard/address-confirmation">
-              <Button className="bg-primary-container hover:bg-primary-container/90 text-black text-xs font-extrabold rounded-xl px-5 h-9">
-                Delivery Hub
+              <Button className="bg-primary-container hover:bg-primary-container/90 text-black text-xs font-extrabold rounded-lg px-5 h-9 shadow-2xs">
+                Address Hub
               </Button>
             </Link>
             <Link href="/dashboard/campaigns">
-              <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs rounded-xl h-9">
+              <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50 text-xs rounded-lg h-9">
                 View My Campaigns
               </Button>
             </Link>
             <Button
               variant="ghost"
               onClick={() => setIsSuccess(false)}
-              className="text-slate-500 hover:text-slate-800 text-xs rounded-xl h-9"
+              className="text-slate-500 hover:text-slate-800 text-xs rounded-lg h-9"
             >
               Review Address
             </Button>
@@ -664,11 +694,11 @@ function AddressConfirmationContent() {
 
       {/* Already Confirmed Banner */}
       {isAlreadyConfirmed && !isSuccess && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 flex items-center justify-between gap-3">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
             <div>
-              <p className="text-xs font-bold text-emerald-900">Address Already Confirmed</p>
+              <p className="text-xs font-bold text-emerald-900">Address Already Confirmed & Locked</p>
               <p className="text-[11px] text-emerald-700 mt-0.5">
                 Your delivery details are locked for this collaboration. You can update them below if your location changed.
               </p>
@@ -677,7 +707,7 @@ function AddressConfirmationContent() {
           {!isEditing && (
             <button
               onClick={() => setIsEditing(true)}
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs transition-all cursor-pointer"
+              className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs transition-all cursor-pointer"
             >
               <Edit3 className="h-3 w-3" />
               <span>Change</span>
@@ -688,388 +718,442 @@ function AddressConfirmationContent() {
 
       {/* Mode 1: Quick Confirm Pre-filled Card (When not editing and has address) */}
       {!isEditing && addressLine1 && (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-5 shadow-2xs">
-          <div className="flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          {/* Card Header */}
+          <div className="bg-slate-50 border-b border-slate-200/80 px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-slate-700" />
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Confirmed Delivery Location
-              </h3>
+              <MapPin className="h-4 w-4 text-emerald-600 shrink-0" />
+              <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight">
+                Delivery Address & Contact Details
+              </h2>
             </div>
             <button
               onClick={() => setIsEditing(true)}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+              className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
             >
-              <Edit3 className="h-3 w-3" />
-              <span>Edit Address</span>
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>Change Address</span>
             </button>
           </div>
 
-          {/* Formatted Address Box */}
-          <div className="bg-slate-50/70 rounded-2xl p-4 border border-slate-200/70 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-extrabold text-slate-900">{recipientName}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300">
-                {addressType}
-              </span>
-            </div>
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Address Details Container */}
+            <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-4 space-y-3">
+              {/* Recipient & Address Type */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-white border border-slate-200 text-slate-700 shrink-0 shadow-2xs">
+                    {addressType === 'Home' ? (
+                      <Home className="h-4 w-4 text-blue-600" />
+                    ) : addressType === 'Office' ? (
+                      <Building2 className="h-4 w-4 text-purple-600" />
+                    ) : (
+                      <MapPin className="h-4 w-4 text-amber-600" />
+                    )}
+                  </span>
+                  <div>
+                    <span className="text-sm font-extrabold text-slate-900 block truncate">
+                      {recipientName}
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Primary recipient for courier delivery
+                    </span>
+                  </div>
+                </div>
 
-            <div className="text-xs text-slate-600 space-y-1 leading-relaxed">
-              <p className="font-medium text-slate-800">
-                {addressLine1}{addressLine2 ? `, ${addressLine2}` : ''}
-              </p>
-              {landmark && (
-                <p className="text-slate-500 text-[11px]">Landmark: Near {landmark}</p>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200 shadow-2xs shrink-0">
+                  {addressType === 'Home' ? '🏠 Home' : addressType === 'Office' ? '🏢 Office' : '📍 Other'}
+                </span>
+              </div>
+
+              {/* Street Address */}
+              <div className="text-xs text-slate-700 space-y-1 pt-1 leading-relaxed border-t border-slate-200/60">
+                <p className="font-semibold text-slate-800">
+                  {addressLine1}{addressLine2 ? `, ${addressLine2}` : ''}
+                </p>
+                {landmark && (
+                  <p className="text-[11px] text-slate-500 italic">
+                    Landmark: Near {landmark}
+                  </p>
+                )}
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+                  <span className="text-slate-800 font-bold">
+                    {selectedCity}, {selectedState}
+                  </span>
+                  <span className="font-mono text-xs font-extrabold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                    PIN: {pincode}
+                  </span>
+                </div>
+              </div>
+
+              {/* Mobile Phone */}
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <span className="flex items-center gap-1.5 text-slate-800 font-semibold">
+                  <Phone className="h-3.5 w-3.5 text-slate-500" />
+                  +91 {mobile}
+                </span>
+                {altMobile && (
+                  <span className="text-[11px] text-slate-500">
+                    Alt Phone: +91 {altMobile}
+                  </span>
+                )}
+              </div>
+
+              {/* Delivery Note */}
+              {deliveryRemarks && (
+                <div className="p-2.5 bg-amber-50/80 border border-amber-200/80 rounded-lg text-xs text-amber-900 flex items-start gap-2">
+                  <Clock className="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-bold">Courier Instruction:</strong> {deliveryRemarks}
+                  </div>
+                </div>
               )}
-              <p className="text-slate-700 font-semibold">
-                {selectedCity}, {selectedState} — <span className="font-mono text-emerald-700 font-bold">{pincode}</span>
-              </p>
             </div>
 
-            <div className="pt-2 border-t border-slate-200/60 flex items-center gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1 text-slate-700 font-medium">
-                <Phone className="h-3 w-3 text-slate-400" /> +91 {mobile}
-              </span>
-              {altMobile && (
-                <span className="text-slate-500 text-[11px]">Alt: +91 {altMobile}</span>
-              )}
-            </div>
+            {/* 1-Click Action Button */}
+            {!isAlreadyConfirmed && (
+              <div className="space-y-2 pt-1">
+                <Button
+                  onClick={() => handleSubmit()}
+                  disabled={submitting}
+                  className="w-full h-11 bg-primary-container hover:bg-primary-container/90 text-black font-extrabold text-sm rounded-xl shadow-2xs cursor-pointer transition-all active:scale-98 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Confirming Delivery Details...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 text-black" />
+                      <span>Confirm & Lock Delivery Address</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-center text-[11px] text-slate-500">
+                  🔒 Delivery details will be securely shared with the brand logistics team for parcel dispatch.
+                </p>
+              </div>
+            )}
 
-            {deliveryRemarks && (
-              <div className="text-[11px] bg-amber-50 text-amber-900 p-2 rounded-lg border border-amber-200">
-                <strong>Delivery Note:</strong> {deliveryRemarks}
+            {/* Pick another saved address */}
+            {applicationData?.saved_addresses && applicationData.saved_addresses.length > 1 && (
+              <div className="pt-3 border-t border-slate-100">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  Or select another saved address from your profile:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {applicationData.saved_addresses.map((a: any) => (
+                    <button
+                      key={a.id || a.address_line1}
+                      type="button"
+                      onClick={() => handleSelectSavedAddress(a)}
+                      className="text-left p-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-slate-300 transition-all text-xs cursor-pointer group shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-slate-900 group-hover:text-black">
+                          {a.title || 'Address'}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-slate-500">
+                          {a.pincode}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 truncate">
+                        {a.address_line1}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {a.city}, {a.state}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-
-          {/* 1-Click Quick Confirm Action */}
-          {!isAlreadyConfirmed && (
-            <Button
-              onClick={() => handleSubmit()}
-              disabled={submitting}
-              className="w-full h-11 bg-primary-container hover:bg-primary-container/90 text-black font-extrabold text-sm rounded-xl shadow-xs cursor-pointer transition-all active:scale-98"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Confirming Address...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Yes, Deliver Barter Product to This Address
-                </>
-              )}
-            </Button>
-          )}
-
-          {/* Pick from other saved addresses */}
-          {applicationData?.saved_addresses && applicationData.saved_addresses.length > 1 && (
-            <div className="pt-2 border-t border-slate-100">
-              <p className="text-[11px] text-slate-500 uppercase tracking-wider font-semibold mb-2">
-                Or pick another saved address:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {applicationData.saved_addresses.map((a: any) => (
-                  <button
-                    key={a.id || a.address_line1}
-                    type="button"
-                    onClick={() => handleSelectSavedAddress(a)}
-                    className="text-left p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all text-xs cursor-pointer group"
-                  >
-                    <span className="font-bold text-slate-800 block group-hover:text-black">
-                      {a.title || 'Address'} ({a.city})
-                    </span>
-                    <span className="text-[11px] text-slate-500 truncate block mt-0.5">
-                      {a.address_line1}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
       {/* Mode 2: Full Address Form (When editing or no address) */}
       {(isEditing || !addressLine1) && (
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200/80 bg-white p-6 space-y-5 shadow-2xs">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200/80 shadow-2xs overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200/80 px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-slate-700" />
-                {addressLine1 ? 'Update Delivery Address' : 'Enter Delivery Address'}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Enter where you want the brand to deliver your collaboration parcel.
+              <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-emerald-600" />
+                {addressLine1 ? 'Update Delivery Location' : 'Enter Delivery Location'}
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Provide precise courier delivery details for your collaboration parcel.
               </p>
             </div>
             {addressLine1 && (
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
               >
                 Cancel
               </button>
             )}
           </div>
 
-          {/* Address Type Selector */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-600 font-semibold">Address Type</Label>
-            <div className="flex items-center gap-2">
-              {(['Home', 'Office', 'Other'] as const).map(type => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setAddressType(type)}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                    addressType === type
-                      ? 'bg-primary-container text-black border-amber-300 shadow-2xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {type === 'Home' ? '🏠 Home' : type === 'Office' ? '🏢 Office' : '📍 Other'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Contact Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Address Type Selector */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">Recipient Name *</Label>
-              <Input
-                type="text"
-                value={recipientName}
-                onChange={e => setRecipientName(e.target.value)}
-                placeholder="Full name of person receiving parcel"
-                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">Delivery Mobile Number *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">+91</span>
-                <Input
-                  type="tel"
-                  maxLength={10}
-                  value={mobile}
-                  onChange={e => setMobile(e.target.value.replace(/\D/g, ''))}
-                  placeholder="10-digit mobile number"
-                  className="bg-white border-slate-200 text-slate-900 pl-10 rounded-lg text-xs h-9 focus:border-slate-400"
-                  required
-                />
+              <Label className="text-xs text-slate-700 font-semibold">Address Type</Label>
+              <div className="flex items-center gap-2">
+                {(['Home', 'Office', 'Other'] as const).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setAddressType(type)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      addressType === type
+                        ? 'bg-primary-container text-black border-amber-300 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {type === 'Home' ? '🏠 Home' : type === 'Office' ? '🏢 Office' : '📍 Other'}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-700 font-semibold">Alternate Contact Number (Optional)</Label>
-            <Input
-              type="tel"
-              maxLength={10}
-              value={altMobile}
-              onChange={e => setAltMobile(e.target.value.replace(/\D/g, ''))}
-              placeholder="Backup phone number for courier delivery person"
-              className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-            />
-          </div>
-
-          {/* Street Address */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-700 font-semibold">Flat / House No. / Building / Floor *</Label>
-            <Input
-              type="text"
-              value={addressLine1}
-              onChange={e => setAddressLine1(e.target.value)}
-              placeholder="e.g. Flat 402, Sunshine Heights, 4th Floor"
-              className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">Street / Area / Colony</Label>
-              <Input
-                type="text"
-                value={addressLine2}
-                onChange={e => setAddressLine2(e.target.value)}
-                placeholder="e.g. MG Road, Indiranagar"
-                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">Landmark (Optional)</Label>
-              <Input
-                type="text"
-                value={landmark}
-                onChange={e => setLandmark(e.target.value)}
-                placeholder="e.g. Near City Mall / Opposite Metro Station"
-                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-              />
-            </div>
-          </div>
-
-          {/* State, City & PIN */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">State *</Label>
-              <select
-                value={selectedState}
-                onChange={e => {
-                  setSelectedState(e.target.value)
-                  setSelectedCity('')
-                }}
-                className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9 px-3 cursor-pointer focus:outline-none focus:border-slate-400"
-                required
-              >
-                <option value="" className="text-slate-400">Select State</option>
-                {STATES.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">City *</Label>
-              {availableCities.length > 0 ? (
-                <select
-                  value={selectedCity}
-                  onChange={e => setSelectedCity(e.target.value)}
-                  className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9 px-3 cursor-pointer focus:outline-none focus:border-slate-400"
-                  required
-                >
-                  <option value="" className="text-slate-400">Select City</option>
-                  {availableCities.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                  <option value="Other">Other / Not Listed</option>
-                </select>
-              ) : (
+            {/* Contact Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">Recipient Full Name *</Label>
                 <Input
                   type="text"
-                  value={selectedCity}
-                  onChange={e => setSelectedCity(e.target.value)}
-                  placeholder="Enter city"
-                  className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
+                  value={recipientName}
+                  onChange={e => setRecipientName(e.target.value)}
+                  placeholder="Full name of person receiving parcel"
+                  className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
                   required
                 />
-              )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">Delivery Mobile Number *</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">+91</span>
+                  <Input
+                    type="tel"
+                    maxLength={10}
+                    value={mobile}
+                    onChange={e => setMobile(e.target.value.replace(/\D/g, ''))}
+                    placeholder="10-digit mobile number"
+                    className="bg-white border-slate-200 text-slate-900 pl-10 rounded-lg text-xs h-9.5 focus:border-slate-400 font-mono"
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-700 font-semibold">Pincode *</Label>
+              <Label className="text-xs text-slate-700 font-semibold">Alternate Contact Phone (Optional)</Label>
+              <Input
+                type="tel"
+                maxLength={10}
+                value={altMobile}
+                onChange={e => setAltMobile(e.target.value.replace(/\D/g, ''))}
+                placeholder="Backup phone number for courier delivery person"
+                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400 font-mono"
+              />
+            </div>
+
+            {/* Street Address */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-700 font-semibold">Flat / House No. / Building / Floor *</Label>
               <Input
                 type="text"
-                maxLength={6}
-                value={pincode}
-                onChange={e => setPincode(e.target.value.replace(/\D/g, ''))}
-                placeholder="6-digit PIN"
-                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 font-mono focus:border-slate-400"
+                value={addressLine1}
+                onChange={e => setAddressLine1(e.target.value)}
+                placeholder="e.g. Flat 402, Sunshine Heights, 4th Floor"
+                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
                 required
               />
             </div>
-          </div>
 
-          {/* Delivery Remarks */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-700 font-semibold">Special Delivery Instructions (Optional)</Label>
-            <Input
-              type="text"
-              value={deliveryRemarks}
-              onChange={e => setDeliveryRemarks(e.target.value)}
-              placeholder="e.g. Call before delivery / Leave with security"
-              className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-            />
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">Street / Area / Colony</Label>
+                <Input
+                  type="text"
+                  value={addressLine2}
+                  onChange={e => setAddressLine2(e.target.value)}
+                  placeholder="e.g. MG Road, Indiranagar"
+                  className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">Landmark (Optional)</Label>
+                <Input
+                  type="text"
+                  value={landmark}
+                  onChange={e => setLandmark(e.target.value)}
+                  placeholder="e.g. Near City Mall / Opposite Metro"
+                  className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
+                />
+              </div>
+            </div>
 
-          {/* Dynamic Campaign / Dispatch Specifications */}
-          {campaignOrderFields.length > 0 && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-bold text-slate-900">
-                    Campaign / Product Details for Dispatch
+            {/* State, City & PIN */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">State *</Label>
+                <select
+                  value={selectedState}
+                  onChange={e => {
+                    setSelectedState(e.target.value)
+                    setSelectedCity('')
+                  }}
+                  className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 px-3 cursor-pointer focus:outline-none focus:border-slate-400 font-medium"
+                  required
+                >
+                  <option value="" className="text-slate-400">Select State</option>
+                  {STATES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">City *</Label>
+                {availableCities.length > 0 ? (
+                  <select
+                    value={selectedCity}
+                    onChange={e => setSelectedCity(e.target.value)}
+                    className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 px-3 cursor-pointer focus:outline-none focus:border-slate-400 font-medium"
+                    required
+                  >
+                    <option value="" className="text-slate-400">Select City</option>
+                    {availableCities.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                    <option value="Other">Other / Not Listed</option>
+                  </select>
+                ) : (
+                  <Input
+                    type="text"
+                    value={selectedCity}
+                    onChange={e => setSelectedCity(e.target.value)}
+                    placeholder="Enter city"
+                    className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
+                    required
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-700 font-semibold">Pincode *</Label>
+                <Input
+                  type="text"
+                  maxLength={6}
+                  value={pincode}
+                  onChange={e => setPincode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6-digit PIN"
+                  className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 font-mono focus:border-slate-400"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Delivery Remarks */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-700 font-semibold">Special Delivery Instructions (Optional)</Label>
+              <Input
+                type="text"
+                value={deliveryRemarks}
+                onChange={e => setDeliveryRemarks(e.target.value)}
+                placeholder="e.g. Call before delivery / Leave with security guard"
+                className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
+              />
+            </div>
+
+            {/* Dynamic Campaign / Dispatch Specifications */}
+            {campaignOrderFields.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-bold text-slate-900">
+                      Campaign / Product Details for Dispatch
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                    Required by Brand
                   </span>
                 </div>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                  Required by Brand
-                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {campaignOrderFields.map(field => (
+                    <div key={field.name} className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                        <span>{field.name}</span>
+                        {field.required && <span className="text-rose-500 font-bold">*</span>}
+                      </Label>
+                      {field.type === 'select' && Array.isArray(field.options) && field.options.length > 0 ? (
+                        <select
+                          value={orderDetails[field.name] || ''}
+                          onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                          className="w-full h-9.5 px-3 text-xs rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-slate-400 font-medium"
+                          required={field.required}
+                        >
+                          <option value="">Select {field.name}...</option>
+                          {field.options.map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Input
+                          value={orderDetails[field.name] || ''}
+                          onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
+                          placeholder={`Enter ${field.name}`}
+                          className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9.5 focus:border-slate-400"
+                          required={field.required}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                {campaignOrderFields.map(field => (
-                  <div key={field.name} className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                      <span>{field.name}</span>
-                      {field.required && <span className="text-rose-500 font-bold">*</span>}
-                    </Label>
-                    {field.type === 'select' && Array.isArray(field.options) && field.options.length > 0 ? (
-                      <select
-                        value={orderDetails[field.name] || ''}
-                        onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
-                        className="w-full h-9 px-3 text-xs rounded-lg bg-white border border-slate-200 text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-slate-400 font-medium"
-                        required={field.required}
-                      >
-                        <option value="">Select {field.name}...</option>
-                        {field.options.map((opt: string) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <Input
-                        value={orderDetails[field.name] || ''}
-                        onChange={(e) => setOrderDetails(prev => ({ ...prev, [field.name]: e.target.value }))}
-                        placeholder={`Enter ${field.name}`}
-                        className="bg-white border-slate-200 text-slate-900 rounded-lg text-xs h-9 focus:border-slate-400"
-                        required={field.required}
-                      />
-                    )}
-                  </div>
-                ))}
+            )}
+
+            {/* Save to Profile Toggle */}
+            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveToProfile}
+                onChange={e => setSaveToProfile(e.target.checked)}
+                className="h-4 w-4 rounded accent-primary-container bg-white border-slate-300"
+              />
+              <div>
+                <p className="text-xs font-bold text-slate-900">Save as my default delivery address</p>
+                <p className="text-[10px] text-slate-500">
+                  Automatically pre-fills this verified address in future barter campaigns.
+                </p>
               </div>
-            </div>
-          )}
+            </label>
 
-          {/* Save to Profile Toggle */}
-          <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={saveToProfile}
-              onChange={e => setSaveToProfile(e.target.checked)}
-              className="h-4 w-4 rounded accent-primary-container bg-white border-slate-300"
-            />
-            <div>
-              <p className="text-xs font-bold text-slate-900">Save as my default delivery address</p>
-              <p className="text-[10px] text-slate-500">
-                Automatically pre-fills this verified address in future barter campaigns.
-              </p>
+            {/* Submit Action */}
+            <div className="pt-2">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="w-full h-11 bg-primary-container hover:bg-primary-container/90 text-black font-extrabold text-sm rounded-xl shadow-2xs cursor-pointer transition-all active:scale-98 flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Saving & Confirming Delivery Details...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-black" />
+                    <span>Confirm & Lock Delivery Address</span>
+                  </>
+                )}
+              </Button>
             </div>
-          </label>
-
-          {/* Submit Action */}
-          <div className="pt-2">
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="w-full h-11 bg-primary-container hover:bg-primary-container/90 text-black font-extrabold text-sm rounded-xl shadow-xs cursor-pointer transition-all active:scale-98"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Saving & Confirming...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Confirm & Lock Delivery Address
-                </>
-              )}
-            </Button>
           </div>
         </form>
       )}
