@@ -576,14 +576,16 @@ export default function AdminCampaignsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_live: !campaign.is_live }),
       })
-      if (!res.ok) throw new Error('Failed to update')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update')
 
+      const updatedCampaign = data.campaign || { ...campaign, is_live: !campaign.is_live }
       setCampaigns(prev =>
-        prev.map(c => c.id === campaign.id ? { ...c, is_live: !c.is_live } : c)
+        prev.map(c => c.id === campaign.id ? { ...c, ...updatedCampaign } : c)
       )
-      toast.success(campaign.is_live ? 'Campaign taken offline' : 'Campaign is now live!')
-    } catch {
-      toast.error('Failed to toggle')
+      toast.success(data.message || (!campaign.is_live ? 'Campaign is now live!' : 'Campaign taken offline'))
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to toggle')
     } finally {
       setTogglingId(null)
     }

@@ -46,6 +46,104 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Fetch existing campaign snapshot to compute exact field-level diff
+    const { data: existingCampaign, error: fetchError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (fetchError || !existingCampaign) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    }
+
+    const adminName = admin.full_name || admin.name || 'Admin'
+    const adminEmail = admin.email || ''
+
+    // 0. Dedicated Operational Handler for Live / Offline Publication Toggle
+    // Triggered when admin toggles the Live/Offline switch on campaign cards.
+    // Unlike specification edits (which require 2nd-admin review), toggling an already-approved
+    // campaign online or offline is an operational switch that must persist immediately to PostgreSQL.
+    const bodyKeys = Object.keys(body).filter(k => k !== 'id')
+    const isLiveToggleOnly = body.is_live !== undefined && bodyKeys.length === 1 && bodyKeys[0] === 'is_live'
+
+    if (isLiveToggleOnly) {
+      const targetIsLive = Boolean(body.is_live)
+      const isSuperAdmin = admin.role === 'super_admin' || Boolean(admin.is_super_admin)
+      const isApproved = existingCampaign.approval_status === 'Approved' || existingCampaign.approval_status === null
+      const isPilot = Boolean(existingCampaign.is_test_mode)
+
+      // Guard: Strict Maker-Checker dual control governance
+      // Unapproved/Rejected public campaigns CANNOT be toggled Live without 2nd admin approval (unless Super Admin)
+      if (targetIsLive && !isApproved && !isPilot && !isSuperAdmin) {
+        return NextResponse.json({
+          error: 'Dual control policy: Cannot publish campaign live without 2nd Admin approval.'
+        }, { status: 403 })
+      }
+
+      const toggleUpdates: Record<string, any> = {
+        is_live: targetIsLive,
+        last_edited_by_admin_id: admin.id,
+        last_edited_by_admin_name: adminName,
+        last_edited_by_admin_email: adminEmail,
+        last_edited_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      // If bringing live, ensure status is 'Active'
+      if (targetIsLive) {
+        toggleUpdates.status = 'Active'
+        if (!isApproved && isSuperAdmin) {
+          toggleUpdates.approval_status = 'Approved'
+          toggleUpdates.approved_by_admin_id = admin.id
+          toggleUpdates.approved_by_admin_name = adminName
+          toggleUpdates.approved_by_admin_email = adminEmail
+          toggleUpdates.approved_at = new Date().toISOString()
+        }
+      }
+
+      // Record operational toggle in edit history
+      if (existingCampaign.is_live !== targetIsLive) {
+        const diffEntry: CampaignEditLogEntry = {
+          id: `chg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          timestamp: new Date().toISOString(),
+          edited_by_admin_id: admin.id,
+          edited_by_admin_name: adminName,
+          edited_by_admin_email: adminEmail,
+          summary: targetIsLive ? 'Published Campaign Live' : 'Took Campaign Offline (Paused)',
+          changes_count: 1,
+          changes: [{
+            field: 'is_live',
+            label: 'Live Publication Status',
+            category: 'general',
+            old_value: existingCampaign.is_live,
+            new_value: targetIsLive,
+            old_display: existingCampaign.is_live ? 'Live' : 'Offline',
+            new_display: targetIsLive ? 'Live' : 'Offline',
+          }],
+        }
+        const existingHistory: CampaignEditLogEntry[] = Array.isArray(existingCampaign.edit_history)
+          ? existingCampaign.edit_history
+          : []
+        toggleUpdates.edit_history = [diffEntry, ...existingHistory].slice(0, 30)
+      }
+
+      const { data: campaign, error } = await supabase
+        .from('campaigns')
+        .update(toggleUpdates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+
+      return NextResponse.json({
+        success: true,
+        message: targetIsLive ? 'Campaign is now live!' : 'Campaign taken offline.',
+        campaign,
+      })
+    }
+
     // Only allow updating campaign content/configuration fields
     // is_live and status are strictly managed through the dual-approval workflow
     const allowedFields = [
@@ -71,6 +169,10 @@ export async function PUT(
       }
     }
 
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid campaign fields provided for update.' }, { status: 400 })
+    }
+
     // Auto-sync manager_phone if poc_admin_ids changed and manager_phone was not explicitly specified
     if (updates.poc_admin_ids !== undefined && body.manager_phone === undefined) {
       if (Array.isArray(updates.poc_admin_ids) && updates.poc_admin_ids.length > 0) {
@@ -83,17 +185,6 @@ export async function PUT(
           console.warn('Non-fatal error resolving POC phone during campaign update:', err)
         }
       }
-    }
-
-    // Fetch existing campaign snapshot to compute exact field-level diff
-    const { data: existingCampaign, error: fetchError } = await supabase
-      .from('campaigns')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (fetchError || !existingCampaign) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
     }
 
     // Sanitize and validate campaign_code if provided
@@ -121,9 +212,6 @@ export async function PUT(
     // Any detail edit IMMEDIATELY revokes approval and requires clean 2nd admin approval before Go Live.
     // In Pilot Test Mode, campaign stays active so test creators can continue end-to-end verification.
     // POC assignment changes alone do NOT revoke live status, ensuring production campaigns remain operational.
-    const adminName = admin.full_name || admin.name || 'Admin'
-    const adminEmail = admin.email || ''
-
     const isPocOnlyEdit = Object.keys(updates).every(k => k === 'poc_admin_ids' || k === 'manager_phone')
     const isPilot = updates.is_test_mode !== undefined ? Boolean(updates.is_test_mode) : Boolean(existingCampaign.is_test_mode)
 
