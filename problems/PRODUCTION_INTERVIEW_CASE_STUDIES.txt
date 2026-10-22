@@ -45,6 +45,7 @@ CASE 34: Operational State Stripping & Vacuous Truth Inversion in Dual-Governanc
 CASE 35: PostgreSQL 500 API Crash on Phantom Column (u.profile_photo vs u.instagram_profile_pic) & Dynamic Courier Specification Pipeline
 CASE 36: Query Ceiling Blindspots & Large-Scale Admin Grid Virtual Slicing (Scaling Beyond 500-Row Hardcoded Limits to Thousands of Logistics Records)
 CASE 37: Missing Mid-Funnel Logistics Transition & Fragmented Profile Address Discoverability (Creator Sidebar Missing Option & Address Confirmation Hub Architecture)
+CASE 38: Silent Column Projection Omission in Relational Endpoints: Missing address_required Field Drops Pending Barter Shipments from Creator Logistics Hub (GraphQL/Supabase SELECT Projection Drift)
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -1408,6 +1409,51 @@ A product manager performed real-world creator onboarding testing. Two critical 
 
 [INTERVIEW STAR TAKEAWAY]
 "When building multi-stage marketplace or creator funnels, information architecture must reflect the user's mental model at every touchpoint. If a user completes an action in one context (e.g. entering a shipping address during campaign shortlisting), you must ensure: (1) high-level navigation reflects the state transition with live action badges, (2) hub pages degrade gracefully to overview dashboards rather than hanging when URL query parameters are absent, and (3) summary profile pages surface glanceable preview cards with deep links to multi-step sub-forms, eliminating the illusion that user data has been lost."
+
+====================================================================================================
+CASE 38: Silent Column Projection Omission in Relational Endpoints: Missing address_required Field Drops Pending Barter Shipments from Creator Logistics Hub
+====================================================================================================
+CATEGORIES: Backend / Supabase / PostgREST / Full-Stack Data Discrepancy / Relational Projection
+INTERVIEW QUESTION: "Tell me about a bug where data appeared correctly in the admin analytics/operations desk but was completely invisible on the end-user customer dashboard due to subtle projection omission."
+
+[SITUATION]
+Operations managers reported that 198 approved creator applications across campaigns (such as Plum CAM-MVF4250Z and Deconstruct F10022C201) were stalled in the Admin Address Confirmation Desk (`/admin/address-confirmation`) with status `Waiting Creator` and `Address not submitted yet`.
+However, when creators (e.g. Nitesh Yadav HY33876) opened their creator portal (`/dashboard/address-confirmation`), the page displayed:
+- `PENDING ACTION: 0 Required`
+- `No Physical Deliveries Pending: You do not have any barter collaborations awaiting product dispatch confirmation right now.`
+Creators believed they had zero pending tasks, while brand managers were blocked from shipping barter products.
+
+[ROOT CAUSE INVESTIGATION]
+1. Database State Audit:
+   In PostgreSQL, the campaign `Plum` (CAM-MVF4250Z) had `c.address_required = true` and `c.order_form = false`.
+   Nitesh Yadav's application `a.id = 'd84a1e4e-93ce-407b-bcd0-7419a289a951'` had `status = 'Approved'` and `form_data.address_confirmed = null`.
+2. Admin Endpoint Logic (`/api/admin/address-confirmation`):
+   The admin API executed raw SQL:
+   `WHERE (c.address_required = true OR c.order_form = true OR a.address_status IS NOT NULL ...)`
+   Because `c.address_required = true`, the record was successfully matched and returned in the Admin table with `Waiting Creator`.
+3. Creator Dashboard Applications Endpoint (`/api/dashboard/applications`):
+   The client-facing endpoint executed a Supabase query selecting relational fields:
+   `campaigns ( id, campaign_code, brand_name, ..., order_form, order_form_fields, payment_form_fields, form_fields )`
+   `address_required` was entirely missing from the Supabase select projection!
+4. Client-Side Guard Failure:
+   In `app/dashboard/address-confirmation/page.tsx`, pending applications were filtered with:
+   `const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)`
+   Because `address_required` was omitted from the API response projection, `a.campaigns?.address_required` evaluated to `undefined`. Since `order_form` was `false`, `needsAddress` evaluated to `false`.
+   The application was silently dropped from the creator's actionable queue.
+5. Admin Sidebar Truncation:
+   In `app/admin/(panel)/layout.tsx`, the navigation item was labeled `'Address Confirmation'`, which exceeded the sidebar width and truncated to `'Address Confirma...'` with an ellipsis.
+
+[SOLUTION & ARCHITECTURE]
+1. Proportional Relational Field Projection:
+   - In `app/api/dashboard/applications/route.ts`, added `address_required` to the `campaigns (...)` select projection.
+   - In `app/api/dashboard/applications/[id]/address/route.ts`, added `address_required` to the single-campaign select projection.
+2. Filtering Resilience:
+   - In `app/dashboard/address-confirmation/page.tsx`, ensured rejected applications are skipped (`if (a.status === 'Rejected') return false`) while all pending barter campaigns correctly resolve `needsAddress = true`.
+3. Sidebar Standardization:
+   - In `app/admin/(panel)/layout.tsx`, updated the navigation label from `'Address Confirmation'` to `'Address'` to match the clean single-word convention (`Overview`, `Applied`, `Approved`, `Address`, `Profile`), preventing sidebar text overflow and truncation.
+
+[INTERVIEW STAR TAKEAWAY]
+"When decoupling admin and customer-facing API contracts, data discrepancies frequently arise not from database errors or business logic bugs, but from projection drift — where an administrative endpoint uses raw SQL tables while a consumer endpoint selects explicit nested relational fields. Always enforce shared TypeScript type interfaces for domain models and write contract integration tests that assert relational projection parity across both administrative and client-facing endpoints."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

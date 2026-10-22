@@ -65,7 +65,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
-  { href: '/admin/address-confirmation', label: 'Address Confirmation', icon: MapPin, moduleKey: 'applications' },
+  { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
   { href: '/admin/completion-details', label: 'Completion Details', icon: FileCheck, moduleKey: 'applications' },
   { href: '/admin/ghosted', label: 'Ghosted Creators', icon: ShieldAlert, moduleKey: 'applications' },
   { href: '/admin/instagram-logs', label: 'Instagram Logs', icon: Instagram, moduleKey: 'applications' },

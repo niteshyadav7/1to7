@@ -288,6 +288,7 @@ function AddressConfirmationContent() {
   // Hub Mode View (When user visits /dashboard/address-confirmation directly from sidebar)
   if (!appId) {
     const pendingApps = hubApplications.filter((a: any) => {
+      if (a.status === 'Rejected') return false
       const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
       return needsAddress && !a.form_data?.address_confirmed
     })

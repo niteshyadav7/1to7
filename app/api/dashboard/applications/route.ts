@@ -64,6 +64,7 @@ export async function GET(request: Request) {
           gender_required,
           followers,
           min_followers,
+          address_required,
           order_form,
           order_form_fields,
           payment_form_fields,
