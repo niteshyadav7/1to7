@@ -228,6 +228,9 @@ export default function AddressConfirmationModal({
       }
 
       toast.success('Delivery address submitted successfully! Our team will verify and dispatch.')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('address-confirmed'))
+      }
       if (onSuccess) onSuccess()
       onClose()
     } catch (err: any) {
