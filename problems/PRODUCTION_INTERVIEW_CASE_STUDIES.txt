@@ -47,6 +47,8 @@ CASE 36: Query Ceiling Blindspots & Large-Scale Admin Grid Virtual Slicing (Scal
 CASE 37: Missing Mid-Funnel Logistics Transition & Fragmented Profile Address Discoverability (Creator Sidebar Missing Option & Address Confirmation Hub Architecture)
 CASE 38: Silent Column Projection Omission in Relational Endpoints: Missing address_required Field Drops Pending Barter Shipments from Creator Logistics Hub (GraphQL/Supabase SELECT Projection Drift)
 CASE 39: Impersonation Subsystem Divergence & Parity Fracture: Missing Virtual Address Hub Route Bypasses Logistics Desk to Legacy Profile Sub-Form (Virtual Profile vs Real Creator Navigation Drift)
+CASE 40: Table Layout Auto-Sizing Disaster & Unbounded Content Projection: Feedback Grid Horizontal Viewport Explosion (Table-Fixed vs Auto-Layout Engine)
+
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -1494,8 +1496,52 @@ Because the Virtual Profile showed the profile edit form instead of the Address 
 [INTERVIEW STAR TAKEAWAY]
 "When engineering administrative impersonation or 'virtual user' features, never treat impersonated views as static one-off mockups. Navigation drift inevitably occurs when new user-facing hubs are shipped unless impersonation layouts share identical route topologies and data contracts with the production client. Maintain strict structural parity between customer routes and virtual administrative routes, backed by automated E2E tests comparing rendered route outputs."
 
+
+====================================================================================================
+CASE 40: Table Layout Auto-Sizing Disaster & Unbounded Content Projection: Feedback Grid Horizontal Viewport Explosion (Table-Fixed vs Auto-Layout Engine)
+====================================================================================================
+CATEGORIES: Frontend Architecture / CSS Layout Engines / Responsive Design / UI Data Grids / Next.js
+INTERVIEW QUESTION: "How do you design and optimize high-density administrative data tables displaying unpredictable, user-generated text without causing horizontal scrolling or layout shifts?"
+
+[SITUATION]
+In the Admin User Feedback Hub (`/admin/feedback`), administrators review ratings, suggestions, and platform bug reports submitted by creators.
+On standard laptop and desktop screens, the table container repeatedly overflowed its horizontal bounds, requiring administrators to scroll horizontally to access the Action buttons (`Resolve` / `Reopen` / `Details`).
+When scrolling right, the primary identification columns (`User / Creator`, `Rating`) vanished entirely off the left edge of the viewport.
+Administrators requested that the entire feedback table fit completely within a single, unified screen view with zero horizontal scrolling, keeping the visual rating stars and creator identification intact while cleanly displaying long, multi-paragraph creator feedback.
+
+[ROOT CAUSE INVESTIGATION]
+1. HTML Table Auto-Layout Engine (`table-layout: auto`):
+   By default, browsers render HTML tables using the automatic table layout algorithm (`table-layout: auto`). Under this mode, the column widths are not governed by CSS percentage declarations; instead, the browser scans the intrinsic text content of every cell in each column and sets column widths based on the widest unbroken string or line.
+2. Unbounded Creator Message Lengths:
+   Creator feedback messages vary from 10 characters ("Good agency") to 500+ characters of unstructured feedback. In auto-layout mode, single-line messages stretched the "Suggestion / Message" column to over 1,000 pixels wide, blowing past the table card container width.
+3. Uncontained Horizontal Overflow:
+   The table wrapper was set to `overflow-x-auto`. Rather than clamping or wrapping long text within the available grid space, the wrapper enabled horizontal scrollbars, causing users to accidentally scroll right and sever visual contact with creator identities on the left.
+
+[SOLUTION & ARCHITECTURE]
+1. Enforce Fixed Table Layout (`table-layout: fixed`):
+   - Switch the `<table>` class from auto-layout to `w-full table-fixed border-collapse`.
+   - In fixed table layout mode, the browser calculates column widths strictly once from the `<th>` elements in the first header row, completely ignoring the intrinsic text length of child `<td>` elements.
+2. Proportional Column Width Budgeting:
+   - Defined strict, non-overflowing percentage widths across all 6 columns totalling 100%:
+     * User / Creator: `w-[23%]` (Creator Name with truncate, `HY ID • Date` in compact secondary font, and Email)
+     * Rating: `w-[11%]` (Compact 5-star icons `h-3 w-3` + numerical score `X / 5`)
+     * Category: `w-[15%]` (Badge with truncate)
+     * Status: `w-[11%]` (Status pill badge)
+     * Suggestion / Message: `w-[27%]` (`line-clamp-2 leading-relaxed break-words text-xs` with `title={item.message}`)
+     * Action: `w-[13%]` (Compact `h-7` inline action buttons: Resolve/Reopen + Details)
+3. Multi-Line Clamping with Native Ellipsis & Tooltip Fallback:
+   - Wrapped creator feedback in `line-clamp-2 break-words`. Messages wrap neatly across up to 2 lines without growing the row vertically out of proportion.
+   - Text extending past 2 lines terminates in a CSS ellipsis (`...`).
+   - Attached native browser tooltip `title={item.message}` and full row click-handler opening the comprehensive Details Modal for complete unabridged review.
+4. Container Confinement:
+   - Removed `overflow-x-auto` on the desktop grid card in favor of `overflow-hidden`, permanently eliminating unwanted horizontal scrollbars.
+
+[INTERVIEW STAR TAKEAWAY]
+"Data grids handling user-generated content must never rely on browser default `table-layout: auto`, because unpredictable text lengths will inevitably break horizontal layout integrity. Always enforce `table-layout: fixed` with explicit percentage or flex budgets across headers, combined with multi-line CSS clamping (`line-clamp-*`) and `break-words`. Pair truncated cells with native tooltip attributes and click-to-expand modals to maintain zero-scroll viewport density without sacrificing access to full data."
+
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
+
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).

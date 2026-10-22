@@ -440,29 +440,29 @@ export default function AdminFeedbackPage() {
         {/* Feedback List / Table */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
           {loading && feedback.length === 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="w-full">
+              <table className="w-full table-fixed text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User / Creator</th>
-                    <th className="px-4 py-3.5">Rating</th>
-                    <th className="px-4 py-3.5">Category</th>
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Suggestion / Message</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
+                    <th className="w-[23%] px-4 py-3.5">User / Creator</th>
+                    <th className="w-[11%] px-3 py-3.5">Rating</th>
+                    <th className="w-[15%] px-3 py-3.5">Category</th>
+                    <th className="w-[11%] px-3 py-3.5">Status</th>
+                    <th className="w-[27%] px-4 py-3.5">Suggestion / Message</th>
+                    <th className="w-[13%] px-3 py-3.5 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse border-b border-slate-800/60">
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-4">
                         <div className="space-y-1.5">
                           <div className="w-28 h-3.5 rounded bg-slate-800" />
                           <div className="w-36 h-2.5 rounded bg-slate-800/60" />
                           <div className="w-24 h-2 rounded bg-slate-800/40" />
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex items-center gap-0.5">
                           {[1, 2, 3, 4, 5].map(s => (
                             <div key={s} className="w-3 h-3 rounded bg-slate-800" />
@@ -470,20 +470,20 @@ export default function AdminFeedbackPage() {
                         </div>
                         <div className="w-8 h-2 rounded bg-slate-800/60 mt-1" />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="w-24 h-5 rounded-md bg-slate-800" />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-3 py-4">
                         <div className="w-16 h-5 rounded-full bg-slate-800" />
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="space-y-1 max-w-md">
-                          <div className="w-64 h-3 rounded bg-slate-800" />
-                          <div className="w-40 h-2.5 rounded bg-slate-800/60" />
+                      <td className="px-4 py-4">
+                        <div className="space-y-1">
+                          <div className="w-full h-3 rounded bg-slate-800" />
+                          <div className="w-3/4 h-2.5 rounded bg-slate-800/60" />
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <div className="w-20 h-7 rounded-lg bg-slate-800 ml-auto" />
+                      <td className="px-3 py-4 text-right">
+                        <div className="w-16 h-7 rounded-lg bg-slate-800 ml-auto" />
                       </td>
                     </tr>
                   ))}
@@ -501,16 +501,16 @@ export default function AdminFeedbackPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="w-full">
+              <table className="w-full table-fixed text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-                    <th className="px-5 py-3.5">User / Creator</th>
-                    <th className="px-4 py-3.5">Rating</th>
-                    <th className="px-4 py-3.5">Category</th>
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Suggestion / Message</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
+                    <th className="w-[23%] px-4 py-3.5">User / Creator</th>
+                    <th className="w-[11%] px-3 py-3.5">Rating</th>
+                    <th className="w-[15%] px-3 py-3.5">Category</th>
+                    <th className="w-[11%] px-3 py-3.5">Status</th>
+                    <th className="w-[27%] px-4 py-3.5">Suggestion / Message</th>
+                    <th className="w-[13%] px-3 py-3.5 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -525,13 +525,13 @@ export default function AdminFeedbackPage() {
                         }`}
                       >
                         {/* Column 1: User / Creator + Date & Email */}
-                        <td className="px-5 py-3.5 align-top">
+                        <td className="px-4 py-3.5 align-top">
                           <div className="space-y-1">
-                            <span className="font-bold text-white text-sm block">
+                            <span className="font-bold text-white text-sm block truncate" title={item.full_name || 'Anonymous Creator'}>
                               {item.full_name || 'Anonymous Creator'}
                             </span>
 
-                            {/* Influencer ID & Date merged in smaller text */}
+                            {/* Influencer ID & Date in smaller text */}
                             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium flex-wrap">
                               <span className="font-mono text-amber-400 font-semibold">{item.influencer_id || 'No ID'}</span>
                               <span className="text-slate-600">•</span>
@@ -548,7 +548,7 @@ export default function AdminFeedbackPage() {
 
                             {/* Email */}
                             {item.email && (
-                              <div className="text-[10px] text-slate-500 truncate max-w-[200px]">
+                              <div className="text-[10px] text-slate-500 truncate" title={item.email}>
                                 {item.email}
                               </div>
                             )}
@@ -556,7 +556,7 @@ export default function AdminFeedbackPage() {
                         </td>
 
                         {/* Column 2: Compact Rating Stars */}
-                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
+                        <td className="px-3 py-3.5 align-top whitespace-nowrap">
                           <div className="flex items-center gap-0.5">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <Star
@@ -575,14 +575,14 @@ export default function AdminFeedbackPage() {
                         </td>
 
                         {/* Column 3: Category */}
-                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
-                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                        <td className="px-3 py-3.5 align-top">
+                          <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700 truncate max-w-full" title={item.category}>
                             {item.category}
                           </span>
                         </td>
 
                         {/* Column 4: Status */}
-                        <td className="px-4 py-3.5 align-top whitespace-nowrap">
+                        <td className="px-3 py-3.5 align-top whitespace-nowrap">
                           {isResolved ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
                               <CheckCircle2 className="h-3 w-3" /> Resolved
@@ -595,21 +595,21 @@ export default function AdminFeedbackPage() {
                           )}
                         </td>
 
-                        {/* Column 5: Suggestion / Message */}
-                        <td className="px-5 py-3.5 align-top">
-                          <p className="text-slate-300 font-medium line-clamp-2 leading-relaxed">
+                        {/* Column 5: Suggestion / Message (Multi-line / line-clamp-2 with tooltip) */}
+                        <td className="px-4 py-3.5 align-top">
+                          <p className="text-slate-300 font-medium line-clamp-2 leading-relaxed break-words text-xs" title={item.message}>
                             "{item.message}"
                           </p>
                           {item.admin_notes && (
-                            <p className="text-[11px] text-indigo-300/90 mt-1 truncate italic">
+                            <p className="text-[11px] text-indigo-300/90 mt-1 truncate italic" title={item.admin_notes}>
                               Note: {item.admin_notes}
                             </p>
                           )}
                         </td>
 
                         {/* Column 6: Action */}
-                        <td className="px-5 py-3.5 text-right align-top whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="px-3 py-3.5 text-right align-top whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
                             {isResolved ? (
                               <Button
                                 variant="ghost"
@@ -619,10 +619,10 @@ export default function AdminFeedbackPage() {
                                   e.stopPropagation()
                                   handleUpdateStatus(item.id, 'pending')
                                 }}
-                                className="h-8 px-2.5 text-[11px] text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg cursor-pointer font-medium"
+                                className="h-7 px-2 text-[10px] text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg cursor-pointer font-medium"
                                 title="Reopen as pending"
                               >
-                                <Undo2 className="h-3.5 w-3.5 mr-1" /> Reopen
+                                <Undo2 className="h-3 w-3 mr-1" /> Reopen
                               </Button>
                             ) : (
                               <Button
@@ -632,10 +632,10 @@ export default function AdminFeedbackPage() {
                                   e.stopPropagation()
                                   handleUpdateStatus(item.id, 'resolved')
                                 }}
-                                className="h-8 px-2.5 text-[11px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg cursor-pointer font-semibold shadow-sm"
+                                className="h-7 px-2 text-[10px] bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg cursor-pointer font-semibold shadow-sm"
                                 title="Mark feedback as resolved"
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
                                 Resolve
                               </Button>
                             )}
@@ -646,7 +646,7 @@ export default function AdminFeedbackPage() {
                                 e.stopPropagation()
                                 setSelectedFeedback(item)
                               }}
-                              className="h-8 px-2.5 rounded-lg border-slate-700 text-xs text-slate-300 group-hover:border-amber-500/50 group-hover:text-amber-400 bg-slate-950/60 cursor-pointer"
+                              className="h-7 px-2 rounded-lg border-slate-700 text-[10px] text-slate-300 group-hover:border-amber-500/50 group-hover:text-amber-400 bg-slate-950/60 cursor-pointer"
                             >
                               Details
                             </Button>
