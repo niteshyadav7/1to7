@@ -28,6 +28,8 @@ export async function GET(
         id,
         status,
         user_id,
+        address_status,
+        address_verified_at,
         form_data,
         created_at,
         campaigns (
@@ -98,6 +100,10 @@ export async function GET(
       application: {
         id: app.id,
         status: app.status,
+        address_status: (app as any).address_status || fd.address_status || null,
+        address_verified: Boolean(fd.address_verified || (app as any).address_status === 'Approved'),
+        address_verified_at: (app as any).address_verified_at || fd.address_verified_at || null,
+        address_rejection_reason: fd.address_rejection_reason || null,
         campaign: app.campaigns,
         address_confirmed: Boolean(fd.address_confirmed),
         address_confirmed_at: fd.address_confirmed_at || null,

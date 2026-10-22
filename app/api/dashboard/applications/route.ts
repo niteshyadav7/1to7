@@ -25,6 +25,8 @@ export async function GET(request: Request) {
       .select(`
         id,
         status,
+        address_status,
+        address_verified_at,
         form_data,
         partial_payment,
         final_payment,

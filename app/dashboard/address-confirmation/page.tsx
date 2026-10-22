@@ -457,9 +457,21 @@ function AddressConfirmationContent() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-slate-900 truncate">{c.brand_name || 'Campaign'}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
-                          ✓ Confirmed
-                        </span>
+                        {app.address_status === 'Approved' || app.form_data?.address_verified ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shrink-0">
+                            <ShieldCheck className="h-3 w-3 text-emerald-700" />
+                            Verified by Brand
+                          </span>
+                        ) : app.address_status === 'Rejected' || app.form_data?.address_status === 'Rejected' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1 shrink-0">
+                            <AlertCircle className="h-3 w-3 text-rose-500" />
+                            Update Requested
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                            ✓ Confirmed • In Review
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-500 font-medium">
                         Code: <span className="font-mono font-bold text-slate-700">{c.campaign_code}</span>
@@ -584,6 +596,8 @@ function AddressConfirmationContent() {
 
   const campaign = applicationData?.campaign || {}
   const isAlreadyConfirmed = applicationData?.address_confirmed || isSuccess
+  const isVerified = Boolean(applicationData?.address_verified || applicationData?.address_status === 'Approved')
+  const isRejected = Boolean(applicationData?.address_status === 'Rejected')
 
   return (
     <div className="w-full space-y-4 pb-12">
@@ -643,10 +657,27 @@ function AddressConfirmationContent() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Approved for Dispatch
-            </span>
+            {isVerified ? (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />
+                Verified by Brand
+              </span>
+            ) : isRejected ? (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                Update Requested
+              </span>
+            ) : isAlreadyConfirmed ? (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                Confirmed • In Review
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Confirmation Needed
+              </span>
+            )}
           </div>
         </div>
 
@@ -695,28 +726,93 @@ function AddressConfirmationContent() {
         </motion.div>
       )}
 
-      {/* Already Confirmed Banner */}
+      {/* Dynamic Status Banner */}
       {isAlreadyConfirmed && !isSuccess && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-emerald-900">Address Already Confirmed & Locked</p>
-              <p className="text-[11px] text-emerald-700 mt-0.5">
-                Your delivery details are locked for this collaboration. You can update them below if your location changed.
-              </p>
+        <>
+          {isVerified ? (
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 p-4 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-extrabold text-emerald-950">Address Verified & Approved by Brand</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
+                      ✓ Ready for Courier Dispatch
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                    The brand logistics desk has verified and locked your delivery address. Your parcel is queued for shipment.
+                  </p>
+                </div>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Update</span>
+                </button>
+              )}
             </div>
-          </div>
-          {!isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs transition-all cursor-pointer"
-            >
-              <Edit3 className="h-3 w-3" />
-              <span>Change</span>
-            </button>
+          ) : isRejected ? (
+            <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-rose-100 border border-rose-300 text-rose-700 flex items-center justify-center shrink-0">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-extrabold text-rose-950">Address Update Requested by Brand</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-900">
+                      ⚠️ Needs Attention
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-rose-700 mt-0.5">
+                    {applicationData.address_rejection_reason || 'The brand team requested an update on your delivery address. Please edit and submit corrected details below.'}
+                  </p>
+                </div>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-rose-200 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Edit Details</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs font-bold text-emerald-900">Address Confirmed • Queued for Brand Review</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Pending Dispatch Verification
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                    Your shipping details are locked for this collaboration. You will see &quot;Verified by Brand&quot; once reviewed by the logistics team.
+                  </p>
+                </div>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>Change</span>
+                </button>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Mode 1: Quick Confirm Pre-filled Card (When not editing and has address) */}
