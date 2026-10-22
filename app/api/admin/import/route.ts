@@ -5,6 +5,24 @@ import { getAdminFromRequest, hasActionPermission } from '@/lib/admin-auth'
 // Default password hash for imported users ('12345') - they can change it later
 const DEFAULT_PASSWORD_HASH = '$2b$10$rgMNYfe45OpevM8273RF2uFRjsAxq4ScGzgGOBtaywvDNKpqFJ7Wm'
 
+function parseFollowersCount(val: any): number | null {
+  if (val === null || val === undefined || val === '') return null
+  if (typeof val === 'number') return isNaN(val) ? null : val
+  const str = String(val).trim().toUpperCase()
+  if (!str) return null
+  if (str.endsWith('K')) {
+    const num = parseFloat(str.replace('K', ''))
+    return isNaN(num) ? null : Math.round(num * 1000)
+  }
+  if (str.endsWith('M')) {
+    const num = parseFloat(str.replace('M', ''))
+    return isNaN(num) ? null : Math.round(num * 1000000)
+  }
+  const cleaned = str.replace(/[^0-9.]/g, '')
+  const num = parseInt(cleaned, 10)
+  return isNaN(num) ? null : num
+}
+
 interface ImportRow {
   influencer_id?: string
   mobile?: string
@@ -200,9 +218,14 @@ export async function POST(request: Request) {
         if (!existing.gender && row.gender?.trim()) updates.gender = row.gender.trim()
         if (!existing.state && row.state?.trim()) updates.state = row.state.trim()
         if (!existing.city && row.city?.trim()) updates.city = row.city.trim()
-        if (!existing.followers && row.followers) {
-          const parsed = parseInt(String(row.followers), 10)
-          if (!isNaN(parsed)) updates.followers = parsed
+        if (row.followers !== undefined && row.followers !== null && row.followers !== '') {
+          const parsedFollowers = parseFollowersCount(row.followers)
+          if (parsedFollowers !== null && parsedFollowers > 0) {
+            updates.followers = parsedFollowers
+            if (!existing.instagram_followers_count || existing.instagram_followers_count === 0) {
+              updates.instagram_followers_count = parsedFollowers
+            }
+          }
         }
         if (!existing.dob && dobVal) updates.dob = dobVal
         if (!existing.pincode && pincodeVal) updates.pincode = pincodeVal
@@ -222,9 +245,12 @@ export async function POST(request: Request) {
         if (row.category?.trim()) previous.category = row.category.trim()
         if (row.state?.trim()) previous.state = row.state.trim()
         if (row.city?.trim()) previous.city = row.city.trim()
-        if (row.followers) {
-          const parsed = parseInt(String(row.followers), 10)
-          if (!isNaN(parsed)) previous.followers = parsed
+        if (row.followers !== undefined && row.followers !== null && row.followers !== '') {
+          const parsedFollowers = parseFollowersCount(row.followers)
+          if (parsedFollowers !== null && parsedFollowers > 0) {
+            previous.followers = parsedFollowers
+            previous.instagram_followers_count = parsedFollowers
+          }
         }
         if (dobVal && !previous.dob) previous.dob = dobVal
         if (pincodeVal && !previous.pincode) previous.pincode = pincodeVal
@@ -236,6 +262,7 @@ export async function POST(request: Request) {
         const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
         const email = row.email?.trim() || `${finalMobile}@import.1to7.com`
 
+        const initialFollowers = parseFollowersCount(row.followers) || 0
         const newUserData: Record<string, any> = {
           full_name: row.full_name?.trim() || 'Imported Creator',
           mobile: finalMobile,
@@ -244,7 +271,8 @@ export async function POST(request: Request) {
           is_mobile_verified: false,
           is_email_verified: false,
           instagram_username: row.instagram_username?.trim() || null,
-          followers: row.followers ? parseInt(String(row.followers), 10) || 0 : 0,
+          followers: initialFollowers,
+          instagram_followers_count: initialFollowers,
           gender: row.gender?.trim() || null,
           state: row.state?.trim() || null,
           city: row.city?.trim() || null,
@@ -403,6 +431,17 @@ export async function POST(request: Request) {
             if (row.pending_amount === undefined) {
               row.pending_amount = rawCommercial
             }
+          }
+
+          // Enrich application form_data with locked followers & handle for card rendering
+          if (row.followers !== undefined && row.followers !== null && row.followers !== '') {
+            const parsedF = parseFollowersCount(row.followers)
+            if (parsedF !== null && parsedF > 0 && !formData.applied_instagram_followers) {
+              formData.applied_instagram_followers = parsedF
+            }
+          }
+          if (row.instagram_username && !formData.applied_instagram_username) {
+            formData.applied_instagram_username = row.instagram_username
           }
 
           // Financial Invariant: For non-completed applications, money has NOT been disbursed yet

@@ -288,6 +288,7 @@ interface CleanedUploadRow {
   account_name: string
   account_number: string
   ifsc_code: string
+  custom_data?: Record<string, string>
 }
 
 // ─── Main Component ────────────────────────────────────────
@@ -556,6 +557,17 @@ export default function ImportPage() {
             seenUserIds.add(uid)
           }
 
+          // Preserve all non-system custom question columns (e.g. from Google Forms)
+          const customData: Record<string, string> = {}
+          const standardColRegex = /^(user\s*id|influencer\s*id|id|name|full\s*name|creator\s*name|influencer\s*name|what\s*is\s*your\s*name\??|phone|phone\s*number|mobile|mobile\s*number|contact|whatsapp|email|email\s*id|email\s*address|instagram|instagram\s*id|instagram\s*username|instagram\s*handle|instagram\s*link|insta\s*id|ig|followers|follower\s*count|approx\s*followers|gender|sex|state|region|city|location|category|niche|account\s*name|account\s*holder\s*name|a\/c\s*name|account\s*number|account\s*no|bank\s*account\s*number|bank\s*a\/c\s*no|ifsc|ifsc\s*code|bank\s*ifsc|timestamp)$/i
+
+          for (const [colName, colVal] of Object.entries(row)) {
+            const cleanCol = colName.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ')
+            if (!standardColRegex.test(cleanCol) && colVal && String(colVal).trim()) {
+              customData[colName.trim()] = String(colVal).trim()
+            }
+          }
+
           return {
             _index: idx + 1,
             influencer_id: uid,
@@ -571,6 +583,7 @@ export default function ImportPage() {
             account_name: accName,
             account_number: accNum,
             ifsc_code: ifsc,
+            custom_data: Object.keys(customData).length > 0 ? customData : undefined,
           }
         })
 
@@ -595,7 +608,7 @@ export default function ImportPage() {
   const downloadFormattedCSV = () => {
     if (formatterRows.length === 0) return toast.error('No formatted data to download')
 
-    const headers = [
+    const baseHeaders = [
       'User ID',
       'Name',
       'Phone',
@@ -611,6 +624,16 @@ export default function ImportPage() {
       'IFSC'
     ]
 
+    // Collect all dynamic custom headers across rows
+    const customHeaderSet = new Set<string>()
+    formatterRows.forEach(r => {
+      if (r.custom_data) {
+        Object.keys(r.custom_data).forEach(k => customHeaderSet.add(k))
+      }
+    })
+    const customHeaders = Array.from(customHeaderSet)
+    const allHeaders = [...baseHeaders, ...customHeaders]
+
     function escapeCell(val: any) {
       if (val === null || val === undefined) return '""'
       let str = String(val).trim()
@@ -619,7 +642,7 @@ export default function ImportPage() {
       return `"${str}"`
     }
 
-    const csvRows = [headers.map(h => escapeCell(h)).join(',')]
+    const csvRows = [allHeaders.map(h => escapeCell(h)).join(',')]
 
     for (const r of formatterRows) {
       const line = [
@@ -636,6 +659,7 @@ export default function ImportPage() {
         escapeCell(r.account_name),
         escapeCell(r.account_number),
         escapeCell(r.ifsc_code),
+        ...customHeaders.map(k => escapeCell(r.custom_data?.[k] || ''))
       ].join(',')
       csvRows.push(line)
     }
@@ -659,7 +683,7 @@ export default function ImportPage() {
     if (formatterRows.length === 0) return toast.error('No data to import')
 
     const rows: ParsedRow[] = formatterRows.map((r, idx) => {
-      const parsed: ParsedRow = {
+      const parsed: any = {
         _rowIndex: idx + 1,
         mobile: r.mobile || '',
         influencer_id: r.influencer_id || '',
@@ -677,6 +701,9 @@ export default function ImportPage() {
         status: 'Applied',
         _valid: true,
         _errors: []
+      }
+      if (r.custom_data && Object.keys(r.custom_data).length > 0) {
+        parsed.form_data = r.custom_data
       }
       return validateRow(parsed)
     })

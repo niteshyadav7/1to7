@@ -221,6 +221,7 @@ export function ApplicationImportModal({
   } | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [campaignFormFields, setCampaignFormFields] = useState<any[]>([])
 
   // Fetch campaigns if campaignId is not fixed
   useEffect(() => {
@@ -232,6 +233,24 @@ export function ApplicationImportModal({
       }
     }
   }, [isOpen, campaignId])
+
+  // Fetch campaign custom questions when a campaign is selected
+  useEffect(() => {
+    if (isOpen && selectedCampaignId) {
+      fetch(`/api/admin/campaigns/${selectedCampaignId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.campaign?.form_fields && Array.isArray(data.campaign.form_fields)) {
+            setCampaignFormFields(data.campaign.form_fields)
+          } else {
+            setCampaignFormFields([])
+          }
+        })
+        .catch(() => setCampaignFormFields([]))
+    } else {
+      setCampaignFormFields([])
+    }
+  }, [isOpen, selectedCampaignId])
 
   const fetchCampaigns = async () => {
     setLoadingCampaigns(true)
@@ -368,7 +387,7 @@ export function ApplicationImportModal({
         setRawHeaders(headers)
         setRawRows(results.data)
 
-        // Automatically map columns based on synonyms
+        // 1. Automatically map columns based on synonyms
         const autoMappings: Record<string, string> = {}
         const matchedHeaders = new Set<string>()
 
@@ -393,6 +412,35 @@ export function ApplicationImportModal({
             }
           }
         })
+
+        // 2. Automatically map dynamic campaign questions
+        if (campaignFormFields && campaignFormFields.length > 0) {
+          campaignFormFields.forEach((q: any) => {
+            const qKey = `question_${q.name}`
+            const qNorm = q.name.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ')
+            const aliases = (q.aliases || []).map((a: string) => a.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' '))
+
+            for (const header of headers) {
+              if (matchedHeaders.has(header)) continue
+              const cleanHeader = header.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ')
+
+              if (cleanHeader === qNorm || aliases.includes(cleanHeader)) {
+                autoMappings[qKey] = header
+                matchedHeaders.add(header)
+                break
+              }
+
+              // Partial keyword match for long question sentences
+              const qWords = qNorm.split(/\s+/).filter((w: string) => w.length > 3)
+              const matchCount = qWords.filter((w: string) => cleanHeader.includes(w)).length
+              if (qWords.length >= 2 && matchCount >= Math.min(3, qWords.length)) {
+                autoMappings[qKey] = header
+                matchedHeaders.add(header)
+                break
+              }
+            }
+          })
+        }
 
         setMappings(autoMappings)
         setStep(2) // Move to column mapping step
@@ -448,7 +496,7 @@ export function ApplicationImportModal({
       const rawFollowers = mappings.followers ? row[mappings.followers] : ''
       const followersCount = parseFollowers(rawFollowers)
 
-      const city = mappings.city ? row[mappings.city]?.trim() : ''
+      let city = mappings.city ? row[mappings.city]?.trim() : ''
       const state = mappings.state ? row[mappings.state]?.trim() : ''
       const gender = mappings.gender ? row[mappings.gender]?.trim() : ''
       const category = mappings.category ? row[mappings.category]?.trim() : ''
@@ -460,16 +508,41 @@ export function ApplicationImportModal({
       const rawStatus = mappings.status ? row[mappings.status] : ''
       const status = normalizeStatus(rawStatus, defaultStatus)
 
-      // Collect all unmapped headers into form_data
+      // Collect all mapped campaign questions into form_data
       const formData: Record<string, any> = {}
+
+      if (campaignFormFields && campaignFormFields.length > 0) {
+        campaignFormFields.forEach((q: any) => {
+          const qKey = `question_${q.name}`
+          const mappedHeader = mappings[qKey]
+          if (mappedHeader && row[mappedHeader] !== undefined && row[mappedHeader] !== null) {
+            const answer = String(row[mappedHeader]).trim()
+            if (answer) {
+              formData[q.name] = answer
+              // Fallback sync to profile if city was not explicitly mapped
+              if (q.sync_to_profile && q.profile_sync_key === 'city' && !city) {
+                city = answer
+              }
+            }
+          }
+        })
+      }
+
+      // Collect any remaining unmapped headers into form_data
       unmappedHeaders.forEach(header => {
         const val = row[header]?.trim()
-        if (val) {
+        if (val && formData[header] === undefined) {
           formData[header] = val
         }
       })
       if (agreedCommercial !== undefined) {
         formData.agreed_commercial = agreedCommercial
+      }
+      if (followersCount > 0) {
+        formData.applied_instagram_followers = followersCount
+      }
+      if (insta) {
+        formData.applied_instagram_username = insta
       }
 
       const item = {
@@ -503,7 +576,7 @@ export function ApplicationImportModal({
     })
 
     return { validRows: valid, invalidRows: invalid }
-  }, [rawRows, mappings, unmappedHeaders, defaultStatus])
+  }, [rawRows, mappings, unmappedHeaders, defaultStatus, campaignFormFields])
 
   // Execute Batch Import
   const handleExecuteImport = async () => {
@@ -548,7 +621,10 @@ export function ApplicationImportModal({
           state: r.state,
           gender: r.gender,
           category: r.category,
+          agreed_commercial: r.agreed_commercial,
+          pending_amount: r.pending_amount,
           final_payment: r.final_payment,
+          partial_payment: r.partial_payment,
           status: r.status,
           form_data: r.form_data
         }))
@@ -865,6 +941,69 @@ export function ApplicationImportModal({
                     </div>
                   )
                 })}
+
+                {/* Campaign Specific Questions */}
+                {campaignFormFields && campaignFormFields.length > 0 && (
+                  <div className="col-span-1 md:col-span-2 pt-4 border-t border-white/10">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">
+                        Campaign Specific Questions ({campaignFormFields.length})
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/20">
+                        Saved directly to Application Form Responses
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {campaignFormFields.map((q: any) => {
+                        const qKey = `question_${q.name}`
+                        const currentMapped = mappings[qKey] || ''
+                        const isMatched = Boolean(currentMapped)
+
+                        return (
+                          <div
+                            key={qKey}
+                            className={`p-3.5 rounded-xl border transition-all ${
+                              isMatched
+                                ? 'bg-slate-950/60 border-indigo-500/40'
+                                : q.required
+                                ? 'bg-amber-500/5 border-amber-500/30'
+                                : 'bg-slate-950/30 border-white/5'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-semibold text-white flex items-center gap-1">
+                                {q.name}
+                                {q.required && <span className="text-rose-400">*</span>}
+                              </span>
+                              {isMatched && (
+                                <span className="text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                                  Auto-matched
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-400 mb-2 leading-tight">
+                              Type: <span className="text-slate-300 font-mono text-[10px]">{q.type}</span>
+                              {q.sync_to_profile && ` • Syncs to ${q.profile_sync_key}`}
+                            </p>
+
+                            <select
+                              value={currentMapped}
+                              onChange={(e) => handleMappingChange(qKey, e.target.value)}
+                              className="w-full bg-slate-900 border border-white/10 text-white text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500"
+                            >
+                              <option value="">-- Do not map --</option>
+                              {rawHeaders.map(h => (
+                                <option key={h} value={h}>
+                                  {h}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Unmapped Columns Notice */}

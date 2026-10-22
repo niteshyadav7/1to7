@@ -37,6 +37,7 @@ CASE 26: Silent SQL Syntax Error & Missing Notification Aggregation in Broadcast
 CASE 27: Production Information Disclosure & Client-Side Console Sanitization (SWC Stripping, Runtime Neutralization & PII Leak Remediation)
 CASE 28: Third-Party SDK Silent CORS Hang & Failover Circuit Breaker (Vendor Script Failure & Service Worker Response Violation)
 CASE 29: Semantic Inversion in Bulk Financial Ingestion: Unearned Commercial Quotes Masked as Disbursed Payouts (Zero-Disbursement Invariant & Ledger Reconciliation)
+CASE 30: Bulk Ingestion Data Loss & Metric Staleness: Schema Dropping in CSV Formatter & False Truthy Guard Freezing Follower Counts
 
 ====================================================================================================
 CASE 1: The Silent 1,000-Row Clamping Disaster in Supabase PostgREST
@@ -1044,6 +1045,57 @@ No payments had ever been disbursed to these creators. Furthermore, creators wer
 "In financial platforms, confusing a prospective liability (agreed quote / pending amount) with a realized disbursement (final_payment) leads to catastrophic reporting discrepancies and false settlement states. Enforce strict lifecycle invariants at the ingestion gateway: unearned quotes must always initialize as pending liabilities with disbursed balances clamped to zero until verified settlement events occur."
 
 ====================================================================================================
+CASE 30: Bulk Ingestion Data Loss & Metric Staleness: Schema Dropping in CSV Formatter & False Truthy Guard Freezing Follower Counts
+====================================================================================================
+CATEGORIES: Data Ingestion / Metric Synchronization / Dynamic Schemas / Schema Dropping / Mutation Invariants
+INTERVIEW QUESTION: "How do you architect a high-throughput bulk ingestion pipeline that handles dynamic form schemas while preventing silent metric obsolescence and profile staleness?"
+
+[SITUATION]
+Admin imported creator applications (e.g. Reshma Mansuri, HY14191) into the "HRX Half Marathon Event" campaign via the Bulk Importer. Upon inspecting the imported application in the Admin Applications Portal:
+1. Missing Question Responses:
+   The campaign had 4 required form fields configured:
+   - "Current City"
+   - "Date of Birth (DD/MM/YYYY)"
+   - "please share your best commercials for 1 Reel + 1 Story for this collaboration."
+   - "Will you be able to attend trail Runs or visit event at the location"
+   However, on the creator's application card, the "Application Form Responses" section showed ONLY `agreed_commercial: 0`, and none of the campaign questions or answers appeared.
+2. Frozen Stale Follower Count:
+   Despite the incoming spreadsheet containing current follower counts, the creator's profile remained locked at 6,000 followers (the legacy value from when the user originally registered two months prior on August 27, 2026). The updated follower count was completely ignored.
+
+[ROOT CAUSE INVESTIGATION]
+1. Schema Dropping in Pre-Ingestion Sanitizer / CSV Formatter:
+   In `app/admin/(panel)/import/page.tsx`, the "CSV Formatter & Cleaner" tab maps input rows to a rigid interface `CleanedUploadRow`:
+   `_index, influencer_id, full_name, mobile, email, instagram_username, followers, gender, state, city, category, account_name, account_number, ifsc_code`.
+   Any column that was not one of these 13 static system attributes was discarded. When administrators cleaned their Google Form CSV through the formatter before sending it to `sendToBulkImport()`, all custom campaign question columns were completely dropped.
+2. Ingestion Target Field Exclusion & Aggressive Synonym Capture:
+   In `ApplicationImportModal.tsx`, `TARGET_FIELDS` performed fuzzy synonym matching on incoming headers. The question *"please share your best commercials for 1 Reel + 1 Story..."* matched `'commercial'` and was mapped to the numeric deal field `agreed_commercial`, excluding it from `unmappedHeaders`. Likewise, *"Current City"* matched `'city'`. Because only `unmappedHeaders` were written into `form_data`, custom campaign questions were stripped out of `applications.form_data`.
+3. Truthy Non-Overwrite Guard Freezing Dynamic Metrics:
+   In `app/api/admin/import/route.ts` line 203:
+   ```typescript
+   if (!existing.followers && row.followers) {
+     const parsed = parseInt(String(row.followers), 10)
+     if (!isNaN(parsed)) updates.followers = parsed
+   }
+   ```
+   The condition `!existing.followers` was designed to prevent overwriting missing fields with blank values. However, for any existing creator with `followers > 0` (e.g. `6000`), `!6000` evaluated to `false`. As a consequence, the updater silently rejected the incoming metric update. The platform froze dynamic creator statistics indefinitely whenever an existing user reappeared in a campaign import.
+4. Naive Metric Parsing:
+   The backend route used `parseInt(String(row.followers), 10)`, which truncated formatted numbers such as `"15.5k"` to `15` or `"12,500"` to `12`, unlike the frontend helper `parseFollowersValue()`.
+
+[SOLUTION & ARCHITECTURE]
+1. Dynamic Schema Passthrough in Bulk Ingestion:
+   - Ensure the CSV Formatter preserves all dynamic unmapped columns into a flexible `custom_responses` / `form_data` payload rather than dropping non-system columns.
+   - Align `ApplicationImportModal.tsx` and `import/page.tsx` with the target campaign's `campaign.form_fields` schema so that incoming spreadsheet columns explicitly match campaign question names.
+2. Dynamic Metric Refresh vs Static Profile Invariant:
+   - Differentiate static identity fields (full_name, mobile) from dynamic metrics (followers, engagement).
+   - Dynamic metrics must update when a fresh, non-zero value is supplied in an import (`if (parsedFollowers > 0) updates.followers = parsedFollowers`).
+   - Store application-scoped metrics (`applied_instagram_followers`) in `applications.form_data` so historical application records reflect the creator's follower count at the exact moment of campaign entry.
+3. Robust Number Parsing at API Gateway:
+   - Standardize metric parsing across both frontend and backend using `parseFollowersValue` (supporting 'k', 'm', commas, and decimals).
+
+[INTERVIEW STAR TAKEAWAY]
+"Never apply 'fill-only-if-empty' (`!existing.field`) heuristics to dynamic temporal metrics like follower counts or prices. Static identity attributes (e.g. mobile, legal name) require protective idempotency, but temporal metrics require monotonic or latest-timestamp updates. Furthermore, ingestion sanitizers must never discard unmapped columns when downstream entities rely on dynamic, campaign-scoped polymorphic schemas."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
@@ -1051,5 +1103,5 @@ SUMMARY CHECKLIST FOR INTERVIEWS:
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), and Case 28 (Third-party SDK silent CORS hang & failover circuit breaker).
 4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), and Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
-6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), and Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation).
+6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), and Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates).
 ====================================================================================================
