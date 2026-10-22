@@ -63,6 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const data = await res.json()
         const apps = data.applications || []
         const pending = apps.filter((a: any) => {
+          if (a.status === 'Rejected') return false
           const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
           return needsAddress && !a.form_data?.address_confirmed
         }).length
@@ -70,7 +71,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       } catch { /* ignore */ }
     }
     checkPendingAddresses()
-  }, [user])
+
+    const handleAddressEvent = () => checkPendingAddresses()
+    if (typeof window !== 'undefined') {
+      window.addEventListener('address-confirmed', handleAddressEvent)
+      window.addEventListener('focus', handleAddressEvent)
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('address-confirmed', handleAddressEvent)
+        window.removeEventListener('focus', handleAddressEvent)
+      }
+    }
+  }, [user, pathname])
 
   // Load saved sidebar collapse preference
   useEffect(() => {

@@ -228,6 +228,9 @@ function AddressConfirmationContent() {
       toast.success('Delivery address confirmed!')
       setIsSuccess(true)
       setIsEditing(false)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('address-confirmed'))
+      }
     } catch (err: any) {
       toast.error(err.message || 'Failed to confirm address')
     } finally {
