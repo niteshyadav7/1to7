@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   Megaphone, Plus, Eye, EyeOff, Pencil, Users,
-  Instagram, Youtube, ShoppingBag, Globe, Search, Trash2,
+  Instagram, Youtube, ShoppingBag, Globe, Search,
   Copy, CopyPlus, Check, Upload, GripVertical, ArrowUp, ArrowDown,
   ArrowUpDown, ArrowUpToLine, Sparkles, RefreshCw, Layers,
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
@@ -1430,15 +1430,7 @@ export default function AdminCampaignsPage() {
                       </button>
                     </Link>
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => deleteCampaign(campaign)}
-                      disabled={deletingId === campaign.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
+
 
                     {/* Export Campaign Applicants */}
                     <button
@@ -1777,15 +1769,7 @@ export default function AdminCampaignsPage() {
                             </button>
                           </Link>
 
-                          {/* Delete */}
-                          <button
-                            onClick={() => deleteCampaign(campaign)}
-                            disabled={deletingId === campaign.id}
-                            title="Permanently delete campaign"
-                            className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+
                         </>
                       ) : (
                         <>
@@ -1910,15 +1894,7 @@ export default function AdminCampaignsPage() {
                             </button>
                           </Link>
 
-                          {/* Delete */}
-                          <button
-                            onClick={() => deleteCampaign(campaign)}
-                            disabled={deletingId === campaign.id}
-                            title="Permanently delete campaign"
-                            className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+
                         </>
                       )}
                     </div>
