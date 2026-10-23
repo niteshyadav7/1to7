@@ -83,6 +83,7 @@ export default function LoginPage() {
   const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false)
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false)
   const [inlineEmailOtpSent, setInlineEmailOtpSent] = useState(false)
+  const [signupHref, setSignupHref] = useState('/signup')
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<any>(null)
@@ -119,6 +120,10 @@ export default function LoginPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
+      const redirect = params.get('redirect')
+      if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+        setSignupHref(`/signup?redirect=${encodeURIComponent(redirect)}`)
+      }
       const err = params.get('error')
       if (err) {
         toast.error(decodeURIComponent(err), { duration: 6000 })
@@ -1330,15 +1335,7 @@ export default function LoginPage() {
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Don&apos;t have an account?{' '}
                   <Link 
-                    href={(() => {
-                      if (typeof window !== 'undefined') {
-                        const redirect = new URLSearchParams(window.location.search).get('redirect')
-                        if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
-                          return `/signup?redirect=${encodeURIComponent(redirect)}`
-                        }
-                      }
-                      return '/signup'
-                    })()}
+                    href={signupHref}
                     className="font-bold text-slate-900 hover:underline transition-colors"
                   >
                     Create an account

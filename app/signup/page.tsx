@@ -43,6 +43,7 @@ export default function SignupPage() {
   const [isResendingEmail, setIsResendingEmail] = useState(false)
   const [mobileResendAttempts, setMobileResendAttempts] = useState(0)
   const [otpProvider, setOtpProvider] = useState<'msg91' | 'firebase'>('msg91')
+  const [loginHref, setLoginHref] = useState('/login')
 
   const [loading, setLoading] = useState(false)
   const confirmationRef = useRef<any>(null)
@@ -63,9 +64,16 @@ export default function SignupPage() {
     }
   }, [emailCountdown])
 
-  // Initialize MSG91 OTP Widget SDK on mount
+  // Initialize MSG91 OTP Widget SDK on mount & read query params
   useEffect(() => {
     initMsg91Widget().catch((e) => console.warn('[MSG91] Signup Init notice:', e))
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const redirect = params.get('redirect')
+      if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+        setLoginHref(`/login?redirect=${encodeURIComponent(redirect)}`)
+      }
+    }
   }, [])
 
   // Helper to initialize reCAPTCHA for Firebase fallback
@@ -584,15 +592,7 @@ export default function SignupPage() {
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Already have an account?{' '}
                   <Link 
-                    href={(() => {
-                      if (typeof window !== 'undefined') {
-                        const redirect = new URLSearchParams(window.location.search).get('redirect')
-                        if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
-                          return `/login?redirect=${encodeURIComponent(redirect)}`
-                        }
-                      }
-                      return '/login'
-                    })()}
+                    href={loginHref}
                     className="font-bold text-slate-800 hover:underline transition-colors"
                   >
                     Log in here
