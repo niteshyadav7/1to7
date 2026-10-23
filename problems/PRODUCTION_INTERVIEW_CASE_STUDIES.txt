@@ -1699,9 +1699,9 @@ A deep architectural audit revealed a three-tier relational mismatch between off
      - For creators with existing Plum applications (8 records): Updated `applications.address_status = 'Approved'`, `address_verified_at = now()`, `address_verified_by = super_admin.id`, and merged the normalized `shipping_address` JSON object into `form_data`.
      - For creators without existing Plum applications (131 records): Inserted complete `public.applications` records with `status = 'Approved'`, `address_status = 'Approved'`, deliverables, and the structured shipping address.
 3. Automated Validation & Courier Manifest Generation:
-   - Generated an updated logistics manifest (`Courier_Dispatch_Addresses_Updated.csv`) containing 382 total applications.
-   - For the Plum campaign, verified approved addresses surged from 1 to 171 ready for immediate courier dispatch with zero data loss or broken rows (177 total ready across Plum, Deconstruct, Lavie, Gleema, Origami, and Villain).
-   - In secondary incremental syncs (`Project nitesh - adres (1).csv`), applied strict compound deduplication guards (`user_id` + `campaign_id`), skipping 139 existing records and cleanly appending 37 new candidate applications across respective brands.
+   - Generated an updated logistics manifest (`Courier_Dispatch_Addresses_Updated.csv`) containing 553 total applications.
+   - For the Plum campaign, verified approved addresses surged from 1 to 186 ready for immediate courier dispatch with zero data loss or broken rows (192 total ready across all barter campaigns).
+   - In secondary & tertiary incremental syncs (`Project nitesh - adres (1).csv` and `Project nitesh - adres (2).csv`), applied strict compound deduplication guards (`user_id` + `campaign_id`), skipping existing approved records and transactionally updating or inserting new candidate applications.
 
 [INTERVIEW STAR TAKEAWAY]
 "When bridging external offline ingestion (Google Forms/Sheets) with a normalized relational database, never assume operational rows map directly to domain entity tables. Always trace how the downstream feature queries data: here, logistics required campaign-scoped applications, not just standalone user profiles. Solve this by implementing dual-layer synchronization—updating permanent user profile address books while transactionally creating or updating campaign application records with sanitized, single-line address contracts."
