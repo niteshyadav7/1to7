@@ -1653,9 +1653,10 @@ Furthermore, the redirect completely discarded the original target URL. Even if 
        return loginUrl
      }
      ```
-2. Unbroken Inter-Page Navigation State:
-   - Updated `app/login/page.tsx`'s "Create an account" link to dynamically append `?redirect=${encodeURIComponent(redirect)}` whenever a redirect parameter is present.
-   - Updated `app/signup/page.tsx`'s "Log in here" link to similarly forward `?redirect=...`.
+2. Unbroken Inter-Page Navigation State & Hydration Safety:
+   - Updated `app/login/page.tsx`'s "Create an account" link to dynamically append `?redirect=${encodeURIComponent(redirect)}` via `useEffect` mounted state.
+   - Updated `app/signup/page.tsx`'s "Log in here" link to similarly forward `?redirect=...` via `useEffect` mounted state.
+   - **Eliminating React SSR/Client Hydration Mismatch**: In Next.js client components, evaluating `typeof window !== 'undefined'` directly inside JSX `href={...}` returns `/signup` during Node.js server-side pre-rendering but `/signup?redirect=...` on the client DOM during initial hydration, triggering Next.js React Hydration Error #418 ("A tree hydrated but some attributes of the server rendered HTML didn't match the client properties"). Initializing the state to a deterministic static string (`'/signup'`) and updating it inside a post-mount `useEffect` ensures SSR and initial client hydration match 100% with zero console warnings.
 3. Post-Registration & Post-Login Continuity:
    - Replaced hardcoded `window.location.href = '/dashboard'` in `app/signup/page.tsx` with `getRedirectUrl()`, so creators who register directly from a shared link are seamlessly routed to the shared task page upon account verification.
    - Verified that all 5 login flows in `app/login/page.tsx` (Password, Mobile OTP via MSG91/Firebase, Email OTP, and Google OAuth) execute `window.location.href = getRedirectUrl()`, completing the deep-link trip.
