@@ -7,7 +7,7 @@ import {
   Instagram, Users, Phone, Search, Filter,
   Megaphone, Download, Clock, Package,
   ExternalLink, Sparkles, AlertCircle, FileSpreadsheet,
-  Check, X, RefreshCw,
+  Check, X, RefreshCw, Truck, ShieldCheck,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -122,7 +122,8 @@ export default function AdminAddressConfirmationPage() {
   const [entries, setEntries] = useState<AddressEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All')
+  const [statusFilter, setStatusFilter] = useState<'All' | 'BrandDispatch' | 'Approved' | 'Pending' | 'NotSubmitted' | 'Rejected'>('All')
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<string>('all')
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all')
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -188,12 +189,24 @@ export default function AdminAddressConfirmationPage() {
         return false
       }
 
+      // Campaign application status filter (Approved, Applied, Rejected, etc.)
+      if (campaignStatusFilter !== 'all' && entry.status !== campaignStatusFilter) {
+        return false
+      }
+
       // Status filter
       const vStatus = getVerificationStatus(entry)
-      if (statusFilter !== 'All') {
-        if (statusFilter === 'Pending' && vStatus !== 'Pending') return false
-        if (statusFilter === 'Approved' && vStatus !== 'Approved') return false
-        if (statusFilter === 'Rejected' && vStatus !== 'Rejected') return false
+      if (statusFilter === 'BrandDispatch') {
+        // Both Campaign Approved AND Address Verified
+        if (entry.status !== 'Approved' || vStatus !== 'Approved') return false
+      } else if (statusFilter === 'Pending') {
+        if (vStatus !== 'Pending') return false
+      } else if (statusFilter === 'Approved') {
+        if (vStatus !== 'Approved') return false
+      } else if (statusFilter === 'NotSubmitted') {
+        if (vStatus !== 'Not Submitted') return false
+      } else if (statusFilter === 'Rejected') {
+        if (vStatus !== 'Rejected') return false
       }
 
       // Search query
@@ -216,10 +229,11 @@ export default function AdminAddressConfirmationPage() {
 
       return true
     })
-  }, [entries, selectedCampaignId, statusFilter, searchQuery])
+  }, [entries, selectedCampaignId, campaignStatusFilter, statusFilter, searchQuery])
 
   // Summary Metrics
   const metrics = useMemo(() => {
+    let brandDispatch = 0
     let pending = 0
     let approved = 0
     let rejected = 0
@@ -227,13 +241,14 @@ export default function AdminAddressConfirmationPage() {
 
     entries.forEach(e => {
       const st = getVerificationStatus(e)
+      if (e.status === 'Approved' && st === 'Approved') brandDispatch++
       if (st === 'Pending') pending++
       else if (st === 'Approved') approved++
       else if (st === 'Rejected') rejected++
       else notSubmitted++
     })
 
-    return { total: entries.length, pending, approved, rejected, notSubmitted }
+    return { total: entries.length, brandDispatch, pending, approved, rejected, notSubmitted }
   }, [entries])
 
   // Pagination calculations
@@ -243,7 +258,7 @@ export default function AdminAddressConfirmationPage() {
   // Reset page to 1 when filters or page size change
   useEffect(() => {
     setPage(1)
-  }, [selectedCampaignId, statusFilter, searchQuery, pageSize])
+  }, [selectedCampaignId, campaignStatusFilter, statusFilter, searchQuery, pageSize])
 
   // Clamp current page within bounds if data shrinks
   useEffect(() => {
@@ -361,6 +376,7 @@ export default function AdminAddressConfirmationPage() {
         'Brand Name': entry.campaigns?.brand_name || '',
         'Campaign Code': entry.campaigns?.campaign_code || '',
         'Barter Deliverables': entry.campaigns?.deliverables || '',
+        'Campaign Selection Status': entry.status || 'Applied',
         'Creator Name': fallbackUser.full_name || '',
         'Influencer ID': fallbackUser.influencer_id || '',
         'Instagram Handle': fallbackUser.instagram_username ? `@${fallbackUser.instagram_username}` : '',
@@ -373,8 +389,9 @@ export default function AdminAddressConfirmationPage() {
         'State': state,
         'Pincode': pincode,
         'Delivery Remarks': remarks,
-        'Verification Status': getVerificationStatus(entry),
+        'Address Verification Status': getVerificationStatus(entry),
         'Verified Date': entry.address_verified_at ? new Date(entry.address_verified_at).toLocaleDateString('en-IN') : 'N/A',
+        'Ready for Brand Dispatch': (entry.status === 'Approved' && getVerificationStatus(entry) === 'Approved') ? 'YES' : 'NO'
       }
 
       // Append dynamic custom order / courier specifications as separate columns
@@ -392,14 +409,21 @@ export default function AdminAddressConfirmationPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     const timestamp = new Date().toISOString().slice(0, 10)
+    const isBrandApprovedOnly = statusFilter === 'BrandDispatch' || (statusFilter === 'Approved' && campaignStatusFilter === 'Approved')
+    const activeCamp = entries.find(e => e.campaigns?.id === selectedCampaignId)?.campaigns
+    const campPrefix = activeCamp ? `${activeCamp.brand_name.replace(/\s+/g, '_')}` : 'All_Brands'
+    const fileName = isBrandApprovedOnly
+      ? `Brand_Dispatch_FINAL_APPROVED_${campPrefix}_${timestamp}.csv`
+      : `Courier_Dispatch_Addresses_${campPrefix}_${timestamp}.csv`
+
     link.href = url
-    link.setAttribute('download', `Courier_Dispatch_Addresses_${timestamp}.csv`)
+    link.setAttribute('download', fileName)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    toast.success(`Exported ${exportRows.length} addresses with custom courier fields!`)
+    toast.success(`Exported ${exportRows.length} ${isBrandApprovedOnly ? 'Final Brand Approved' : 'courier dispatch'} records!`)
   }
 
   return (
@@ -415,22 +439,75 @@ export default function AdminAddressConfirmationPage() {
         </div>
       </SetAdminHeader>
 
-      {/* KPI Cards Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg">
+      {/* KPI Cards Strip: 5 Responsive Cards with Final Brand Dispatch Priority */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* Total Tracked */}
+        <div 
+          onClick={() => { setStatusFilter('All'); setCampaignStatusFilter('all') }}
+          className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg cursor-pointer hover:bg-slate-800/40 transition-colors"
+        >
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Tracked</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Total Tracked</span>
             <Package className="h-4 w-4 text-indigo-400" />
           </div>
           <p className="text-2xl font-bold text-white">
             {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.total}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">Barter campaigns</p>
+          <p className="text-[11px] text-slate-400 mt-1">Barter applications</p>
         </div>
 
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 backdrop-blur-lg">
+        {/* Ready for Brand Dispatch (Both Campaign Approved AND Address Verified) */}
+        <div 
+          onClick={() => { setStatusFilter('BrandDispatch'); setCampaignStatusFilter('all') }}
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-all group ${
+            statusFilter === 'BrandDispatch'
+              ? 'border-emerald-400/60 bg-emerald-500/20 shadow-lg shadow-emerald-500/20'
+              : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
+          }`}
+        >
+          <div className="flex items-center justify-between text-emerald-300 mb-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1 text-emerald-300">
+              <Truck className="h-3.5 w-3.5 text-emerald-400" />
+              Final Brand Dispatch
+            </span>
+            <Sparkles className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="text-2xl font-black text-emerald-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.brandDispatch}
+          </p>
+          <p className="text-[11px] text-emerald-300/80 mt-1 font-semibold">Campaign + Address Approved</p>
+        </div>
+
+        {/* Address Verified */}
+        <div 
+          onClick={() => { setStatusFilter('Approved'); setCampaignStatusFilter('all') }}
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
+            statusFilter === 'Approved'
+              ? 'border-teal-400/60 bg-teal-500/20'
+              : 'border-teal-500/20 bg-teal-500/5 hover:bg-teal-500/10'
+          }`}
+        >
+          <div className="flex items-center justify-between text-teal-300 mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Address Verified</span>
+            <CheckCircle2 className="h-4 w-4 text-teal-400" />
+          </div>
+          <p className="text-2xl font-bold text-teal-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.approved}
+          </p>
+          <p className="text-[11px] text-teal-300/70 mt-1">Valid shipping addresses</p>
+        </div>
+
+        {/* Pending Review */}
+        <div 
+          onClick={() => { setStatusFilter('Pending'); setCampaignStatusFilter('all') }}
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
+            statusFilter === 'Pending'
+              ? 'border-amber-400/60 bg-amber-500/20'
+              : 'border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10'
+          }`}
+        >
           <div className="flex items-center justify-between text-amber-300 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Pending Review</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Pending Review</span>
             <Clock className="h-4 w-4 text-amber-400" />
           </div>
           <p className="text-2xl font-bold text-amber-300">
@@ -439,26 +516,23 @@ export default function AdminAddressConfirmationPage() {
           <p className="text-[11px] text-amber-300/70 mt-1">Needs verification</p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 backdrop-blur-lg">
-          <div className="flex items-center justify-between text-emerald-300 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Verified / Approved</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+        {/* Missing / Not Submitted */}
+        <div 
+          onClick={() => { setStatusFilter('NotSubmitted'); setCampaignStatusFilter('all') }}
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
+            statusFilter === 'NotSubmitted'
+              ? 'border-slate-500 bg-slate-800/60'
+              : 'border-slate-700/50 bg-slate-900/40 hover:bg-slate-800/40'
+          }`}
+        >
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Not Submitted</span>
+            <AlertCircle className="h-4 w-4 text-slate-400" />
           </div>
-          <p className="text-2xl font-bold text-emerald-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.approved}
+          <p className="text-2xl font-bold text-slate-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.notSubmitted}
           </p>
-          <p className="text-[11px] text-emerald-300/70 mt-1">Ready for courier dispatch</p>
-        </div>
-
-        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 backdrop-blur-lg">
-          <div className="flex items-center justify-between text-rose-300 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Changes Requested</span>
-            <XCircle className="h-4 w-4 text-rose-400" />
-          </div>
-          <p className="text-2xl font-bold text-rose-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.rejected}
-          </p>
-          <p className="text-[11px] text-rose-300/70 mt-1">Creator asked to update</p>
+          <p className="text-[11px] text-slate-500 mt-1">Missing creator address</p>
         </div>
       </div>
 
@@ -489,6 +563,19 @@ export default function AdminAddressConfirmationPage() {
               ))}
             </select>
 
+            {/* Campaign Selection Status Dropdown Filter */}
+            <select
+              value={campaignStatusFilter}
+              onChange={(e) => setCampaignStatusFilter(e.target.value)}
+              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">Campaign: All Statuses</option>
+              <option value="Approved">Campaign: Approved Only</option>
+              <option value="Applied">Campaign: Applied Only</option>
+              <option value="Under Process">Campaign: Under Process</option>
+              <option value="Rejected">Campaign: Rejected Only</option>
+            </select>
+
             {/* Refresh */}
             <Button
               variant="outline"
@@ -503,32 +590,55 @@ export default function AdminAddressConfirmationPage() {
             {/* Sprint 4: Courier Dispatch Exporter */}
             <Button
               onClick={handleExportCSV}
-              className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer ml-auto lg:ml-0"
+              className={`h-10 px-4 font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer ml-auto lg:ml-0 ${
+                statusFilter === 'BrandDispatch'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-400/40'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+              }`}
             >
-              <FileSpreadsheet className="h-4 w-4" />
-              Export Courier Sheet ({filteredEntries.length})
+              {statusFilter === 'BrandDispatch' ? (
+                <>
+                  <Truck className="h-4 w-4" />
+                  Export Brand Dispatch Sheet ({filteredEntries.length})
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export Courier Sheet ({filteredEntries.length})
+                </>
+              )}
             </Button>
           </div>
         </div>
 
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-2 pt-1 border-t border-white/5 overflow-x-auto">
-          {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(tab => {
-            const count = tab === 'All' ? entries.length : tab === 'Pending' ? metrics.pending : tab === 'Approved' ? metrics.approved : metrics.rejected
-            const isActive = statusFilter === tab
+          {[
+            { id: 'All', label: 'All Submissions', count: entries.length },
+            { id: 'BrandDispatch', label: 'Final Brand Dispatch', count: metrics.brandDispatch, isPrimary: true, icon: Truck },
+            { id: 'Approved', label: 'Address Verified', count: metrics.approved },
+            { id: 'Pending', label: 'Pending Review', count: metrics.pending },
+            { id: 'NotSubmitted', label: 'Not Submitted', count: metrics.notSubmitted },
+            { id: 'Rejected', label: 'Changes Requested', count: metrics.rejected },
+          ].map(tab => {
+            const isActive = statusFilter === tab.id
+            const TabIcon = tab.icon
             return (
               <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id as any)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   isActive
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    ? tab.isPrimary
+                      ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
+                      : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                     : 'bg-slate-950/40 text-slate-400 hover:text-slate-200 border border-white/5'
                 }`}
               >
-                {tab === 'All' ? 'All Submissions' : tab === 'Pending' ? 'Pending Verification' : tab === 'Approved' ? 'Verified / Approved' : 'Rejected'}
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-emerald-500/30 text-emerald-200' : 'bg-white/10 text-slate-400'}`}>
-                  {loading ? <span className="inline-block w-4 h-2 rounded bg-white/20 shimmer align-middle" /> : count}
+                {TabIcon && <TabIcon className="h-3.5 w-3.5 text-emerald-400" />}
+                {tab.label}
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'}`}>
+                  {loading ? <span className="inline-block w-4 h-2 rounded bg-white/20 shimmer align-middle" /> : tab.count}
                 </span>
               </button>
             )
@@ -547,7 +657,7 @@ export default function AdminAddressConfirmationPage() {
                   <th className="py-3 px-4">Campaign</th>
                   <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
                   <th className="py-3 px-4">Contact Phone</th>
-                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Approval & Address Status</th>
                   <th className="py-3 px-4 text-right">Verification Action</th>
                 </tr>
               </thead>
@@ -693,33 +803,70 @@ export default function AdminAddressConfirmationPage() {
 
                       {/* Status */}
                       <td className="py-3.5 px-4 align-top">
-                        {vStatus === 'Approved' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                            Verified
-                          </span>
-                        ) : vStatus === 'Rejected' ? (
+                        <div className="space-y-1.5">
+                          {/* Campaign Application Status */}
                           <div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                              <XCircle className="h-3.5 w-3.5 text-rose-400" />
-                              Update Req.
-                            </span>
-                            {entry.form_data?.address_rejection_reason && (
-                              <p className="text-[10px] text-rose-300/80 mt-1 max-w-[150px] line-clamp-2">
-                                {entry.form_data.address_rejection_reason}
-                              </p>
+                            {entry.status === 'Approved' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                <Sparkles className="h-2.5 w-2.5 text-indigo-400" />
+                                Campaign: Approved
+                              </span>
+                            ) : entry.status === 'Applied' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                                Campaign: Applied
+                              </span>
+                            ) : entry.status === 'Rejected' ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25">
+                                Campaign: Rejected
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-white/10">
+                                Campaign: {entry.status || 'Applied'}
+                              </span>
                             )}
                           </div>
-                        ) : vStatus === 'Pending' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-                            <Clock className="h-3.5 w-3.5 text-amber-400" />
-                            Pending Review
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-white/10">
-                            Waiting Creator
-                          </span>
-                        )}
+
+                          {/* Address Verification Status */}
+                          <div>
+                            {vStatus === 'Approved' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                Address: Verified
+                              </span>
+                            ) : vStatus === 'Rejected' ? (
+                              <div>
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                  <XCircle className="h-3 w-3 text-rose-400" />
+                                  Address: Update Req.
+                                </span>
+                                {entry.form_data?.address_rejection_reason && (
+                                  <p className="text-[10px] text-rose-300/80 mt-1 max-w-[150px] line-clamp-2">
+                                    {entry.form_data.address_rejection_reason}
+                                  </p>
+                                )}
+                              </div>
+                            ) : vStatus === 'Pending' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                                <Clock className="h-3 w-3 text-amber-400" />
+                                Address: Pending Review
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
+                                Address: Not Submitted
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Ready for Brand Dispatch Indicator */}
+                          {entry.status === 'Approved' && vStatus === 'Approved' && (
+                            <div>
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                <Truck className="h-2.5 w-2.5 text-emerald-400" />
+                                Ready for Brand Dispatch
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* Verification Action */}
