@@ -58,6 +58,7 @@ export const CAMPAIGN_FIELD_METADATA: Record<string, { label: string; category: 
   is_test_mode: { label: 'Campaign Mode', category: 'targeting' },
   test_user_ids: { label: 'Pilot Tester IDs', category: 'targeting' },
   test_creators: { label: 'Pilot Test Creators', category: 'targeting' },
+  status: { label: 'Campaign Lifecycle Status', category: 'general' },
   is_live: { label: 'Live Publication Status', category: 'general' },
   address_required: { label: 'Creator Address Required', category: 'form' },
 }
@@ -68,6 +69,10 @@ export const CAMPAIGN_FIELD_METADATA: Record<string, { label: string; category: 
 export function formatValueForDisplay(field: string, val: any): string {
   if (val === null || val === undefined || val === '') {
     return 'None / Not Set'
+  }
+
+  if (field === 'status') {
+    return String(val)
   }
 
   if (field === 'is_live') {

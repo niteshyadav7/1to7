@@ -86,6 +86,8 @@ interface CampaignInfo {
   brand_name: string
   campaign_code: string
   platform: string
+  status?: string
+  is_live?: boolean
   budget_type?: string
   budget_amount?: number
   completion_days?: number | null
@@ -628,6 +630,35 @@ export default function AdminApplicationsPage() {
           </div>
         </div>
       </SetAdminHeader>
+
+      {/* Closed / Completed Notice Banner */}
+      {campaign?.status === 'Closed' && (
+        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between gap-3 text-xs text-rose-300">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+            <p>
+              <strong className="font-bold text-white">Campaign Closed:</strong> Application intake is stopped. No new creators can apply. Existing accepted creators can continue deliverables.
+            </p>
+          </div>
+          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 font-bold uppercase tracking-wider text-[10px]">
+            Closed
+          </span>
+        </div>
+      )}
+
+      {campaign?.status === 'Completed' && (
+        <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-between gap-3 text-xs text-purple-300">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-2 w-2 rounded-full bg-purple-400" />
+            <p>
+              <strong className="font-bold text-white">Campaign Completed:</strong> This campaign has concluded and is archived.
+            </p>
+          </div>
+          <span className="shrink-0 px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 font-bold uppercase tracking-wider text-[10px]">
+            Completed
+          </span>
+        </div>
+      )}
 
       {/* Filters & Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

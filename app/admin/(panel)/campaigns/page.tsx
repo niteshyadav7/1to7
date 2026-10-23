@@ -11,7 +11,8 @@ import {
   ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   Info, UserCheck, AlertTriangle, FileText, CheckCheck, X,
   Download, FileSpreadsheet, ChevronDown, Loader2, History,
-  FlaskConical, Rocket, LayoutGrid, List
+  FlaskConical, Rocket, LayoutGrid, List,
+  Lock, RotateCcw, Archive
 } from 'lucide-react'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
@@ -102,6 +103,13 @@ export default function AdminCampaignsPage() {
   const [rejectionReasonInput, setRejectionReasonInput] = useState('')
   const [reviewModalCampaign, setReviewModalCampaign] = useState<Campaign | null>(null)
   const [historyModalCampaign, setHistoryModalCampaign] = useState<Campaign | null>(null)
+
+  // Campaign Lifecycle States (Close / Complete / Reopen)
+  const [lifecycleModalCampaign, setLifecycleModalCampaign] = useState<Campaign | null>(null)
+  const [lifecycleAction, setLifecycleAction] = useState<'close' | 'complete' | 'reopen'>('close')
+  const [rejectPendingApplicants, setRejectPendingApplicants] = useState<boolean>(false)
+  const [lifecycleRejectionReason, setLifecycleRejectionReason] = useState<string>('')
+  const [isSubmittingLifecycle, setIsSubmittingLifecycle] = useState<boolean>(false)
 
   // Reorder & Sequence Management States
   const [isReorderMode, setIsReorderMode] = useState(false)
@@ -394,6 +402,46 @@ export default function AdminCampaignsPage() {
       toast.error(err.message || 'Failed to launch campaign')
     } finally {
       setIsLaunching(false)
+    }
+  }
+
+  // Open Lifecycle Action Modal
+  const openLifecycleModal = (campaign: Campaign, defaultAction: 'close' | 'complete' | 'reopen') => {
+    setLifecycleModalCampaign(campaign)
+    setLifecycleAction(defaultAction)
+    setRejectPendingApplicants(false)
+    setLifecycleRejectionReason('')
+  }
+
+  // Handle Lifecycle Action Submit (Close / Complete / Reopen)
+  const handleLifecycleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!lifecycleModalCampaign) return
+
+    setIsSubmittingLifecycle(true)
+    try {
+      const res = await fetch(`/api/admin/campaigns/${lifecycleModalCampaign.id}/lifecycle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: lifecycleAction,
+          reject_pending: rejectPendingApplicants,
+          rejection_reason: lifecycleRejectionReason.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update campaign lifecycle')
+
+      const updatedCampaign = data.campaign
+      setCampaigns(prev =>
+        prev.map(c => c.id === lifecycleModalCampaign.id ? { ...c, ...updatedCampaign } : c)
+      )
+      toast.success(data.message)
+      setLifecycleModalCampaign(null)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update campaign lifecycle')
+    } finally {
+      setIsSubmittingLifecycle(false)
     }
   }
 
@@ -1289,19 +1337,64 @@ export default function AdminCampaignsPage() {
                             <Rocket className="h-3.5 w-3.5" />
                             Launch to Public
                           </Button>
-                        ) : (
+                        ) : campaign.status === 'Closed' ? (
+                          <>
+                            {/* Complete Action */}
+                            <button
+                              type="button"
+                              onClick={() => openLifecycleModal(campaign, 'complete')}
+                              title="Mark deliverables finished & archive campaign"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 transition-all cursor-pointer shadow-sm"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 text-purple-400" />
+                              Complete
+                            </button>
+                            {/* Reopen Action */}
+                            <button
+                              type="button"
+                              onClick={() => openLifecycleModal(campaign, 'reopen')}
+                              title="Reactivate and reopen campaign to Active"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 text-emerald-400" />
+                              Reopen
+                            </button>
+                          </>
+                        ) : campaign.status === 'Completed' ? (
                           <button
-                            onClick={() => toggleLive(campaign)}
-                            disabled={togglingId === campaign.id}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
-                              campaign.is_live
-                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
-                                : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                            }`}
+                            type="button"
+                            onClick={() => openLifecycleModal(campaign, 'reopen')}
+                            title="Reactivate campaign back to Active"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer"
                           >
-                            {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                            {campaign.is_live ? 'Live' : 'Offline'}
+                            <RotateCcw className="h-3.5 w-3.5 text-emerald-400" />
+                            Reopen Campaign
                           </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => toggleLive(campaign)}
+                              disabled={togglingId === campaign.id}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                                campaign.is_live
+                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                                  : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                              }`}
+                            >
+                              {campaign.is_live ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                              {campaign.is_live ? 'Live' : 'Offline'}
+                            </button>
+                            {/* Close Campaign Button */}
+                            <button
+                              type="button"
+                              onClick={() => openLifecycleModal(campaign, 'close')}
+                              title="Close campaign applications / Conclude intake"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
+                            >
+                              <Lock className="h-3.5 w-3.5 text-rose-400" />
+                              Close
+                            </button>
+                          </>
                         )}
                       </>
                     )}
@@ -1709,20 +1802,62 @@ export default function AdminCampaignsPage() {
                               <Rocket className="h-3 w-3" />
                               <span>Launch</span>
                             </Button>
-                          ) : (
+                          ) : campaign.status === 'Closed' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openLifecycleModal(campaign, 'complete')}
+                                title="Mark deliverables finished & complete campaign"
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 transition-all cursor-pointer"
+                              >
+                                <CheckCircle2 className="h-3 w-3 text-purple-400" />
+                                <span>Complete</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openLifecycleModal(campaign, 'reopen')}
+                                title="Reopen campaign to Active"
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer"
+                              >
+                                <RotateCcw className="h-3 w-3 text-emerald-400" />
+                                <span>Reopen</span>
+                              </button>
+                            </>
+                          ) : campaign.status === 'Completed' ? (
                             <button
-                              onClick={() => toggleLive(campaign)}
-                              disabled={togglingId === campaign.id}
-                              title={campaign.is_live ? 'Click to make offline' : 'Click to make live'}
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
-                                campaign.is_live
-                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
-                                  : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                              }`}
+                              type="button"
+                              onClick={() => openLifecycleModal(campaign, 'reopen')}
+                              title="Reactivate campaign back to Active"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all cursor-pointer"
                             >
-                              {campaign.is_live ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                              <span>{campaign.is_live ? 'Live' : 'Offline'}</span>
+                              <RotateCcw className="h-3 w-3 text-emerald-400" />
+                              <span>Reopen</span>
                             </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => toggleLive(campaign)}
+                                disabled={togglingId === campaign.id}
+                                title={campaign.is_live ? 'Click to make offline' : 'Click to make live'}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                                  campaign.is_live
+                                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/25'
+                                    : 'bg-slate-800/80 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
+                                }`}
+                              >
+                                {campaign.is_live ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                <span>{campaign.is_live ? 'Live' : 'Offline'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openLifecycleModal(campaign, 'close')}
+                                title="Close applications / intake full"
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 transition-all cursor-pointer"
+                              >
+                                <Lock className="h-3 w-3 text-rose-400" />
+                                <span>Close</span>
+                              </button>
+                            </>
                           )}
 
                           {/* Edit */}
@@ -2199,6 +2334,182 @@ export default function AdminCampaignsPage() {
         campaignName={historyModalCampaign?.brand_name}
         editHistory={historyModalCampaign?.edit_history}
       />
+
+      {/* Campaign Lifecycle Modal (Close / Complete / Reopen) */}
+      {lifecycleModalCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+                  lifecycleAction === 'close'
+                    ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                    : lifecycleAction === 'complete'
+                    ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                }`}>
+                  {lifecycleAction === 'close' ? (
+                    <Lock className="h-5 w-5" />
+                  ) : lifecycleAction === 'complete' ? (
+                    <CheckCircle2 className="h-5 w-5" />
+                  ) : (
+                    <RotateCcw className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {lifecycleAction === 'close'
+                      ? 'Close Campaign'
+                      : lifecycleAction === 'complete'
+                      ? 'Mark Campaign as Completed'
+                      : 'Reopen / Reactivate Campaign'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {lifecycleModalCampaign.brand_name} ({lifecycleModalCampaign.campaign_code})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLifecycleModalCampaign(null)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLifecycleSubmit} className="space-y-4">
+              {/* Lifecycle Stage Selector */}
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-2">
+                  Select Action
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  <div
+                    onClick={() => setLifecycleAction('close')}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      lifecycleAction === 'close'
+                        ? 'border-rose-500/50 bg-rose-500/10 text-white'
+                        : 'border-white/5 bg-slate-800/50 text-slate-400 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-rose-400" />
+                      <span className="text-xs font-bold text-rose-300">Close Applications (Intake Finished)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                      Stops new applications immediately. Moves campaign to Closed tab. Creators with approved/selected status can still complete their deliverables.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setLifecycleAction('complete')}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      lifecycleAction === 'complete'
+                        ? 'border-purple-500/50 bg-purple-500/10 text-white'
+                        : 'border-white/5 bg-slate-800/50 text-slate-400 hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-purple-400" />
+                      <span className="text-xs font-bold text-purple-300">Mark Completed (Archive)</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                      All deliverables, posts, and creator payouts are finished. Moves campaign to Completed archive.
+                    </p>
+                  </div>
+
+                  {lifecycleModalCampaign.status !== 'Active' && (
+                    <div
+                      onClick={() => setLifecycleAction('reopen')}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        lifecycleAction === 'reopen'
+                          ? 'border-emerald-500/50 bg-emerald-500/10 text-white'
+                          : 'border-white/5 bg-slate-800/50 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4 text-emerald-400" />
+                        <span className="text-xs font-bold text-emerald-300">Reopen Campaign to Active</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1 pl-6">
+                        Reactivates the campaign back to Active tab. Live toggle remains Offline until you review.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pending Applicants Auto-Reject Checkbox */}
+              {lifecycleAction !== 'reopen' && (
+                <div className="p-3.5 rounded-xl border border-white/5 bg-slate-800/50 space-y-3">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rejectPendingApplicants}
+                      onChange={(e) => setRejectPendingApplicants(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="text-xs">
+                      <span className="font-semibold text-slate-200">
+                        Auto-reject remaining unreviewed applicants
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Creators currently in &quot;Applied&quot; status who were not selected will be marked as Rejected.
+                      </p>
+                    </div>
+                  </label>
+
+                  {rejectPendingApplicants && (
+                    <div className="pt-2 border-t border-white/5 space-y-1">
+                      <label className="text-[11px] font-medium text-slate-400 block">
+                        Rejection Reason for Pending Creators
+                      </label>
+                      <Input
+                        value={lifecycleRejectionReason}
+                        onChange={(e) => setLifecycleRejectionReason(e.target.value)}
+                        placeholder="Campaign closed - creator quota reached."
+                        className="h-8 text-xs bg-slate-900 border-white/10 text-white rounded-lg focus-visible:ring-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setLifecycleModalCampaign(null)}
+                  className="h-9 px-4 rounded-xl text-slate-400 hover:text-white text-xs cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingLifecycle}
+                  className={`h-9 px-5 rounded-xl font-bold text-xs shadow-lg cursor-pointer ${
+                    lifecycleAction === 'close'
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
+                      : lifecycleAction === 'complete'
+                      ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/20'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                  }`}
+                >
+                  {isSubmittingLifecycle
+                    ? 'Updating...'
+                    : lifecycleAction === 'close'
+                    ? 'Confirm Close Campaign'
+                    : lifecycleAction === 'complete'
+                    ? 'Confirm Complete Campaign'
+                    : 'Confirm Reopen Campaign'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
