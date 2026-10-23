@@ -8,7 +8,8 @@ import {
   Megaphone, Download, Clock, Package,
   ExternalLink, Sparkles, AlertCircle, FileSpreadsheet,
   Check, X, RefreshCw, Truck, ShieldCheck,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Upload
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import { useRealtime } from '@/hooks/useRealtime'
 import { getInstagramUrl, getInstagramDisplayHandle } from '@/lib/instagram-utils'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import Papa from 'papaparse'
+import AddressImportModal from './AddressImportModal'
 
 interface AddressEntry {
   id: string
@@ -132,6 +134,9 @@ export default function AdminAddressConfirmationPage() {
   // Rejection reason modal
   const [rejectModalEntry, setRejectModalEntry] = useState<AddressEntry | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+
+  // Smart Address Import Modal
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   const fetchAddresses = useCallback(async () => {
     try {
@@ -585,6 +590,16 @@ export default function AdminAddressConfirmationPage() {
               className="h-10 px-3 bg-slate-950/60 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-xs cursor-pointer"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+
+            {/* Smart CSV / Excel Offline Importer */}
+            <Button
+              onClick={() => setIsImportModalOpen(true)}
+              variant="outline"
+              className="h-10 px-3.5 bg-slate-950/60 border-emerald-500/30 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              <Upload className="h-4 w-4 text-emerald-400" />
+              <span>Import Addresses</span>
             </Button>
 
             {/* Sprint 4: Courier Dispatch Exporter */}
@@ -1067,6 +1082,16 @@ export default function AdminAddressConfirmationPage() {
           </div>
         </div>
       )}
+
+      {/* Intelligent Address Import Modal */}
+      <AddressImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={() => {
+          fetchAddresses()
+        }}
+        initialCampaignId={selectedCampaignId !== 'all' ? selectedCampaignId : undefined}
+      />
     </div>
   )
 }

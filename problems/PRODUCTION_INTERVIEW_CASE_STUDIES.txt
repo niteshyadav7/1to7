@@ -51,6 +51,7 @@ CASE 40: Table Layout Auto-Sizing Disaster & Unbounded Content Projection: Feedb
 CASE 41: Postgres Enum Type-Safety Drift & Campaign Lifecycle Deadlock: Missing State Transitions & Phantom Tab Filters (Closed & Completed Status Architecture)
 CASE 42: Edge Proxy Deep-Link Severing & Unauthenticated Ingestion Inversion: Legacy /signup Route Trap Drops Shared Deep Links (Edge vs Client Auth Gatekeeper & Redirect Continuity)
 CASE 43: Offline Logistics Ingestion Disconnect & Cross-Entity Relational Reconciliation: External Form Address Ingestion vs Normalized Application Data Models
+CASE 44: Automated Offline Logistics Ingestion Engine & Compound Deduplication Architecture (Eliminating Manual Repetitive Reconciliations & Edge-Case Data Corruption)
 
 
 
@@ -1705,6 +1706,46 @@ A deep architectural audit revealed a three-tier relational mismatch between off
 
 [INTERVIEW STAR TAKEAWAY]
 "When bridging external offline ingestion (Google Forms/Sheets) with a normalized relational database, never assume operational rows map directly to domain entity tables. Always trace how the downstream feature queries data: here, logistics required campaign-scoped applications, not just standalone user profiles. Solve this by implementing dual-layer synchronization—updating permanent user profile address books while transactionally creating or updating campaign application records with sanitized, single-line address contracts."
+
+====================================================================================================
+CASE 44: Automated Offline Logistics Ingestion Engine & Compound Deduplication Architecture
+====================================================================================================
+CATEGORIES: Full-Stack / Next.js / PostgreSQL / Data Ingestion / Idempotency / UI UX
+INTERVIEW QUESTION: "How would you design a self-service, fault-tolerant offline data ingestion system for non-technical operations teams that reconciles arbitrary Google Form / Excel address exports with relational user profiles and campaign applications without creating duplicate records or crashing on malformed inputs?"
+
+[SITUATION]
+Operations managers frequently collect creator shipping addresses offline via Google Forms or ad-hoc Excel sheets (e.g., Plum, Lavie, Deconstruct campaigns). Over successive days, managers would generate multiple file exports (`Project nitesh - adres.csv`, `adres (1).csv`, `adres (2).csv`) containing overlapping creator submissions, updated delivery locations, un-sanitized newlines (`\n`), and missing standard headers. Engineering had to repeatedly write custom one-off scripts to ingest each file without corrupting the database or introducing duplicate applications. This manual bottleneck was slow, error-prone, and prevented operations teams from independently updating logistics manifests.
+
+[ROOT CAUSE]
+1. Header & Format Heterogeneity:
+   - External spreadsheets contain non-standard header keys (`User Name` vs `Instagram Handle`, `Mobile Number` vs `Contact Mobile`, `Altername Number (If any)` vs `Alt Phone`). Hardcoded column ingestion crashed or skipped valid entries.
+2. Multiline Dirty Address Inversion:
+   - Influencers entering addresses in textarea fields included carriage returns and line feeds (`\r\n`), which broke downstream CSV exports for courier shipping manifests (Delhivery, BlueDart, Shiprocket).
+3. Compound Deduplication & Idempotency Gaps:
+   - A creator submitting a form multiple times across different days created duplicate candidate rows. Without compound unique checks (`user_id` + `campaign_id`), simple inserts caused duplicate applications or overwritten approvals.
+4. Operational Blindness:
+   - Operations teams lacked a pre-flight validation mechanism to inspect matched vs unmatched creators prior to database mutation.
+
+[SOLUTION & ARCHITECTURE]
+1. Self-Service Dynamic Ingestion Modal (`AddressImportModal.tsx`):
+   - Built an interactive, drag-and-drop file ingestion interface supporting both `.csv` (via PapaParse) and `.xlsx` (via SheetJS).
+   - Designed a dynamic header extractor with case-insensitive and fuzzy substring fallback matching, automatically handling all variations of phone, handle, email, recipient, address, landmark, city, state, and pincode.
+2. In-Memory In-Batch Deduplication & Triple-Fallback Resolver:
+   - Resolved creator accounts using a 3-tier cascade: Phone (10-digit normalized) -> Instagram Handle (`@` stripped, lowercase) -> Email (trimmed, lowercase).
+   - Deduplicated within the uploaded batch by keeping the latest submission timestamp per creator.
+3. Pre-Flight "Dry-Run" Validation Engine (`POST /api/admin/address-confirmation/import?dry_run=true`):
+   - Before writing to PostgreSQL, the engine parses and classifies every candidate into distinct operational buckets:
+     - `Will Upgrade`: Existing applications in `Applied` or `Under Process` state upgraded to `Approved` + `Address Verified`.
+     - `New Applications`: Creators without existing applications added directly as `Approved` for the target campaign.
+     - `Exact Duplicates`: Already `Approved` and `Address Verified` records safely skipped to guarantee idempotency.
+     - `Unmatched`: Influencers not found in `public.users`, displayed in an expandable review drawer so admins can reach out.
+4. Atomic Dual-Layer Database Synchronization:
+   - Executed inside a single PostgreSQL transaction (`BEGIN ... COMMIT` with automatic rollback on error).
+   - Tier 1: Appends/updates the structured address in `public.users.shipping_addresses` (JSONB) and updates `city`, `state`, and `pincode` for permanent profile re-use.
+   - Tier 2: Upserts the application record in `public.applications` with `status = 'Approved'`, `address_status = 'Approved'`, `address_verified_at = now()`, deliverables, and single-line sanitized address strings.
+
+[INTERVIEW STAR TAKEAWAY]
+"To eliminate engineering bottlenecks in offline data ingestion, build an idempotent self-service pipeline with dynamic fuzzy header mapping, dirty string sanitization, and a mandatory pre-flight dry run. By categorizing records into upgrades, new applications, exact duplicates, and unmatched creators before executing an atomic database transaction, you give non-technical operators full autonomy while guaranteeing zero data loss, zero application duplicates, and pristine courier manifests."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
