@@ -9,8 +9,17 @@ export async function proxy(request: NextRequest) {
   if (pathname.startsWith('/dashboard')) {
     const token = request.cookies.get('auth_token')?.value
 
+    const buildLoginRedirect = () => {
+      const loginUrl = new URL('/login', request.url)
+      const target = request.nextUrl.pathname + request.nextUrl.search
+      if (target && target !== '/dashboard') {
+        loginUrl.searchParams.set('redirect', target)
+      }
+      return loginUrl
+    }
+
     if (!token) {
-      return NextResponse.redirect(new URL('/signup', request.url))
+      return NextResponse.redirect(buildLoginRedirect())
     }
 
     try {
@@ -18,7 +27,7 @@ export async function proxy(request: NextRequest) {
       if (!payload) throw new Error('Invalid token')
     } catch (error) {
       console.error('Middleware Auth Error:', error)
-      const response = NextResponse.redirect(new URL('/signup', request.url))
+      const response = NextResponse.redirect(buildLoginRedirect())
       response.cookies.delete('auth_token')
       return response
     }

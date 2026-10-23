@@ -1329,7 +1329,18 @@ export default function LoginPage() {
 
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Don&apos;t have an account?{' '}
-                  <Link href="/signup" className="font-bold text-slate-900 hover:underline transition-colors">
+                  <Link 
+                    href={(() => {
+                      if (typeof window !== 'undefined') {
+                        const redirect = new URLSearchParams(window.location.search).get('redirect')
+                        if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+                          return `/signup?redirect=${encodeURIComponent(redirect)}`
+                        }
+                      }
+                      return '/signup'
+                    })()}
+                    className="font-bold text-slate-900 hover:underline transition-colors"
+                  >
                     Create an account
                   </Link>
                 </p>

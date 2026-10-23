@@ -94,6 +94,17 @@ export default function SignupPage() {
     }
   }
 
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const redirect = params.get('redirect')
+      if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+        return redirect
+      }
+    }
+    return '/dashboard'
+  }
+
   // ─── Step 1: Submit Details & Send OTPs ───
   const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -348,7 +359,7 @@ export default function SignupPage() {
 
     login(data.user)
     toast.success('Account created successfully!')
-    window.location.href = '/dashboard'
+    window.location.href = getRedirectUrl()
   }
 
   return (
@@ -572,7 +583,18 @@ export default function SignupPage() {
 
                 <p className="mt-6 text-center text-sm text-slate-600 font-medium">
                   Already have an account?{' '}
-                  <Link href="/login" className="font-bold text-slate-800 hover:underline transition-colors">
+                  <Link 
+                    href={(() => {
+                      if (typeof window !== 'undefined') {
+                        const redirect = new URLSearchParams(window.location.search).get('redirect')
+                        if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+                          return `/login?redirect=${encodeURIComponent(redirect)}`
+                        }
+                      }
+                      return '/login'
+                    })()}
+                    className="font-bold text-slate-800 hover:underline transition-colors"
+                  >
                     Log in here
                   </Link>
                 </p>

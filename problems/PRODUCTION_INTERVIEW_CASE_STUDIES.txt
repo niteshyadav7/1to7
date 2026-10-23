@@ -48,6 +48,9 @@ CASE 37: Missing Mid-Funnel Logistics Transition & Fragmented Profile Address Di
 CASE 38: Silent Column Projection Omission in Relational Endpoints: Missing address_required Field Drops Pending Barter Shipments from Creator Logistics Hub (GraphQL/Supabase SELECT Projection Drift)
 CASE 39: Impersonation Subsystem Divergence & Parity Fracture: Missing Virtual Address Hub Route Bypasses Logistics Desk to Legacy Profile Sub-Form (Virtual Profile vs Real Creator Navigation Drift)
 CASE 40: Table Layout Auto-Sizing Disaster & Unbounded Content Projection: Feedback Grid Horizontal Viewport Explosion (Table-Fixed vs Auto-Layout Engine)
+CASE 41: Postgres Enum Type-Safety Drift & Campaign Lifecycle Deadlock: Missing State Transitions & Phantom Tab Filters (Closed & Completed Status Architecture)
+CASE 42: Edge Proxy Deep-Link Severing & Unauthenticated Ingestion Inversion: Legacy /signup Route Trap Drops Shared Deep Links (Edge vs Client Auth Gatekeeper & Redirect Continuity)
+
 
 
 ====================================================================================================
@@ -1540,13 +1543,135 @@ Administrators requested that the entire feedback table fit completely within a 
 "Data grids handling user-generated content must never rely on browser default `table-layout: auto`, because unpredictable text lengths will inevitably break horizontal layout integrity. Always enforce `table-layout: fixed` with explicit percentage or flex budgets across headers, combined with multi-line CSS clamping (`line-clamp-*`) and `break-words`. Pair truncated cells with native tooltip attributes and click-to-expand modals to maintain zero-scroll viewport density without sacrificing access to full data."
 
 ====================================================================================================
+CASE 41: Postgres Enum Type-Safety Drift & Campaign Lifecycle Deadlock: Missing State Transitions & Phantom Tab Filters (Closed & Completed Status Architecture)
+====================================================================================================
+CATEGORIES: Backend Architecture / PostgreSQL Enums / State Machines / Next.js API Routes / Admin Governance UX
+INTERVIEW QUESTION: "How do you design a robust state machine for entities with strict database enum constraints and multi-stakeholder lifecycles (like Active, Closed, and Completed campaigns) while preventing data loss, orphan records, and UI tab discrepancies?"
+
+[SITUATION]
+In the 1to7 Influencer Marketing Platform, administrators needed the ability to close campaigns when creator quotas had been fulfilled or when brand deliverables had concluded.
+The Admin Campaigns portal featured status navigation tabs for `Closed (0)` and `Completed (0)`, but both counters remained permanently at zero.
+On campaign cards, administrators only had access to a binary `Live / Offline` toggle. Toggling to `Offline` merely hid the campaign from public discovery while leaving its core database status as `Active`, causing stopped campaigns to endlessly clutter the active workspace.
+Furthermore, administrators had no official mechanism to mark a campaign as `Completed`. The only removal tool available was `Delete Campaign`, which was catastrophic in production because it cascaded and erased all historical applicant records, courier tracking info, submitted creator posts, and financial payout logs.
+
+[ROOT CAUSE INVESTIGATION]
+1. PostgreSQL Enum Type-Safety Drift:
+   Inspection of `public.campaigns` revealed that the column `status` was typed to a PostgreSQL enum `campaign_status`.
+   Querying `pg_enum` showed the labels: `['Draft', 'Active', 'Review', 'Closed']`.
+   The `'Completed'` status—despite being present in frontend tab mockups—did not exist in the database enum!
+   Any attempt to update a campaign's status to `'Completed'` threw an unhandled PostgreSQL database exception:
+   `ERROR: 22P02 invalid input value for enum campaign_status: "Completed"`.
+2. Conflation of Visibility with Lifecycle State:
+   The existing system conflated operational visibility (`is_live: boolean`) with business domain lifecycle state (`status: campaign_status`).
+   `is_live` is an operational switch (e.g. temporary pause due to product inventory or brief edits), whereas `Closed` and `Completed` represent terminal lifecycle stages.
+3. Lack of Dedicated State Transition Endpoints:
+   The general campaign update endpoint (`PUT /api/admin/campaigns/[id]`) subjected all updates to dual-admin maker-checker review rules, immediately resetting edited campaigns into `Review` or forcing `Active` on live toggle. No dedicated lifecycle endpoint existed to safely handle `Active -> Closed -> Completed` transitions.
+4. Orphan Applicant Inconsistency:
+   When campaigns closed, tens of creators who had applied remained stuck in `Applied` (unreviewed) status indefinitely with no clear communication or closure.
+
+[SOLUTION & ARCHITECTURE]
+1. Zero-Downtime Enum & Audit Schema Migration:
+   - Executed PostgreSQL schema migration:
+     `ALTER TYPE campaign_status ADD VALUE IF NOT EXISTS 'Completed';`
+   - Added dedicated lifecycle tracking columns:
+     `ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS closed_by_admin_id UUID, ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS completed_by_admin_id UUID;`
+2. Dedicated Lifecycle Transition API (`POST /api/admin/campaigns/[id]/lifecycle`):
+   - Created a hardened endpoint supporting explicit actions: `'close'`, `'complete'`, and `'reopen'`.
+   - Action `'close'`: Sets `status = 'Closed'`, `is_live = false`, `closed_at = NOW()`, logs admin identity, and provides an optional transactional flag `reject_pending: boolean` to automatically clean up lingering unreviewed `Applied` records to `Rejected`.
+   - Action `'complete'`: Sets `status = 'Completed'`, `is_live = false`, `completed_at = NOW()`.
+   - Action `'reopen'`: Restores campaign to `status = 'Active'` while safely maintaining `is_live = false` until admin reviews specs.
+   - Automatically appends a detailed entry to the JSONB `edit_history` audit trail displaying exactly which admin changed the lifecycle status and how many applicants were affected.
+3. Contextual Multi-State UI & Confirmation Modal:
+   - Updated both Grid View and List View on `/admin/campaigns`:
+     * Active cards display a distinct `Close` button alongside `Live/Offline`.
+     * Closed cards display `Mark Completed` and `Reopen` buttons.
+     * Completed cards display `Reopen Campaign` for audit-safe restoration.
+   - Built a comprehensive Confirmation Modal allowing administrators to choose the exact lifecycle stage, view impact summaries, and optionally auto-reject remaining unreviewed applicants with a custom rejection note.
+4. Cross-Boundary Gatekeeping:
+   - Discovery Feed (`/api/campaigns`): Filters strictly by `status = 'Active'` and `is_live = true`, ensuring closed/completed campaigns never appear on public feeds.
+   - Apply Endpoint (`/api/apply`): Validates `campaign.status === 'Active'` and rejects late submissions with HTTP 400.
+   - Creator Dashboard (`/dashboard/approved`): Ensures approved creators retain unbroken access to shipping address confirmation, product delivery tracking, and live link submission for their accepted deals.
+5. Applications Header Feedback Banner:
+   - Added prominent status banners at the top of `/admin/applications/[campaign_id]` notifying administrators whenever they are viewing an intake-closed or completed campaign.
+
+[INTERVIEW STAR TAKEAWAY]
+"State machines across distributed web applications must be strictly synchronized from the database enum level up through the API gateway and client UI. Never conflate operational visibility (e.g., Live vs. Offline) with lifecycle domain states (e.g., Active vs. Closed vs. Completed). When designing lifecycle termination points, always provide an undo/reopen mechanism, automated cleanup options for in-flight requests (like pending applicants), and append-only audit logging to preserve historical integrity without risking catastrophic cascading deletes."
+
+
+====================================================================================================
+CASE 42: Edge Proxy Deep-Link Severing & Unauthenticated Ingestion Inversion: Legacy /signup Route Trap Drops Shared Deep Links (Edge vs Client Auth Gatekeeper & Redirect Continuity)
+====================================================================================================
+CATEGORIES: Next.js Edge Proxy / Middleware Architecture / Authentication Flows / Deep Linking / UX Resilience
+INTERVIEW QUESTION: "How do you design edge middleware and route guards to prevent unauthenticated users from being redirected to inappropriate landing pages while ensuring deep link continuity across authentication providers?"
+
+[SITUATION]
+On the 1to7 Influencer Marketing Platform, administrators and brand managers frequently share direct links with creators over WhatsApp, SMS, or Telegram to complete urgent mid-funnel actions — specifically confirming shipping details for approved barter deals:
+`https://users.1to7media.in/dashboard/address-confirmation`
+or individual campaign links:
+`https://users.1to7media.in/dashboard/address-confirmation?id=HY12345`
+
+When a creator who was not logged in clicked the shared link, the application immediately redirected them to `/signup` instead of `/login`.
+This created confusion because the creators were already registered users.
+Furthermore, the redirect completely discarded the original target URL. Even if a creator switched to the login page manually and entered their credentials, they were dumped onto the generic `/dashboard` overview rather than the shared Address Confirmation page they were instructed to complete.
+
+[ROOT CAUSE INVESTIGATION]
+1. Next.js 16 Edge Proxy (`proxy.ts`) Hardcoding:
+   In `proxy.ts`, the Edge layer intercepts incoming requests before serverless pages render.
+   The user protection block was hardcoded:
+   ```ts
+   if (pathname.startsWith('/dashboard')) {
+     const token = request.cookies.get('auth_token')?.value
+     if (!token) {
+       return NextResponse.redirect(new URL('/signup', request.url)) // <--- Root cause
+     }
+   }
+   ```
+   This was an artifact from early platform testing where all landing was funneled to registration.
+2. Discarded Query and Path Context:
+   `proxy.ts` issued `NextResponse.redirect(new URL('/signup', request.url))`, which entirely wiped `request.nextUrl.pathname` and `request.nextUrl.search`. Neither `/signup` nor `/login` was informed about the user's intended destination (`/dashboard/address-confirmation`).
+3. Disconnected Client and Edge Expectations:
+   In `app/dashboard/address-confirmation/page.tsx`, the client-side code actually anticipated a deep-link redirect:
+   ```ts
+   const redirectUrl = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
+   router.push(redirectUrl)
+   ```
+   However, because Edge proxy runs prior to React mounting, the client-side code never had the opportunity to run.
+4. Parameter Stripping Between Auth Views:
+   If an unauthenticated user switched between `/login` and `/signup` using the footer links ("Create an account" / "Log in here"), the anchor links were static (`href="/signup"` and `href="/login"`), permanently dropping any in-flight `?redirect=` parameters.
+
+[SOLUTION & ARCHITECTURE]
+1. Dynamic Edge Proxy Redirect with Deep-Link Preservation:
+   - In `proxy.ts`, updated both unauthenticated and invalid/expired token branches to route to `/login`.
+   - Built a dynamic query param builder that preserves the full pathname and query parameters (e.g. `?id=...`):
+     ```ts
+     const buildLoginRedirect = () => {
+       const loginUrl = new URL('/login', request.url)
+       const target = request.nextUrl.pathname + request.nextUrl.search
+       if (target && target !== '/dashboard') {
+         loginUrl.searchParams.set('redirect', target)
+       }
+       return loginUrl
+     }
+     ```
+2. Unbroken Inter-Page Navigation State:
+   - Updated `app/login/page.tsx`'s "Create an account" link to dynamically append `?redirect=${encodeURIComponent(redirect)}` whenever a redirect parameter is present.
+   - Updated `app/signup/page.tsx`'s "Log in here" link to similarly forward `?redirect=...`.
+3. Post-Registration & Post-Login Continuity:
+   - Replaced hardcoded `window.location.href = '/dashboard'` in `app/signup/page.tsx` with `getRedirectUrl()`, so creators who register directly from a shared link are seamlessly routed to the shared task page upon account verification.
+   - Verified that all 5 login flows in `app/login/page.tsx` (Password, Mobile OTP via MSG91/Firebase, Email OTP, and Google OAuth) execute `window.location.href = getRedirectUrl()`, completing the deep-link trip.
+
+[INTERVIEW STAR TAKEAWAY]
+"Edge middleware must be treated as the primary gatekeeper of user intent. When protecting authenticated routes, never redirect unauthenticated visitors to onboarding/signup screens by default, and never drop the original URI. Always redirect to `/login` while capturing the full pathname and query string in a sanitized `redirect` parameter. Ensure all authentication handlers (password, OTP, social OAuth) and inter-page toggle links honor this redirect parameter to prevent user drop-off during shared deep-link workflows."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 
+
 ----------------------------------------------------------------------------------------------------
-1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), and Case 11 (Server-side SQL aggregation vs memory bloat).
-2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver) & Case 9 (OAuth fragment sanitization).
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), and Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration).
+2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), and Case 41 (Dedicated lifecycle state machine endpoints).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), and Case 31 (Logistics-grade address schemas & courier contracts).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), and Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), and Case 41 (Lifecycle Modals & State Navigation Consistency).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
-6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), and Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion).
+6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), and Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes).
 ====================================================================================================
