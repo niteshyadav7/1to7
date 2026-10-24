@@ -153,7 +153,8 @@ export default function AddressImportModal({
       // CSV using PapaParse
       Papa.parse(file, {
         header: true,
-        skipEmptyLines: true,
+        skipEmptyLines: 'greedy',
+        transformHeader: (h) => h.trim(),
         complete: (results) => {
           if (results.errors.length > 0 && results.data.length === 0) {
             toast.error('CSV parse error: ' + results.errors[0].message)

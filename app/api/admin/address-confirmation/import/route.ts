@@ -33,14 +33,26 @@ function cleanPincode(pin: any): string {
 }
 
 // Flexible header resolver: searches row for matching candidate keys (case-insensitive & fuzzy)
-function extractField(row: Record<string, any>, candidateKeys: string[]): string {
+function extractField(row: Record<string, any>, candidateKeys: string[], excludeKeys: string[] = []): string {
   if (!row || typeof row !== 'object') return ''
   const rowKeys = Object.keys(row)
   
-  // 1. Direct exact or lower-case match
+  // Filter out empty, synthetic, or non-data headers (like "", "__EMPTY", "_1", etc.)
+  const cleanRowKeys = rowKeys.filter(rk => {
+    const trimmed = (rk || '').trim()
+    if (!trimmed) return false
+    if (/^__empty/i.test(trimmed)) return false
+    if (/^_\d+$/.test(trimmed)) return false
+    for (const ex of excludeKeys) {
+      if (trimmed.toLowerCase().includes(ex.toLowerCase())) return false
+    }
+    return true
+  })
+
+  // 1. Direct exact or lower-case match (Highest Priority)
   for (const cand of candidateKeys) {
     const candLower = cand.toLowerCase().trim()
-    for (const rk of rowKeys) {
+    for (const rk of cleanRowKeys) {
       if (rk.toLowerCase().trim() === candLower) {
         const val = row[rk]
         if (val !== undefined && val !== null && String(val).trim() !== '') {
@@ -50,12 +62,15 @@ function extractField(row: Record<string, any>, candidateKeys: string[]): string
     }
   }
 
-  // 2. Partial substring match
+  // 2. Strict Substring Match (Ensure minimum lengths and prevent empty string collisions)
   for (const cand of candidateKeys) {
     const candLower = cand.toLowerCase().trim()
-    for (const rk of rowKeys) {
+    if (candLower.length < 3) continue
+    for (const rk of cleanRowKeys) {
       const rkLower = rk.toLowerCase().trim()
-      if (rkLower.includes(candLower) || candLower.includes(rkLower)) {
+      if (rkLower.length < 3) continue
+      // Ensure rk contains candidate or candidate contains rk without colliding with operational notes
+      if (rkLower.includes(candLower) || (candLower.includes(rkLower) && rkLower.length >= 6)) {
         const val = row[rk]
         if (val !== undefined && val !== null && String(val).trim() !== '') {
           return String(val).trim()
@@ -188,15 +203,19 @@ export async function POST(request: Request) {
         'Instagram', 'IG Handle', 'Handle', 'Username'
       ])
       const rawEmail = extractField(row, ['Email Id', 'Email', 'Email Address'])
-      const rawName = extractField(row, ['Full Name', 'Name', 'Recipient Name', 'Creator Name', 'Influencer Name'])
+      const rawName = extractField(row, [
+        'Full Name', 'Recipient Name', 'Creator Name', 'Influencer Name', 'Name'
+      ], ['campaign', 'brand', 'sheet'])
       const rawAddress = extractField(row, [
-        'Complete Delivery Address', 'Delivery Address', 'Address', 
-        'Street Address', 'Shipping Address', 'Address Line 1'
-      ])
+        'Complete Delivery Address', 'Delivery Address', 'Street Address', 
+        'Shipping Address', 'Address Line 1', 'Address'
+      ], ['client sheet', 'correct', 'status', 'available', 'agree'])
       const rawLandmark = extractField(row, ['Landmark', 'Near Landmark', 'Land Mark'])
       const rawCity = extractField(row, ['City', 'Town', 'District'])
       const rawState = extractField(row, ['State', 'Province'])
-      const rawPincode = extractField(row, ['Pincode', 'PIN Code', 'Postal Code', 'Zip', 'Zip Code', 'Pincode (6 Digit)'])
+      const rawPincode = extractField(row, [
+        'Pincode', 'PIN Code', 'Postal Code', 'Zip Code', 'Zip', 'Pincode (6 Digit)'
+      ], ['client sheet', 'campaign'])
       const rawRemarks = extractField(row, ['Delivery Remarks', 'Remarks', 'Courier Remarks', 'Notes', 'Delivery Notes'])
 
       const phone = cleanPhone(rawPhone)
