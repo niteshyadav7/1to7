@@ -104,7 +104,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="min-h-screen bg-[#f9f9f9] flex flex-col md:flex-row text-[#1a1c1c]">
+    <div className="min-h-screen bg-[#f9f9f9] flex flex-col md:flex-row text-[#1a1c1c] font-sans antialiased selection:bg-[#febd1c]/30 selection:text-black">
       {/* ─── DESKTOP SIDEBAR (Strictly #2d3132 dark charcoal slate) ─── */}
       <aside className="hidden md:flex flex-col w-64 bg-[#2d3132] border-r border-white/10 shrink-0 select-none">
         {/* Brand Workspace Header */}

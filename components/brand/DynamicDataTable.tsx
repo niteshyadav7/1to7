@@ -273,20 +273,20 @@ export function DynamicDataTable<T extends Record<string, any>>({
   }
 
   return (
-    <div className={`space-y-3 w-full max-w-full overflow-hidden ${className}`}>
+    <div className={`font-sans space-y-3 w-full max-w-full overflow-hidden ${className}`}>
       {/* ─── TABLE TOP BAR (Title + Global Actions) ─── */}
       {(title || headerActions) && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             {title && (
-              <h2 className={`text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-[#1a1c1c]' : 'text-white'}`}>
+              <h2 className={`text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 <span>{title}</span>
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-neutral-300'}`}>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isLight ? 'bg-slate-100 text-slate-700 border border-slate-200' : 'bg-white/10 text-neutral-300'}`}>
                   {totalItems}
                 </span>
               </h2>
             )}
-            {subtitle && <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{subtitle}</p>}
+            {subtitle && <p className={`text-xs mt-0.5 font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{subtitle}</p>}
           </div>
 
           {headerActions && <div className="flex items-center gap-2">{headerActions}</div>}
@@ -525,8 +525,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
         <div className="overflow-x-auto w-full max-w-full scrollbar-thin scrollbar-thumb-white/10">
           <table className="w-full text-left border-collapse text-xs">
             {/* Header */}
-            <thead className={`font-semibold border-b select-none sticky top-0 z-10 ${
-              isLight ? 'bg-slate-50/90 text-slate-600 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
+            <thead className={`font-bold uppercase tracking-wider text-[11px] border-b select-none sticky top-0 z-10 ${
+              isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
             }`}>
               <tr>
                 {/* Master Selection Checkbox */}

@@ -73,7 +73,7 @@ export default function BrandDashboardPage() {
   ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* ─── URGENT REVIEW ACTION BANNER ─── */}
       {stats.pendingReview > 0 && (
         <motion.div

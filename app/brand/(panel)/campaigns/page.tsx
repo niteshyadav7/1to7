@@ -77,13 +77,13 @@ export default function BrandCampaignsPage() {
   ])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1c1c] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           Brand Campaigns
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
           Select a campaign to enter the Creator Review Studio and take 1-click decisions.
         </p>
       </div>

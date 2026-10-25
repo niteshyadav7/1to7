@@ -88,13 +88,13 @@ export default function BrandDeliverablesPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1c1c] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           Content & Live Deliverables
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
           Review published Instagram Reels. Approving content automatically verifies deliverables and unlocks payout milestones.
         </p>
       </div>

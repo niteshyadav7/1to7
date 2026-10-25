@@ -217,7 +217,7 @@ export default function CreatorReviewStudioPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 font-sans">
       {/* ─── BREADCRUMBS & TOP BAR ─── */}
       <div className="flex items-center gap-3">
         <Link
@@ -227,10 +227,10 @@ export default function CreatorReviewStudioPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#1a1c1c] tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
             Creator Review Studio
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
             Review and 1-click approve shortlisted creators for sample dispatch.
           </p>
         </div>

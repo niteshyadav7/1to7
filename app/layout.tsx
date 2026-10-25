@@ -50,7 +50,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${fontSans.variable} ${geistMono.variable}`}>
       <head>
         <meta name="application-name" content="1to7 Media" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body
-        className={`${fontSans.variable} ${geistMono.variable} antialiased`}
+        className={`${fontSans.className} ${fontSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
           <TitleWatcher />
