@@ -93,9 +93,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TitleWatcher />
           <NetworkStatusProvider>
             <PwaProvider>
-              <div className="min-h-screen flex flex-col bg-slate-50">
+              <div className="min-h-screen flex flex-col bg-slate-50 w-full max-w-full overflow-x-hidden">
                 <ConditionalNavbar />
-                <main className="flex-grow w-full min-w-0 overflow-x-hidden">
+                <main className="flex-grow w-full min-w-0 max-w-full overflow-x-hidden">
                   {children}
                 </main>
               </div>
