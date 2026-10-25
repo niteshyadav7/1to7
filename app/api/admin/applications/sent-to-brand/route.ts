@@ -49,6 +49,7 @@ export async function POST(request: Request) {
         .from('applications')
         .update({
           form_data: updatedFormData,
+          brand_review_status: action === 'unmark_sent' ? 'not_sent' : 'pending_brand_review',
           updated_at: timestamp,
         })
         .eq('id', app.id)

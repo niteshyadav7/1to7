@@ -31,6 +31,7 @@ import {
   User,
   Instagram,
   MapPin,
+  Building2,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -63,6 +64,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/stats', label: 'Platform Stats', icon: TrendingUp, moduleKey: 'analytics' },
   { href: '/admin/poc-dashboard', label: 'POC Performance', icon: Award, moduleKey: 'poc_dashboard' },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
+  { href: '/admin/brands', label: 'Client Brands', icon: Building2, moduleKey: 'campaigns' },
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
   { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
@@ -110,8 +112,8 @@ function getModuleKeyFromPath(pathname: string): string | null {
 function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  // Virtual Profile uses the exact creator dashboard UI (light theme, creator sidebar, creator header)
-  if (pathname.startsWith('/admin/virtual-profile')) {
+  // Virtual Profile & Virtual Brand use their dedicated layouts
+  if (pathname.startsWith('/admin/virtual-profile') || pathname.startsWith('/admin/virtual-brand')) {
     return <>{children}</>
   }
 
