@@ -1,18 +1,17 @@
 'use client'
 
 import React, { useState } from 'react'
-import { motion } from 'framer-motion'
 import {
   Truck,
   Package,
-  Search,
   CheckCircle2,
   Clock,
   ExternalLink,
   MapPin,
   Instagram,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react'
+import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
 interface DispatchItem {
   id: string
@@ -28,8 +27,6 @@ interface DispatchItem {
 }
 
 export default function BrandDispatchesTrackerPage() {
-  const [search, setSearch] = useState('')
-
   const [dispatches] = useState<DispatchItem[]>([
     {
       id: 'disp-1',
@@ -69,96 +66,134 @@ export default function BrandDispatchesTrackerPage() {
     },
   ])
 
-  const filtered = dispatches.filter(
-    (d) =>
-      d.creator_name.toLowerCase().includes(search.toLowerCase()) ||
-      d.handle.toLowerCase().includes(search.toLowerCase()) ||
-      d.awb_number.toLowerCase().includes(search.toLowerCase()) ||
-      d.city.toLowerCase().includes(search.toLowerCase())
-  )
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Delivered' | 'In Transit' | 'Out for Delivery' | 'Packed'>('all')
 
-  const statusColors: Record<string, string> = {
-    'Delivered': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'Out for Delivery': 'bg-blue-50 text-blue-700 border-blue-200',
-    'In Transit': 'bg-amber-50 text-amber-700 border-amber-200',
-    'Packed': 'bg-slate-100 text-slate-700 border-slate-200',
-  }
+  const filtered = dispatches.filter((d) => {
+    if (statusFilter !== 'all' && d.status !== statusFilter) return false
+    return true
+  })
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1c1c] tracking-tight">
-            Sample Courier Dispatches
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time delivery tracking of product samples sent to approved creators.
-          </p>
-        </div>
-
-        {/* Search */}
-        <div className="w-full sm:w-64 relative">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search creator, AWB, city..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-white border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#febd1c]"
-          />
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#1a1c1c] tracking-tight">
+          Sample Courier Dispatches
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          Real-time delivery tracking of product samples sent to approved creators.
+        </p>
       </div>
 
-      {/* Dispatches List (Mobile First Cards) */}
-      <div className="space-y-3">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-sm hover:border-slate-300 transition flex flex-col md:flex-row md:items-center justify-between gap-4"
-          >
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-[#1a1c1c]">{item.creator_name}</h3>
-                <span className="text-xs text-pink-600 font-semibold">@{item.handle}</span>
-                <span className="text-xs text-slate-400">• {item.city}</span>
-              </div>
-              <p className="text-xs text-slate-600 flex items-center gap-1.5 font-medium">
-                <Package className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span>{item.sample_choice}</span>
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Campaign: {item.campaign}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between md:justify-end gap-3 self-stretch md:self-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
-              <div className="text-left md:text-right">
-                <span
-                  className={`inline-block text-xs px-2.5 py-0.5 rounded-full border font-semibold ${
-                    statusColors[item.status]
-                  }`}
-                >
-                  {item.status}
-                </span>
-                <div className="text-[11px] text-slate-500 mt-1 font-mono">
-                  {item.courier_partner}: <strong>{item.awb_number}</strong>
+      {/* Production Grade Dynamic Data Table */}
+      <DynamicDataTable<DispatchItem>
+        theme="light"
+        keyField="id"
+        title="Live Sample Logistics Dispatches"
+        subtitle="Monitor delivery tracking numbers and transit status across courier networks"
+        data={filtered}
+        exportFilename="brand_dispatches_logistics.csv"
+        searchPlaceholder="Search creator, AWB number, city, or campaign..."
+        searchFields={['creator_name', 'handle', 'awb_number', 'city', 'campaign']}
+        filterTabs={{
+          key: 'status',
+          options: [
+            { label: 'All Dispatches', value: 'all', count: dispatches.length },
+            { label: 'Delivered', value: 'Delivered', count: dispatches.filter((d) => d.status === 'Delivered').length },
+            { label: 'Out for Delivery', value: 'Out for Delivery', count: dispatches.filter((d) => d.status === 'Out for Delivery').length },
+            { label: 'In Transit', value: 'In Transit', count: dispatches.filter((d) => d.status === 'In Transit').length },
+            { label: 'Packed', value: 'Packed', count: dispatches.filter((d) => d.status === 'Packed').length },
+          ],
+          activeValue: statusFilter,
+          onChange: (val) => setStatusFilter(val as any),
+        }}
+        columns={[
+          {
+            key: 'creator_name',
+            header: 'Creator & Location',
+            sortable: true,
+            render: (d) => (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+                  {d.creator_name.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm">{d.creator_name}</div>
+                  <div className="text-[11px] text-pink-600 font-medium">@{d.handle} • {d.city}</div>
                 </div>
               </div>
+            ),
+          },
+          {
+            key: 'campaign',
+            header: 'Campaign',
+            sortable: true,
+            render: (d) => (
+              <span className="text-slate-800 text-xs font-medium">{d.campaign}</span>
+            ),
+          },
+          {
+            key: 'sample_choice',
+            header: 'Product Sample Choice',
+            render: (d) => (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-xs truncate">
+                <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="truncate">{d.sample_choice}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'awb_number',
+            header: 'Courier & Tracking AWB',
+            sortable: true,
+            render: (d) => (
+              <div>
+                <span className="font-mono text-xs font-bold text-slate-900 block">{d.awb_number}</span>
+                <span className="text-[11px] text-slate-500">{d.courier_partner}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Delivery Status',
+            align: 'center',
+            sortable: true,
+            render: (d) => {
+              const colorClass =
+                d.status === 'Delivered'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : d.status === 'Out for Delivery'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : d.status === 'In Transit'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-slate-100 text-slate-700 border-slate-200'
 
+              return (
+                <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${colorClass}`}>
+                  {d.status}
+                </span>
+              )
+            },
+          },
+          {
+            key: 'actions',
+            header: 'Courier Tracking',
+            align: 'right',
+            sortable: false,
+            render: (d) => (
               <a
-                href={`https://www.delhivery.com/track/package/${item.awb_number}`}
+                href={`https://www.delhivery.com/track/package/${d.awb_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition flex items-center gap-1.5"
+                className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer"
               >
-                <span>Live Courier Status</span>
+                <span>Track Courier</span>
                 <ExternalLink className="w-3 h-3 text-slate-500" />
               </a>
-            </div>
-          </div>
-        ))}
-      </div>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { formatFollowerCount } from '@/lib/utils/brand-privacy-utils'
+import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
 const ALL_BRANDS = [
   { id: 'b-mamaearth', name: 'Mamaearth', campaign: 'Rosemary Anti-Hair Fall UGC Drive' },
@@ -195,162 +196,167 @@ export default function BrandAdminVirtualBrandDetailPage() {
         </div>
       </div>
 
-      {/* Tabs Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveTab('pending')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'pending'
-              ? 'bg-[#febd1c] text-neutral-950 shadow-md'
-              : 'bg-[#121620] border border-white/10 text-neutral-400 hover:text-white'
-          }`}
-        >
-          Pending Review ({creators.filter((c) => c.status === 'pending').length})
-        </button>
-        <button
-          onClick={() => setActiveTab('approved')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'approved'
-              ? 'bg-[#febd1c] text-neutral-950 shadow-md'
-              : 'bg-[#121620] border border-white/10 text-neutral-400 hover:text-white'
-          }`}
-        >
-          Approved ({creators.filter((c) => c.status === 'approved').length})
-        </button>
-        <button
-          onClick={() => setActiveTab('rejected')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'rejected'
-              ? 'bg-[#febd1c] text-neutral-950 shadow-md'
-              : 'bg-[#121620] border border-white/10 text-neutral-400 hover:text-white'
-          }`}
-        >
-          Rejected ({creators.filter((c) => c.status === 'rejected').length})
-        </button>
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'all'
-              ? 'bg-[#febd1c] text-neutral-950 shadow-md'
-              : 'bg-[#121620] border border-white/10 text-neutral-400 hover:text-white'
-          }`}
-        >
-          All ({creators.length})
-        </button>
-      </div>
-
-      {/* Creators Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((creator) => (
-          <motion.div
-            key={creator.id}
-            whileHover={{ y: -2 }}
-            className="p-5 rounded-2xl bg-[#121620] border border-white/10 shadow-lg flex flex-col justify-between space-y-4"
-          >
-            <div>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center shrink-0">
-                    {creator.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-sm sm:text-base font-bold text-white">{creator.name}</h4>
-                    <a
-                      href={`https://instagram.com/${creator.handle}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-1"
-                    >
-                      <Instagram className="w-3 h-3" /> @{creator.handle}
-                    </a>
-                  </div>
+      {/* Dynamic Data Table for Creator Shortlists */}
+      <DynamicDataTable
+        data={creators.filter((c) => {
+          if (activeTab === 'pending') return c.status === 'pending'
+          if (activeTab === 'approved') return c.status === 'approved'
+          if (activeTab === 'rejected') return c.status === 'rejected'
+          return true
+        })}
+        filterTabs={{
+          key: 'status',
+          options: [
+            { label: 'Pending Review', value: 'pending', count: creators.filter((c) => c.status === 'pending').length },
+            { label: 'Approved', value: 'approved', count: creators.filter((c) => c.status === 'approved').length },
+            { label: 'Rejected', value: 'rejected', count: creators.filter((c) => c.status === 'rejected').length },
+            { label: 'All Creators', value: 'all', count: creators.length },
+          ],
+          activeValue: activeTab,
+          onChange: (val) => setActiveTab(val as any),
+        }}
+        columns={[
+          {
+            key: 'name',
+            header: 'Creator & Profile',
+            sortable: true,
+            render: (c) => (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center shrink-0 text-xs">
+                  {c.name.slice(0, 2).toUpperCase()}
                 </div>
-
+                <div>
+                  <div className="font-bold text-white text-xs sm:text-sm">{c.name}</div>
+                  <a
+                    href={`https://instagram.com/${c.handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-1"
+                  >
+                    <Instagram className="w-3 h-3" /> @{c.handle}
+                  </a>
+                </div>
+              </div>
+            ),
+          },
+          {
+            key: 'followers',
+            header: 'Followers',
+            sortable: true,
+            align: 'center',
+            render: (c) => (
+              <span className="font-bold text-white text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
+                {formatFollowerCount(c.followers)}
+              </span>
+            ),
+          },
+          {
+            key: 'city',
+            header: 'Location',
+            sortable: true,
+            render: (c) => <span className="text-neutral-300 text-xs">{c.city}</span>,
+          },
+          {
+            key: 'sample',
+            header: 'Sample Product Specs',
+            render: (c) => (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/15 text-amber-300 text-xs max-w-xs truncate">
+                <Package className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <span className="truncate">{c.sample}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Review Status',
+            align: 'center',
+            sortable: true,
+            render: (c) => (
+              <div>
                 <span
-                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                    creator.status === 'approved'
+                  className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                    c.status === 'approved'
                       ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                      : creator.status === 'rejected'
+                      : c.status === 'rejected'
                       ? 'bg-red-500/15 text-red-400 border border-red-500/30'
                       : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                   }`}
                 >
-                  {creator.status}
+                  {c.status}
                 </span>
+                {c.rejectionReason && (
+                  <div className="text-[10px] text-red-400 mt-0.5 truncate max-w-[140px]" title={c.rejectionReason}>
+                    {c.rejectionReason}
+                  </div>
+                )}
               </div>
-
-              {/* Metrics Pill */}
-              <div className="mt-4 p-2.5 rounded-xl bg-[#0c1017] border border-white/5 flex items-center justify-around text-center text-xs">
-                <div>
-                  <span className="text-[10px] text-neutral-500 block uppercase font-bold">Followers</span>
-                  <span className="text-white font-semibold">{formatFollowerCount(creator.followers)}</span>
-                </div>
-                <div className="w-px h-5 bg-white/10" />
-                <div>
-                  <span className="text-[10px] text-neutral-500 block uppercase font-bold">Location</span>
-                  <span className="text-white font-semibold">{creator.city}</span>
-                </div>
-              </div>
-
-              {/* Sample Product Info */}
-              {creator.sample && (
-                <div className="mt-3 p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-xs text-amber-300 flex items-center gap-2">
-                  <Package className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-                  <span className="truncate">{creator.sample}</span>
-                </div>
-              )}
-
-              {/* Rejection Note */}
-              {creator.rejectionReason && (
-                <div className="mt-2.5 p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-[11px] text-red-300">
-                  <span className="font-semibold block text-red-400 mb-0.5">Brand Feedback:</span>
-                  {creator.rejectionReason}
-                </div>
-              )}
-            </div>
-
-            {/* Proxy Action Buttons */}
-            <div className="pt-2 border-t border-white/5">
-              {creator.status === 'pending' ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleProxyApprove(creator.id, creator.name)}
-                    className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs h-9 shadow-md"
-                  >
-                    <Check className="w-3.5 h-3.5 mr-1" />
-                    Proxy Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setRejectModalCreator(creator)}
-                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs h-9 px-3"
-                  >
-                    <ThumbsDown className="w-3.5 h-3.5 mr-1" />
-                    Reject
-                  </Button>
-                </div>
-              ) : creator.status === 'approved' ? (
-                <div className="py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Approved &amp; Unlocked for Courier Dispatch</span>
-                </div>
-              ) : (
-                <div className="py-2 px-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-semibold flex items-center justify-between">
-                  <span>Rejected during review</span>
+            ),
+          },
+          {
+            key: 'actions',
+            header: 'Proxy Decision',
+            align: 'right',
+            sortable: false,
+            render: (c) => (
+              <div className="flex items-center justify-end gap-1.5">
+                {c.status === 'pending' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => handleProxyApprove(c.id, c.name)}
+                      className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs h-8 px-2.5 shadow-sm"
+                    >
+                      <Check className="w-3 h-3 mr-1" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRejectModalCreator(c)}
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-8 px-2"
+                    >
+                      <ThumbsDown className="w-3 h-3" />
+                    </Button>
+                  </>
+                ) : c.status === 'approved' ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                  </span>
+                ) : (
                   <button
-                    onClick={() => handleProxyApprove(creator.id, creator.name)}
-                    className="text-amber-400 hover:text-amber-300 text-[11px] underline"
+                    onClick={() => handleProxyApprove(c.id, c.name)}
+                    className="text-amber-400 hover:text-amber-300 text-xs underline font-medium"
                   >
                     Re-Approve
                   </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                )}
+              </div>
+            ),
+          },
+        ]}
+        searchPlaceholder="Search creators by name, handle, or city..."
+        exportFilename={`creator_shortlist_${currentBrand.id}.csv`}
+        defaultPageSize={10}
+        bulkActions={[
+          {
+            label: 'Bulk Proxy Approve Selected',
+            icon: Check,
+            variant: 'purple',
+            onClick: (rows) => {
+              const pendingRows = rows.filter((r) => r.status === 'pending')
+              if (pendingRows.length === 0) {
+                toast.info('All selected creators are already approved or resolved.')
+                return
+              }
+              const approvedIds = new Set(pendingRows.map((r) => r.id))
+              setCreators((prev) =>
+                prev.map((c) => (approvedIds.has(c.id) ? { ...c, status: 'approved' } : c))
+              )
+              toast.success(`[Proxy Action] Bulk approved ${pendingRows.length} creators for ${currentBrand.name}!`)
+            },
+          },
+        ]}
+      />
 
       {/* Reject Modal */}
       <AnimatePresence>

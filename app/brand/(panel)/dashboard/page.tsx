@@ -19,6 +19,7 @@ import {
   Eye,
   Megaphone
 } from 'lucide-react'
+import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
 interface DashboardStats {
   pendingReview: number
@@ -179,71 +180,91 @@ export default function BrandDashboardPage() {
         </div>
       </div>
 
-      {/* ─── ACTIVE CAMPAIGNS OVERVIEW SECTION ─── */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-[#1a1c1c]">
-              Active Campaign Pipelines
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Select a campaign to review shortlisted creator profiles
-            </p>
-          </div>
-
-          <Link
-            href="/brand/campaigns"
-            className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-black flex items-center gap-1 transition"
-          >
-            <span>View All</span>
-            <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Campaigns List (Mobile Friendly Cards) */}
-        <div className="divide-y divide-slate-100">
-          {campaigns.map((camp) => (
-            <div
-              key={camp.id}
-              className="p-4 sm:p-6 hover:bg-slate-50/80 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="space-y-1">
+      {/* ─── ACTIVE CAMPAIGNS PIPELINES TABLE ─── */}
+      <DynamicDataTable<CampaignSummary>
+        theme="light"
+        keyField="id"
+        title="Active Campaign Pipelines"
+        subtitle="Review shortlisted creator profiles and dispatch status across active brand campaigns"
+        data={campaigns}
+        exportFilename="brand_dashboard_campaigns.csv"
+        searchPlaceholder="Search campaign title, code, platform..."
+        columns={[
+          {
+            key: 'title',
+            header: 'Campaign & Category',
+            sortable: true,
+            render: (camp) => (
+              <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                     {camp.campaign_code}
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                    {camp.status}
+                  <span className="font-bold text-[#1a1c1c] text-xs sm:text-sm">
+                    {camp.title}
                   </span>
-                  <span className="text-xs text-slate-400">• {camp.platform}</span>
                 </div>
-                <h4 className="text-base font-semibold text-[#1a1c1c]">
-                  {camp.title}
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Model: {camp.budget_type}
-                </p>
+                <div className="text-slate-500 text-[11px] mt-0.5">
+                  {camp.platform} • {camp.budget_type}
+                </div>
               </div>
-
-              <div className="flex items-center gap-3 self-end sm:self-center">
-                {camp.pending_count > 0 && (
-                  <div className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
-                    {camp.pending_count} Pending Review
-                  </div>
-                )}
-
-                <Link
-                  href={`/brand/campaigns/${camp.id}/creators`}
-                  className="px-4 py-2 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs sm:text-sm shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Review Creators</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            ),
+          },
+          {
+            key: 'pending_count',
+            header: 'Pending Review',
+            sortable: true,
+            align: 'center',
+            render: (camp) => (
+              camp.pending_count > 0 ? (
+                <span className="font-bold text-amber-800 text-xs px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-600" />
+                  {camp.pending_count} Awaiting
+                </span>
+              ) : (
+                <span className="text-slate-400 text-xs font-medium">All Reviewed</span>
+              )
+            ),
+          },
+          {
+            key: 'approved_count',
+            header: 'Approved',
+            sortable: true,
+            align: 'center',
+            render: (camp) => (
+              <span className="font-bold text-emerald-700 text-xs px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
+                {camp.approved_count}
+              </span>
+            ),
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            align: 'center',
+            sortable: true,
+            render: (camp) => (
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {camp.status}
+              </span>
+            ),
+          },
+          {
+            key: 'actions',
+            header: 'Review Studio',
+            align: 'right',
+            sortable: false,
+            render: (camp) => (
+              <Link
+                href={`/brand/campaigns/${camp.id}/creators`}
+                className="px-3.5 py-1.5 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Review Creators</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

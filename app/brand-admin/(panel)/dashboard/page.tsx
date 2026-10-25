@@ -19,6 +19,7 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
 const BRAND_WORKSPACES = [
   {
@@ -168,92 +169,116 @@ export default function BrandAdminDashboardPage() {
         </div>
       )}
 
-      {/* Brand Workspaces Directory Snapshot */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-300">
-            Client Brand Accounts
-          </h2>
-          <Link
-            href="/brand-admin/brands"
-            className="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
-          >
-            View All Brands <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {brands.map((brand) => (
-            <motion.div
-              key={brand.id}
-              whileHover={{ y: -2 }}
-              className="p-5 rounded-2xl bg-[#121620] border border-white/10 hover:border-amber-500/40 transition-all shadow-lg flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-sm shadow-md`}
-                    >
-                      {brand.initials}
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-white">{brand.name}</h3>
-                      <p className="text-xs text-neutral-400">{brand.industry}</p>
-                    </div>
-                  </div>
-
-                  {brand.slaStatus === 'breached' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
-                      SLA BREACH
-                    </span>
-                  ) : brand.slaStatus === 'warning' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      WARNING
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      ACTIVE
-                    </span>
-                  )}
+      {/* Brand Workspaces Directory Dynamic Table */}
+      <DynamicDataTable
+        title="Client Brand Accounts"
+        subtitle="Manage client review workflows, track KAM assignments, and enter Virtual Brand mode."
+        data={brands}
+        columns={[
+          {
+            key: 'name',
+            header: 'Brand Workspace',
+            sortable: true,
+            render: (brand) => (
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-xs shadow-md shrink-0`}
+                >
+                  {brand.initials}
                 </div>
-
-                <div className="space-y-1.5 text-xs text-neutral-300 bg-[#0c1017] p-3 rounded-xl border border-white/5 mb-4">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Assigned KAM:</span>
-                    <span className="font-semibold text-white">{brand.assignedKam}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Active Campaigns:</span>
-                    <span className="font-semibold text-white">{brand.activeCampaigns}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500">Pending Review:</span>
-                    <span
-                      className={`font-bold ${
-                        brand.pendingReviews > 0 ? 'text-[#febd1c]' : 'text-emerald-400'
-                      }`}
-                    >
-                      {brand.pendingReviews > 0
-                        ? `${brand.pendingReviews} creators (${brand.oldestPendingHours}h)`
-                        : 'All Caught Up'}
-                    </span>
-                  </div>
+                <div>
+                  <div className="font-bold text-white text-xs sm:text-sm">{brand.name}</div>
+                  <div className="text-[11px] text-neutral-400">{brand.industry}</div>
                 </div>
               </div>
-
-              {/* 1-Click Masquerade / Virtual Brand Button */}
+            ),
+          },
+          {
+            key: 'assignedKam',
+            header: 'Assigned KAM',
+            sortable: true,
+            render: (brand) => (
+              <span className="font-semibold text-amber-300 text-xs">{brand.assignedKam}</span>
+            ),
+          },
+          {
+            key: 'activeCampaigns',
+            header: 'Active Campaigns',
+            align: 'center',
+            sortable: true,
+            render: (brand) => (
+              <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-bold text-white text-xs">
+                {brand.activeCampaigns}
+              </span>
+            ),
+          },
+          {
+            key: 'pendingReviews',
+            header: 'Pending Shortlists',
+            align: 'center',
+            sortable: true,
+            render: (brand) => (
+              <div className="text-center">
+                {brand.pendingReviews > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-[#febd1c] font-bold text-xs">
+                    <Clock className="w-3 h-3" />
+                    {brand.pendingReviews} ({brand.oldestPendingHours}h)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-xs">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> All Caught Up
+                  </span>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'slaStatus',
+            header: 'SLA Status',
+            align: 'center',
+            sortable: true,
+            render: (brand) => {
+              if (brand.slaStatus === 'breached') {
+                return (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
+                    SLA BREACH (&gt;48h)
+                  </span>
+                )
+              }
+              if (brand.slaStatus === 'warning') {
+                return (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    WARNING (&gt;24h)
+                  </span>
+                )
+              }
+              return (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  HEALTHY
+                </span>
+              )
+            },
+          },
+          {
+            key: 'actions',
+            header: 'Virtual Brand Actions',
+            align: 'right',
+            sortable: false,
+            render: (brand) => (
               <Link
                 href={`/brand-admin/virtual-brand/${brand.id}`}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow-sm"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>Enter Virtual Brand Mode</span>
+                <span>Virtual Brand Mode</span>
               </Link>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+            ),
+          },
+        ]}
+        searchPlaceholder="Search brand name, KAM, or category..."
+        exportFilename="brand_accounts_overview.csv"
+        defaultPageSize={10}
+      />
     </div>
   )
 }

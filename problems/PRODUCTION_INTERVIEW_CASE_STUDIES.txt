@@ -54,6 +54,7 @@ CASE 43: Offline Logistics Ingestion Disconnect & Cross-Entity Relational Reconc
 CASE 44: Automated Offline Logistics Ingestion Engine & Compound Deduplication Architecture (Eliminating Manual Repetitive Reconciliations & Edge-Case Data Corruption)
 CASE 45: Fuzzy Header Collision & Vacuous Truth Inversion in Multi-Column Spreadsheets (Empty Street Address & Pincode Drop in Bulk Ingestion)
 CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Prevention (Dedicated Brand Operations Suite vs Influencer Admin RBAC)
+CASE 47: Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality (Eliminating Fragmented Responsive Grid UX)
 
 
 
@@ -1820,6 +1821,58 @@ Furthermore, operations required that general internal staff holding access to t
 "Never assume internal administrative users share a uniform privilege boundary across different business lines. Decouple administrative consoles by business domain, isolate session tokens with distinct cryptographic cookies, and enforce explicit role approvals for high-value enterprise workspaces rather than defaulting to shared organizational access."
 
 ====================================================================================================
+CASE 47: Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality (Eliminating Fragmented Responsive Grid UX)
+====================================================================================================
+CATEGORIES: Frontend Architecture / Data Tables / High-Scale UX / Enterprise Design Systems / TypeScript Generics
+INTERVIEW QUESTION: "How do you design and scale a reusable, enterprise-grade dynamic data table component across multiple portals with completely different visual themes, diverse data schemas, and high operational throughput?"
+
+[SITUATION]
+Across the 1to7 platform, both the internal Brand Operations Admin (`/brand-admin`) and client-facing enterprise Brand Portals (`/brand`) relied heavily on responsive 3-column CSS card grids (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) to display critical operational datasets: creator rosters pending approval, active campaign batches, deliverable submission links, and courier dispatch tracking.
+As client campaigns scaled from tens to hundreds of creator applications, card grids broke down completely:
+1. High vertical scroll fatigue: inspecting 100 creators required scrolling through hundreds of tall cards with irregular heights.
+2. Zero comparison capability: managers could not compare metrics (e.g. followers, engagement rate, quotation, city) horizontally across creators in a single glance.
+3. Lack of bulk operations: approving or rejecting 50 creators required 50 individual manual card clicks.
+4. No sorting, custom column projection, or density adjustment: clients were unable to sort by highest engagement or export records to CSV.
+5. In addition, the internal Brand Admin portal features a dark cyber-luxury theme (`#0c1017` / `#121620`), whereas client enterprise brand portals feature an ultra-clean corporate light theme (`bg-white` / `text-slate-900`) with `#febd1c` gold brand accents. Standard third-party table libraries either introduced heavy bundle bloat or proved difficult to restyle dynamically without CSS bleed.
+
+[ROOT CAUSE]
+1. Fragmented Ad-Hoc Grid Anti-Pattern:
+   - Every page independently rendered idiosyncratic cards or static HTML tables without common primitives for search, pagination, or sorting.
+2. DOM Node Bloat & Memory Inefficiency:
+   - Rendering 150+ complex card components simultaneously overwhelmed mobile viewports and caused UI lag during fast filtering.
+3. Tight Coupling of Styling to Presentation:
+   - Developing separate table components for dark mode and light mode would create dual-maintenance debt and divergence in sorting/filtering algorithms.
+4. Unsafe Row Selection State:
+   - Naive boolean flags or array-based selection (`selectedIds.includes(id)`) caused $O(N)$ lookup costs per row render during bulk selections.
+
+[SOLUTION & ARCHITECTURE]
+1. Generic Type-Safe Dynamic Table Primitive (`DynamicDataTable<T>`):
+   - Built a polymorphic, zero-dependency data table component using TypeScript generics (`T extends { id: string }`).
+   - Configurable column descriptors with custom accessors, custom rendering functions, alignment options, and conditional visibility:
+     `export interface ColumnDef<T> { key: string; header: string; accessor?: (row: T) => any; render?: (row: T) => React.ReactNode; sortable?: boolean; hideable?: boolean; align?: 'left' | 'center' | 'right'; }`
+2. First-Class Theme Duality (`theme?: 'dark' | 'light'`):
+   - Designed a unified semantic styling token map resolving headers, alternating row striping, borders, badges, hover accents, and dropdown menus seamlessly based on context:
+     - `theme="dark"`: `#0c1017` dark background, `#121620` card container, `border-white/10` borders, `text-white` primary labels.
+     - `theme="light"`: `#ffffff` canvas, `border-slate-200`, `hover:bg-slate-50/80` row highlights, `text-slate-900` typography.
+3. Complete Production Feature Matrix:
+   - Multi-Column Tri-State Sorting: Ascending, descending, and default state with visual sort indicators and type-aware numeric/string comparators.
+   - Live Search with Instant Debounce & Badge Highlights: Real-time search across all defined column accessors with a 1-click clear button.
+   - Faceted Filter Tabs with Dynamic Record Counts: Dynamic category tabs with real-time filtered count badges.
+   - Dynamic Column Visibility Manager: Clickable menu allowing users to toggle column visibility dynamically based on screen real estate.
+   - Density Switcher: Toggle between Compact (high data density for ops power users) and Comfortable (spacious row padding for brand executives).
+   - $O(1)$ Row Selection & Floating Bulk Action Dock: Backed by `Set<string>` for instant membership checks and batch actions (e.g. Bulk Approve, Bulk Reject, Bulk WhatsApp Escalation).
+   - Pagination Controls: Page size selectors (5, 10, 25, 50 rows per page) with clean previous/next controls and total record indicators.
+   - 1-Click UTF-8 BOM CSV Export: Generates RFC-4180 compliant CSV strings with `\uFEFF` UTF-8 Byte Order Mark to preserve special characters and emojis in Microsoft Excel and Google Sheets.
+4. Comprehensive Platform-Wide Rollout:
+   - Upgraded 5 Brand Operations Admin routes: Dashboard, Brands Directory, Virtual Brand Studio, SLA Watchtower, and Campaign Mapping.
+   - Upgraded 5 Client Brand Portal routes: Active Campaigns, Creator Studio Roster, Deliverables Inspection, Courier Dispatches, and Executive Dashboard.
+5. Automated Test Coverage:
+   - Unit tests (`tests/unit/dynamic-data-table.test.ts`) validating search filtering, multi-column sorting, pagination slicing, column visibility toggles, CSV BOM generation, and Set-based bulk selection.
+
+[INTERVIEW STAR TAKEAWAY]
+"When building high-throughput enterprise SaaS interfaces, avoid fragmented card grids for dense relational datasets. Architect a polymorphic, type-safe Dynamic Data Table with built-in sorting, filtering, column visibility, and O(1) Set-based bulk selections. Incorporating first-class theme tokens into the table core eliminates code duplication across divergent dark and light brand portals while ensuring instant Excel-compatible CSV exports and zero UI lag."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 
 
@@ -1827,7 +1880,7 @@ SUMMARY CHECKLIST FOR INTERVIEWS:
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), and Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), and Case 41 (Dedicated lifecycle state machine endpoints).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), and Case 31 (Logistics-grade address schemas & courier contracts).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), and Case 41 (Lifecycle Modals & State Navigation Consistency).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), and Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
 6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), and Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes).
 ====================================================================================================
