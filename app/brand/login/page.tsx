@@ -18,7 +18,6 @@ import {
   Zap,
   Package,
   TrendingUp,
-  Instagram
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -64,231 +63,206 @@ export default function BrandLoginPage() {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#181b1c] text-white flex flex-col justify-between selection:bg-[#febd1c] selection:text-black font-sans relative">
+    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#141718] text-white flex flex-col justify-center items-center selection:bg-[#febd1c] selection:text-black font-sans relative p-4 sm:p-6 lg:p-10">
       {/* ─── AMBIENT BACKGROUND GLOWS (STRICTLY CONTAINED TO PREVENT HORIZONTAL SCROLL) ─── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 left-1/4 w-80 sm:w-[450px] h-60 sm:h-[300px] bg-[#febd1c]/10 rounded-full blur-[100px]" />
-        <div className="absolute -bottom-20 right-1/4 w-72 sm:w-[400px] h-72 sm:h-[350px] bg-purple-600/10 rounded-full blur-[110px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff06_1px,transparent_1px)] [background-size:20px_20px] opacity-40" />
+        <div className="absolute -top-24 left-1/4 w-96 sm:w-[500px] h-72 sm:h-[350px] bg-[#febd1c]/12 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-24 right-1/4 w-80 sm:w-[450px] h-80 sm:h-[400px] bg-purple-600/12 rounded-full blur-[130px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
 
-      {/* ─── TOP BRAND HEADER ─── */}
-      <header className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-[#181b1c]/70">
-        <div className="flex items-center gap-3">
-          <Link href="/brand/login" className="flex items-center gap-3 group">
-            <img
-              src="/logo-icon.svg"
-              alt="1to7 Media"
-              className="w-9 h-9 object-contain drop-shadow-md group-hover:scale-105 transition-transform shrink-0"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-white tracking-tight text-base sm:text-lg">
-                  1to7 <span className="text-[#febd1c] font-medium">Brand Portal</span>
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30">
-                  Enterprise
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400 hidden sm:block">
-                Creator Review & Campaign Operations Suite
-              </p>
-            </div>
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="text-xs font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl border border-white/10 hover:bg-white/5 shrink-0"
-          >
-            <span>Influencer Login</span>
-            <ArrowRight className="w-3.5 h-3.5 text-[#febd1c]" />
-          </Link>
-        </div>
-      </header>
-
-      {/* ─── MAIN CONTENT: 2-COLUMN BALANCED DESKTOP / CENTERED MOBILE ─── */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-6 sm:px-10 lg:px-14 py-6 sm:py-8 w-full max-w-full overflow-x-hidden">
-        <div className="max-w-[1240px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
-          
-          {/* LEFT COLUMN: BRAND VALUE PROPOSITION (Desktop) */}
-          <div className="hidden lg:flex lg:col-span-7 flex-col space-y-4 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-amber-300 w-fit">
-              <Sparkles className="w-3.5 h-3.5 text-[#febd1c]" />
-              <span>Zero Spreadsheets • 100% Real-Time Connected</span>
-            </div>
-
-            <h1 className="text-3xl lg:text-[40px] xl:text-[44px] font-black text-white leading-[1.18] tracking-tight">
-              Review, Approve & Track <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#febd1c] via-[#ffd269] to-amber-200">
-                Creators in Seconds.
-              </span>
-            </h1>
-
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-lg">
-              Eliminate the delay of emailing Excel sheets back and forth. 1to7’s automated Brand Portal connects your shortlist directly to courier dispatches and live Reel approvals.
-            </p>
-
-            {/* 3 Value Pillars */}
-            <div className="space-y-2.5 pt-1 max-w-lg">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition">
-                <div className="w-8 h-8 rounded-lg bg-[#febd1c]/20 text-[#febd1c] flex items-center justify-center shrink-0 mt-0.5 font-bold">
-                  <Zap className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-white">1-Click Creator Approval</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                    Review shortlisted profiles with Instagram previews, follower metrics, and sample product sizes in 1 tap.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 font-bold">
-                  <Package className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-white">Automated Courier Dispatch</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                    Approving a creator automatically queues Delhivery & Shiprocket sample dispatches with live AWB tracking.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5 font-bold">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-white">Live Reel Deliverables Hub</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
-                    Preview published Instagram Reels directly in your portal and approve content to unlock creator payouts.
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* ─── MAIN CONTENT CONTAINER (2-Column Balanced Desktop / Centered Mobile) ─── */}
+      <div className="relative z-10 w-full max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center my-auto">
+        
+        {/* LEFT COLUMN: BRAND VALUE PROPOSITION (Desktop Only) */}
+        <div className="hidden lg:flex lg:col-span-6 flex-col space-y-5 max-w-lg">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-amber-300 w-fit backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-[#febd1c]" />
+            <span>Zero Spreadsheets • 100% Real-Time Connected</span>
           </div>
 
-          {/* RIGHT COLUMN: LOGIN CARD */}
-          <div className="w-full lg:col-span-5 max-w-sm sm:max-w-md mx-auto lg:ml-auto lg:mr-0">
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-              className="bg-[#242728]/95 backdrop-blur-2xl border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/60 relative"
-            >
-              {/* Card Header */}
-              <div className="text-center mb-5">
-                <div className="inline-flex items-center justify-center mb-2.5">
-                  <img
-                    src="/logo-icon.svg"
-                    alt="1to7 Media Badge"
-                    className="w-12 h-12 object-contain drop-shadow-md hover:scale-105 transition-transform"
-                  />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  Brand Workspace Login
-                </h2>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Enter your official work credentials to access your campaigns.
+          <h1 className="text-3xl lg:text-4xl xl:text-[46px] font-black text-white leading-[1.16] tracking-tight">
+            Review, Approve & Track <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#febd1c] via-[#ffd269] to-amber-200">
+              Creators in Seconds.
+            </span>
+          </h1>
+
+          <p className="text-slate-300 text-sm leading-relaxed max-w-md">
+            Eliminate the delay of emailing Excel sheets back and forth. 1to7’s automated Brand Portal connects your shortlist directly to courier dispatches and live Reel approvals.
+          </p>
+
+          {/* 3 Value Pillars */}
+          <div className="space-y-3 pt-2 max-w-md">
+            <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition backdrop-blur-xs">
+              <div className="w-9 h-9 rounded-xl bg-[#febd1c]/20 text-[#febd1c] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">1-Click Creator Approval</h4>
+                <p className="text-xs text-slate-400 mt-0.5 leading-snug">
+                  Review shortlisted profiles with Instagram previews, follower metrics, and commercial quotations in 1 tap.
                 </p>
               </div>
+            </div>
 
-              {/* Error Message */}
-              {errorMsg && (
-                <div className="mb-4 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {/* Login Form */}
-              <form onSubmit={handleLogin} className="space-y-3.5">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1">
-                    Work Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="marketing@brand.com"
-                      required
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#191b1c] border border-white/10 text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                      Password
-                    </label>
-                    <span className="text-[10px] text-slate-400">
-                      Encrypted Session
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      required
-                      className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[#191b1c] border border-white/10 text-white placeholder:text-slate-500 text-xs sm:text-sm focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white transition cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#febd1c] to-[#f5aa00] hover:from-[#f5aa00] hover:to-[#e59b00] text-black font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Authenticating Workspace...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Enter Brand Workspace</span>
-                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Security Pill */}
-              <div className="mt-4 text-center flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Enterprise 256-Bit SSL • Creator PII Privacy Shield Active</span>
+            <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition backdrop-blur-xs">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                <Package className="w-4 h-4" />
               </div>
-            </motion.div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Automated Courier Dispatch</h4>
+                <p className="text-xs text-slate-400 mt-0.5 leading-snug">
+                  Approving a creator automatically queues Delhivery & Shiprocket sample dispatches with live AWB tracking.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition backdrop-blur-xs">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">Live Reel Deliverables Hub</h4>
+                <p className="text-xs text-slate-400 mt-0.5 leading-snug">
+                  Preview published Instagram Reels directly in your portal and approve content to unlock creator payouts.
+                </p>
+              </div>
+            </div>
           </div>
-
         </div>
-      </main>
 
-      {/* ─── FOOTER ─── */}
-      <footer className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-3 text-center text-[11px] text-slate-500 border-t border-white/5 bg-[#181b1c]/80 backdrop-blur-xs">
-        © {new Date().getFullYear()} 1to7 Media Platform. All rights reserved. • Enterprise Influencer Operations
-      </footer>
+        {/* RIGHT COLUMN: ENLARGED, PREMIUM LOGIN CARD */}
+        <div className="w-full lg:col-span-6 flex justify-center lg:justify-end">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-[460px] bg-[#1e2224]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 md:p-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative"
+          >
+            {/* Card Header */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center mb-3.5 relative">
+                <div className="absolute inset-0 bg-[#febd1c]/20 blur-xl rounded-full" />
+                <img
+                  src="/logo-icon.svg"
+                  alt="1to7 Media Badge"
+                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-lg relative hover:scale-105 transition-transform"
+                />
+              </div>
+              
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30 text-[10px] font-bold uppercase tracking-wider mb-2">
+                <Building2 className="w-3 h-3" />
+                <span>Enterprise Brand Portal</span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                Brand Workspace
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xs mx-auto">
+                Sign in with your official brand credentials to manage campaigns & reviews.
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {errorMsg && (
+              <div className="mb-5 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-200 text-xs sm:text-sm flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                  Work Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="marketing@brand.com"
+                    required
+                    className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-[#141718] border border-white/10 text-white placeholder:text-slate-500 text-sm sm:text-base focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                    Password
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Encrypted Session
+                  </span>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    required
+                    className="w-full pl-11 pr-11 py-3 sm:py-3.5 rounded-2xl bg-[#141718] border border-white/10 text-white placeholder:text-slate-500 text-sm sm:text-base focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white transition cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 py-3.5 sm:py-4 px-5 rounded-2xl bg-gradient-to-r from-[#febd1c] via-[#ffc634] to-[#f5aa00] hover:from-[#f5aa00] hover:to-[#e59b00] text-black font-extrabold text-sm sm:text-base shadow-lg shadow-amber-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                    <span>Authenticating Workspace...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Enter Brand Workspace</span>
+                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Security Pill */}
+            <div className="mt-5 text-center flex items-center justify-center gap-2 text-[11px] text-slate-400">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Enterprise 256-Bit SSL • Creator PII Privacy Shield Active</span>
+            </div>
+
+            {/* Subtle portal navigation link */}
+            <div className="mt-4 pt-4 border-t border-white/5 text-center">
+              <Link
+                href="/login"
+                className="text-xs text-slate-400 hover:text-white transition-colors inline-flex items-center gap-1.5"
+              >
+                <span>Influencer / Creator Login</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[#febd1c]" />
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+
+      </div>
     </div>
   )
 }
