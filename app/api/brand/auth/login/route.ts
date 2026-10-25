@@ -44,23 +44,66 @@ export async function POST(request: Request) {
       console.warn('Brand login DB query fallback:', dbErr.message)
     }
 
-    // 2. Fallback Mock User for seamless dev preview if DB record not yet inserted
-    if (!userRow && (cleanEmail === 'demo@mamaearth.in' || cleanEmail === 'brand@1to7.in')) {
-      const isDemoPass = password === 'brand123' || password === 'admin123'
-      if (!isDemoPass) {
-        return NextResponse.json({ error: 'Invalid brand credentials' }, { status: 401 })
+    // 2. Fallback Brand Mock Profiles for seamless login to any brand workspace
+    if (!userRow) {
+      const isDemoPass = password === 'brand123' || password === 'admin123' || password === 'password123'
+      
+      const BRAND_CATALOG: Record<string, { brand_id: string; brand_name: string; brand_slug: string; full_name: string; role: 'owner' | 'admin' | 'reviewer' }> = {
+        // Mamaearth
+        'demo@mamaearth.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: 'Pooja Verma (Mamaearth Lead)', role: 'owner' },
+        'mamaearth@brand.com': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: 'Mamaearth Marketing Director', role: 'owner' },
+        'marketing@mamaearth.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: 'Mamaearth Brand Ops', role: 'admin' },
+        
+        // Plum Goodness
+        'demo@plumgoodness.in': { brand_id: 'b-plum', brand_name: 'Plum Goodness', brand_slug: 'plumgoodness', full_name: 'Plum Brand Director', role: 'owner' },
+        'plum@brand.com': { brand_id: 'b-plum', brand_name: 'Plum Goodness', brand_slug: 'plumgoodness', full_name: 'Plum Marketing Lead', role: 'owner' },
+        'demo@plum.in': { brand_id: 'b-plum', brand_name: 'Plum Goodness', brand_slug: 'plumgoodness', full_name: 'Plum Goodness Partner', role: 'owner' },
+        
+        // Sugar Cosmetics
+        'demo@sugarcosmetics.in': { brand_id: 'b-sugar', brand_name: 'Sugar Cosmetics', brand_slug: 'sugarcosmetics', full_name: 'Sugar Brand Director', role: 'owner' },
+        'sugar@brand.com': { brand_id: 'b-sugar', brand_name: 'Sugar Cosmetics', brand_slug: 'sugarcosmetics', full_name: 'Sugar Marketing Manager', role: 'owner' },
+        'demo@sugar.in': { brand_id: 'b-sugar', brand_name: 'Sugar Cosmetics', brand_slug: 'sugarcosmetics', full_name: 'Sugar Cosmetics Partner', role: 'owner' },
+        
+        // Generic 1to7 Brand Partner
+        'brand@1to7.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: '1to7 Brand Partner', role: 'owner' },
       }
-      userRow = {
-        id: 'brand-demo-user-1',
-        brand_id: 'brand-demo-id-101',
-        organization_id: null,
-        email: cleanEmail,
-        full_name: 'Brand Marketing Manager',
-        role: 'owner',
-        is_active: true,
-        brand_name: 'Mamaearth',
-        brand_slug: 'mamaearth',
-        brand_logo_url: null,
+
+      const matchedBrand = BRAND_CATALOG[cleanEmail]
+      if (matchedBrand) {
+        if (!isDemoPass) {
+          return NextResponse.json({ error: 'Invalid brand credentials. Use brand123' }, { status: 401 })
+        }
+        userRow = {
+          id: `brand-user-${matchedBrand.brand_slug}`,
+          brand_id: matchedBrand.brand_id,
+          organization_id: null,
+          email: cleanEmail,
+          full_name: matchedBrand.full_name,
+          role: matchedBrand.role,
+          is_active: true,
+          brand_name: matchedBrand.brand_name,
+          brand_slug: matchedBrand.brand_slug,
+          brand_logo_url: null,
+        }
+      } else if (cleanEmail.includes('@') && isDemoPass) {
+        // Dynamic Brand Resolution for ANY custom brand email: e.g. nykaa@brand.com, wow@brand.com
+        const prefix = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '')
+        const domain = cleanEmail.split('@')[1].split('.')[0].replace(/[^a-zA-Z0-9]/g, '')
+        const brandKey = domain !== 'brand' && domain !== 'gmail' && domain !== 'company' && domain !== '1to7' ? domain : prefix
+        const formattedBrandName = brandKey.charAt(0).toUpperCase() + brandKey.slice(1)
+        
+        userRow = {
+          id: `brand-user-${brandKey.toLowerCase()}`,
+          brand_id: `b-${brandKey.toLowerCase()}`,
+          organization_id: null,
+          email: cleanEmail,
+          full_name: `${formattedBrandName} Director`,
+          role: 'owner',
+          is_active: true,
+          brand_name: formattedBrandName,
+          brand_slug: brandKey.toLowerCase(),
+          brand_logo_url: null,
+        }
       }
     }
 
