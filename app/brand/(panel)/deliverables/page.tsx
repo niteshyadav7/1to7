@@ -103,6 +103,7 @@ export default function BrandDeliverablesPage() {
       <DynamicDataTable<DeliverableItem>
         theme="light"
         keyField="id"
+        tableLayout="fixed"
         title="Live Reel Submissions"
         subtitle="Inspect published video links and release creator compensations"
         data={filteredItems}
@@ -133,20 +134,25 @@ export default function BrandDeliverablesPage() {
             key: 'creator_name',
             header: 'Creator & Profile',
             sortable: true,
+            width: '26%',
             render: (item) => (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2.5 min-w-0 max-w-full">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
                   {item.creator_name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm">{item.creator_name}</div>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={item.creator_name}>
+                    {item.creator_name}
+                  </div>
                   <a
                     href={`https://instagram.com/${item.handle}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1"
+                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
+                    title={`@${item.handle} (${item.followers})`}
                   >
-                    <Instagram className="w-3 h-3" /> @{item.handle} ({item.followers})
+                    <Instagram className="w-3 h-3 shrink-0" />
+                    <span className="truncate">@{item.handle} ({item.followers})</span>
                   </a>
                 </div>
               </div>
@@ -156,23 +162,27 @@ export default function BrandDeliverablesPage() {
             key: 'campaign',
             header: 'Campaign',
             sortable: true,
+            width: '20%',
             render: (item) => (
-              <span className="text-slate-800 text-xs font-medium">{item.campaign}</span>
+              <div className="truncate text-slate-800 text-xs font-medium max-w-full" title={item.campaign}>
+                {item.campaign}
+              </div>
             ),
           },
           {
             key: 'reel_url',
             header: 'Instagram Reel',
+            width: '15%',
             render: (item) => (
               <a
                 href={item.reel_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 text-xs font-semibold transition"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 text-xs font-semibold transition max-w-full"
               >
-                <Video className="w-3.5 h-3.5" />
-                <span>Watch Reel</span>
-                <ExternalLink className="w-3 h-3 opacity-60" />
+                <Video className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Watch Reel</span>
+                <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
               </a>
             ),
           },
@@ -180,8 +190,9 @@ export default function BrandDeliverablesPage() {
             key: 'views_estimate',
             header: 'Performance Reach',
             sortable: true,
+            width: '13%',
             render: (item) => (
-              <div>
+              <div className="truncate">
                 <span className="font-bold text-slate-900 text-xs">{item.views_estimate}</span>
                 <div className="text-[10px] text-slate-400">{item.submitted_at}</div>
               </div>
@@ -192,9 +203,10 @@ export default function BrandDeliverablesPage() {
             header: 'Verification Status',
             align: 'center',
             sortable: true,
+            width: '12%',
             render: (item) => (
               <span
-                className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${
+                className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
                   item.status === 'approved'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : item.status === 'revision_requested'
@@ -211,6 +223,7 @@ export default function BrandDeliverablesPage() {
             header: 'Decision',
             align: 'right',
             sortable: false,
+            width: '14%',
             render: (item) => (
               <div className="flex items-center justify-end gap-1.5">
                 {item.status === 'pending_brand_review' ? (

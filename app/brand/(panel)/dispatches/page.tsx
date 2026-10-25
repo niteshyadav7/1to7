@@ -89,6 +89,7 @@ export default function BrandDispatchesTrackerPage() {
       <DynamicDataTable<DispatchItem>
         theme="light"
         keyField="id"
+        tableLayout="fixed"
         title="Live Sample Logistics Dispatches"
         subtitle="Monitor delivery tracking numbers and transit status across courier networks"
         data={filtered}
@@ -112,14 +113,19 @@ export default function BrandDispatchesTrackerPage() {
             key: 'creator_name',
             header: 'Creator & Location',
             sortable: true,
+            width: '24%',
             render: (d) => (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2 min-w-0 max-w-full">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
                   {d.creator_name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm">{d.creator_name}</div>
-                  <div className="text-[11px] text-pink-600 font-medium">@{d.handle} • {d.city}</div>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={d.creator_name}>
+                    {d.creator_name}
+                  </div>
+                  <div className="text-[11px] text-pink-600 font-medium truncate" title={`@${d.handle} • ${d.city}`}>
+                    @{d.handle} • {d.city}
+                  </div>
                 </div>
               </div>
             ),
@@ -128,17 +134,24 @@ export default function BrandDispatchesTrackerPage() {
             key: 'campaign',
             header: 'Campaign',
             sortable: true,
+            width: '20%',
             render: (d) => (
-              <span className="text-slate-800 text-xs font-medium">{d.campaign}</span>
+              <div className="truncate text-slate-800 text-xs font-medium max-w-full" title={d.campaign}>
+                {d.campaign}
+              </div>
             ),
           },
           {
             key: 'sample_choice',
             header: 'Product Sample Choice',
+            width: '23%',
             render: (d) => (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-xs truncate">
+              <div
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden"
+                title={d.sample_choice}
+              >
                 <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="truncate">{d.sample_choice}</span>
+                <span className="truncate block min-w-0">{d.sample_choice}</span>
               </div>
             ),
           },
@@ -146,10 +159,15 @@ export default function BrandDispatchesTrackerPage() {
             key: 'awb_number',
             header: 'Courier & Tracking AWB',
             sortable: true,
+            width: '15%',
             render: (d) => (
-              <div>
-                <span className="font-mono text-xs font-bold text-slate-900 block">{d.awb_number}</span>
-                <span className="text-[11px] text-slate-500">{d.courier_partner}</span>
+              <div className="min-w-0 max-w-full">
+                <span className="font-mono text-xs font-bold text-slate-900 block truncate" title={d.awb_number}>
+                  {d.awb_number}
+                </span>
+                <span className="text-[11px] text-slate-500 truncate block" title={d.courier_partner}>
+                  {d.courier_partner}
+                </span>
               </div>
             ),
           },
@@ -158,6 +176,7 @@ export default function BrandDispatchesTrackerPage() {
             header: 'Delivery Status',
             align: 'center',
             sortable: true,
+            width: '10%',
             render: (d) => {
               const colorClass =
                 d.status === 'Delivered'
@@ -169,7 +188,7 @@ export default function BrandDispatchesTrackerPage() {
                   : 'bg-slate-100 text-slate-700 border-slate-200'
 
               return (
-                <span className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border ${colorClass}`}>
+                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${colorClass}`}>
                   {d.status}
                 </span>
               )
@@ -177,17 +196,18 @@ export default function BrandDispatchesTrackerPage() {
           },
           {
             key: 'actions',
-            header: 'Courier Tracking',
+            header: 'Track',
             align: 'right',
             sortable: false,
+            width: '8%',
             render: (d) => (
               <a
                 href={`https://www.delhivery.com/track/package/${d.awb_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer"
+                className="py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
               >
-                <span>Track Courier</span>
+                <span>Track</span>
                 <ExternalLink className="w-3 h-3 text-slate-500" />
               </a>
             ),

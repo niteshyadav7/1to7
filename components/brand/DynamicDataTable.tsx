@@ -78,6 +78,7 @@ export interface DynamicDataTableProps<T> {
   initialSortDir?: 'asc' | 'desc'
   theme?: 'dark' | 'light'
   loading?: boolean
+  tableLayout?: 'auto' | 'fixed'
 }
 
 export function DynamicDataTable<T extends Record<string, any>>({
@@ -101,6 +102,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   headerActions,
   theme = 'dark',
   loading = false,
+  tableLayout = 'auto',
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -523,7 +525,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
         isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-xl'
       }`}>
         <div className="overflow-x-auto w-full max-w-full scrollbar-none">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''}`}>
             {/* Header */}
             <thead className={`font-bold uppercase tracking-wider text-[11px] border-b select-none sticky top-0 z-10 ${
               isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
@@ -558,7 +560,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       key={col.key}
                       onClick={() => canSort && handleSort(col.key)}
                       style={{ width: col.width }}
-                      className={`py-3 px-2.5 sm:px-3 whitespace-nowrap transition-colors ${
+                      className={`py-3 px-2.5 sm:px-3 transition-colors ${
+                        tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
+                      } ${
                         col.align === 'center'
                           ? 'text-center'
                           : col.align === 'right'
@@ -694,7 +698,10 @@ export function DynamicDataTable<T extends Record<string, any>>({
                         return (
                           <td
                             key={col.key}
-                            className={`whitespace-nowrap ${
+                            style={{ width: col.width }}
+                            className={`${
+                              tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
+                            } ${
                               isCompact ? 'py-2 px-2.5' : 'py-2.5 px-2.5 sm:px-3'
                             } ${
                               col.align === 'center'

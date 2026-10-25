@@ -55,6 +55,7 @@ CASE 44: Automated Offline Logistics Ingestion Engine & Compound Deduplication A
 CASE 45: Fuzzy Header Collision & Vacuous Truth Inversion in Multi-Column Spreadsheets (Empty Street Address & Pincode Drop in Bulk Ingestion)
 CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Prevention (Dedicated Brand Operations Suite vs Influencer Admin RBAC)
 CASE 47: Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality (Eliminating Fragmented Responsive Grid UX)
+CASE 48: Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals
 
 
 
@@ -1873,6 +1874,50 @@ As client campaigns scaled from tens to hundreds of creator applications, card g
 "When building high-throughput enterprise SaaS interfaces, avoid fragmented card grids for dense relational datasets. Architect a polymorphic, type-safe Dynamic Data Table with built-in sorting, filtering, column visibility, and O(1) Set-based bulk selections. Incorporating first-class theme tokens into the table core eliminates code duplication across divergent dark and light brand portals while ensuring instant Excel-compatible CSV exports and zero UI lag."
 
 ====================================================================================================
+CASE 48: Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals
+====================================================================================================
+CATEGORIES: Frontend Architecture / CSS Layout / TailwindCSS / Web Standards / Data Tables / UX Engineering
+INTERVIEW QUESTION: "How do you prevent data tables from breaking viewport boundaries and triggering unwanted horizontal scrollbars when rendering unpredictable, long string fields (like product sample variants, URLs, or campaign titles) in enterprise dashboard applications?"
+
+[SITUATION]
+In the 1to7 Brand Portal, enterprise directors manage multi-column relational data across Active Campaigns, Creator Rosters, Content Deliverables, and Logistics Sample Dispatches.
+On standard laptop displays (e.g. 1366x768 and 1440x900 resolution viewports with a 250px fixed navigation sidebar), the logistics dispatches table rendered wide product sample choices (e.g., `Vitamin C Serum (30ml) • Shade Glowing Dew`), long campaign titles, and courier tracking numbers.
+Despite having card containers with `overflow-hidden`, the HTML `<table>` expanded beyond the available card canvas, clipping the rightmost action column (`Track`) and requiring horizontal scrolling across desktop screens.
+
+[ROOT CAUSE INVESTIGATION]
+1. CSS Table Auto-Layout Algorithm (`table-layout: auto` default):
+   - Under standard CSS table specifications, `table-layout: auto` computes column widths based on the maximum intrinsic content width of all cells in that column (`max-content`).
+   - If the sum of all columns' `max-content` exceeds the container's width, the table forcefully expands its width regardless of `w-full` or container `max-w` constraints, pushing trailing action columns off-screen.
+2. The CSS Flexbox Intrinsic `min-width: auto` Trap:
+   - When pill badges and avatars were styled using `inline-flex items-center gap-1.5`, developers placed `truncate` on the outer `<div>` and the child `<span>`.
+   - By default in the CSS Flexbox specification, flex items have `min-width: auto`. This means a flex child will NEVER shrink below the length of its text content, ignoring `overflow: hidden` and `text-overflow: ellipsis` on both parent and child unless `min-w-0` is explicitly applied.
+3. Unnormalized Column Width Allocations:
+   - Without explicit, percentage-based column widths summing strictly to 100%, columns competed arbitrarily based on content lengths, starving narrow status and action columns while allowing long sample names to consume 35%+ of the viewport.
+
+[SOLUTION & ARCHITECTURE]
+1. First-Class `tableLayout="fixed"` Engine in `DynamicDataTable<T>`:
+   - Introduced `tableLayout?: 'auto' | 'fixed'` prop on the core table component:
+     `<table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''}`}>`
+   - With `table-layout: fixed`, column widths are strictly governed by the first row's specified column widths, completely decoupling cell widths from unbounded string lengths and mathematically preventing the table from exceeding 100% width.
+2. 100% Normalized Percentage Width Allocation:
+   - Assigned normalized column width shares across all Brand Portal views:
+     - Courier Dispatches: Creator & Location (24%), Campaign (20%), Product Sample Choice (23%), Courier & AWB (15%), Delivery Status (10%), Track Action (8%) = 100%.
+     - Content Deliverables: Creator & Profile (26%), Campaign (20%), Instagram Reel (15%), Performance Reach (13%), Verification Status (12%), Decision (14%) = 100%.
+     - Active Campaigns: Campaign & Category (28%), Pending Review (13%), Approved (10%), Dispatched (11%), Live Reels (11%), Budget (11%), Status (8%), Actions (8%) = 100%.
+3. Elimination of the Flexbox `min-w-0` Trap with Accessible Native Tooltips:
+   - Restructured all table cells and nested inline-flex pills with `min-w-0 max-w-full overflow-hidden`:
+     `<div className="inline-flex items-center gap-1.5 ... max-w-full min-w-0 overflow-hidden" title={d.sample_choice}>`
+     `  <Package className="w-3.5 h-3.5 shrink-0" />`
+     `  <span className="truncate block min-w-0">{d.sample_choice}</span>`
+     `</div>`
+   - Added native HTML `title={val}` tooltips on every truncated element so power users can hover over any ellipsis (`...`) to inspect full unclipped strings without leaving the table.
+4. Vertical Stacking of Multi-Attribute Cells:
+   - Shifted side-by-side elements (e.g. Campaign Code badge + Campaign Title) into vertical stacks with `leading-tight`, cutting the horizontal footprint by 50% while improving scannability.
+
+[INTERVIEW STAR TAKEAWAY]
+"To build non-scrolling, high-density enterprise tables, you cannot rely on default HTML `table-layout: auto`. You must implement `table-layout: fixed` combined with strictly normalized percentage widths summing to 100%. Furthermore, when rendering text inside flex containers, you must neutralize the browser's default `min-width: auto` flex trap with `min-w-0` and `overflow-hidden` so CSS `text-overflow: ellipsis` actually triggers, always pairing truncation with native `title` tooltips for zero information loss."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 
 
@@ -1880,7 +1925,8 @@ SUMMARY CHECKLIST FOR INTERVIEWS:
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), and Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), and Case 41 (Dedicated lifecycle state machine endpoints).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), and Case 31 (Logistics-grade address schemas & courier contracts).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), and Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), and Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals).
 5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
 6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), and Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes).
 ====================================================================================================
+

@@ -92,6 +92,7 @@ export default function BrandCampaignsPage() {
       <DynamicDataTable<CampaignItem>
         theme="light"
         keyField="id"
+        tableLayout="fixed"
         title="Active Campaigns Directory"
         subtitle="Sort by pending reviews to prioritize campaign approvals"
         data={campaigns}
@@ -103,17 +104,18 @@ export default function BrandCampaignsPage() {
             key: 'title',
             header: 'Campaign & Category',
             sortable: true,
+            width: '28%',
             render: (camp) => (
-              <div className="py-0.5 max-w-[280px]">
+              <div className="py-0.5 max-w-full min-w-0">
                 <div className="mb-1">
                   <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 inline-block">
                     {camp.campaign_code}
                   </span>
                 </div>
-                <div className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                <div className="font-bold text-slate-900 text-xs sm:text-sm leading-tight truncate" title={camp.title}>
                   {camp.title}
                 </div>
-                <div className="text-slate-400 text-[11px] mt-0.5">
+                <div className="text-slate-400 text-[11px] mt-0.5 truncate" title={`${camp.category} • ${camp.platform}`}>
                   {camp.category} • {camp.platform}
                 </div>
               </div>
@@ -124,6 +126,7 @@ export default function BrandCampaignsPage() {
             header: 'Pending Review',
             sortable: true,
             align: 'center',
+            width: '13%',
             render: (camp) => (
               camp.pending_review > 0 ? (
                 <span className="font-bold text-amber-800 text-xs px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 inline-flex items-center gap-1">
@@ -140,6 +143,7 @@ export default function BrandCampaignsPage() {
             header: 'Approved',
             sortable: true,
             align: 'center',
+            width: '10%',
             render: (camp) => (
               <span className="font-bold text-emerald-700 text-xs px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
                 {camp.approved}
@@ -151,6 +155,7 @@ export default function BrandCampaignsPage() {
             header: 'Dispatched',
             sortable: true,
             align: 'center',
+            width: '11%',
             render: (camp) => (
               <span className="font-bold text-blue-700 text-xs px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 inline-flex items-center gap-1">
                 <Truck className="w-3 h-3 text-blue-500" />
@@ -163,6 +168,7 @@ export default function BrandCampaignsPage() {
             header: 'Live Reels',
             sortable: true,
             align: 'center',
+            width: '11%',
             render: (camp) => (
               <span className="font-bold text-purple-700 text-xs px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-200 inline-flex items-center gap-1">
                 <Video className="w-3 h-3 text-purple-500" />
@@ -173,8 +179,9 @@ export default function BrandCampaignsPage() {
           {
             key: 'budget_type',
             header: 'Budget Model',
+            width: '11%',
             render: (camp) => (
-              <span className="text-xs text-slate-600 font-medium">{camp.budget_type}</span>
+              <span className="text-xs text-slate-600 font-medium truncate block">{camp.budget_type}</span>
             ),
           },
           {
@@ -182,8 +189,9 @@ export default function BrandCampaignsPage() {
             header: 'Status',
             align: 'center',
             sortable: true,
+            width: '8%',
             render: (camp) => (
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 whitespace-nowrap">
                 {camp.status}
               </span>
             ),
@@ -193,6 +201,7 @@ export default function BrandCampaignsPage() {
             header: 'Actions',
             align: 'right',
             sortable: false,
+            width: '8%',
             render: (camp) => (
               <Link
                 href={`/brand/campaigns/${camp.id}/creators`}

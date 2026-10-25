@@ -240,6 +240,7 @@ export default function CreatorReviewStudioPage() {
       <DynamicDataTable<BrandCreatorItem>
         theme="light"
         keyField="application_id"
+        tableLayout="fixed"
         loading={loading}
         title="Campaign Creator Shortlists"
         subtitle="1-click approve creators or bulk select candidates for automated courier dispatch"
@@ -280,20 +281,25 @@ export default function CreatorReviewStudioPage() {
             key: 'creator_name',
             header: 'Creator & Instagram Profile',
             sortable: true,
+            width: '26%',
             render: (c) => (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2.5 min-w-0 max-w-full">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
                   {c.creator_name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm">{c.creator_name}</div>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={c.creator_name}>
+                    {c.creator_name}
+                  </div>
                   <a
                     href={`https://instagram.com/${c.instagram_username}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1"
+                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
+                    title={`@${c.instagram_username}`}
                   >
-                    <Instagram className="w-3 h-3" /> @{c.instagram_username}
+                    <Instagram className="w-3 h-3 shrink-0" />
+                    <span className="truncate">@{c.instagram_username}</span>
                   </a>
                 </div>
               </div>
@@ -304,8 +310,9 @@ export default function CreatorReviewStudioPage() {
             header: 'Followers',
             sortable: true,
             align: 'center',
+            width: '12%',
             render: (c) => (
-              <span className="font-bold text-slate-900 text-xs px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200">
+              <span className="font-bold text-slate-900 text-xs px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 whitespace-nowrap">
                 {formatFollowerCount(c.follower_count)}
               </span>
             ),
@@ -314,21 +321,26 @@ export default function CreatorReviewStudioPage() {
             key: 'city',
             header: 'City',
             sortable: true,
+            width: '12%',
             render: (c) => (
-              <div className="inline-flex items-center gap-1 text-slate-600 text-xs">
-                <MapPin className="w-3 h-3 text-slate-400" />
-                <span>{c.city || 'Pan India'}</span>
+              <div className="inline-flex items-center gap-1 text-slate-600 text-xs truncate max-w-full" title={c.city || 'Pan India'}>
+                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">{c.city || 'Pan India'}</span>
               </div>
             ),
           },
           {
             key: 'selected_variant',
             header: 'Selected Sample Kit',
+            width: '20%',
             render: (c) => (
               c.selected_variant ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-xs truncate">
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden"
+                  title={c.selected_variant}
+                >
                   <Package className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                  <span className="truncate">{c.selected_variant}</span>
+                  <span className="truncate block min-w-0">{c.selected_variant}</span>
                 </div>
               ) : (
                 <span className="text-slate-400 text-xs italic">Standard Sample</span>
@@ -340,13 +352,14 @@ export default function CreatorReviewStudioPage() {
             header: 'Status',
             align: 'center',
             sortable: true,
+            width: '14%',
             render: (c) => {
               const isApproved = c.brand_review_status === 'brand_approved'
               const isRejected = c.brand_review_status === 'brand_rejected'
               return (
                 <div>
                   <span
-                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
                       isApproved
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
@@ -367,9 +380,10 @@ export default function CreatorReviewStudioPage() {
           },
           {
             key: 'actions',
-            header: '1-Click Review Decision',
+            header: '1-Click Decision',
             align: 'right',
             sortable: false,
+            width: '16%',
             render: (c) => (
               <div className="flex items-center justify-end gap-1.5">
                 {c.brand_review_status === 'pending_brand_review' ? (

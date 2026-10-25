@@ -184,6 +184,7 @@ export default function BrandDashboardPage() {
       <DynamicDataTable<CampaignSummary>
         theme="light"
         keyField="id"
+        tableLayout="fixed"
         title="Active Campaign Pipelines"
         subtitle="Review shortlisted creator profiles and dispatch status across active brand campaigns"
         data={campaigns}
@@ -194,17 +195,18 @@ export default function BrandDashboardPage() {
             key: 'title',
             header: 'Campaign & Category',
             sortable: true,
+            width: '40%',
             render: (camp) => (
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+              <div className="py-0.5 max-w-full min-w-0">
+                <div className="mb-1">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 inline-block">
                     {camp.campaign_code}
                   </span>
-                  <span className="font-bold text-[#1a1c1c] text-xs sm:text-sm">
-                    {camp.title}
-                  </span>
                 </div>
-                <div className="text-slate-500 text-[11px] mt-0.5">
+                <div className="font-bold text-[#1a1c1c] text-xs sm:text-sm leading-tight truncate" title={camp.title}>
+                  {camp.title}
+                </div>
+                <div className="text-slate-500 text-[11px] mt-0.5 truncate" title={`${camp.platform} • ${camp.budget_type}`}>
                   {camp.platform} • {camp.budget_type}
                 </div>
               </div>
@@ -215,6 +217,7 @@ export default function BrandDashboardPage() {
             header: 'Pending Review',
             sortable: true,
             align: 'center',
+            width: '18%',
             render: (camp) => (
               camp.pending_count > 0 ? (
                 <span className="font-bold text-amber-800 text-xs px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 inline-flex items-center gap-1">
@@ -231,6 +234,7 @@ export default function BrandDashboardPage() {
             header: 'Approved',
             sortable: true,
             align: 'center',
+            width: '12%',
             render: (camp) => (
               <span className="font-bold text-emerald-700 text-xs px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
                 {camp.approved_count}
@@ -242,8 +246,9 @@ export default function BrandDashboardPage() {
             header: 'Status',
             align: 'center',
             sortable: true,
+            width: '12%',
             render: (camp) => (
-              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                 {camp.status}
               </span>
             ),
@@ -253,10 +258,11 @@ export default function BrandDashboardPage() {
             header: 'Review Studio',
             align: 'right',
             sortable: false,
+            width: '18%',
             render: (camp) => (
               <Link
                 href={`/brand/campaigns/${camp.id}/creators`}
-                className="px-3.5 py-1.5 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <span>Review Creators</span>
                 <ArrowRight className="w-3.5 h-3.5" />
