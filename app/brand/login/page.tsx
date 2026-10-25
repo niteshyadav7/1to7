@@ -80,9 +80,9 @@ export default function BrandLoginPage() {
       </div>
 
       {/* ─── TOP BRAND HEADER ─── */}
-      <header className="relative z-10 w-full px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-[#181b1c]/70">
+      <header className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-4 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-[#181b1c]/70">
         <div className="flex items-center gap-3">
-          <Link href="/brand/login" className="flex items-center gap-2.5 group">
+          <Link href="/brand/login" className="flex items-center gap-3 group">
             <img
               src="/logo-icon.svg"
               alt="1to7 Media"
@@ -107,7 +107,7 @@ export default function BrandLoginPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="text-xs font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5 py-1.5 px-3 rounded-xl border border-white/10 hover:bg-white/5 shrink-0"
+            className="text-xs font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl border border-white/10 hover:bg-white/5 shrink-0"
           >
             <span>Influencer Login</span>
             <ArrowRight className="w-3.5 h-3.5 text-[#febd1c]" />
@@ -116,17 +116,17 @@ export default function BrandLoginPage() {
       </header>
 
       {/* ─── MAIN CONTENT: 2-COLUMN BALANCED DESKTOP / CENTERED MOBILE ─── */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8 w-full max-w-full overflow-x-hidden">
-        <div className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 sm:px-10 lg:px-14 py-6 sm:py-8 w-full max-w-full overflow-x-hidden">
+        <div className="max-w-[1240px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
           
           {/* LEFT COLUMN: BRAND VALUE PROPOSITION (Desktop) */}
-          <div className="hidden lg:flex lg:col-span-7 flex-col space-y-4 pr-2">
+          <div className="hidden lg:flex lg:col-span-7 flex-col space-y-4 max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-amber-300 w-fit">
               <Sparkles className="w-3.5 h-3.5 text-[#febd1c]" />
               <span>Zero Spreadsheets • 100% Real-Time Connected</span>
             </div>
 
-            <h1 className="text-3xl lg:text-[38px] xl:text-[42px] font-black text-white leading-[1.18] tracking-tight">
+            <h1 className="text-3xl lg:text-[40px] xl:text-[44px] font-black text-white leading-[1.18] tracking-tight">
               Review, Approve & Track <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#febd1c] via-[#ffd269] to-amber-200">
                 Creators in Seconds.
@@ -138,7 +138,7 @@ export default function BrandLoginPage() {
             </p>
 
             {/* 3 Value Pillars */}
-            <div className="space-y-2.5 pt-1 max-w-md">
+            <div className="space-y-2.5 pt-1 max-w-lg">
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition">
                 <div className="w-8 h-8 rounded-lg bg-[#febd1c]/20 text-[#febd1c] flex items-center justify-center shrink-0 mt-0.5 font-bold">
                   <Zap className="w-4 h-4" />
@@ -178,7 +178,7 @@ export default function BrandLoginPage() {
           </div>
 
           {/* RIGHT COLUMN: LOGIN CARD */}
-          <div className="w-full lg:col-span-5 max-w-sm sm:max-w-md mx-auto">
+          <div className="w-full lg:col-span-5 max-w-sm sm:max-w-md mx-auto lg:ml-auto lg:mr-0">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -305,7 +305,7 @@ export default function BrandLoginPage() {
       </main>
 
       {/* ─── FOOTER ─── */}
-      <footer className="relative z-10 w-full py-3 text-center text-[11px] text-slate-500 border-t border-white/5 bg-[#181b1c]/80 backdrop-blur-xs">
+      <footer className="relative z-10 w-full px-6 sm:px-10 lg:px-14 py-3 text-center text-[11px] text-slate-500 border-t border-white/5 bg-[#181b1c]/80 backdrop-blur-xs">
         © {new Date().getFullYear()} 1to7 Media Platform. All rights reserved. • Enterprise Influencer Operations
       </footer>
     </div>
