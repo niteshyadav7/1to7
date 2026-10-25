@@ -142,14 +142,14 @@ export default function BrandLoginPage() {
           >
             {/* Card Header */}
             <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-7">
-              {/* Logo Emblem with Ambient Back-Glow */}
-              <div className="relative mb-3.5">
+              {/* Logo Emblem taking full circle/hole */}
+              <div className="relative mb-4">
                 <div className="absolute inset-0 bg-[#febd1c]/25 blur-2xl rounded-full scale-125 pointer-events-none" />
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-[#141718] border border-white/10 shadow-2xl flex items-center justify-center p-3 hover:scale-105 transition-transform">
+                <div className="relative w-20 h-20 sm:w-22 sm:h-22 rounded-full overflow-hidden shadow-2xl border-2 border-white/25 flex items-center justify-center hover:scale-105 transition-transform bg-gradient-to-br from-[#FFB800] via-[#FF5E36] to-[#F50057]">
                   <img
                     src="/logo-icon.svg"
                     alt="1to7 Media"
-                    className="w-full h-full object-contain drop-shadow-md"
+                    className="w-full h-full object-cover"
                   />
                 </div>
               </div>
