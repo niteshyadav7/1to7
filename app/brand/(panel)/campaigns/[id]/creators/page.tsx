@@ -289,20 +289,33 @@ export default function CreatorReviewStudioPage() {
                   {c.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <EllipsisTooltip text={c.creator_name} subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}`}>
+                  <EllipsisTooltip
+                    text={c.creator_name}
+                    subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}${c.brand_pitch_notes ? ` • Note: ${c.brand_pitch_notes}` : ''}`}
+                  >
                     <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
                       {c.creator_name}
                     </div>
                   </EllipsisTooltip>
-                  <a
-                    href={`https://instagram.com/${c.instagram_username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
-                  >
-                    <Instagram className="w-3 h-3 shrink-0" />
-                    <span className="truncate">@{c.instagram_username}</span>
-                  </a>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <a
+                      href={`https://instagram.com/${c.instagram_username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
+                    >
+                      <Instagram className="w-3 h-3 shrink-0" />
+                      <span className="truncate">@{c.instagram_username}</span>
+                    </a>
+                    {c.brand_pitch_batch_name && (
+                      <span
+                        className="text-[9px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 truncate max-w-[120px]"
+                        title={`Shortlist: ${c.brand_pitch_batch_name}`}
+                      >
+                        {c.brand_pitch_batch_name}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ),

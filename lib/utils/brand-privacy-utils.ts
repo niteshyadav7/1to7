@@ -30,7 +30,14 @@ export function sanitizeCreatorForBrand(raw: any): BrandCreatorItem {
       !lower.includes('ifsc') &&
       !lower.includes('payout') &&
       !lower.includes('cost') &&
-      !lower.includes('pan')
+      !lower.includes('pan') &&
+      !lower.includes('commercial') &&
+      !lower.includes('payment') &&
+      !lower.includes('deal') &&
+      !lower.includes('fee') &&
+      !lower.includes('rate') &&
+      !lower.includes('margin') &&
+      !lower.includes('sent_to_brand')
     ) {
       safeCustomData[k] = formData[k]
     }
@@ -58,6 +65,8 @@ export function sanitizeCreatorForBrand(raw: any): BrandCreatorItem {
     selected_variant: sampleVariant ? String(sampleVariant) : null,
     custom_form_data: safeCustomData,
     applied_at: raw.applied_at || raw.created_at || new Date().toISOString(),
+    brand_pitch_batch_name: raw.brand_pitch_batch_name || null,
+    brand_pitch_notes: raw.brand_pitch_notes || null,
     courier_status: raw.courier_status || null,
     awb_tracking_number: raw.awb_tracking_number || null,
     live_content_url: raw.live_content_url || null,

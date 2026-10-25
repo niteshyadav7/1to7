@@ -52,6 +52,33 @@ describe('Brand Privacy & Sanitization Unit Tests', () => {
     expect(sanitized.custom_form_data?.skin_type).toBe('Combination')
   })
 
+  it('preserves pitch curation batch name and notes while sanitizing raw inputs', () => {
+    const rawPitchedApp = {
+      application_id: 'app-555',
+      campaign_id: 'camp-202',
+      creator_name: 'Rohit Verma',
+      instagram_username: '@rohit_fit',
+      followers: 85000,
+      city: 'Mumbai',
+      brand_pitch_batch_name: 'Batch #2 - Fitness Enthusiasts',
+      brand_pitch_notes: 'High conversion fitness creator, verified engagement',
+      form_data: {
+        commercial_amount: 12000,
+        phone: '9988776655',
+        workout_niche: 'HIIT & Calisthenics',
+      },
+    }
+
+    const sanitized = sanitizeCreatorForBrand(rawPitchedApp)
+
+    expect(sanitized.brand_pitch_batch_name).toBe('Batch #2 - Fitness Enthusiasts')
+    expect(sanitized.brand_pitch_notes).toBe('High conversion fitness creator, verified engagement')
+    expect(sanitized.custom_form_data?.workout_niche).toBe('HIIT & Calisthenics')
+    // Ensure commercials and phone are stripped
+    expect(sanitized.custom_form_data?.commercial_amount).toBeUndefined()
+    expect(sanitized.custom_form_data?.phone).toBeUndefined()
+  })
+
   it('correctly formats follower counts into K and M', () => {
     expect(formatFollowerCount(0)).toBe('0')
     expect(formatFollowerCount(850)).toBe('850')

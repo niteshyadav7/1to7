@@ -75,6 +75,15 @@ interface Application {
   team_remark?: string | null
   team_remark_by?: string | null
   team_remark_updated_at?: string | null
+  brand_review_status?: string | null
+  brand_pitch_batch_name?: string | null
+  brand_pitch_notes?: string | null
+  brand_pitched_at?: string | null
+  brand_pitched_by?: string | null
+  brand_reviewed_at?: string | null
+  brand_reviewed_by?: string | null
+  brand_rejection_reason?: string | null
+  brand_feedback_notes?: string | null
   created_at: string
   updated_at: string
   users: UserInfo
@@ -226,20 +235,36 @@ export default function AdminApplicationsPage() {
 
     setMarkingSent(true)
     try {
-      const res = await fetch('/api/admin/applications/sent-to-brand', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          application_ids: ids,
-          batch_label: batchLabel.trim() || undefined,
-          notes: batchNotes.trim() || undefined,
-          action,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update status')
+      if (action === 'mark_sent') {
+        const res = await fetch('/api/admin/applications/pitch-to-brand', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign_id,
+            applicationIds: ids,
+            batchName: batchLabel.trim() || undefined,
+            pitchNotes: batchNotes.trim() || undefined,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to pitch creators to Brand Portal')
+        toast.success(data.message || `Successfully pitched ${ids.length} creators to Brand Portal!`)
+      } else {
+        const res = await fetch('/api/admin/applications/sent-to-brand', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            application_ids: ids,
+            batch_label: batchLabel.trim() || undefined,
+            notes: batchNotes.trim() || undefined,
+            action,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to reset brand review status')
+        toast.success(data.message)
+      }
 
-      toast.success(data.message)
       setShowSentModal(false)
       if (action === 'mark_sent' && autoExportBrandCSV) {
         const appsForExport = applications.filter(a => ids.includes(a.id))
@@ -252,7 +277,7 @@ export default function AdminApplicationsPage() {
       setBatchNotes('')
       fetchApplications()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update Sent to Brand status')
+      toast.error(err.message || 'Failed to update Brand Pitch status')
     } finally {
       setMarkingSent(false)
     }
@@ -540,16 +565,17 @@ export default function AdminApplicationsPage() {
   const uniqueBatches = useMemo(() => {
     const batchMap = new Map<string, { label: string; count: number; date?: string }>()
     applications.forEach(app => {
-      const stb = app.form_data?.sent_to_brand
-      if (stb?.is_sent && stb?.batch_label) {
-        const existing = batchMap.get(stb.batch_label)
+      const label = app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label
+      const isSent = (app.brand_review_status && app.brand_review_status !== 'unpitched') || Boolean(app.form_data?.sent_to_brand?.is_sent)
+      if (isSent && label) {
+        const existing = batchMap.get(label)
         if (existing) {
           existing.count++
         } else {
-          batchMap.set(stb.batch_label, {
-            label: stb.batch_label,
+          batchMap.set(label, {
+            label,
             count: 1,
-            date: stb.sent_at,
+            date: app.brand_pitched_at || app.form_data?.sent_to_brand?.sent_at,
           })
         }
       }
@@ -561,15 +587,17 @@ export default function AdminApplicationsPage() {
     return <GlobalLoader text="Loading Applications..." />
   }
 
-  const sentCount = applications.filter(a => a.form_data?.sent_to_brand?.is_sent).length
-  const unsharedCount = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).length
+  const sentCount = applications.filter(a => (a.brand_review_status && a.brand_review_status !== 'unpitched') || Boolean(a.form_data?.sent_to_brand?.is_sent)).length
+  const unsharedCount = applications.filter(a => (!a.brand_review_status || a.brand_review_status === 'unpitched') && !a.form_data?.sent_to_brand?.is_sent).length
 
   const filtered = applications.filter(a => {
     const matchesFilter = activeFilter === 'Ghosted' ? Boolean(a.is_ghosted) : (activeFilter === 'All' || a.status === activeFilter)
+    const isAppSent = (a.brand_review_status && a.brand_review_status !== 'unpitched') || Boolean(a.form_data?.sent_to_brand?.is_sent)
+    const appBatchLabel = a.brand_pitch_batch_name || a.form_data?.sent_to_brand?.batch_label
     const matchesBrandSent =
       brandSentFilter === 'all' ? true :
-      brandSentFilter === 'sent' ? Boolean(a.form_data?.sent_to_brand?.is_sent) && (selectedBatch === 'all' || a.form_data?.sent_to_brand?.batch_label === selectedBatch) :
-      !a.form_data?.sent_to_brand?.is_sent
+      brandSentFilter === 'sent' ? isAppSent && (selectedBatch === 'all' || appBatchLabel === selectedBatch) :
+      !isAppSent
 
     const user = a.users
     const searchString = `${user?.full_name} ${user?.influencer_id} ${user?.instagram_username} ${user?.email} ${a.team_remark || ''} ${a.team_remark_by || ''}`.toLowerCase()
@@ -769,7 +797,7 @@ export default function AdminApplicationsPage() {
           {brandSentFilter === 'not_sent' && unsharedCount > 0 && (
             <button
               onClick={() => {
-                const unsharedIds = applications.filter(a => !a.form_data?.sent_to_brand?.is_sent).map(a => a.id)
+                const unsharedIds = applications.filter(a => (!a.brand_review_status || a.brand_review_status === 'unpitched') && !a.form_data?.sent_to_brand?.is_sent).map(a => a.id)
                 setSelectedAppIds(unsharedIds)
                 setBatchLabel(`Batch #${uniqueBatches.length + 1} (${unsharedIds.length} Profiles) - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
               }}
@@ -807,7 +835,7 @@ export default function AdminApplicationsPage() {
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 cursor-pointer transition-all"
             >
               <Share2 className="h-3.5 w-3.5" />
-              <span>Mark {selectedAppIds.length} as Sent</span>
+              <span>Pitch {selectedAppIds.length} to Brand</span>
             </button>
           )}
 
@@ -980,19 +1008,35 @@ export default function AdminApplicationsPage() {
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-                    {/* Sent to Brand Badge */}
-                    {app.form_data?.sent_to_brand?.is_sent ? (
+                    {/* Brand Portal Review Status Badge */}
+                    {app.brand_review_status === 'brand_approved' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 flex items-center gap-1.5"
+                        title={`Approved by Brand on ${app.brand_reviewed_at ? new Date(app.brand_reviewed_at).toLocaleDateString('en-IN') : ''}`}
+                      >
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <span>Brand Approved ({app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label || 'Pitched'})</span>
+                      </span>
+                    ) : app.brand_review_status === 'brand_rejected' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25 flex items-center gap-1.5"
+                        title={`Rejected by Brand: ${app.brand_rejection_reason || 'Criteria mismatch'}`}
+                      >
+                        <XCircle className="h-3 w-3 text-rose-400" />
+                        <span>Brand Rejected</span>
+                      </span>
+                    ) : (app.brand_review_status === 'pending_brand_review' || app.form_data?.sent_to_brand?.is_sent) ? (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 flex items-center gap-1.5"
-                        title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'}`}
+                        title={`Pitched on ${app.brand_pitched_at || app.form_data?.sent_to_brand?.sent_at ? new Date(app.brand_pitched_at || app.form_data?.sent_to_brand?.sent_at).toLocaleDateString('en-IN') : ''} by ${app.brand_pitched_by || app.form_data?.sent_to_brand?.sent_by || 'Admin'}`}
                       >
                         <Share2 className="h-3 w-3 text-purple-400" />
-                        <span>Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})</span>
+                        <span>Pitched ({app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label || 'Brand'})</span>
                       </span>
                     ) : (
                       <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        <span>Not Sent to Brand</span>
+                        <span>Not Pitched</span>
                       </span>
                     )}
 
@@ -2347,9 +2391,9 @@ export default function AdminApplicationsPage() {
                     <Share2 className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Mark as Sent to Brand</h3>
+                    <h3 className="text-sm font-bold text-white">Pitch Shortlisted Creators to Brand Portal</h3>
                     <p className="text-[11px] text-slate-400">
-                      Batch tagging <strong className="text-white">{selectedAppIds.length} creator profiles</strong>
+                      Pitches <strong className="text-white">{selectedAppIds.length} creator profiles</strong> to client brand
                     </p>
                   </div>
                 </div>
@@ -2363,11 +2407,11 @@ export default function AdminApplicationsPage() {
 
               <div className="space-y-3.5 text-xs">
                 <p className="text-slate-300 leading-relaxed">
-                  Assign a batch name or date label so your team knows these creators have already been submitted to the client brand. Newly arrived profiles in the future will automatically stand out as <strong>Unshared</strong>.
+                  These shortlisted creators will immediately appear in the client brand's review queue for 1-click decision making. Phone numbers, addresses, and agency commercials are strictly protected by the margin shield.
                 </p>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Batch Label / Shortlist Name</Label>
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Pitch Batch Name</Label>
                   <Input
                     value={batchLabel}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBatchLabel(e.target.value)}
@@ -2377,11 +2421,11 @@ export default function AdminApplicationsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Notes / Client Feedback Reference (Optional)</Label>
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Agency Recommendation / Pitch Notes (Optional)</Label>
                   <Input
                     value={batchNotes}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBatchNotes(e.target.value)}
-                    placeholder="e.g. Emailed to Brand POC Rajesh on 23rd Aug"
+                    placeholder="e.g. Recommended top tier creators with high engagement reels"
                     className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
                   />
                 </div>
@@ -2393,7 +2437,7 @@ export default function AdminApplicationsPage() {
                     onChange={(e) => setAutoExportBrandCSV(e.target.checked)}
                     className="h-4 w-4 rounded border-white/20 bg-slate-950 text-purple-600 focus:ring-purple-500"
                   />
-                  <span className="text-xs">Immediately download clean Brand Presentation CSV</span>
+                  <span className="text-xs">Also download clean client presentation CSV</span>
                 </label>
               </div>
 
@@ -2417,12 +2461,12 @@ export default function AdminApplicationsPage() {
                   {markingSent ? (
                     <>
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Tagging Batch...
+                      Pitching Batch...
                     </>
                   ) : (
                     <>
                       <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                      Confirm & Tag Batch
+                      Pitch Batch to Brand Portal
                     </>
                   )}
                 </Button>

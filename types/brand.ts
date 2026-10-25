@@ -105,6 +105,8 @@ export interface BrandCreatorItem {
   selected_variant?: string | null
   custom_form_data?: Record<string, any>
   applied_at: string
+  brand_pitch_batch_name?: string | null
+  brand_pitch_notes?: string | null
   courier_status?: string | null
   awb_tracking_number?: string | null
   live_content_url?: string | null

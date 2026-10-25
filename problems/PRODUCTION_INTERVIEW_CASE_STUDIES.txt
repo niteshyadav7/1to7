@@ -56,6 +56,7 @@ CASE 45: Fuzzy Header Collision & Vacuous Truth Inversion in Multi-Column Spread
 CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Prevention (Dedicated Brand Operations Suite vs Influencer Admin RBAC)
 CASE 47: Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality (Eliminating Fragmented Responsive Grid UX)
 CASE 48: Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals
+CASE 49: Two-Gatekeeper Curation Architecture & Agency-to-Brand Shortlist Pitching Pipeline (Eliminating Manual Google Sheet Leaks & Commercial Exposure)
 
 
 
@@ -1916,6 +1917,57 @@ Despite having card containers with `overflow-hidden`, the HTML `<table>` expand
 
 [INTERVIEW STAR TAKEAWAY]
 "To build non-scrolling, high-density enterprise tables, you cannot rely on default HTML `table-layout: auto`. You must implement `table-layout: fixed` combined with strictly normalized percentage widths summing to 100%. Furthermore, when rendering text inside flex containers, you must neutralize the browser's default `min-width: auto` flex trap with `min-w-0` and `overflow-hidden` so CSS `text-overflow: ellipsis` actually triggers, always pairing truncation with native `title` tooltips for zero information loss."
+
+====================================================================================================
+CASE 49: Two-Gatekeeper Curation Architecture & Agency-to-Brand Shortlist Pitching Pipeline (Eliminating Manual Google Sheet Leaks & Commercial Exposure)
+====================================================================================================
+CATEGORIES: System Architecture / Enterprise SaaS / Multi-Tenant RBAC / Privacy & Margin Shield / Pipeline State Machine
+
+INTERVIEW QUESTION: "How do you design a secure, automated creator curation and pitching pipeline between an agency operations team and enterprise brand clients to replace error-prone manual spreadsheets while preventing commercial margin leaks and creator PII exposure?"
+
+[SITUATION]
+Influencer marketing agencies manage high-volume campaigns where thousands of creators apply. Traditionally, agencies export raw creator applicant data to Google Sheets, manually curate a shortlist, and email the spreadsheet link to brand marketing managers for selection.
+This manual spreadsheet workflow suffered from 4 severe production and business liabilities:
+1. PII & Commercial Leakage: Exported sheets contained raw creator phone numbers, home addresses, bank details, and agency payout costs, exposing gross profit margins and risking direct brand bypass.
+2. Status Drift & Ghost Disconnect: If a brand approved or rejected creators inside a static spreadsheet or WhatsApp chat, agency operations had to manually reconcile changes back into the platform database, leading to delayed onboarding and duplicate approvals.
+3. Lack of SLA Accountability: Agencies had no visibility into client review bottlenecks (e.g. shortlists stuck for weeks without review), causing campaign completion deadlines to expire.
+4. Concurrency & Overwrite Risks: Multiple agency team members modifying shared spreadsheets caused cell overwrites and version desynchronization.
+
+[ROOT CAUSE INVESTIGATION]
+1. Absence of a Dedicated Client Curation Gatekeeper:
+   The database had only a binary application status (`status = 'Applied' | 'Approved' | 'Rejected'`). There was no intermediary review phase distinguishing internal agency shortlisting from external client brand approval.
+2. Inadequate Boundary Sanitization (Open-World Form Data):
+   Because campaign applications store dynamic questions and shipping details in unstructured JSONB (`form_data`), standard SQL SELECT queries returned sensitive PII and commercial costs (`internal_payout_cost`, `commercial_amount`, `bank_account`, `shipping_address`) directly to any endpoint requesting application data.
+3. Decoupled Communication Channels:
+   Decision-making occurred outside the system in offline emails, depriving the platform of an immutable audit trail of who approved which creator, in what batch, and on what date.
+
+[SOLUTION & ARCHITECTURE]
+We architected a robust Two-Gatekeeper Curation Pipeline bridging the 1to7 Agency Admin (`/admin`), the Brand Client Portal (`/brand`), and the Brand Operations Admin (`/brand-admin`):
+
+1. Relational Pitch State Machine & Idempotent Schema Migration:
+   - Added first-class database columns to `public.applications` with dedicated B-Tree indices:
+     - `brand_review_status`: State transitions: `'unpitched'` -> `'pending_brand_review'` -> `'brand_approved'` / `'brand_rejected'`.
+     - `brand_pitch_batch_name` & `brand_pitch_notes`: Tracks batch grouping (e.g., "Batch #1 - Morning Shortlist (50 creators)") and agency recommendations.
+     - `brand_pitched_at` & `brand_pitched_by`: Records agency curator identity and dispatch timestamp.
+     - `brand_reviewed_at`, `brand_reviewed_by`, and `brand_rejection_reason`: Captures immutable client review decision audit logs.
+2. Privacy & Margin Shield (Strict Zero-PII Sanitization Gateway):
+   - Implemented an impermeable sanitization layer (`sanitizeCreatorForBrand`) guarding all Brand API endpoints:
+     - Automatically strips sensitive creator PII: `mobile`, `phone`, `email`, `address`, `pincode`, `bank`, `ifsc`, `pan`.
+     - Strictly strips agency financials: `commercial`, `payout`, `cost`, `fee`, `rate`, `margin`, `deal`, and `payment`.
+     - Preserves only public creator credentials (Instagram handle, follower counts, verified metrics, location city) and product sample choices (size, shade, variant) necessary for brand decision-making.
+3. Atomic Shortlist Pitching API (`POST /api/admin/applications/pitch-to-brand`):
+   - Authenticated with session RBAC (`getAdminFromRequest`).
+   - Performs atomic SQL updates pitching selected creator IDs to `pending_brand_review` while maintaining dual-write synchronization with legacy JSONB `form_data->'sent_to_brand'` for 100% backwards compatibility.
+4. Client Brand 1-Click Review Studio (`/brand/campaigns/[id]/creators`):
+   - Features 1-click Approve and structured Reject modals (with predefined rejection taxonomy: "Aesthetic Mismatch", "Past Collab Conflict", "Low Quality Sample").
+   - Instant bulk approval capabilities queuing creators for dispatch and fulfillment.
+   - Light floating interactive tooltips (`EllipsisTooltip`) displaying agency curation pitch notes and handles without cluttering fixed-layout tables.
+5. Brand Admin SLA & Virtual Studio Supervision (`/brand-admin`):
+   - Tracks review turnaround SLAs (<24h healthy, 24-48h warning, >48h critical).
+   - Equips Key Account Managers (KAMs) with a Virtual Brand Studio to approve shortlists on behalf of enterprise clients who approve offline via phone or executive meetings.
+
+[INTERVIEW STAR TAKEAWAY]
+"To replace leaky manual spreadsheets in two-sided agency platforms, you must design a Two-Gatekeeper Curation Architecture. Gatekeeper 1 allows internal agency teams to filter and batch-pitch shortlists to a dedicated client portal via an atomic state machine (`unpitched` -> `pending_brand_review`), guarded by a Privacy & Margin Shield that strips PII and agency costs. Gatekeeper 2 gives client directors 1-click approval/rejection studios with live SLA tracking, backed by dual-write backwards compatibility and immutable decision audit trails."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

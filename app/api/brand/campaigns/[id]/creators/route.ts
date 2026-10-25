@@ -28,6 +28,9 @@ export async function GET(
           a.campaign_id,
           a.status as platform_status,
           a.brand_review_status,
+          a.brand_pitch_batch_name,
+          a.brand_pitch_notes,
+          a.brand_pitched_at,
           a.brand_reviewed_at,
           a.brand_rejection_reason,
           a.brand_feedback_notes,
@@ -50,10 +53,11 @@ export async function GET(
         FROM public.applications a
         JOIN public.users u ON a.user_id = u.id
         JOIN public.campaigns c ON a.campaign_id = c.id
-        WHERE a.campaign_id = $1
+        WHERE (a.campaign_id::text = $1 OR a.campaign_id::text = (SELECT id::text FROM public.campaigns WHERE campaign_code = $1 LIMIT 1))
+          AND (a.brand_review_status IS NULL OR a.brand_review_status != 'unpitched')
         ORDER BY a.created_at DESC
       `
-      const res = await pool.query(query, [campaignId])
+      const res = await pool.query(query, [String(campaignId)])
       rows = res.rows
     } catch (dbErr: any) {
       console.warn('DB query error in brand creators route:', dbErr.message)

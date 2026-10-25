@@ -105,6 +105,98 @@ export async function ensurePocMigration(): Promise<void> {
           ALTER TABLE public.feedback ADD COLUMN resolved_by TEXT;
           UPDATE public.feedback SET status = 'pending' WHERE status IS NULL;
         END IF;
+
+        -- 5. Brand review and pitch curation pipeline columns on applications
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_review_status'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_review_status TEXT DEFAULT 'unpitched';
+          CREATE INDEX IF NOT EXISTS idx_applications_brand_review_status ON public.applications (brand_review_status);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_pitch_batch_name'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_pitch_batch_name TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_pitch_notes'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_pitch_notes TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_pitched_at'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_pitched_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_pitched_by'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_pitched_by TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_reviewed_at'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_reviewed_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_reviewed_by'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_reviewed_by TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_rejection_reason'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_rejection_reason TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_feedback_notes'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_feedback_notes TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'brand_content_status'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN brand_content_status TEXT DEFAULT 'pending_submission';
+        END IF;
       END $$;
     `)
     global._pocMigrationDone = true

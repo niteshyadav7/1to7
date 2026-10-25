@@ -49,7 +49,11 @@ export async function POST(request: Request) {
         .from('applications')
         .update({
           form_data: updatedFormData,
-          brand_review_status: action === 'unmark_sent' ? 'not_sent' : 'pending_brand_review',
+          brand_review_status: action === 'unmark_sent' ? 'unpitched' : 'pending_brand_review',
+          brand_pitch_batch_name: action === 'unmark_sent' ? null : label,
+          brand_pitch_notes: action === 'unmark_sent' ? null : (notes || null),
+          brand_pitched_at: action === 'unmark_sent' ? null : timestamp,
+          brand_pitched_by: action === 'unmark_sent' ? null : adminName,
           updated_at: timestamp,
         })
         .eq('id', app.id)
