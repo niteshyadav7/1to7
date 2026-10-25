@@ -53,6 +53,7 @@ CASE 42: Edge Proxy Deep-Link Severing & Unauthenticated Ingestion Inversion: Le
 CASE 43: Offline Logistics Ingestion Disconnect & Cross-Entity Relational Reconciliation: External Form Address Ingestion vs Normalized Application Data Models
 CASE 44: Automated Offline Logistics Ingestion Engine & Compound Deduplication Architecture (Eliminating Manual Repetitive Reconciliations & Edge-Case Data Corruption)
 CASE 45: Fuzzy Header Collision & Vacuous Truth Inversion in Multi-Column Spreadsheets (Empty Street Address & Pincode Drop in Bulk Ingestion)
+CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Prevention (Dedicated Brand Operations Suite vs Influencer Admin RBAC)
 
 
 
@@ -1779,6 +1780,44 @@ A deep algorithmic audit of the header extraction logic (`extractField`) reveale
 
 [INTERVIEW STAR TAKEAWAY]
 "Fuzzy string matching in data pipelines is a double-edged sword. Never evaluate `string.includes(token)` without guarding against zero-length strings, synthetic parser artifacts, or compound non-data headers. Always prioritize exact key equality before partial fallbacks, and validate incoming data contracts against explicit domain schemas."
+
+====================================================================================================
+CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Prevention
+====================================================================================================
+CATEGORIES: Security Architecture / RBAC / Domain Separation / OAuth Session Isolation / Multi-Tenant Admin
+INTERVIEW QUESTION: "How do you design administrative interfaces for two distinct operational domains (e.g. Creator Operations vs Enterprise Brand Partnerships) to prevent privilege infiltration while maintaining unified Google SSO and seamless superadmin governance?"
+
+[SITUATION]
+As the 1to7 platform scaled, the enterprise Brand Portal (`/brand`) was introduced to replace manual spreadsheet coordination with major brand clients (Mamaearth, Sugar, Plum). Initially, brand management was added as an internal route (`/admin/brands`) within the existing Influencer Admin panel. However, this conflated two vastly different operational responsibilities: Creator Operations (managing creator rosters, KYC, address confirmations, ghosting penalties, and payouts) and Brand Key Account Management (managing enterprise client contracts, creator approval SLAs, and proxy sign-offs).
+Furthermore, operations required that general internal staff holding access to the main Influencer Admin panel MUST NOT automatically have access to client brand financial contracts or sensitive approval suites unless explicitly approved by the platform founder via RBAC.
+
+[ROOT CAUSE]
+1. Monolithic Admin Session Bleed:
+   - Reusing a single `admin_token` or single permissions JSON blob across unrelated business domains causes privilege escalation: any employee given POC or viewer privileges in Influencer Ops could inspect sensitive brand workspaces and billing metrics.
+2. Shared Navigation Cognitive Overhead:
+   - Cluttering the Influencer Operations console with client brand workspaces degraded usability for logistics POCs who only needed to dispatch courier parcels.
+3. Uncontrolled OAuth Ingestion:
+   - When employees sign in via Google OAuth, a naive implementation auto-grants base dashboard access, creating a security hole where any company email can access brand commercial data.
+
+[SOLUTION & ARCHITECTURE]
+1. Domain Isolation & Dedicated Route Hierarchy:
+   - Created a standalone, isolated Brand Operations Admin Suite (`/brand-admin`) with dedicated routes:
+     - `/brand-admin/dashboard`: Real-time SLA bottlenecks, pending creator shortlists, and active brand workspaces.
+     - `/brand-admin/brands`: Dedicated enterprise brand directory with KAM assignments and 1-click Masquerade / Virtual Brand launcher.
+     - `/brand-admin/reviews-sla`: SLA Watchtower tracking >24h warning and >48h critical review delays, with pre-filled WhatsApp nudges to brand managers.
+     - `/brand-admin/team-rbac`: Super Admin authorization console for reviewing access requests and assigning roles.
+2. Cryptographically Isolated JWT Cookie (`brand_admin_token`):
+   - Decoupled session cookies completely from Influencer Admin (`admin_token`) and Brand Client (`brand_token`), eliminating cross-portal cookie forgery or session hijacking.
+3. Strict RBAC Gatekeeper with Master Superadmin Invariant:
+   - Codified `evaluateBrandAdminAccess`:
+     - `superadmin@gmail.com` is permanently auto-authorized with unconditional `brand_superadmin` privileges.
+     - Any existing Influencer Admin or new Google user who attempts to log in is placed into a `pending` state (`brand_admin_status = 'pending'`), displaying a clear "Pending Super Admin Approval" screen.
+     - Only `superadmin@gmail.com` can click "Approve" and select their role (`KAM Lead`, `KAM`, `Brand Ops`, `Viewer`).
+4. Automated Regression Verification:
+   - Added unit test suite (`tests/unit/brand-admin-auth.test.ts` and `tests/unit/brand-admin-api.test.ts`) guaranteeing 100% test coverage on privilege denial, role capabilities, and token encryption.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never assume internal administrative users share a uniform privilege boundary across different business lines. Decouple administrative consoles by business domain, isolate session tokens with distinct cryptographic cookies, and enforce explicit role approvals for high-value enterprise workspaces rather than defaulting to shared organizational access."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
