@@ -110,9 +110,11 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         {/* Brand Workspace Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#febd1c] flex items-center justify-center font-bold text-black text-lg shadow-sm">
-              {brandUser?.brand_name?.slice(0, 2).toUpperCase() || '1:7'}
-            </div>
+            <img
+              src="/logo-icon.svg"
+              alt="1to7 Media"
+              className="w-10 h-10 object-contain drop-shadow-md shrink-0"
+            />
             <div className="overflow-hidden">
               <h2 className="font-bold text-white text-base truncate leading-tight">
                 {brandUser?.brand_name || 'Brand Workspace'}
@@ -178,9 +180,11 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
       {/* ─── MOBILE TOPBAR & DRAWER ─── */}
       <div className="md:hidden sticky top-0 z-40 bg-[#2d3132] border-b border-white/10 px-4 py-3 flex items-center justify-between text-white">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-[#febd1c] flex items-center justify-center font-bold text-black text-sm">
-            {brandUser?.brand_name?.slice(0, 2).toUpperCase() || '1:7'}
-          </div>
+          <img
+            src="/logo-icon.svg"
+            alt="1to7 Media"
+            className="w-8 h-8 object-contain shrink-0"
+          />
           <div>
             <h1 className="font-bold text-sm leading-tight text-white">
               {brandUser?.brand_name || 'Brand Workspace'}

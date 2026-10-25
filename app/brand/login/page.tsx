@@ -81,23 +81,27 @@ export default function BrandLoginPage() {
 
       {/* ─── TOP BRAND HEADER ─── */}
       <header className="relative z-10 w-full px-6 sm:px-12 py-5 flex items-center justify-between border-b border-white/5 backdrop-blur-md bg-[#181b1c]/60">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#febd1c] to-[#ffd269] flex items-center justify-center font-extrabold text-black text-xl shadow-lg shadow-amber-500/20">
-            1:7
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-white tracking-tight text-lg sm:text-xl">
-                1to7 <span className="text-[#febd1c] font-medium">Brand Portal</span>
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30">
-                Enterprise B2B
-              </span>
+        <div className="flex items-center gap-3.5">
+          <Link href="/brand/login" className="flex items-center gap-3 group">
+            <img
+              src="/logo-icon.svg"
+              alt="1to7 Media"
+              className="w-10 h-10 object-contain drop-shadow-md group-hover:scale-105 transition-transform"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-white tracking-tight text-lg sm:text-xl">
+                  1to7 <span className="text-[#febd1c] font-medium">Brand Portal</span>
+                </span>
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30">
+                  Enterprise B2B
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 hidden sm:block">
+                Creator Review & Campaign Operations Suite
+              </p>
             </div>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Creator Review & Campaign Operations Suite
-            </p>
-          </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-4">
@@ -183,8 +187,12 @@ export default function BrandLoginPage() {
             >
               {/* Card Header */}
               <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30 mb-3 shadow-inner">
-                  <Building2 className="w-6 h-6" />
+                <div className="inline-flex items-center justify-center mb-3">
+                  <img
+                    src="/logo-icon.svg"
+                    alt="1to7 Media Badge"
+                    className="w-14 h-14 object-contain drop-shadow-lg hover:scale-105 transition-transform"
+                  />
                 </div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">
                   Brand Workspace Login
