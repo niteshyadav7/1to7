@@ -94,6 +94,19 @@ export default function AdminBrandsManagementPage() {
           </p>
         </div>
 
+        {/* Dedicated Portal Announcement */}
+        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+          <div className="text-xs text-amber-300">
+            <strong>Dedicated Portal Active:</strong> Brand operations now has its own standalone admin with Google login &amp; RBAC.
+          </div>
+          <Link
+            href="/brand-admin/dashboard"
+            className="px-3 py-1.5 rounded-lg bg-[#febd1c] text-neutral-950 font-bold text-xs hover:bg-[#febd1c]/90 shrink-0"
+          >
+            Open Brand Admin →
+          </Link>
+        </div>
+
         <div className="flex items-center gap-3">
           <div className="w-full sm:w-64 relative">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />

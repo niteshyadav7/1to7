@@ -64,7 +64,7 @@ const allSidebarLinks: NavLink[] = [
   { href: '/admin/stats', label: 'Platform Stats', icon: TrendingUp, moduleKey: 'analytics' },
   { href: '/admin/poc-dashboard', label: 'POC Performance', icon: Award, moduleKey: 'poc_dashboard' },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
-  { href: '/admin/brands', label: 'Client Brands', icon: Building2, moduleKey: 'campaigns' },
+  { href: '/brand-admin/dashboard', label: 'Brand Admin Portal', icon: Building2, moduleKey: 'campaigns' },
   { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
   { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
   { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
