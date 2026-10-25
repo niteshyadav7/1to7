@@ -522,7 +522,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
       <div className={`rounded-2xl border overflow-hidden w-full max-w-full ${
         isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-xl'
       }`}>
-        <div className="overflow-x-auto w-full max-w-full scrollbar-thin scrollbar-thumb-white/10">
+        <div className="overflow-x-auto w-full max-w-full scrollbar-none">
           <table className="w-full text-left border-collapse text-xs">
             {/* Header */}
             <thead className={`font-bold uppercase tracking-wider text-[11px] border-b select-none sticky top-0 z-10 ${
@@ -558,7 +558,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       key={col.key}
                       onClick={() => canSort && handleSort(col.key)}
                       style={{ width: col.width }}
-                      className={`p-3 sm:p-3.5 whitespace-nowrap transition-colors ${
+                      className={`py-3 px-2.5 sm:px-3 whitespace-nowrap transition-colors ${
                         col.align === 'center'
                           ? 'text-center'
                           : col.align === 'right'
@@ -695,7 +695,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                           <td
                             key={col.key}
                             className={`whitespace-nowrap ${
-                              isCompact ? 'py-2 px-3' : 'py-3.5 px-3.5'
+                              isCompact ? 'py-2 px-2.5' : 'py-2.5 px-2.5 sm:px-3'
                             } ${
                               col.align === 'center'
                                 ? 'text-center'

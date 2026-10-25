@@ -104,16 +104,16 @@ export default function BrandCampaignsPage() {
             header: 'Campaign & Category',
             sortable: true,
             render: (camp) => (
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+              <div className="py-0.5 max-w-[280px]">
+                <div className="mb-1">
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 inline-block">
                     {camp.campaign_code}
                   </span>
-                  <span className="font-bold text-[#1a1c1c] text-xs sm:text-sm">
-                    {camp.title}
-                  </span>
                 </div>
-                <div className="text-slate-500 text-[11px] mt-0.5">
+                <div className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                  {camp.title}
+                </div>
+                <div className="text-slate-400 text-[11px] mt-0.5">
                   {camp.category} • {camp.platform}
                 </div>
               </div>
