@@ -244,12 +244,11 @@ export default function BrandAdminDashboardPage() {
 
               {/* 1-Click Masquerade / Virtual Brand Button */}
               <Link
-                href={`/brand/dashboard`}
-                target="_blank"
+                href={`/brand-admin/virtual-brand/${brand.id}`}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>View As Brand (Virtual Profile)</span>
+                <span>Enter Virtual Brand Mode</span>
               </Link>
             </motion.div>
           ))}

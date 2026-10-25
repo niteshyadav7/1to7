@@ -193,7 +193,7 @@ export default function BrandAdminLoginPage() {
       {/* ─── MAIN CONTENT: 2-COLUMN BALANCED DESKTOP / CENTERED MOBILE ─── */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-8 lg:px-14 py-8 sm:py-12 w-full max-w-full overflow-x-hidden">
         <div className="max-w-[1240px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
-          
+
           {/* LEFT COLUMN: BRAND OPERATIONS VALUE SUITE (Desktop) */}
           <div className="hidden lg:flex lg:col-span-7 flex-col space-y-5 max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-xs font-semibold text-amber-300 w-fit">
@@ -412,7 +412,7 @@ export default function BrandAdminLoginPage() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="superadmin@gmail.com"
+                            placeholder="admin@company.com"
                             required
                             className="pl-10 h-11 bg-[#0a0d14] border-white/10 text-white placeholder:text-neutral-500 rounded-xl focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
                           />

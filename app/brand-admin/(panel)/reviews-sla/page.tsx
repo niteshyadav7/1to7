@@ -207,7 +207,7 @@ export default function ReviewSlaWatchtowerPage() {
                   </Button>
 
                   {/* Virtual Brand Mode Proxy Button */}
-                  <Link href="/brand/campaigns" target="_blank">
+                  <Link href={`/brand-admin/virtual-brand/${batch.brandName.toLowerCase().includes('plum') ? 'b-plum' : batch.brandName.toLowerCase().includes('sugar') ? 'b-sugar' : 'b-mamaearth'}`}>
                     <Button
                       size="sm"
                       variant="outline"

@@ -19,6 +19,7 @@ import {
   Sparkles,
   ArrowRightLeft,
   Crown,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { BrandAdminPayload } from '@/types/brand-admin'
@@ -40,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
     title: 'Client Brands',
     href: '/brand-admin/brands',
     icon: Building2,
+  },
+  {
+    title: 'Virtual Brand Studio',
+    href: '/brand-admin/virtual-brand',
+    icon: Eye,
+    badge: 'Proxy',
   },
   {
     title: 'Review SLA Watchtower',
