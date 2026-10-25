@@ -141,25 +141,29 @@ export default function BrandLoginPage() {
             className="w-full max-w-[460px] bg-[#1e2224]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 md:p-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative"
           >
             {/* Card Header */}
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center mb-3.5 relative">
-                <div className="absolute inset-0 bg-[#febd1c]/20 blur-xl rounded-full" />
-                <img
-                  src="/logo-icon.svg"
-                  alt="1to7 Media Badge"
-                  className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-lg relative hover:scale-105 transition-transform"
-                />
+            <div className="flex flex-col items-center justify-center text-center mb-6 sm:mb-7">
+              {/* Logo Emblem with Ambient Back-Glow */}
+              <div className="relative mb-3.5">
+                <div className="absolute inset-0 bg-[#febd1c]/25 blur-2xl rounded-full scale-125 pointer-events-none" />
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-[#141718] border border-white/10 shadow-2xl flex items-center justify-center p-3 hover:scale-105 transition-transform">
+                  <img
+                    src="/logo-icon.svg"
+                    alt="1to7 Media"
+                    className="w-full h-full object-contain drop-shadow-md"
+                  />
+                </div>
               </div>
-              
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#febd1c]/15 text-[#febd1c] border border-[#febd1c]/30 text-[10px] font-bold uppercase tracking-wider mb-2">
-                <Building2 className="w-3 h-3" />
+
+              {/* Centered Purpose Pill Badge */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#febd1c]/10 text-[#febd1c] border border-[#febd1c]/25 text-[11px] font-bold uppercase tracking-wider mb-2.5 shadow-xs">
+                <Building2 className="w-3.5 h-3.5" />
                 <span>Enterprise Brand Portal</span>
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                Brand Workspace
+                Brand Workspace Login
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xs mx-auto">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xs leading-relaxed">
                 Sign in with your official brand credentials to manage campaigns & reviews.
               </p>
             </div>
