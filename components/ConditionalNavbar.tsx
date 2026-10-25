@@ -9,9 +9,14 @@ export function ConditionalNavbar() {
   // Guard against null pathname during initial load or hydration
   if (!pathname) return null
 
-  // Do not show Navbar on homepage, auth pages, dashboard, admin, and report-issue
+  // Do not show Navbar on homepage, auth pages, dashboard, admin, brand portal, and report-issue
   const hiddenRoutes = ['/', '/signup', '/login', '/forgot-password', '/report-issue']
-  if (hiddenRoutes.includes(pathname) || pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
+  if (
+    hiddenRoutes.includes(pathname) ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/brand')
+  ) {
     return null
   }
 
