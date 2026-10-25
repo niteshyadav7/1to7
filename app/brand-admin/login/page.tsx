@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowLeft,
-  KeyRound,
   Zap,
   Target,
   ArrowRightLeft,
@@ -43,13 +42,6 @@ export default function BrandAdminLoginPage() {
     email: string
     name?: string
   } | null>(null)
-
-  // Quick Demo fill for Super Admin
-  const handleQuickFillSuperAdmin = () => {
-    setEmail('superadmin@gmail.com')
-    setPassword('superadmin123')
-    toast.info('Filled credentials for superadmin@gmail.com')
-  }
 
   // Standard Email/Password login
   const handleLogin = async (e: React.FormEvent) => {
@@ -465,19 +457,6 @@ export default function BrandAdminLoginPage() {
                         )}
                       </Button>
                     </form>
-
-                    {/* Super Admin 1-Click Quick Fill */}
-                    <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
-                      <span className="text-neutral-400">Need quick testing?</span>
-                      <button
-                        type="button"
-                        onClick={handleQuickFillSuperAdmin}
-                        className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold transition-colors cursor-pointer"
-                      >
-                        <KeyRound className="w-3.5 h-3.5" />
-                        Fill superadmin@gmail.com
-                      </button>
-                    </div>
 
                     {/* RBAC Notice */}
                     <div className="mt-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-neutral-300 leading-relaxed flex items-start gap-2.5">

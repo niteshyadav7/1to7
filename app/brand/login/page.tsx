@@ -63,13 +63,6 @@ export default function BrandLoginPage() {
     }
   }
 
-  const fillDemoCredentials = () => {
-    setEmail('demo@mamaearth.in')
-    setPassword('brand123')
-    setErrorMsg('')
-    toast.info('Loaded demo Mamaearth credentials')
-  }
-
   return (
     <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#181b1c] text-white flex flex-col justify-between selection:bg-[#febd1c] selection:text-black font-sans relative">
       {/* ─── AMBIENT BACKGROUND GLOWS (STRICTLY CONTAINED TO PREVENT HORIZONTAL SCROLL) ─── */}
@@ -280,18 +273,6 @@ export default function BrandLoginPage() {
                   )}
                 </button>
               </form>
-
-              {/* Quick Demo Access Box */}
-              <div className="mt-5 pt-4 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="w-full py-2 px-3 rounded-xl bg-white/5 hover:bg-[#febd1c]/15 border border-white/10 hover:border-[#febd1c]/40 text-xs font-semibold text-slate-300 hover:text-[#febd1c] transition flex items-center justify-center gap-1.5 cursor-pointer group"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#febd1c] group-hover:scale-110 transition-transform" />
-                  <span>Click to Load Demo Mamaearth Credentials</span>
-                </button>
-              </div>
 
               {/* Security Pill */}
               <div className="mt-4 text-center flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
