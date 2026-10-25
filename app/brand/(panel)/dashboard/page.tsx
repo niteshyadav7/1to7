@@ -20,6 +20,7 @@ import {
   Megaphone
 } from 'lucide-react'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
+import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
 interface DashboardStats {
   pendingReview: number
@@ -203,10 +204,12 @@ export default function BrandDashboardPage() {
                     {camp.campaign_code}
                   </span>
                 </div>
-                <div className="font-bold text-[#1a1c1c] text-xs sm:text-sm leading-tight truncate" title={camp.title}>
-                  {camp.title}
-                </div>
-                <div className="text-slate-500 text-[11px] mt-0.5 truncate" title={`${camp.platform} • ${camp.budget_type}`}>
+                <EllipsisTooltip text={camp.title} subtext={`${camp.platform} • ${camp.budget_type}`}>
+                  <div className="font-bold text-[#1a1c1c] text-xs sm:text-sm leading-tight truncate cursor-default">
+                    {camp.title}
+                  </div>
+                </EllipsisTooltip>
+                <div className="text-slate-500 text-[11px] mt-0.5 truncate">
                   {camp.platform} • {camp.budget_type}
                 </div>
               </div>

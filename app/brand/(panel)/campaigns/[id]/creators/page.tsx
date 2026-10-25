@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import type { BrandCreatorItem } from '@/types/brand'
 import { formatFollowerCount } from '@/lib/utils/brand-privacy-utils'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
+import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
 const rejectionReasons = [
   'Aesthetic does not match brand style',
@@ -288,15 +289,16 @@ export default function CreatorReviewStudioPage() {
                   {c.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={c.creator_name}>
-                    {c.creator_name}
-                  </div>
+                  <EllipsisTooltip text={c.creator_name} subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}`}>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                      {c.creator_name}
+                    </div>
+                  </EllipsisTooltip>
                   <a
                     href={`https://instagram.com/${c.instagram_username}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
-                    title={`@${c.instagram_username}`}
                   >
                     <Instagram className="w-3 h-3 shrink-0" />
                     <span className="truncate">@{c.instagram_username}</span>
@@ -323,10 +325,12 @@ export default function CreatorReviewStudioPage() {
             sortable: true,
             width: '12%',
             render: (c) => (
-              <div className="inline-flex items-center gap-1 text-slate-600 text-xs truncate max-w-full" title={c.city || 'Pan India'}>
-                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="truncate">{c.city || 'Pan India'}</span>
-              </div>
+              <EllipsisTooltip text={c.city || 'Pan India'} subtext="Creator Location">
+                <div className="inline-flex items-center gap-1 text-slate-600 text-xs truncate max-w-full cursor-default">
+                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{c.city || 'Pan India'}</span>
+                </div>
+              </EllipsisTooltip>
             ),
           },
           {
@@ -335,13 +339,12 @@ export default function CreatorReviewStudioPage() {
             width: '20%',
             render: (c) => (
               c.selected_variant ? (
-                <div
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden"
-                  title={c.selected_variant}
-                >
-                  <Package className="w-3.5 h-3.5 shrink-0 text-amber-600" />
-                  <span className="truncate block min-w-0">{c.selected_variant}</span>
-                </div>
+                <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden cursor-default">
+                    <Package className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                    <span className="truncate block min-w-0">{c.selected_variant}</span>
+                  </div>
+                </EllipsisTooltip>
               ) : (
                 <span className="text-slate-400 text-xs italic">Standard Sample</span>
               )

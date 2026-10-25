@@ -12,6 +12,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
+import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
 interface DispatchItem {
   id: string
@@ -120,10 +121,12 @@ export default function BrandDispatchesTrackerPage() {
                   {d.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={d.creator_name}>
-                    {d.creator_name}
-                  </div>
-                  <div className="text-[11px] text-pink-600 font-medium truncate" title={`@${d.handle} • ${d.city}`}>
+                  <EllipsisTooltip text={d.creator_name} subtext={`@${d.handle} • ${d.city}`}>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                      {d.creator_name}
+                    </div>
+                  </EllipsisTooltip>
+                  <div className="text-[11px] text-pink-600 font-medium truncate">
                     @{d.handle} • {d.city}
                   </div>
                 </div>
@@ -136,9 +139,11 @@ export default function BrandDispatchesTrackerPage() {
             sortable: true,
             width: '20%',
             render: (d) => (
-              <div className="truncate text-slate-800 text-xs font-medium max-w-full" title={d.campaign}>
-                {d.campaign}
-              </div>
+              <EllipsisTooltip text={d.campaign} subtext="Brand Campaign">
+                <div className="truncate text-slate-800 text-xs font-medium max-w-full cursor-default">
+                  {d.campaign}
+                </div>
+              </EllipsisTooltip>
             ),
           },
           {
@@ -146,13 +151,12 @@ export default function BrandDispatchesTrackerPage() {
             header: 'Product Sample Choice',
             width: '23%',
             render: (d) => (
-              <div
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden"
-                title={d.sample_choice}
-              >
-                <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="truncate block min-w-0">{d.sample_choice}</span>
-              </div>
+              <EllipsisTooltip text={d.sample_choice} subtext="Selected Sample Kit">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden cursor-default">
+                  <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate block min-w-0">{d.sample_choice}</span>
+                </div>
+              </EllipsisTooltip>
             ),
           },
           {
@@ -162,10 +166,12 @@ export default function BrandDispatchesTrackerPage() {
             width: '15%',
             render: (d) => (
               <div className="min-w-0 max-w-full">
-                <span className="font-mono text-xs font-bold text-slate-900 block truncate" title={d.awb_number}>
-                  {d.awb_number}
-                </span>
-                <span className="text-[11px] text-slate-500 truncate block" title={d.courier_partner}>
+                <EllipsisTooltip text={d.awb_number} subtext={d.courier_partner}>
+                  <span className="font-mono text-xs font-bold text-slate-900 block truncate cursor-default">
+                    {d.awb_number}
+                  </span>
+                </EllipsisTooltip>
+                <span className="text-[11px] text-slate-500 truncate block">
                   {d.courier_partner}
                 </span>
               </div>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
+import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
 interface CampaignItem {
   id: string
@@ -112,10 +113,12 @@ export default function BrandCampaignsPage() {
                     {camp.campaign_code}
                   </span>
                 </div>
-                <div className="font-bold text-slate-900 text-xs sm:text-sm leading-tight truncate" title={camp.title}>
-                  {camp.title}
-                </div>
-                <div className="text-slate-400 text-[11px] mt-0.5 truncate" title={`${camp.category} • ${camp.platform}`}>
+                <EllipsisTooltip text={camp.title} subtext={`${camp.category} • ${camp.platform}`}>
+                  <div className="font-bold text-slate-900 text-xs sm:text-sm leading-tight truncate cursor-default">
+                    {camp.title}
+                  </div>
+                </EllipsisTooltip>
+                <div className="text-slate-400 text-[11px] mt-0.5 truncate">
                   {camp.category} • {camp.platform}
                 </div>
               </div>

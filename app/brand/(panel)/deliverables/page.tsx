@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
+import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
 interface DeliverableItem {
   id: string
@@ -141,15 +142,16 @@ export default function BrandDeliverablesPage() {
                   {item.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={item.creator_name}>
-                    {item.creator_name}
-                  </div>
+                  <EllipsisTooltip text={item.creator_name} subtext={`@${item.handle} (${item.followers})`}>
+                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                      {item.creator_name}
+                    </div>
+                  </EllipsisTooltip>
                   <a
                     href={`https://instagram.com/${item.handle}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
-                    title={`@${item.handle} (${item.followers})`}
                   >
                     <Instagram className="w-3 h-3 shrink-0" />
                     <span className="truncate">@{item.handle} ({item.followers})</span>
@@ -164,9 +166,11 @@ export default function BrandDeliverablesPage() {
             sortable: true,
             width: '20%',
             render: (item) => (
-              <div className="truncate text-slate-800 text-xs font-medium max-w-full" title={item.campaign}>
-                {item.campaign}
-              </div>
+              <EllipsisTooltip text={item.campaign} subtext="Brand Campaign">
+                <div className="truncate text-slate-800 text-xs font-medium max-w-full cursor-default">
+                  {item.campaign}
+                </div>
+              </EllipsisTooltip>
             ),
           },
           {
