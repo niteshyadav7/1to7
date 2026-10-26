@@ -287,6 +287,45 @@ export async function ensurePocMigration(): Promise<void> {
         END IF;
 
         CREATE INDEX IF NOT EXISTS idx_applications_brand_pitch_batch ON public.applications(brand_pitch_batch_name);
+
+        -- 10. Sample Roster Brand Portal Direct Publication & Dispatch
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'sample_lists' 
+            AND column_name = 'is_published_to_brand'
+        ) THEN
+          ALTER TABLE public.sample_lists ADD COLUMN is_published_to_brand BOOLEAN DEFAULT false;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'sample_lists' 
+            AND column_name = 'published_at'
+        ) THEN
+          ALTER TABLE public.sample_lists ADD COLUMN published_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'sample_lists' 
+            AND column_name = 'published_by'
+        ) THEN
+          ALTER TABLE public.sample_lists ADD COLUMN published_by TEXT;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'sample_lists' 
+            AND column_name = 'pitch_note_to_brand'
+        ) THEN
+          ALTER TABLE public.sample_lists ADD COLUMN pitch_note_to_brand TEXT;
+        END IF;
+
+        CREATE INDEX IF NOT EXISTS idx_sample_lists_brand_portal ON public.sample_lists(brand_id, is_published_to_brand);
       END $$;
     `)
     global._pocMigrationDone = true

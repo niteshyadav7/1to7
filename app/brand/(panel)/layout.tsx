@@ -19,7 +19,8 @@ import {
   Sparkles,
   ExternalLink,
   Bell,
-  CheckCircle2
+  CheckCircle2,
+  BookmarkPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandPayload } from '@/types/brand'
@@ -34,6 +35,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/brand/dashboard', icon: LayoutDashboard },
   { name: 'Campaigns & Review', href: '/brand/campaigns', icon: Users },
+  { name: 'Sample Pitch Decks', href: '/brand/sample-rosters', icon: BookmarkPlus, badge: 'Pitched' },
   { name: 'Sample Dispatches', href: '/brand/dispatches', icon: Truck },
   { name: 'Live Deliverables', href: '/brand/deliverables', icon: Video },
   { name: 'Analytics & ROI', href: '/brand/reports', icon: BarChart3 },

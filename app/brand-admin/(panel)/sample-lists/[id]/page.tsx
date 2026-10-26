@@ -32,6 +32,7 @@ import {
   Upload,
   FileDown,
   CheckCircle2,
+  Send,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AVAILABLE_ROSTER_COLUMNS, type SampleList, type SampleListItem, type SampleRosterColumnKey } from '@/types/sample-roster'
@@ -83,9 +84,30 @@ export default function SampleListStudioPage({
   ])
   const [savingSettings, setSavingSettings] = useState(false)
 
+  // Publish to Brand Portal state
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [availableBrands, setAvailableBrands] = useState<any[]>([])
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('')
+  const [selectedBrandName, setSelectedBrandName] = useState<string>('')
+  const [pitchNote, setPitchNote] = useState<string>('')
+  const [publishing, setPublishing] = useState(false)
+
   useEffect(() => {
     fetchRosterDetails()
+    fetchAvailableBrands()
   }, [id])
+
+  const fetchAvailableBrands = async () => {
+    try {
+      const res = await fetch('/api/brand-admin/brands-list')
+      const data = await res.json()
+      if (res.ok && data.brands) {
+        setAvailableBrands(data.brands)
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
 
   const fetchRosterDetails = async () => {
     setLoading(true)
@@ -98,6 +120,9 @@ export default function SampleListStudioPage({
         if (data.list?.visible_columns && Array.isArray(data.list.visible_columns)) {
           setSelectedColumns(data.list.visible_columns)
         }
+        if (data.list?.brand_id) setSelectedBrandId(data.list.brand_id)
+        if (data.list?.brand_name) setSelectedBrandName(data.list.brand_name)
+        if (data.list?.pitch_note_to_brand) setPitchNote(data.list.pitch_note_to_brand)
       } else {
         toast.error(data.error || 'Failed to load roster')
       }
@@ -105,6 +130,39 @@ export default function SampleListStudioPage({
       toast.error('Failed to load roster details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle Publish / Send to Brand Portal
+  const handlePublishToBrand = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedBrandName.trim()) {
+      return toast.error('Please select or specify the target client brand')
+    }
+
+    setPublishing(true)
+    try {
+      const res = await fetch(`/api/brand-admin/sample-lists/${id}/publish-to-brand`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_id: selectedBrandId || undefined,
+          brand_name: selectedBrandName.trim(),
+          pitch_note_to_brand: pitchNote.trim() || undefined,
+          visible_columns: selectedColumns,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send to brand portal')
+
+      toast.success(data.message || `Sample roster sent to ${selectedBrandName}'s Brand Portal!`)
+      setList(data.roster)
+      setShowPublishModal(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send to brand portal')
+    } finally {
+      setPublishing(false)
     }
   }
 
@@ -546,6 +604,15 @@ export default function SampleListStudioPage({
             </button>
 
             <button
+              onClick={() => setShowPublishModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
+              title="Publish and send this sample roster directly to the brand's portal table"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>{list.is_published_to_brand ? 'Update on Brand Portal' : 'Send to Brand Portal'}</span>
+            </button>
+
+            <button
               onClick={() => setShowShareModal(true)}
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/25 transition-all cursor-pointer"
             >
@@ -563,6 +630,45 @@ export default function SampleListStudioPage({
           </div>
         </div>
       </div>
+
+      {/* Brand Portal Publication Banner */}
+      {list.is_published_to_brand && (
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-yellow-950/30 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-amber-400/20 text-amber-300 shrink-0">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-bold text-white flex items-center gap-1.5">
+                <span>Active on Brand Client Portal</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Target: {list.brand_name}
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Brand client can inspect the creators table and submit shortlists directly inside their portal.
+                {list.published_at && (
+                  <span className="text-amber-300/80 ml-1">
+                    (Sent {new Date(list.published_at).toLocaleDateString()})
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <a
+              href="/brand/sample-rosters"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-bold text-xs flex items-center gap-1.5 border border-amber-400/30 transition-all cursor-pointer"
+            >
+              <span>View in Brand Portal</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Share Notification Banner */}
       <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-slate-900 border border-purple-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
@@ -1179,6 +1285,140 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal 4: Send / Publish to Brand Portal */}
+      <AnimatePresence>
+        {showPublishModal && (
+          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-slate-900 border border-amber-400/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-400/20 text-amber-400 border border-amber-400/30">
+                    <Send className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">Send to Brand Client Portal</h3>
+                    <p className="text-xs text-slate-400">
+                      Dispatches this sample roster into the brand's authenticated portal table
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePublishToBrand} className="space-y-4 text-xs">
+                {/* Brand Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Target Client Brand</span>
+                  </label>
+
+                  {availableBrands.length > 0 && (
+                    <select
+                      value={selectedBrandId}
+                      onChange={(e) => {
+                        const bId = e.target.value
+                        setSelectedBrandId(bId)
+                        const match = availableBrands.find((b) => b.id === bId)
+                        if (match) setSelectedBrandName(match.name)
+                      }}
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="">-- Choose Existing Client Brand --</option>
+                      {availableBrands.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.industry || 'Client Brand'})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <input
+                    type="text"
+                    value={selectedBrandName}
+                    onChange={(e) => setSelectedBrandName(e.target.value)}
+                    placeholder="Or enter brand name (e.g. Mamaearth, boAt Lifestyle)..."
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 mt-1"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-500">
+                    The roster will appear directly under the brand's "Sample Pitch Decks" tab.
+                  </p>
+                </div>
+
+                {/* Pitch Note to Brand POC */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    <span>KAM Pitch Note to Brand</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={pitchNote}
+                    onChange={(e) => setPitchNote(e.target.value)}
+                    placeholder="e.g. Hi Team, curated these top creators for your upcoming launch. High reel engagement and verified Pan-India delivery."
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* Column Shield Confirmation Card */}
+                <div className="p-3 rounded-2xl bg-slate-950/80 border border-purple-500/20 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-purple-300 flex items-center gap-1">
+                      <Shield className="h-3.5 w-3.5" />
+                      <span>Security & Margin Protection</span>
+                    </span>
+                    <span className="text-emerald-400 text-[11px]">Active</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Sharing with <strong className="text-white">{selectedColumns.length} revealed columns</strong>.
+                    Internal cost (₹) and admin notes are permanently stripped from the brand view.
+                  </p>
+                </div>
+
+                {/* Submit Actions */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => setShowPublishModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white border border-white/10 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={publishing || !selectedBrandName.trim()}
+                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 flex items-center gap-2 shadow-lg shadow-amber-400/25 disabled:opacity-50 cursor-pointer transition-all"
+                  >
+                    {publishing ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Sending to Brand...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3.5 w-3.5" />
+                        <span>Publish & Send to Brand Portal</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

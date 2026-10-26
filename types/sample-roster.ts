@@ -95,6 +95,10 @@ export interface SampleList {
   allow_brand_shortlisting: boolean
   visible_columns: SampleRosterColumnKey[]
   status: 'draft' | 'active' | 'archived'
+  is_published_to_brand?: boolean
+  published_at?: string | null
+  published_by?: string | null
+  pitch_note_to_brand?: string | null
   view_count: number
   last_viewed_at?: string | null
   created_by?: string | null

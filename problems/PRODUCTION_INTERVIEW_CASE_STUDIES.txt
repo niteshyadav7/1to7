@@ -59,6 +59,7 @@ CASE 48: Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Trun
 CASE 49: Two-Gatekeeper Curation Architecture & Agency-to-Brand Shortlist Pitching Pipeline (Eliminating Manual Google Sheet Leaks & Commercial Exposure)
 CASE 50: Dual-Hub Sample Influencer Curation, Dynamic Column Shield & Inbound Brand Shortlist Loop
 CASE 51: Two-Gatekeeper Campaign Applicant Pitching, Pre-Brand Curation Desk & Real-Time Bi-Directional Decision Sync
+CASE 52: Direct In-Portal Sample Influencer Roster Dispatch & Interactive Client Review Desk (Target Brand Scoping, Margin Stripping & In-Portal Shortlist Bidirectional Sync)
 
 
 
@@ -2056,16 +2057,53 @@ We implemented a Two-Gatekeeper Campaign Curation & Real-Time Reflection Engine:
 "To orchestrate complex agency-to-brand curation without spreadsheet leaks, implement a Two-Gatekeeper State Machine: Gatekeeper 1 allows talent ops to batch-forward applicants into an internal Brand Admin triage desk (`queued_for_brand_admin`), where Gatekeeper 2 (KAMs) applies column privacy shields and internal drop filters before single-click dispatching to client portals (`pending_brand_review`). Back this with PostgreSQL state indexing and WebSocket real-time reflection so client decisions trigger instant fulfillment actions across all admin hubs."
 
 ====================================================================================================
+CASE 52: Direct In-Portal Sample Influencer Roster Dispatch & Interactive Client Review Desk (Target Brand Scoping, Margin Stripping & In-Portal Shortlist Bidirectional Sync)
+Category: Client Portal Integration, Zero-Trust Access Scoping, Bi-directional Workflow Automation
+
+[INTERVIEW QUESTION]
+"How do you enable agency account managers to curate external or database-sourced influencer sample rosters and push them directly into specific authenticated client brand portals as interactive tables, while ensuring internal margins remain secret and client shortlists automatically flow back into agency ops?"
+
+[SITUATION]
+While 1to7 Media provided a public presentation shortlink (`/view/roster/[token]`) for general pitches, major enterprise brand partners (e.g. Mamaearth, Sugar Cosmetics, boAt Lifestyle) log directly into their enterprise Brand Client Portal (`/brand`).
+Account managers had no direct mechanism in Brand Admin to bind a curated roster to a specific brand organization and push it into that brand's authenticated dashboard. Concurrently, brand executives had no dedicated in-portal "Sample Pitch Decks" table to inspect creator metrics (followers, average reels views, engagement rate %, sample reels, commercials) and submit approved shortlists with requirement notes directly to 1to7.
+
+[ROOT CAUSE]
+1. Domain Boundary Disconnect:
+   `public.sample_lists` possessed `brand_id` and `brand_name` columns, but lacked publication state flags (`is_published_to_brand`, `published_at`, `pitch_note_to_brand`).
+2. Missing In-Portal Nav Surface:
+   The Brand Client Portal (`/brand/(panel)`) navigation only catered to active campaigns and product dispatches, lacking an inbound sample pitch review tab.
+3. Client Margin & Note Exposure Risk:
+   Without an authenticated in-portal endpoint with strict column projecting, querying raw sample roster items risked exposing agency secrets (`internal_cost` and `admin_notes`).
+
+[SOLUTION & ARCHITECTURE]
+1. Database Schema Migration:
+   - Added `is_published_to_brand BOOLEAN DEFAULT false`, `published_at TIMESTAMP WITH TIME ZONE`, `published_by TEXT`, and `pitch_note_to_brand TEXT` to `public.sample_lists`.
+   - Indexed `public.sample_lists(brand_id, is_published_to_brand)` for sub-millisecond portal queries.
+2. 1-Click Agency Dispatch Gateway:
+   - Built `POST /api/brand-admin/sample-lists/[id]/publish-to-brand`: Validates that the roster contains creators, binds `brand_id` and `brand_name`, sets `is_published_to_brand = true`, saves personalized KAM pitch notes, and writes an audit event to `public.brand_audit_logs`.
+   - Built a luxury dispatch modal in `/brand-admin/sample-lists/[id]` with client brand dropdown populated from `public.brands`, KAM notes, and a status banner linking directly to the live brand view.
+3. Dedicated Brand Portal Pitch Desk:
+   - Added `Sample Pitch Decks` (badge: *Pitched*) to `navItems` in `app/brand/(panel)/layout.tsx`.
+   - Implemented `/brand/sample-rosters`: A responsive master-detail dashboard showing all rosters pitched specifically to the authenticated brand.
+   - Built an interactive creator table featuring checkbox multi-selection, search filter, sample reel preview triggers, and formatted reach metrics.
+4. Zero-Trust Security & Bi-directional Shortlisting:
+   - Endpoint `GET /api/brand/sample-rosters/[id]` strictly whitelists only client-approved columns, completely omitting `internal_cost` and `admin_notes`.
+   - Endpoint `POST /api/brand/sample-rosters/[id]/shortlist`: Brand executives select creators and submit requirements; inserts directly into `public.brand_shortlists` (status: `'new'`), immediately reflecting into Brand Admin (`/brand-admin/brand-shortlists`) for KAM fulfillment.
+
+[INTERVIEW STAR TAKEAWAY]
+"To replace external links with authenticated portal-to-portal collaboration, implement Scoped Direct Dispatch: Allow agency managers to bind curated rosters to client brand accounts with custom pitch notes, enforce database-level publication flags (`is_published_to_brand = true`), and project clean, margin-stripped creator tables directly into client navigation. Pair this with in-place checkbox shortlisting that writes to an inbound queue, turning static pitch decks into an active, bi-directional closing engine."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 
 
 ----------------------------------------------------------------------------------------------------
-1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema), and Case 51 (Two-Gatekeeper Curation State Machine & Batch Indexing).
-2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), Case 41 (Dedicated lifecycle state machine endpoints), Case 50 (Declarative Column Visibility Shield & Zero-Trust Public Projection), and Case 51 (Atomic Forward, Dispatch, and Internal Drop Endpoints).
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema), Case 51 (Two-Gatekeeper Curation State Machine & Batch Indexing), and Case 52 (Direct In-Portal Dispatch Flags & Brand-Scoped Composite Indexing).
+2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), Case 41 (Dedicated lifecycle state machine endpoints), Case 50 (Declarative Column Visibility Shield & Zero-Trust Public Projection), Case 51 (Atomic Forward, Dispatch, and Internal Drop Endpoints), and Case 52 (Brand-Scoped In-Portal Pitch Endpoints & Zero-Margin Extraction).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), and Case 31 (Logistics-grade address schemas & courier contracts).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals), Case 50 (Dual-Portal Curation Hubs & Dedicated Inbound Shortlist Review Desk), and Case 51 (Dedicated Campaign Pitch Desk with Multi-Level Filters, Sticky Bulk Actions & Real-Time Sync).
-5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization), Case 49 (Two-Gatekeeper Curation & PII/Commercial Shield), Case 50 (Zero-PII Column Projection & Agency Margin Protection), and Case 51 (Hard-Coded Anti-Leak Invariant & Pre-Brand Internal Drop Gateway).
-6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes), Case 50 (Inbound Shortlist State Machine & Conversion Continuity), and Case 51 (Bidirectional Real-Time Decision Loopback & Post-Shortlist Fulfillment Continuity).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals), Case 50 (Dual-Portal Curation Hubs & Dedicated Inbound Shortlist Review Desk), Case 51 (Dedicated Campaign Pitch Desk with Multi-Level Filters, Sticky Bulk Actions & Real-Time Sync), and Case 52 (Brand Portal Pitch Desk with Interactive Checkbox Shortlisting & Instant Dispatch Gateway).
+5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization), Case 49 (Two-Gatekeeper Curation & PII/Commercial Shield), Case 50 (Zero-PII Column Projection & Agency Margin Protection), Case 51 (Hard-Coded Anti-Leak Invariant & Pre-Brand Internal Drop Gateway), and Case 52 (Strict Brand Account Scoping & Margin Zero-Exposure Invariant).
+6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes), Case 50 (Inbound Shortlist State Machine & Conversion Continuity), Case 51 (Bidirectional Real-Time Decision Loopback & Post-Shortlist Fulfillment Continuity), and Case 52 (In-Portal Brand Shortlist Lifecycle & Automatic Inbound Sync).
 ====================================================================================================
 
 
