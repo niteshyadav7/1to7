@@ -1906,6 +1906,7 @@ export default function InfluencersDirectoryPage() {
                                >
                                  👻 Ghost
                                </button>
+                             )}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1918,7 +1919,6 @@ export default function InfluencersDirectoryPage() {
                                 <BookmarkPlus className="h-3 w-3" />
                                 <span>Sample</span>
                               </button>
-                             )}
                            </div>
                            {user.is_ghosted ? (
                              <button
