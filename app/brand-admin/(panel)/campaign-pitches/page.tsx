@@ -447,7 +447,7 @@ export default function CampaignPitchesCurationPage() {
               >
                 <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
                 {filteredCampaignsList.map(c => (
-                  <option key={c.id} value={c.id}>{c.campaign_code} - {c.title}</option>
+                  <option key={c.id} value={c.id}>{c.campaign_code}{c.title && c.title !== c.campaign_code ? ` - ${c.title}` : ''}</option>
                 ))}
               </select>
             </div>

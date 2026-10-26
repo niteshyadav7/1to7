@@ -25,10 +25,10 @@ export async function GET(request: Request) {
       SELECT DISTINCT 
         c.id as campaign_id,
         c.campaign_code,
-        c.title as campaign_title,
+        COALESCE(c.category, c.brand_name, c.campaign_code, 'Campaign') as campaign_title,
         c.brand_name
       FROM public.campaigns c
-      ORDER BY c.brand_name ASC, c.title ASC;
+      ORDER BY c.brand_name ASC, c.campaign_code ASC;
     `)
 
     const brandsSet = new Set<string>()
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         a.id as application_id,
         a.campaign_id,
         c.campaign_code,
-        COALESCE(c.title, c.campaign_code, 'Campaign') as campaign_title,
+        COALESCE(c.category, c.brand_name, c.campaign_code, 'Campaign') as campaign_title,
         COALESCE(c.brand_name, 'Brand') as brand_name,
         a.user_id,
         COALESCE(u.full_name, 'Creator') as creator_name,
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         u.city,
         u.state,
         u.gender,
-        COALESCE(u.profile_photo, u.instagram_profile_pic, '') as profile_photo,
+        COALESCE(u.instagram_profile_pic, '') as profile_photo,
         COALESCE(a.brand_review_status, 'unpitched') as brand_review_status,
         a.brand_pitch_batch_name,
         a.brand_pitch_notes,
