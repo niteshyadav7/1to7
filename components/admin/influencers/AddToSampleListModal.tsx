@@ -25,7 +25,7 @@ interface AddToSampleListModalProps {
   onSuccess?: (listTitle: string) => void
 }
 
-export default function AddToSampleListModal({
+export function AddToSampleListModal({
   isOpen,
   creator,
   onClose,
@@ -366,3 +366,5 @@ export default function AddToSampleListModal({
     </AnimatePresence>
   )
 }
+
+export default AddToSampleListModal

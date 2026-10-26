@@ -9,7 +9,7 @@ import {
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
   Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye, BookmarkPlus
 } from 'lucide-react'
-import { AddToSampleListModal } from '@/components/admin/influencers/AddToSampleListModal'
+import AddToSampleListModal from '@/components/admin/influencers/AddToSampleListModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
