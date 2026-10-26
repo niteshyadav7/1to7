@@ -49,9 +49,13 @@ export async function GET(request: Request) {
       SELECT 
         a.id as application_id,
         a.campaign_id,
+        a.status as application_status,
+        a.address_status,
+        a.address_verified_at,
         c.campaign_code,
         COALESCE(c.category, c.brand_name, c.campaign_code, 'Campaign') as campaign_title,
         COALESCE(c.brand_name, 'Brand') as brand_name,
+        c.deliverables,
         a.user_id,
         COALESCE(u.full_name, 'Creator') as creator_name,
         COALESCE(u.influencer_id, '') as influencer_id,
@@ -59,6 +63,9 @@ export async function GET(request: Request) {
         COALESCE(u.followers, 0) as followers,
         u.city,
         u.state,
+        u.pincode,
+        u.mobile,
+        u.shipping_addresses,
         u.gender,
         COALESCE(u.instagram_profile_pic, '') as profile_photo,
         COALESCE(a.brand_review_status, 'unpitched') as brand_review_status,
@@ -94,6 +101,63 @@ export async function GET(request: Request) {
       const clientComm = r.form_data?.client_commercial ? Number(r.form_data.client_commercial) : null
       const internalCost = r.form_data?.internal_payout_cost || r.form_data?.internal_cost || r.partial_payment || null
 
+      // Address verification resolution (Strict gatekeeper: Verified ONLY if approved at address desk)
+      const formData = r.form_data || {}
+      const addrObj = formData.shipping_address || (Array.isArray(r.shipping_addresses) ? r.shipping_addresses[0] : null) || null
+      const isVerified = (r.address_status === 'Approved' || formData.address_verified === true)
+      const isRejected = (r.address_status === 'Rejected' || formData.address_status === 'Rejected')
+      const hasSubmittedAddress = Boolean(formData.address_confirmed === true || addrObj?.address_line1 || r.address_status === 'Pending')
+
+      let addressVerificationStatus: 'Verified' | 'Pending' | 'Rejected' | 'Not Submitted' = 'Not Submitted'
+      if (isVerified) {
+        addressVerificationStatus = 'Verified'
+      } else if (isRejected) {
+        addressVerificationStatus = 'Rejected'
+      } else if (hasSubmittedAddress) {
+        addressVerificationStatus = 'Pending'
+      }
+
+      const isReadyForBrandDispatch = (r.application_status === 'Approved' || r.brand_review_status === 'brand_approved') && isVerified
+
+      // Compute structured logistics string ONLY if verified
+      let verifiedAddressDetails = null
+      if (isVerified && addrObj) {
+        const recipientName = addrObj.recipient_name || addrObj.name || r.creator_name || 'Creator'
+        const contactPhone = addrObj.mobile || r.mobile || 'N/A'
+        const altPhone = addrObj.alt_mobile || null
+        const line1 = addrObj.address_line1 || ''
+        const line2 = addrObj.address_line2 || ''
+        const landmark = addrObj.landmark || ''
+        const city = addrObj.city || r.city || ''
+        const state = addrObj.state || r.state || ''
+        const pincode = addrObj.pincode || r.pincode || ''
+        const deliverableSku = variant || r.deliverables || 'Standard Sample'
+        
+        const streetDisplay = [line1, line2, landmark ? `Near ${landmark}` : null].filter(Boolean).join(', ')
+        const locationDisplay = `${city}${state ? `, ${state}` : ''} — ${pincode}`
+        
+        const courierCopyText = [
+          `📦 RECIPIENT: ${recipientName} (Ph: ${contactPhone}${altPhone ? ` / ${altPhone}` : ''})`,
+          `📍 ADDRESS: ${streetDisplay}`,
+          `🏙️ LOCATION: ${locationDisplay}`,
+          `🏷️ DELIVERABLE / SKU: ${deliverableSku}`,
+        ].join('\n')
+
+        verifiedAddressDetails = {
+          recipient_name: recipientName,
+          phone: contactPhone,
+          alt_phone: altPhone,
+          street: streetDisplay,
+          landmark: landmark || null,
+          city,
+          state,
+          pincode,
+          deliverable_sku: deliverableSku,
+          courier_copy_text: courierCopyText,
+          verified_at: r.address_verified_at || null,
+        }
+      }
+
       return {
         application_id: String(r.application_id),
         campaign_id: String(r.campaign_id),
@@ -124,6 +188,10 @@ export async function GET(request: Request) {
         internal_payout_cost: internalCost ? Number(internalCost) : null,
         applied_at: r.applied_at,
         custom_form_data: r.form_data || {},
+        address_verification_status: addressVerificationStatus,
+        is_address_verified: isVerified,
+        is_ready_for_brand_dispatch: isReadyForBrandDispatch,
+        verified_address_details: verifiedAddressDetails,
       }
     })
 
@@ -152,7 +220,7 @@ export async function GET(request: Request) {
         return false
       }
       if (search) {
-        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''} ${item.brand_name || ''} ${item.campaign_code || ''} ${item.campaign_title || ''}`.toLowerCase()
+        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''} ${item.brand_name || ''} ${item.campaign_code || ''} ${item.campaign_title || ''} ${item.verified_address_details?.pincode || ''} ${item.verified_address_details?.street || ''}`.toLowerCase()
         if (!target.includes(search)) return false
       }
       return true

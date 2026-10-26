@@ -216,4 +216,124 @@ describe('Campaign Pitch Curation & Two-Gatekeeper Pipeline Tests', () => {
       expect(batch2Items[0].creator_name).toBe('Kavita Singh')
     })
   })
+
+  describe('Barter Campaign Address Verification Gatekeeper', () => {
+    function resolveAddressGatekeeper(app: {
+      address_status: string | null
+      form_data?: Record<string, any>
+      application_status?: string
+      brand_review_status?: string
+      shipping_addresses?: any[]
+      creator_name?: string
+      mobile?: string
+      city?: string
+      state?: string
+      pincode?: string
+      deliverables?: string
+    }) {
+      const formData = app.form_data || {}
+      const addrObj = formData.shipping_address || (Array.isArray(app.shipping_addresses) ? app.shipping_addresses[0] : null) || null
+      const isVerified = (app.address_status === 'Approved' || formData.address_verified === true)
+      const isRejected = (app.address_status === 'Rejected' || formData.address_status === 'Rejected')
+      const hasSubmitted = Boolean(formData.address_confirmed === true || addrObj?.address_line1 || app.address_status === 'Pending')
+
+      let status: 'Verified' | 'Pending' | 'Rejected' | 'Not Submitted' = 'Not Submitted'
+      if (isVerified) status = 'Verified'
+      else if (isRejected) status = 'Rejected'
+      else if (hasSubmitted) status = 'Pending'
+
+      const isReadyForBrandDispatch = (app.application_status === 'Approved' || app.brand_review_status === 'brand_approved') && isVerified
+
+      let verifiedAddressDetails = null
+      if (isVerified && addrObj) {
+        const recipientName = addrObj.recipient_name || addrObj.name || app.creator_name || 'Creator'
+        const phone = addrObj.mobile || app.mobile || 'N/A'
+        const street = [addrObj.address_line1, addrObj.address_line2, addrObj.landmark ? `Near ${addrObj.landmark}` : null].filter(Boolean).join(', ')
+        const location = `${addrObj.city || app.city || ''}, ${addrObj.state || app.state || ''} — ${addrObj.pincode || app.pincode || ''}`
+        const deliverableSku = formData.sample_variant || app.deliverables || 'Standard Sample'
+
+        verifiedAddressDetails = {
+          recipient_name: recipientName,
+          phone,
+          street,
+          city: addrObj.city || app.city,
+          state: addrObj.state || app.state,
+          pincode: addrObj.pincode || app.pincode,
+          deliverable_sku: deliverableSku,
+          courier_copy_text: `📦 RECIPIENT: ${recipientName} (Ph: ${phone})\n📍 ADDRESS: ${street}\n🏙️ LOCATION: ${location}\n🏷️ DELIVERABLE / SKU: ${deliverableSku}`
+        }
+      }
+
+      return {
+        addressVerificationStatus: status,
+        isVerified,
+        isReadyForBrandDispatch,
+        verifiedAddressDetails
+      }
+    }
+
+    it('marks address as Verified and generates courier manifest ONLY when address_status is Approved', () => {
+      const result = resolveAddressGatekeeper({
+        address_status: 'Approved',
+        application_status: 'Approved',
+        creator_name: 'Neha Arora',
+        mobile: '7665440401',
+        form_data: {
+          address_verified: true,
+          sample_variant: '1 Reel + 1 Story',
+          shipping_address: {
+            recipient_name: 'Neha Arora',
+            mobile: '7665440401',
+            address_line1: 'Ward no 13, Near SS library and behind SDM office',
+            city: 'Anupgarh',
+            state: 'RAJASTHAN',
+            pincode: '335701'
+          }
+        }
+      })
+
+      expect(result.addressVerificationStatus).toBe('Verified')
+      expect(result.isVerified).toBe(true)
+      expect(result.isReadyForBrandDispatch).toBe(true)
+      expect(result.verifiedAddressDetails).not.toBeNull()
+      expect(result.verifiedAddressDetails?.courier_copy_text).toContain('Ward no 13')
+      expect(result.verifiedAddressDetails?.courier_copy_text).toContain('Anupgarh, RAJASTHAN — 335701')
+      expect(result.verifiedAddressDetails?.courier_copy_text).toContain('7665440401')
+    })
+
+    it('blocks unverified addresses from brand dispatch when address is Pending review', () => {
+      const result = resolveAddressGatekeeper({
+        address_status: 'Pending',
+        application_status: 'Approved',
+        creator_name: 'Nikhil Saklani',
+        mobile: '7807640556',
+        form_data: {
+          shipping_address: {
+            address_line1: 'Vikasnagar, Village kripalpur',
+            city: 'Solan',
+            state: 'Himachal Pradesh',
+            pincode: '174101'
+          }
+        }
+      })
+
+      expect(result.addressVerificationStatus).toBe('Pending')
+      expect(result.isVerified).toBe(false)
+      expect(result.isReadyForBrandDispatch).toBe(false)
+      expect(result.verifiedAddressDetails).toBeNull() // Protects unverified address details
+    })
+
+    it('identifies unsubmitted addresses accurately', () => {
+      const result = resolveAddressGatekeeper({
+        address_status: null,
+        form_data: {}
+      })
+
+      expect(result.addressVerificationStatus).toBe('Not Submitted')
+      expect(result.isVerified).toBe(false)
+      expect(result.isReadyForBrandDispatch).toBe(false)
+      expect(result.verifiedAddressDetails).toBeNull()
+    })
+  })
 })
+

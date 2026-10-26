@@ -28,7 +28,11 @@ import {
   Check,
   X,
   Lock,
-  ArrowUpDown
+  ArrowUpDown,
+  Truck,
+  Copy,
+  Phone,
+  Package
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -90,6 +94,19 @@ export default function CampaignPitchesCurationPage() {
 
   // Details Drawer
   const [inspectItem, setInspectItem] = useState<CampaignPitchItem | null>(null)
+
+  // Verified Delivery Address Modal
+  const [viewAddressItem, setViewAddressItem] = useState<CampaignPitchItem | null>(null)
+
+  const handleCopyCourierManifest = (item: CampaignPitchItem) => {
+    const text = item.verified_address_details?.courier_copy_text
+    if (!text) {
+      toast.error('No verified address details available to copy')
+      return
+    }
+    navigator.clipboard.writeText(text)
+    toast.success(`Copied courier manifest for ${item.creator_name}!`)
+  }
 
   // Load Data
   const fetchData = useCallback(async () => {
@@ -660,6 +677,12 @@ export default function CampaignPitchesCurationPage() {
                   <th className="py-3 px-4">Batch</th>
                   <th className="py-3 px-4">Audience & Location</th>
                   <th className="py-3 px-4">Variant / Sample</th>
+                  <th className="py-3 px-4">
+                    <div className="flex items-center gap-1.5">
+                      <Truck className="h-3 w-3 text-emerald-400" />
+                      <span>Delivery Address (Barter)</span>
+                    </div>
+                  </th>
                   <th className="py-3 px-4">Status & Client Decision</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
@@ -780,6 +803,56 @@ export default function CampaignPitchesCurationPage() {
                             <ExternalLink className="h-2.5 w-2.5" />
                             Sample Reel
                           </a>
+                        )}
+                      </td>
+
+                      {/* Delivery Address (Strictly Verified Gatekeeper) */}
+                      <td className="py-3.5 px-4">
+                        {item.address_verification_status === 'Verified' ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                              Address: Verified
+                            </span>
+                            <div className="text-[11px] text-neutral-200 font-medium truncate max-w-[170px]" title={item.verified_address_details?.street}>
+                              {item.verified_address_details?.city}, {item.verified_address_details?.state}
+                            </div>
+                            <div className="text-[10px] font-mono text-emerald-400">
+                              PIN: {item.verified_address_details?.pincode}
+                            </div>
+                            <button
+                              onClick={() => setViewAddressItem(item)}
+                              className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold hover:underline flex items-center gap-1 cursor-pointer pt-0.5"
+                            >
+                              <Eye className="h-2.5 w-2.5" />
+                              <span>View & Copy Courier</span>
+                            </button>
+                          </div>
+                        ) : item.address_verification_status === 'Pending' ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
+                              <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                              Pending Verification
+                            </span>
+                            <div className="text-[10px] text-neutral-400">
+                              Awaiting Address Desk
+                            </div>
+                          </div>
+                        ) : item.address_verification_status === 'Rejected' ? (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                              <XCircle className="h-3 w-3 text-rose-400 shrink-0" />
+                              Address: Rejected
+                            </span>
+                            <div className="text-[10px] text-neutral-400">
+                              Update Requested
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+                            <AlertCircle className="h-3 w-3 text-neutral-500 shrink-0" />
+                            Not Submitted
+                          </span>
                         )}
                       </td>
 
@@ -1051,6 +1124,30 @@ export default function CampaignPitchesCurationPage() {
                   </button>
                 </div>
 
+                {/* 3.5 Logistics / Address Readiness */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-white/5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="font-semibold text-white">
+                        {selectedApplications.filter(a => a.address_verification_status === 'Verified').length} of {selectedApplications.length} Addresses Verified
+                      </div>
+                      <div className="text-[10px] text-neutral-400">
+                        Physical samples can only be dispatched to verified addresses
+                      </div>
+                    </div>
+                  </div>
+                  {selectedApplications.filter(a => a.address_verification_status === 'Verified').length === selectedApplications.length ? (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+                      100% Ready
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
+                      Partial
+                    </span>
+                  )}
+                </div>
+
                 {/* 4. Curation Pitch Note */}
                 <div>
                   <label className="text-xs font-semibold text-neutral-300 block mb-1.5">
@@ -1254,6 +1351,56 @@ export default function CampaignPitchesCurationPage() {
                     )}
                   </div>
 
+                  {/* Verified Delivery Address Section */}
+                  <div className="p-3 bg-slate-950/80 border border-white/10 rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-neutral-300 flex items-center gap-1.5">
+                        <Truck className="h-3.5 w-3.5 text-emerald-400" />
+                        Delivery Address
+                      </span>
+                      {inspectItem.address_verification_status === 'Verified' ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                          ✓ Verified
+                        </span>
+                      ) : inspectItem.address_verification_status === 'Pending' ? (
+                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                          Pending Verification
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-neutral-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">
+                          Not Submitted
+                        </span>
+                      )}
+                    </div>
+                    {inspectItem.verified_address_details ? (
+                      <div className="space-y-1.5 pt-1 text-neutral-300">
+                        <div className="font-semibold text-white">
+                          {inspectItem.verified_address_details.recipient_name} ({inspectItem.verified_address_details.phone})
+                        </div>
+                        <div className="text-[11px] text-neutral-400 leading-relaxed">
+                          {inspectItem.verified_address_details.street}
+                        </div>
+                        <div className="text-[11px] font-bold text-emerald-300">
+                          {inspectItem.verified_address_details.city}, {inspectItem.verified_address_details.state} — PIN: {inspectItem.verified_address_details.pincode}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleCopyCourierManifest(inspectItem)}
+                          className="w-full mt-2 h-8 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/30 font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" />
+                          Copy Courier Manifest
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-neutral-500 italic">
+                        {inspectItem.address_verification_status === 'Pending'
+                          ? 'Address submitted by creator, awaiting verification at Address Confirmation Desk.'
+                          : 'No delivery address recorded. Physical dispatch requires creator address.'}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Brand Decision Section */}
                   <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-1.5 text-xs">
                     <div className="font-bold text-amber-300">Brand Review Status</div>
@@ -1285,6 +1432,145 @@ export default function CampaignPitchesCurationPage() {
                   className="w-full text-xs h-10 bg-white/10 hover:bg-white/20 text-white font-semibold cursor-pointer border border-white/10"
                 >
                   Close Drawer
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 10. Verified Address & Courier Manifest Modal */}
+      <AnimatePresence>
+        {viewAddressItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      Verified Courier Delivery Manifest
+                    </h3>
+                    <p className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Verified at Address Confirmation Desk
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewAddressItem(null)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-4 text-xs">
+                {/* Creator Header */}
+                <div className="p-3 bg-slate-950/80 border border-white/10 rounded-xl flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">{viewAddressItem.creator_name}</div>
+                    <div className="text-[11px] text-pink-400 font-medium">@{viewAddressItem.instagram_username}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-neutral-300">{viewAddressItem.brand_name}</div>
+                    <div className="text-[10px] font-mono text-amber-400">{viewAddressItem.campaign_code}</div>
+                  </div>
+                </div>
+
+                {/* Logistics Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-950/60 border border-white/5 rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-emerald-400" />
+                      Recipient & Contact Phone
+                    </span>
+                    <div className="font-bold text-white text-xs">
+                      {viewAddressItem.verified_address_details?.recipient_name}
+                    </div>
+                    <div className="font-mono text-emerald-300 text-xs">
+                      {viewAddressItem.verified_address_details?.phone}
+                      {viewAddressItem.verified_address_details?.alt_phone && (
+                        <span className="text-neutral-400 text-[10px] ml-1">
+                          (Alt: {viewAddressItem.verified_address_details.alt_phone})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-950/60 border border-white/5 rounded-xl space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                      <Package className="h-3 w-3 text-amber-400" />
+                      Campaign Deliverable / SKU
+                    </span>
+                    <div className="font-bold text-amber-300 text-xs truncate" title={viewAddressItem.verified_address_details?.deliverable_sku}>
+                      {viewAddressItem.verified_address_details?.deliverable_sku}
+                    </div>
+                    <div className="text-[10px] text-neutral-400">
+                      Product to pack for dispatch
+                    </div>
+                  </div>
+                </div>
+
+                {/* Street Address & Location */}
+                <div className="p-3 bg-slate-950/60 border border-white/5 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
+                    <MapPin className="h-3 w-3 text-emerald-400" />
+                    Delivery Street Address
+                  </span>
+                  <p className="text-xs text-neutral-200 leading-relaxed font-medium">
+                    {viewAddressItem.verified_address_details?.street}
+                  </p>
+                  <p className="text-xs font-bold text-emerald-300 flex items-center gap-1 pt-1 border-t border-white/5">
+                    <span>{viewAddressItem.verified_address_details?.city}, {viewAddressItem.verified_address_details?.state}</span>
+                    <span className="text-neutral-400">—</span>
+                    <span className="font-mono bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 text-emerald-400">
+                      PIN: {viewAddressItem.verified_address_details?.pincode}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Copyable Manifest Box */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                      Ready-to-Paste Courier String
+                    </label>
+                    <button
+                      onClick={() => handleCopyCourierManifest(viewAddressItem)}
+                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>Copy Text</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-xl bg-slate-950 border border-emerald-500/20 text-[11px] font-mono text-emerald-300/90 whitespace-pre-wrap leading-relaxed">
+                    {viewAddressItem.verified_address_details?.courier_copy_text}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  onClick={() => setViewAddressItem(null)}
+                  className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 cursor-pointer"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => handleCopyCourierManifest(viewAddressItem)}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-950"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Courier Manifest
                 </Button>
               </div>
             </motion.div>

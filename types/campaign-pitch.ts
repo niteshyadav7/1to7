@@ -31,6 +31,22 @@ export interface CampaignPitchItem {
   internal_payout_cost?: number | null
   applied_at: string
   custom_form_data?: Record<string, any>
+  address_verification_status?: 'Verified' | 'Pending' | 'Rejected' | 'Not Submitted'
+  is_address_verified?: boolean
+  is_ready_for_brand_dispatch?: boolean
+  verified_address_details?: {
+    recipient_name: string
+    phone: string
+    alt_phone?: string | null
+    street: string
+    landmark?: string | null
+    city: string
+    state: string
+    pincode: string
+    deliverable_sku: string
+    courier_copy_text: string
+    verified_at?: string | null
+  } | null
 }
 
 export interface PitchBatchSummary {
