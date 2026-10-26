@@ -54,8 +54,8 @@ export async function GET(
         JOIN public.users u ON a.user_id = u.id
         JOIN public.campaigns c ON a.campaign_id = c.id
         WHERE (a.campaign_id::text = $1 OR a.campaign_id::text = (SELECT id::text FROM public.campaigns WHERE campaign_code = $1 LIMIT 1))
-          AND (a.brand_review_status IS NULL OR a.brand_review_status != 'unpitched')
-        ORDER BY a.created_at DESC
+          AND a.brand_review_status IN ('pending_brand_review', 'brand_approved', 'brand_rejected', 'changes_requested')
+        ORDER BY a.brand_pitched_at DESC NULLS LAST, a.created_at DESC
       `
       const res = await pool.query(query, [String(campaignId)])
       rows = res.rows
@@ -218,16 +218,16 @@ export async function POST(
           brand_feedback_notes = $5,
           status = CASE WHEN $6 = true THEN 'Approved'::application_status ELSE status END,
           updated_at = NOW()
-        WHERE id = ANY($7::uuid[])
+        WHERE id::text = ANY($7::text[])
       `
       await pool.query(updateQuery, [
         newStatus,
         timestamp,
-        brandUser.id === 'brand-demo-1' ? null : brandUser.id,
+        brandUser.id === 'brand-demo-1' ? null : (brandUser.full_name || brandUser.email),
         isApprove ? null : (reason || 'Brand selection criteria not met'),
         notes || null,
         isApprove,
-        application_ids,
+        application_ids.map(String),
       ])
 
       // 2. Insert audit log entries

@@ -45,6 +45,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: Building2,
   },
   {
+    title: 'Campaign Curation',
+    href: '/brand-admin/campaign-pitches',
+    icon: Sparkles,
+    badge: 'Desk',
+  },
+  {
     title: 'Sample Rosters',
     href: '/brand-admin/sample-lists',
     icon: BookmarkPlus,

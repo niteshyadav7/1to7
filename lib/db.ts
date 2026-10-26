@@ -266,6 +266,27 @@ export async function ensurePocMigration(): Promise<void> {
 
         CREATE INDEX IF NOT EXISTS idx_brand_shortlists_status ON public.brand_shortlists(status);
         CREATE INDEX IF NOT EXISTS idx_brand_shortlists_brand ON public.brand_shortlists(brand_name);
+
+        -- 9. Campaign Brand Curation and Column Shield Configuration
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'brand_visible_columns'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN brand_visible_columns JSONB DEFAULT '["creator_name", "instagram_handle", "followers", "city", "state", "selected_variant", "sample_reel_link"]'::jsonb;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'auto_approve_on_brand_selection'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN auto_approve_on_brand_selection BOOLEAN DEFAULT false;
+        END IF;
+
+        CREATE INDEX IF NOT EXISTS idx_applications_brand_pitch_batch ON public.applications(brand_pitch_batch_name);
       END $$;
     `)
     global._pocMigrationDone = true

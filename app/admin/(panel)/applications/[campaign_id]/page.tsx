@@ -173,6 +173,7 @@ export default function AdminApplicationsPage() {
   const [batchNotes, setBatchNotes] = useState('')
   const [autoExportBrandCSV, setAutoExportBrandCSV] = useState(true)
   const [markingSent, setMarkingSent] = useState(false)
+  const [pitchDestination, setPitchDestination] = useState<'brand_admin' | 'brand_client'>('brand_admin')
 
   // Team Remark Modal state
   const [remarkModalApp, setRemarkModalApp] = useState<Application | null>(null)
@@ -236,19 +237,35 @@ export default function AdminApplicationsPage() {
     setMarkingSent(true)
     try {
       if (action === 'mark_sent') {
-        const res = await fetch('/api/admin/applications/pitch-to-brand', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId: campaign_id,
-            applicationIds: ids,
-            batchName: batchLabel.trim() || undefined,
-            pitchNotes: batchNotes.trim() || undefined,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to pitch creators to Brand Portal')
-        toast.success(data.message || `Successfully pitched ${ids.length} creators to Brand Portal!`)
+        if (pitchDestination === 'brand_admin') {
+          const res = await fetch('/api/admin/applications/queue-for-brand-admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: campaign_id,
+              applicationIds: ids,
+              batchName: batchLabel.trim() || undefined,
+              curationNotes: batchNotes.trim() || undefined,
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || 'Failed to forward to Brand Admin')
+          toast.success(data.message || `Forwarded ${ids.length} creators to Brand Admin curation desk!`)
+        } else {
+          const res = await fetch('/api/admin/applications/pitch-to-brand', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: campaign_id,
+              applicationIds: ids,
+              batchName: batchLabel.trim() || undefined,
+              pitchNotes: batchNotes.trim() || undefined,
+            }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.error || 'Failed to pitch creators to Brand Portal')
+          toast.success(data.message || `Successfully pitched ${ids.length} creators to Brand Portal!`)
+        }
       } else {
         const res = await fetch('/api/admin/applications/sent-to-brand', {
           method: 'POST',
@@ -830,12 +847,13 @@ export default function AdminApplicationsPage() {
             <button
               onClick={() => {
                 setBatchLabel(`Batch #${uniqueBatches.length + 1} (${selectedAppIds.length} Profiles) - ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`)
+                setPitchDestination('brand_admin')
                 setShowSentModal(true)
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25 cursor-pointer transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-500/25 cursor-pointer transition-all"
             >
-              <Share2 className="h-3.5 w-3.5" />
-              <span>Pitch {selectedAppIds.length} to Brand</span>
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Forward {selectedAppIds.length} to Brand Admin</span>
             </button>
           )}
 
@@ -1012,10 +1030,10 @@ export default function AdminApplicationsPage() {
                     {app.brand_review_status === 'brand_approved' ? (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 flex items-center gap-1.5"
-                        title={`Approved by Brand on ${app.brand_reviewed_at ? new Date(app.brand_reviewed_at).toLocaleDateString('en-IN') : ''}`}
+                        title={`Approved by Brand on ${app.brand_reviewed_at ? new Date(app.brand_reviewed_at).toLocaleDateString('en-IN') : ''} ${app.brand_reviewed_by ? 'by ' + app.brand_reviewed_by : ''}`}
                       >
                         <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        <span>Brand Approved ({app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label || 'Pitched'})</span>
+                        <span>Brand Approved ({app.brand_pitch_batch_name || 'Shortlisted'})</span>
                       </span>
                     ) : app.brand_review_status === 'brand_rejected' ? (
                       <span
@@ -1025,13 +1043,29 @@ export default function AdminApplicationsPage() {
                         <XCircle className="h-3 w-3 text-rose-400" />
                         <span>Brand Rejected</span>
                       </span>
+                    ) : app.brand_review_status === 'internal_rejected' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-slate-500/15 text-slate-400 border border-slate-500/25 flex items-center gap-1.5"
+                        title={`Internally dropped by Brand Admin: ${app.brand_rejection_reason || 'Curation filter'}`}
+                      >
+                        <X className="h-3 w-3 text-slate-400" />
+                        <span>Internal Dropped</span>
+                      </span>
+                    ) : app.brand_review_status === 'queued_for_brand_admin' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/25 flex items-center gap-1.5"
+                        title={`Queued for Brand Admin review (${app.brand_pitch_batch_name || 'Batch'})`}
+                      >
+                        <Clock className="h-3 w-3 text-blue-400 animate-pulse" />
+                        <span>Queued for Brand Admin</span>
+                      </span>
                     ) : (app.brand_review_status === 'pending_brand_review' || app.form_data?.sent_to_brand?.is_sent) ? (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 flex items-center gap-1.5"
                         title={`Pitched on ${app.brand_pitched_at || app.form_data?.sent_to_brand?.sent_at ? new Date(app.brand_pitched_at || app.form_data?.sent_to_brand?.sent_at).toLocaleDateString('en-IN') : ''} by ${app.brand_pitched_by || app.form_data?.sent_to_brand?.sent_by || 'Admin'}`}
                       >
                         <Share2 className="h-3 w-3 text-purple-400" />
-                        <span>Pitched ({app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label || 'Brand'})</span>
+                        <span>Pitched to Brand ({app.brand_pitch_batch_name || app.form_data?.sent_to_brand?.batch_label || 'Brand'})</span>
                       </span>
                     ) : (
                       <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 flex items-center gap-1.5">
@@ -2391,9 +2425,11 @@ export default function AdminApplicationsPage() {
                     <Share2 className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Pitch Shortlisted Creators to Brand Portal</h3>
+                    <h3 className="text-sm font-bold text-white">
+                      {pitchDestination === 'brand_admin' ? 'Forward Creators to Brand Admin Desk' : 'Pitch Creators to Brand Portal'}
+                    </h3>
                     <p className="text-[11px] text-slate-400">
-                      Pitches <strong className="text-white">{selectedAppIds.length} creator profiles</strong> to client brand
+                      Processing <strong className="text-white">{selectedAppIds.length} creator profiles</strong> for {campaign?.brand_name || 'Brand'}
                     </p>
                   </div>
                 </div>
@@ -2406,9 +2442,46 @@ export default function AdminApplicationsPage() {
               </div>
 
               <div className="space-y-3.5 text-xs">
-                <p className="text-slate-300 leading-relaxed">
-                  These shortlisted creators will immediately appear in the client brand's review queue for 1-click decision making. Phone numbers, addresses, and agency commercials are strictly protected by the margin shield.
-                </p>
+                {/* Pipeline Destination Selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Pipeline Forwarding Destination</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPitchDestination('brand_admin')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        pitchDestination === 'brand_admin'
+                          ? 'bg-blue-600/20 border-blue-500 text-white shadow-sm'
+                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="text-xs font-bold flex items-center gap-1.5 text-blue-400">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Brand Admin Desk
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        KAM review, column shield, & batch filters
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPitchDestination('brand_client')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        pitchDestination === 'brand_client'
+                          ? 'bg-purple-600/20 border-purple-500 text-white shadow-sm'
+                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="text-xs font-bold flex items-center gap-1.5 text-purple-400">
+                        <Share2 className="h-3.5 w-3.5" />
+                        Direct Client Portal
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        Bypasses Brand Admin to client portal
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] text-slate-400 uppercase font-bold">Pitch Batch Name</Label>
@@ -2421,7 +2494,7 @@ export default function AdminApplicationsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Agency Recommendation / Pitch Notes (Optional)</Label>
+                  <Label className="text-[10px] text-slate-400 uppercase font-bold">Internal Curation / Pitch Notes (Optional)</Label>
                   <Input
                     value={batchNotes}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBatchNotes(e.target.value)}
@@ -2456,17 +2529,22 @@ export default function AdminApplicationsPage() {
                   size="sm"
                   onClick={() => handleBatchSentToBrand('mark_sent')}
                   disabled={markingSent}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold cursor-pointer shadow-md shadow-purple-500/20"
+                  className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold cursor-pointer shadow-md shadow-indigo-500/20"
                 >
                   {markingSent ? (
                     <>
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Pitching Batch...
+                      Forwarding Batch...
+                    </>
+                  ) : pitchDestination === 'brand_admin' ? (
+                    <>
+                      <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      Forward to Brand Admin
                     </>
                   ) : (
                     <>
                       <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                      Pitch Batch to Brand Portal
+                      Pitch to Brand Client
                     </>
                   )}
                 </Button>

@@ -2,6 +2,9 @@ export type BrandUserRole = 'owner' | 'admin' | 'reviewer' | 'viewer'
 
 export type BrandReviewStatus = 
   | 'not_sent'
+  | 'unpitched'
+  | 'queued_for_brand_admin'
+  | 'internal_rejected'
   | 'pending_brand_review'
   | 'brand_approved'
   | 'brand_rejected'
