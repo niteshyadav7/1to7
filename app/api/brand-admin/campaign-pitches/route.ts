@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/admin-auth'
 import { getBrandAdminFromRequest } from '@/lib/brand-admin-auth'
+import type { CampaignPitchItem } from '@/types/campaign-pitch'
 
 export async function GET(request: Request) {
   try {
@@ -120,7 +121,7 @@ export async function GET(request: Request) {
       const isReadyForBrandDispatch = (r.application_status === 'Approved' || r.brand_review_status === 'brand_approved') && isVerified
 
       // Compute structured logistics string ONLY if verified
-      let verifiedAddressDetails = null
+      let verifiedAddressDetails: CampaignPitchItem['verified_address_details'] = null
       if (isVerified && addrObj) {
         const recipientName = addrObj.recipient_name || addrObj.name || r.creator_name || 'Creator'
         const contactPhone = addrObj.mobile || r.mobile || 'N/A'
