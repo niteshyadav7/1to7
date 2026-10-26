@@ -446,9 +446,17 @@ export default function CampaignPitchesCurationPage() {
                 className="w-full pl-9 pr-8 py-2 text-xs font-medium border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer truncate"
               >
                 <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
-                {filteredCampaignsList.map(c => (
-                  <option key={c.id} value={c.id}>{c.campaign_code}{c.title && c.title !== c.campaign_code ? ` - ${c.title}` : ''}</option>
-                ))}
+                {filteredCampaignsList.map(c => {
+                  const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
+                  const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
+                  const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
+                  const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {brandText}{titleText}{codeText}
+                    </option>
+                  )
+                })}
               </select>
             </div>
           </div>
@@ -692,10 +700,15 @@ export default function CampaignPitchesCurationPage() {
                       {/* Brand & Campaign */}
                       <td className="py-3.5 px-4">
                         <div className="font-semibold text-white">{item.brand_name}</div>
-                        <div className="text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                          <Target className="h-3 w-3 text-amber-400" />
-                          <span>{item.campaign_code}</span>
+                        <div className="text-[11px] text-amber-300 font-medium flex items-center gap-1 mt-0.5 max-w-[200px] truncate" title={item.campaign_title}>
+                          <Target className="h-3 w-3 text-amber-400 shrink-0" />
+                          <span className="truncate">{item.campaign_title || 'Campaign'}</span>
                         </div>
+                        {item.campaign_code && item.campaign_code !== item.campaign_title && (
+                          <div className="text-[10px] font-mono text-neutral-400 mt-0.5">
+                            {item.campaign_code}
+                          </div>
+                        )}
                       </td>
 
                       {/* Batch */}

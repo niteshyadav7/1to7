@@ -152,7 +152,7 @@ export async function GET(request: Request) {
         return false
       }
       if (search) {
-        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''}`.toLowerCase()
+        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''} ${item.brand_name || ''} ${item.campaign_code || ''} ${item.campaign_title || ''}`.toLowerCase()
         if (!target.includes(search)) return false
       }
       return true
