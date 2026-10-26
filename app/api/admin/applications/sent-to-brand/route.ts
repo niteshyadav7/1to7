@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         .from('applications')
         .update({
           form_data: updatedFormData,
-          brand_review_status: action === 'unmark_sent' ? 'unpitched' : 'pending_brand_review',
+          brand_review_status: action === 'unmark_sent' ? 'unpitched' : 'queued_for_brand_admin',
           brand_pitch_batch_name: action === 'unmark_sent' ? null : label,
           brand_pitch_notes: action === 'unmark_sent' ? null : (notes || null),
           brand_pitched_at: action === 'unmark_sent' ? null : timestamp,
@@ -66,8 +66,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: action === 'unmark_sent'
-        ? `Reset 'Sent to Brand' for ${updatedCount} profiles`
-        : `Marked ${updatedCount} profiles as Sent to Brand (${label})`,
+        ? `Reset Brand Admin queue status for ${updatedCount} profiles`
+        : `Forwarded ${updatedCount} profiles to Brand Admin curation desk (${label})`,
       updated_count: updatedCount,
     })
   } catch (error: any) {

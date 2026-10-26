@@ -946,7 +946,7 @@ function ActionsDropdown({
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
                 >
                   <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-                  Reset Sent to Brand
+                  Reset Brand Admin Queue
                 </button>
               ) : (
                 <button
@@ -958,7 +958,7 @@ function ActionsDropdown({
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-purple-300 hover:bg-purple-500/15"
                 >
                   <Share2 className="h-3.5 w-3.5 text-purple-400" />
-                  Mark as Sent to Brand
+                  Forward to Brand Admin
                 </button>
               )}
 
@@ -2554,11 +2554,11 @@ export default function AllApplicationsPage() {
           })}
         </div>
 
-        {/* Brand Shared Toggle Pills */}
+        {/* Brand Admin Queue Toggle Pills */}
         <div className="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-white/10 shrink-0">
           <span className="text-[10px] uppercase font-bold text-slate-400 px-2 flex items-center gap-1">
             <Share2 className="h-3 w-3 text-purple-400" />
-            Brand:
+            Brand Admin:
           </span>
           <button
             onClick={() => setBrandSentFilter('all')}
@@ -2579,7 +2579,7 @@ export default function AllApplicationsPage() {
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-            Not Sent ({unsharedCount})
+            Not Forwarded ({unsharedCount})
           </button>
           <button
             onClick={() => setBrandSentFilter('sent')}
@@ -2590,7 +2590,7 @@ export default function AllApplicationsPage() {
             }`}
           >
             <Share2 className="h-3 w-3" />
-            Sent ({sentCount})
+            In Brand Admin ({sentCount})
           </button>
         </div>
       </div>
@@ -3018,7 +3018,7 @@ export default function AllApplicationsPage() {
                   <th className="px-2.5 py-2.5 text-left">
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold flex items-center gap-1 whitespace-nowrap">
                       <Share2 className="h-3 w-3 text-purple-400" />
-                      Brand Shared
+                      Brand Admin Queue
                     </span>
                   </th>
                 )}
@@ -3363,10 +3363,10 @@ export default function AllApplicationsPage() {
                                 onClick={() => handleSingleSentToBrand('unmark_sent', app.id)}
                                 disabled={sentToBrandSubmitting}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/25 whitespace-nowrap hover:bg-purple-500/25 cursor-pointer transition-all active:scale-95"
-                                title={`Sent on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'} (Click to Reset)`}
+                                title={`Forwarded to Brand Admin on ${app.form_data.sent_to_brand.sent_at ? new Date(app.form_data.sent_to_brand.sent_at).toLocaleDateString('en-IN') : ''} by ${app.form_data.sent_to_brand.sent_by || 'Admin'} (Click to Reset)`}
                               >
                                 <Share2 className="h-2.5 w-2.5 text-purple-400" />
-                                <span>Sent ({app.form_data.sent_to_brand.batch_label || 'Brand'})</span>
+                                <span>In Brand Admin ({app.form_data.sent_to_brand.batch_label || 'Queued'})</span>
                               </button>
                             ) : (
                               <button
@@ -3374,10 +3374,10 @@ export default function AllApplicationsPage() {
                                 onClick={() => handleSingleSentToBrand('mark_sent', app.id)}
                                 disabled={sentToBrandSubmitting}
                                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 whitespace-nowrap hover:bg-amber-500/25 hover:border-amber-500/40 cursor-pointer transition-all active:scale-95"
-                                title="Click to Mark as Sent to Brand"
+                                title="Click to Forward to Brand Admin"
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                                <span>Not Sent</span>
+                                <span>Forward to Brand Admin</span>
                               </button>
                             )}
                           </td>
@@ -4278,7 +4278,7 @@ export default function AllApplicationsPage() {
                 <span>UNDER PROCESS</span>
               </Button>
 
-              {/* 3. SENT TO BRAND (Purple) */}
+              {/* 3. FORWARD TO BRAND ADMIN (Purple) */}
               <Button
                 variant="outline"
                 size="sm"
@@ -4290,7 +4290,7 @@ export default function AllApplicationsPage() {
                 className="h-9 px-3.5 rounded-xl border-purple-500/30 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
               >
                 <Share2 className="h-3.5 w-3.5" />
-                <span>SENT TO BRAND</span>
+                <span>FORWARD TO BRAND ADMIN</span>
               </Button>
 
               {/* 4. OPEN INSTAGRAM (Pink) */}
@@ -4956,9 +4956,9 @@ export default function AllApplicationsPage() {
                     <Share2 className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Mark as Sent to Brand</h3>
+                    <h3 className="text-sm font-bold text-white">Forward to Brand Admin Curation Desk</h3>
                     <p className="text-[11px] text-slate-400">
-                      Batch tagging <strong className="text-white">{selectedIds.size} creator profiles</strong>
+                      Forwarding <strong className="text-white">{selectedIds.size} creator profiles</strong> to Brand Operations
                     </p>
                   </div>
                 </div>
@@ -4972,7 +4972,7 @@ export default function AllApplicationsPage() {
 
               <div className="space-y-3.5 text-xs">
                 <p className="text-slate-300 leading-relaxed">
-                  Tag selected creators as submitted to the client brand so you can easily track future incoming profiles.
+                  Forward selected creator applications to our <strong>Brand Admin Curation Desk</strong>. From Brand Admin, Key Account Managers review talent, configure column privacy, and dispatch to client brand portals.
                 </p>
 
                 <div className="space-y-1.5">
@@ -4990,7 +4990,7 @@ export default function AllApplicationsPage() {
                   <Input
                     value={sentToBrandNotes}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSentToBrandNotes(e.target.value)}
-                    placeholder="e.g. Emailed to Brand Manager"
+                    placeholder="e.g. Curated for KAM festive review"
                     className="bg-slate-950 border-white/10 text-white text-xs h-10 rounded-xl"
                   />
                 </div>
@@ -5016,12 +5016,12 @@ export default function AllApplicationsPage() {
                   {sentToBrandSubmitting ? (
                     <>
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Tagging Batch...
+                      Forwarding Batch...
                     </>
                   ) : (
                     <>
                       <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                      Confirm & Tag Batch
+                      Confirm & Forward to Brand Admin
                     </>
                   )}
                 </Button>
