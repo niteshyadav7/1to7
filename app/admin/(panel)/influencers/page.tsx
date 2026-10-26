@@ -7,8 +7,9 @@ import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
-  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye
+  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye, BookmarkPlus
 } from 'lucide-react'
+import { AddToSampleListModal } from '@/components/admin/influencers/AddToSampleListModal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
@@ -111,11 +112,13 @@ function ProfileModal({
   onClose,
   onViewGhostHistory,
   onGhostAction,
+  onAddToSampleList,
 }: {
   user: Influencer
   onClose: () => void
   onViewGhostHistory?: (userId: string, name: string) => void
   onGhostAction?: (actionType: 'ghost' | 'unghost', user: Influencer) => void
+  onAddToSampleList?: (user: Influencer) => void
 }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -157,6 +160,16 @@ function ProfileModal({
                 <span>📜 Logs</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => onAddToSampleList?.(user)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+              title="Add this creator to a Brand Sample Roster"
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              <span>Add to Sample List</span>
+            </button>
 
             <Link
               href={`/admin/virtual-profile/${user.id}`}
@@ -1368,6 +1381,8 @@ export default function InfluencersDirectoryPage() {
 
   const isInitialLoading = loading && influencers.length === 0
 
+  const [addToSampleTarget, setAddToSampleTarget] = useState<Influencer | null>(null)
+
   return (
     <div className="space-y-5 pb-24 relative">
       <AnimatePresence>
@@ -1380,6 +1395,14 @@ export default function InfluencersDirectoryPage() {
             onGhostAction={(actionType, user) => {
               setGhostActionTarget({ isOpen: true, actionType, user })
             }}
+            onAddToSampleList={(u) => setAddToSampleTarget(u)}
+          />
+        )}
+        {addToSampleTarget && (
+          <AddToSampleListModal
+            isOpen={Boolean(addToSampleTarget)}
+            creator={addToSampleTarget}
+            onClose={() => setAddToSampleTarget(null)}
           />
         )}
         {customExportOpen && (
@@ -1883,6 +1906,18 @@ export default function InfluencersDirectoryPage() {
                                >
                                  👻 Ghost
                                </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAddToSampleTarget(user)
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 px-1.5 py-0.5 rounded border border-purple-500/30 cursor-pointer transition-colors"
+                                title="Add to Brand Sample Roster"
+                              >
+                                <BookmarkPlus className="h-3 w-3" />
+                                <span>Sample</span>
+                              </button>
                              )}
                            </div>
                            {user.is_ghosted ? (

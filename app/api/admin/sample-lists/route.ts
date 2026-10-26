@@ -1,0 +1,103 @@
+import { NextResponse } from 'next/server'
+import pool from '@/lib/db'
+import { getAdminFromRequest } from '@/lib/admin-auth'
+import { getBrandAdminFromRequest } from '@/lib/brand-admin-auth'
+import crypto from 'crypto'
+
+export async function GET(request: Request) {
+  try {
+    const admin = (await getAdminFromRequest()) || (await getBrandAdminFromRequest())
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized: Admin session required' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status') || 'active'
+    const search = searchParams.get('search')?.trim() || ''
+
+    let queryText = `
+      SELECT 
+        sl.*,
+        COUNT(sli.id)::int as items_count
+      FROM public.sample_lists sl
+      LEFT JOIN public.sample_list_items sli ON sli.sample_list_id = sl.id
+      WHERE sl.status = $1
+    `
+    const params: any[] = [status]
+
+    if (search) {
+      params.push(`%${search}%`)
+      queryText += ` AND (sl.title ILIKE $${params.length} OR sl.brand_name ILIKE $${params.length} OR sl.category_niche ILIKE $${params.length})`
+    }
+
+    queryText += `
+      GROUP BY sl.id
+      ORDER BY sl.created_at DESC
+    `
+
+    const result = await pool.query(queryText, params)
+    return NextResponse.json({ success: true, lists: result.rows })
+  } catch (error: any) {
+    console.error('Error fetching sample lists:', error)
+    return NextResponse.json({ error: error.message || 'Failed to fetch sample lists' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const admin = (await getAdminFromRequest()) || (await getBrandAdminFromRequest())
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized: Admin session required' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { title, brand_name, category_niche, description, visible_columns, allow_brand_shortlisting } = body
+
+    if (!title?.trim() || !brand_name?.trim()) {
+      return NextResponse.json({ error: 'Title and Brand Name are required' }, { status: 400 })
+    }
+
+    const shareToken = crypto.randomBytes(16).toString('hex')
+    const createdBy = (admin as any).name || (admin as any).email || (admin as any).full_name || 'Admin'
+
+    const defaultColumns = visible_columns || [
+      'creator_name',
+      'instagram_username',
+      'followers',
+      'avg_reels_views',
+      'engagement_rate',
+      'city',
+      'sample_reel_url',
+    ]
+
+    const queryText = `
+      INSERT INTO public.sample_lists (
+        title,
+        brand_name,
+        category_niche,
+        description,
+        share_token,
+        visible_columns,
+        allow_brand_shortlisting,
+        created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
+    `
+
+    const result = await pool.query(queryText, [
+      title.trim(),
+      brand_name.trim(),
+      category_niche?.trim() || null,
+      description?.trim() || null,
+      shareToken,
+      JSON.stringify(defaultColumns),
+      allow_brand_shortlisting ?? true,
+      createdBy,
+    ])
+
+    return NextResponse.json({ success: true, list: result.rows[0] })
+  } catch (error: any) {
+    console.error('Error creating sample list:', error)
+    return NextResponse.json({ error: error.message || 'Failed to create sample list' }, { status: 500 })
+  }
+}

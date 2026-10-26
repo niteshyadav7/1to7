@@ -197,6 +197,75 @@ export async function ensurePocMigration(): Promise<void> {
         ) THEN
           ALTER TABLE public.applications ADD COLUMN brand_content_status TEXT DEFAULT 'pending_submission';
         END IF;
+
+        -- 6. Sample Rosters and Pitch Lists
+        CREATE TABLE IF NOT EXISTS public.sample_lists (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          title TEXT NOT NULL,
+          brand_id TEXT,
+          brand_name TEXT NOT NULL,
+          category_niche TEXT,
+          description TEXT,
+          share_token TEXT UNIQUE NOT NULL,
+          is_public_share_enabled BOOLEAN DEFAULT true,
+          allow_brand_shortlisting BOOLEAN DEFAULT true,
+          visible_columns JSONB DEFAULT '["creator_name", "instagram_username", "followers", "avg_reels_views", "engagement_rate", "city", "sample_reel_url"]'::jsonb,
+          status TEXT DEFAULT 'active',
+          view_count INTEGER DEFAULT 0,
+          last_viewed_at TIMESTAMP WITH TIME ZONE,
+          created_by TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sample_lists_token ON public.sample_lists(share_token);
+        CREATE INDEX IF NOT EXISTS idx_sample_lists_brand ON public.sample_lists(brand_name);
+
+        -- 7. Creators inside Sample Rosters
+        CREATE TABLE IF NOT EXISTS public.sample_list_items (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          sample_list_id UUID NOT NULL REFERENCES public.sample_lists(id) ON DELETE CASCADE,
+          user_id UUID,
+          creator_name TEXT NOT NULL,
+          instagram_username TEXT NOT NULL,
+          followers INTEGER DEFAULT 0,
+          avg_reels_views INTEGER DEFAULT 0,
+          engagement_rate NUMERIC(5, 2) DEFAULT 0,
+          city TEXT,
+          niche TEXT,
+          sample_reel_url TEXT,
+          brand_commercial NUMERIC(12, 2),
+          internal_cost NUMERIC(12, 2),
+          admin_notes TEXT,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sample_list_items_list ON public.sample_list_items(sample_list_id);
+        CREATE INDEX IF NOT EXISTS idx_sample_list_items_user ON public.sample_list_items(user_id);
+
+        -- 8. Inbound Brand Shortlists (When brands respond!)
+        CREATE TABLE IF NOT EXISTS public.brand_shortlists (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          sample_list_id UUID REFERENCES public.sample_lists(id) ON DELETE SET NULL,
+          brand_name TEXT NOT NULL,
+          brand_poc_name TEXT,
+          brand_poc_email TEXT,
+          brand_poc_phone TEXT,
+          shortlisted_item_ids JSONB NOT NULL,
+          shortlisted_creators_count INTEGER DEFAULT 0,
+          brand_feedback_notes TEXT,
+          status TEXT DEFAULT 'new',
+          converted_campaign_id TEXT,
+          submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          reviewed_by TEXT,
+          reviewed_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_brand_shortlists_status ON public.brand_shortlists(status);
+        CREATE INDEX IF NOT EXISTS idx_brand_shortlists_brand ON public.brand_shortlists(brand_name);
       END $$;
     `)
     global._pocMigrationDone = true

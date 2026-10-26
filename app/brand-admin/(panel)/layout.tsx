@@ -20,6 +20,8 @@ import {
   ArrowRightLeft,
   Crown,
   Eye,
+  BookmarkPlus,
+  CheckSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { BrandAdminPayload } from '@/types/brand-admin'
@@ -41,6 +43,18 @@ const NAV_ITEMS: NavItem[] = [
     title: 'Client Brands',
     href: '/brand-admin/brands',
     icon: Building2,
+  },
+  {
+    title: 'Sample Rosters',
+    href: '/brand-admin/sample-lists',
+    icon: BookmarkPlus,
+    badge: 'Pitch',
+  },
+  {
+    title: 'Brand Shortlists',
+    href: '/brand-admin/brand-shortlists',
+    icon: CheckSquare,
+    badge: 'Inbound',
   },
   {
     title: 'Virtual Brand Studio',

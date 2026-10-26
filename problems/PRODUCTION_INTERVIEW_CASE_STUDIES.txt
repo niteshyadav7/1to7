@@ -57,6 +57,7 @@ CASE 46: Isolated Cross-Domain Admin Portals & Strict Privilege Infiltration Pre
 CASE 47: Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality (Eliminating Fragmented Responsive Grid UX)
 CASE 48: Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals
 CASE 49: Two-Gatekeeper Curation Architecture & Agency-to-Brand Shortlist Pitching Pipeline (Eliminating Manual Google Sheet Leaks & Commercial Exposure)
+CASE 50: Dual-Hub Sample Influencer Curation, Dynamic Column Shield & Inbound Brand Shortlist Loop
 
 
 
@@ -1969,16 +1970,62 @@ We architected a robust Two-Gatekeeper Curation Pipeline bridging the 1to7 Agenc
 [INTERVIEW STAR TAKEAWAY]
 "To replace leaky manual spreadsheets in two-sided agency platforms, you must design a Two-Gatekeeper Curation Architecture. Gatekeeper 1 allows internal agency teams to filter and batch-pitch shortlists to a dedicated client portal via an atomic state machine (`unpitched` -> `pending_brand_review`), guarded by a Privacy & Margin Shield that strips PII and agency costs. Gatekeeper 2 gives client directors 1-click approval/rejection studios with live SLA tracking, backed by dual-write backwards compatibility and immutable decision audit trails."
 
+
+====================================================================================================
+CASE 50: Dual-Hub Sample Influencer Curation, Dynamic Column Shield & Inbound Brand Shortlist Loop
+====================================================================================================
+CATEGORIES: Enterprise Curation Engine / Data Governance & Privacy Shield / Multi-Tenant Rostering / Inbound Funnel Architecture / Next.js Full-Stack
+
+INTERVIEW QUESTION: "How do you design a high-velocity creator sample rostering engine across dual admin hubs that supports both platform database selection and unstructured Google Sheet ingestion, provides granular column visibility controls to shield agency margins and creator PII, and captures inbound client shortlist selections into an isolated actionable queue?"
+
+[SITUATION]
+Influencer marketing agencies frequently pitch "sample creator rosters" to prospective or active brand clients before formal campaign contracting. In typical agency workflows, talent managers and account executives manually copy-paste rows from an internal PostgreSQL database and multiple external Google Sheets into a new Google Spreadsheet, manually delete sensitive columns, and email the link to client brand directors.
+This manual spreadsheet curation workflow suffered from 3 catastrophic operational and financial risks:
+1. Accidental Margin & PII Leaks: Staff members frequently forgot to delete secret agency payouts (e.g. `internal_cost`), creator private phone numbers, home addresses, or internal negotiation notes before sharing links with brand managers, exposing agency margins and risking direct client disintermediation.
+2. Inbound Feedback Fragmentation & Dead Ends: Only a fraction of pitched brands respond; when a brand does shortlist creators (often via WhatsApp or vague email notes like "we liked #3, #7, #14"), these selections were disconnected from the database, requiring manual re-identification and causing campaign onboarding delays.
+3. Disconnected Curation Hubs: Talent managers discovering high-potential creators in the Influencer Admin portal (`/admin/influencers`) had no mechanism to push creators into active pitch decks without switching tools and copying handles manually.
+
+[ROOT CAUSE INVESTIGATION]
+1. Monolithic / Rigid Campaign-Scoped Schema:
+   Existing platform application tables enforced strict foreign-key relationships to live campaigns (`campaign_id NOT NULL`), making ad-hoc pre-campaign sample pitching impossible without creating phantom dummy campaigns.
+2. Static SQL View Projections (No Declarative Column Shield):
+   Different brands purchase different packages (e.g., some require sample reel links and commercials, while others only review aesthetic handle and follower tiers). Without a granular column projection policy per roster, either too much data or too little data was exposed.
+3. Conflation of Outbound Pitches and Inbound Selections:
+   Treating outbound sample lists and inbound client selections as the same entity created severe UI clutter and state confusion. Account managers could not cleanly filter which brands had responded, what they shortlisted, and whether the shortlist had been converted into an active campaign.
+
+[SOLUTION & ARCHITECTURE]
+We architected an end-to-end Sample Roster & Inbound Shortlist Engine spanning the Influencer Admin (`/admin`), the Brand Admin Operations Suite (`/brand-admin`), and a zero-friction public client viewer (`/view/roster/[token]`):
+
+1. Relational Dual-Entity Schema (`sample_lists`, `sample_list_items`, `brand_shortlists`):
+   - `sample_lists`: Outbound roster decks keyed with a unique cryptographic `share_token`, `brand_name`, `visible_columns` (JSONB array), and `allow_brand_shortlisting` boolean flag.
+   - `sample_list_items`: Polymorphic creator records supporting both platform user links (`user_id`) and arbitrary offline imports (raw sheet columns: name, handle, followers, avg reels views, engagement rate, sample reel link, client commercial, and secret `internal_cost`).
+   - `brand_shortlists`: Dedicated inbound feedback desk capturing client brand submissions (`selected_item_ids`), contact details, notes, and a lifecycle state machine (`new` -> `under_review` -> `converted_to_campaign`).
+2. Dynamic Column Visibility Shield (Zero-Trust Projection Gateway):
+   - At `GET /api/public/roster/[token]`, an impermeable sanitization layer enforces a strict whitelist based on `sample_lists.visible_columns`.
+   - Invariant: Proprietary data (`internal_cost`, `admin_notes`) and creator PII (phone, email, physical address) are NEVER selected in public SQL queries or serialized in JSON responses, regardless of visible column configurations.
+3. Hybrid Ingestion & Robust Metric Normalization (`POST /api/admin/sample-lists/[id]/items`):
+   - Supports both platform creator database search and unstructured TSV/CSV copy-pasting from Google Sheets or Excel.
+   - Automatically parses metric shorthand (`85K` -> `85000`, `1.2M` -> `1200000`), cleanses currency symbols (`₹15,000` -> `15000`), and sanitizes Instagram handles (stripping protocol, domain, trailing query parameters, and `@`).
+4. Dual-Portal 1-Click Curation Integration:
+   - Added `AddToSampleListModal` into `/admin/influencers`, enabling staff to 1-click add creators directly from directory rows (`[📑 Sample]`) or full profile modals into existing or newly created rosters on the fly.
+5. Dedicated Inbound Brand Shortlists Desk (`/brand-admin/brand-shortlists`):
+   - Completely decoupled inbound selections into a dedicated operational tab.
+   - Features real-time metric cards, brand/status filter dropdowns, CSV export for media plans, and a 1-click "Convert to Campaign" workflow that transitions status to `converted_to_campaign` and links active campaign IDs.
+
+[INTERVIEW STAR TAKEAWAY]
+"When designing pre-campaign pitching architectures for enterprise agencies, decouple outbound sample decks from inbound client selections into distinct relational entities. Guard the client presentation layer with a declarative Column Visibility Shield that hard-filters proprietary margins and PII at the SQL/API gateway level. Provide dual ingestion (system DB + Google Sheet parser) and bridge internal admin portals with 1-click curation buttons to eliminate manual spreadsheet leaks."
+
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 
 
 ----------------------------------------------------------------------------------------------------
-1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), and Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration).
-2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), and Case 41 (Dedicated lifecycle state machine endpoints).
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), and Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema).
+2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), Case 41 (Dedicated lifecycle state machine endpoints), and Case 50 (Declarative Column Visibility Shield & Zero-Trust Public Projection).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), and Case 31 (Logistics-grade address schemas & courier contracts).
-4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), and Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals).
-5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), and Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization).
-6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), and Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes).
+4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals), and Case 50 (Dual-Portal Curation Hubs & Dedicated Inbound Shortlist Review Desk).
+5. When asked about Security & Fraud: Mention Case 4 (Ghosting event sourcing), Case 10 (Double peer approval), Case 21 (Entity-Level Event Sourcing & Account-Wide Ghosting Gatekeeper), Case 27 (Compile-Time SWC Stripping & Runtime Console Neutralization), Case 49 (Two-Gatekeeper Curation & PII/Commercial Shield), and Case 50 (Zero-PII Column Projection & Agency Margin Protection).
+6. When asked about Resiliency & Financial Invariants: Mention Case 8 (Dual OTP failover), Case 11 (Stale-while-revalidate client caching), Case 28 (Circuit-breaker timeout on third-party SDKs), Case 29 (Zero-Disbursement Invariant & Ledger Reconciliation), Case 30 (Dynamic Schema Passthrough & Temporal Metric Updates), Case 31 (Bidirectional State Synchronization & Open-World Dynamic Custom Attributes), Case 33 (Zero-Context-Switch Dual-Sync & Courier Standard Ingestion), Case 41 (Zero-Data-Loss Campaign Closure vs Permanent Cascading Deletes), and Case 50 (Inbound Shortlist State Machine & Conversion Continuity).
 ====================================================================================================
+
 
