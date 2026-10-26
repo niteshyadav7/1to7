@@ -32,7 +32,10 @@ import {
   Truck,
   Copy,
   Phone,
-  Package
+  Package,
+  ChevronDown,
+  RotateCcw,
+  CheckCheck
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -45,6 +48,13 @@ import {
   FORBIDDEN_CLIENT_KEYS,
   ColumnShieldOption
 } from '@/types/campaign-pitch'
+
+function formatFollowerCount(num: number | null | undefined): string {
+  if (!num) return '0'
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
+  return num.toLocaleString('en-IN')
+}
 
 export default function CampaignPitchesCurationPage() {
   const [applications, setApplications] = useState<CampaignPitchItem[]>([])
@@ -327,23 +337,23 @@ export default function CampaignPitchesCurationPage() {
   }
 
   return (
-    <div className="space-y-6 pb-24 max-w-7xl mx-auto">
-      {/* 1. Header & Live Indicator */}
+    <div className="w-full max-w-[1680px] mx-auto space-y-5 pb-24">
+      {/* 1. Header & Desk Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold mb-2">
-            <Sparkles className="w-3 h-3 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold mb-2 shadow-sm shadow-amber-500/10">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Campaign Curation & Pitch Desk</span>
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 ml-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 ml-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Live Sync
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Campaign Curation & Pitch Desk
           </h1>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Review applicant creators forwarded from Influencer Ops, configure client column privacy, internally drop unsuitable profiles, and dispatch batches to client Brand Portals in real time.
+          <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-3xl leading-relaxed">
+            Review applicant creators forwarded from Influencer Ops, verify barter delivery addresses, configure client column privacy, and dispatch curated rosters to Brand Portals in real time.
           </p>
         </div>
 
@@ -351,9 +361,18 @@ export default function CampaignPitchesCurationPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowColumnShieldModal(true)}
+            className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer rounded-xl"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+            <span>Column Shield ({visibleColumns.length})</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchData}
             disabled={loading}
-            className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-10 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer"
+            className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer rounded-xl"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin text-amber-400' : 'text-neutral-400'}`} />
             Refresh
@@ -362,7 +381,7 @@ export default function CampaignPitchesCurationPage() {
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            className="border-white/10 hover:bg-white/5 text-emerald-400 text-xs h-10 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer"
+            className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400 text-xs h-9 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer rounded-xl shadow-sm"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
             Export CSV
@@ -370,92 +389,117 @@ export default function CampaignPitchesCurationPage() {
         </div>
       </div>
 
-      {/* 2. Metric KPI Cards */}
+      {/* 2. Metric KPI Cards (Interactive Command Deck) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div
-          onClick={() => setSelectedStatus('all')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'all'
-              ? 'bg-amber-500/10 border-amber-500/50 shadow-lg shadow-amber-500/10'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Total Pitched</div>
-          <div className="text-2xl font-black text-white mt-1">{counts.all}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">Across all campaigns</div>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus('queued_for_brand_admin')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'queued_for_brand_admin'
-              ? 'bg-blue-500/15 border-blue-500/60 shadow-lg shadow-blue-500/10'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-400 animate-ping"></span>
-            Queued for KAM
-          </div>
-          <div className="text-2xl font-black text-blue-300 mt-1">{counts.queued_for_brand_admin}</div>
-          <div className="text-[10px] text-blue-400/80 mt-1">From Influencer Ops</div>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus('pending_brand_review')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'pending_brand_review'
-              ? 'bg-amber-500/15 border-amber-500/60 shadow-lg shadow-amber-500/10'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">With Brand Client</div>
-          <div className="text-2xl font-black text-amber-300 mt-1">{counts.pending_brand_review}</div>
-          <div className="text-[10px] text-amber-400/80 mt-1">Awaiting client review</div>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus('brand_approved')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'brand_approved'
-              ? 'bg-emerald-500/15 border-emerald-500/60 shadow-lg shadow-emerald-500/10'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Brand Shortlisted</div>
-          <div className="text-2xl font-black text-emerald-300 mt-1">{counts.brand_approved}</div>
-          <div className="text-[10px] text-emerald-400/80 mt-1">Approved by client</div>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus('brand_rejected')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'brand_rejected'
-              ? 'bg-rose-500/15 border-rose-500/60 shadow-lg shadow-rose-500/10'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">Brand Rejected</div>
-          <div className="text-2xl font-black text-rose-300 mt-1">{counts.brand_rejected}</div>
-          <div className="text-[10px] text-rose-400/80 mt-1">Client rejected</div>
-        </div>
-
-        <div
-          onClick={() => setSelectedStatus('internal_rejected')}
-          className={`cursor-pointer p-4 rounded-2xl border transition-all ${
-            selectedStatus === 'internal_rejected'
-              ? 'bg-neutral-800 border-neutral-600 shadow-lg'
-              : 'bg-slate-900/90 border-white/10 hover:border-white/20'
-          }`}
-        >
-          <div className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Internal Dropped</div>
-          <div className="text-2xl font-black text-neutral-300 mt-1">{counts.internal_rejected}</div>
-          <div className="text-[10px] text-neutral-500 mt-1">Dropped before brand</div>
-        </div>
+        {[
+          {
+            id: 'all',
+            label: 'Total Pitched',
+            count: counts.all,
+            subtext: 'Across all campaigns',
+            icon: User,
+            accentText: 'text-amber-400',
+            activeClass: 'bg-gradient-to-b from-amber-500/15 via-slate-900/90 to-slate-900 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/50',
+            iconBg: 'bg-amber-500/10 text-amber-400',
+            topLine: 'via-amber-400'
+          },
+          {
+            id: 'queued_for_brand_admin',
+            label: 'Queued for KAM',
+            count: counts.queued_for_brand_admin,
+            subtext: 'From Influencer Ops',
+            icon: Clock,
+            accentText: 'text-blue-400',
+            activeClass: 'bg-gradient-to-b from-blue-500/15 via-slate-900/90 to-slate-900 border-blue-500/60 shadow-lg shadow-blue-500/10 ring-1 ring-blue-400/50',
+            iconBg: 'bg-blue-500/10 text-blue-400',
+            topLine: 'via-blue-400',
+            pulse: true
+          },
+          {
+            id: 'pending_brand_review',
+            label: 'With Brand',
+            count: counts.pending_brand_review,
+            subtext: 'Awaiting client review',
+            icon: Send,
+            accentText: 'text-purple-400',
+            activeClass: 'bg-gradient-to-b from-purple-500/15 via-slate-900/90 to-slate-900 border-purple-500/60 shadow-lg shadow-purple-500/10 ring-1 ring-purple-400/50',
+            iconBg: 'bg-purple-500/10 text-purple-400',
+            topLine: 'via-purple-400'
+          },
+          {
+            id: 'brand_approved',
+            label: 'Shortlisted',
+            count: counts.brand_approved,
+            subtext: 'Approved by client',
+            icon: CheckCircle2,
+            accentText: 'text-emerald-400',
+            activeClass: 'bg-gradient-to-b from-emerald-500/15 via-slate-900/90 to-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/50',
+            iconBg: 'bg-emerald-500/10 text-emerald-400',
+            topLine: 'via-emerald-400'
+          },
+          {
+            id: 'brand_rejected',
+            label: 'Rejected',
+            count: counts.brand_rejected,
+            subtext: 'Client rejected',
+            icon: XCircle,
+            accentText: 'text-rose-400',
+            activeClass: 'bg-gradient-to-b from-rose-500/15 via-slate-900/90 to-slate-900 border-rose-500/60 shadow-lg shadow-rose-500/10 ring-1 ring-rose-400/50',
+            iconBg: 'bg-rose-500/10 text-rose-400',
+            topLine: 'via-rose-400'
+          },
+          {
+            id: 'internal_rejected',
+            label: 'Internal Dropped',
+            count: counts.internal_rejected,
+            subtext: 'Dropped before brand',
+            icon: X,
+            accentText: 'text-neutral-400',
+            activeClass: 'bg-gradient-to-b from-neutral-800/40 via-slate-900/90 to-slate-900 border-neutral-600 shadow-lg ring-1 ring-neutral-500/50',
+            iconBg: 'bg-white/5 text-neutral-400',
+            topLine: 'via-neutral-500'
+          }
+        ].map((kpi) => {
+          const Icon = kpi.icon
+          const isActive = selectedStatus === kpi.id
+          return (
+            <div
+              key={kpi.id}
+              onClick={() => setSelectedStatus(kpi.id)}
+              className={`cursor-pointer p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 select-none ${
+                isActive
+                  ? kpi.activeClass
+                  : 'bg-slate-900/70 backdrop-blur-xl border-white/[0.08] hover:border-white/20 hover:bg-slate-900/90'
+              }`}
+            >
+              <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent ${kpi.topLine} to-transparent opacity-80`} />
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 truncate ${
+                  isActive ? 'text-white font-extrabold' : kpi.accentText
+                }`}>
+                  {kpi.pulse && <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />}
+                  {kpi.label}
+                </span>
+                <div className={`h-6 w-6 rounded-lg ${kpi.iconBg} flex items-center justify-center shrink-0`}>
+                  <Icon className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="flex items-baseline justify-between mt-2">
+                <div className="text-2xl font-black text-white tracking-tight">{kpi.count}</div>
+                {isActive && (
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-white/10">
+                    Active
+                  </span>
+                )}
+              </div>
+              <div className="text-[10px] text-neutral-400 mt-1 truncate">{kpi.subtext}</div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* 3. Filter Bar */}
-      <div className="bg-slate-900/90 p-4 rounded-2xl border border-white/10 shadow-xl space-y-4">
+      {/* 3. Filter & Search Toolbar */}
+      <div className="bg-slate-900/80 backdrop-blur-xl p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-xl space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Brand Filter */}
           <div>
@@ -470,13 +514,14 @@ export default function CampaignPitchesCurationPage() {
                   setSelectedBrand(e.target.value)
                   setSelectedCampaign('all')
                 }}
-                className="w-full pl-9 pr-8 py-2 text-xs font-medium border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer"
+                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none hover:border-white/20"
               >
                 <option value="all">All Brands ({brands.length})</option>
                 {brands.map(b => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
+              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
             </div>
           </div>
 
@@ -490,7 +535,7 @@ export default function CampaignPitchesCurationPage() {
               <select
                 value={selectedCampaign}
                 onChange={(e) => setSelectedCampaign(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs font-medium border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer truncate"
+                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
               >
                 <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
                 {filteredCampaignsList.map(c => {
@@ -505,6 +550,7 @@ export default function CampaignPitchesCurationPage() {
                   )
                 })}
               </select>
+              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
             </div>
           </div>
 
@@ -518,13 +564,14 @@ export default function CampaignPitchesCurationPage() {
               <select
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 text-xs font-medium border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer truncate"
+                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
               >
                 <option value="all">All Batches ({batches.length})</option>
                 {batches.map(b => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
+              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
             </div>
           </div>
 
@@ -538,13 +585,14 @@ export default function CampaignPitchesCurationPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, handle, city..."
-                className="pl-9 text-xs h-9 bg-slate-950 border-white/10 text-white placeholder-neutral-500 focus:border-amber-400 rounded-xl"
+                placeholder="Search name, handle, city, pincode..."
+                className="pl-9 pr-8 text-xs h-9 bg-slate-950 border-white/10 text-white placeholder-neutral-500 focus:border-amber-400 rounded-xl hover:border-white/20"
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-white"
+                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-white cursor-pointer"
+                  title="Clear search"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -553,33 +601,59 @@ export default function CampaignPitchesCurationPage() {
           </div>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-t border-white/10 pt-3">
-          {[
-            { id: 'all', label: 'All Statuses', count: counts.all },
-            { id: 'queued_for_brand_admin', label: 'Queued for KAM', count: counts.queued_for_brand_admin, color: 'text-blue-400 bg-blue-500/15 border border-blue-500/30' },
-            { id: 'pending_brand_review', label: 'Sent to Brand', count: counts.pending_brand_review, color: 'text-amber-400 bg-amber-500/15 border border-amber-500/30' },
-            { id: 'brand_approved', label: 'Brand Shortlisted', count: counts.brand_approved, color: 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30' },
-            { id: 'brand_rejected', label: 'Brand Rejected', count: counts.brand_rejected, color: 'text-rose-400 bg-rose-500/15 border border-rose-500/30' },
-            { id: 'internal_rejected', label: 'Internal Dropped', count: counts.internal_rejected, color: 'text-neutral-400 bg-neutral-800 border border-neutral-700' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setSelectedStatus(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                selectedStatus === tab.id
-                  ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md shadow-amber-500/20'
-                  : 'bg-slate-950/60 text-neutral-400 hover:text-white hover:bg-white/5 border border-white/5'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
-                selectedStatus === tab.id ? 'bg-black/20 text-neutral-950 font-black' : tab.color || 'bg-white/5 text-neutral-400'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          ))}
+        {/* Toolbar Sub-bar: Status segmented bar & Active Filters */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-white/5 text-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            {[
+              { id: 'all', label: 'All', count: counts.all },
+              { id: 'queued_for_brand_admin', label: 'Queued', count: counts.queued_for_brand_admin, color: 'text-blue-400' },
+              { id: 'pending_brand_review', label: 'Sent to Brand', count: counts.pending_brand_review, color: 'text-purple-400' },
+              { id: 'brand_approved', label: 'Shortlisted', count: counts.brand_approved, color: 'text-emerald-400' },
+              { id: 'brand_rejected', label: 'Rejected', count: counts.brand_rejected, color: 'text-rose-400' },
+              { id: 'internal_rejected', label: 'Internal Dropped', count: counts.internal_rejected, color: 'text-neutral-400' },
+            ].map((tab) => {
+              const isTabActive = selectedStatus === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedStatus(tab.id)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isTabActive
+                      ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md shadow-amber-500/20'
+                      : 'bg-slate-950/70 text-neutral-400 hover:text-white hover:bg-white/5 border border-white/5'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    isTabActive ? 'bg-black/20 text-neutral-950 font-black' : tab.color || 'bg-white/5 text-neutral-400'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex items-center gap-2 text-neutral-400">
+            <span className="text-[11px] text-neutral-400">
+              Showing <strong className="text-white font-bold">{applications.length}</strong> profile{applications.length !== 1 ? 's' : ''}
+            </span>
+            {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all' || search) && (
+              <button
+                onClick={() => {
+                  setSelectedBrand('all')
+                  setSelectedCampaign('all')
+                  setSelectedBatch('all')
+                  setSelectedStatus('all')
+                  setSearch('')
+                }}
+                className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 hover:underline cursor-pointer ml-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset Filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -590,7 +664,7 @@ export default function CampaignPitchesCurationPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="sticky top-4 z-30 bg-neutral-950/95 text-white p-3.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 border border-amber-500/30 backdrop-blur-md"
+            className="sticky top-4 z-30 bg-slate-950/95 text-white p-3.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 border border-amber-500/40 backdrop-blur-xl shadow-amber-500/10"
           >
             <div className="flex items-center gap-3">
               <span className="flex h-6 w-6 rounded-full bg-amber-500 items-center justify-center text-xs font-black text-black">
@@ -606,7 +680,7 @@ export default function CampaignPitchesCurationPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setShowColumnShieldModal(true)}
-                className="bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border-white/10 text-xs h-8 flex items-center gap-1.5 cursor-pointer"
+                className="bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border-white/10 text-xs h-8 flex items-center gap-1.5 cursor-pointer rounded-xl"
               >
                 <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
                 Configure Shared Columns ({visibleColumns.length})
@@ -615,7 +689,7 @@ export default function CampaignPitchesCurationPage() {
               <Button
                 size="sm"
                 onClick={() => handleOpenDispatchModal()}
-                className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 text-xs h-8 font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
+                className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 text-xs h-8 font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer rounded-xl"
               >
                 <Send className="h-3.5 w-3.5" />
                 🚀 Send to Brand Portal
@@ -625,7 +699,7 @@ export default function CampaignPitchesCurationPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => setShowInternalDropModal(true)}
-                className="bg-neutral-900 hover:bg-rose-950/40 text-rose-300 border-rose-500/30 text-xs h-8 flex items-center gap-1.5 cursor-pointer"
+                className="bg-neutral-900 hover:bg-rose-950/40 text-rose-300 border-rose-500/30 text-xs h-8 flex items-center gap-1.5 cursor-pointer rounded-xl"
               >
                 <XCircle className="h-3.5 w-3.5" />
                 Drop / Don't Send
@@ -633,7 +707,7 @@ export default function CampaignPitchesCurationPage() {
 
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-xs text-neutral-400 hover:text-white px-2 py-1 cursor-pointer"
+                className="text-xs text-neutral-400 hover:text-white px-2 py-1 cursor-pointer font-medium"
               >
                 Clear
               </button>
@@ -643,28 +717,46 @@ export default function CampaignPitchesCurationPage() {
       </AnimatePresence>
 
       {/* 5. Curation Table */}
-      <div className="bg-slate-900/90 rounded-2xl border border-white/10 shadow-xl overflow-hidden">
+      <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-neutral-400">
-            <RefreshCw className="h-7 w-7 text-amber-400 animate-spin mb-3" />
-            <p className="text-sm font-medium">Loading campaign curation applications...</p>
+          <div className="py-24 flex flex-col items-center justify-center text-neutral-400">
+            <RefreshCw className="h-8 w-8 text-amber-400 animate-spin mb-3" />
+            <p className="text-sm font-semibold text-white">Loading campaign curation profiles...</p>
+            <p className="text-xs text-neutral-500 mt-1">Syncing with database and address confirmation desk</p>
           </div>
         ) : applications.length === 0 ? (
-          <div className="py-20 text-center px-4">
-            <div className="h-12 w-12 rounded-full bg-slate-950 flex items-center justify-center mx-auto text-neutral-500 mb-3 border border-white/5">
-              <Layers className="h-6 w-6 text-neutral-400" />
+          <div className="py-24 text-center px-4">
+            <div className="h-14 w-14 rounded-2xl bg-slate-950 flex items-center justify-center mx-auto text-neutral-500 mb-3 border border-white/5 shadow-inner">
+              <Layers className="h-7 w-7 text-neutral-400" />
             </div>
-            <h3 className="text-sm font-semibold text-white">No applications match your filter</h3>
-            <p className="text-xs text-neutral-400 max-w-sm mx-auto mt-1">
-              Select different brand, campaign, or status filters above, or forward applications from the Influencer Admin portal.
+            <h3 className="text-base font-bold text-white">No applications match your active filter</h3>
+            <p className="text-xs text-neutral-400 max-w-sm mx-auto mt-1 leading-relaxed">
+              Try switching your brand, campaign, or status filters, or clear search queries to view all records.
             </p>
+            {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all' || search) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedBrand('all')
+                  setSelectedCampaign('all')
+                  setSelectedBatch('all')
+                  setSelectedStatus('all')
+                  setSearch('')
+                }}
+                className="mt-4 border-amber-500/30 text-amber-300 hover:bg-amber-500/10 text-xs h-8 cursor-pointer rounded-xl"
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                Reset All Filters
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-neutral-300 border-collapse">
+            <table className="w-full text-left text-xs text-neutral-300 border-collapse min-w-[1140px]">
               <thead>
-                <tr className="bg-slate-950/80 border-b border-white/10 text-neutral-400 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-4 w-10 text-center">
+                <tr className="bg-slate-950/90 border-b border-white/10 text-neutral-400 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-3.5 px-3 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={selectedIds.length > 0 && selectedIds.length === applications.length}
@@ -672,19 +764,48 @@ export default function CampaignPitchesCurationPage() {
                       className="rounded border-neutral-700 bg-slate-950 text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
                     />
                   </th>
-                  <th className="py-3 px-4">Creator</th>
-                  <th className="py-3 px-4">Brand & Campaign</th>
-                  <th className="py-3 px-4">Batch</th>
-                  <th className="py-3 px-4">Audience & Location</th>
-                  <th className="py-3 px-4">Variant / Sample</th>
-                  <th className="py-3 px-4">
+                  <th className="py-3.5 px-3 min-w-[200px]">
                     <div className="flex items-center gap-1.5">
-                      <Truck className="h-3 w-3 text-emerald-400" />
+                      <User className="h-3.5 w-3.5 text-neutral-400" />
+                      <span>Creator</span>
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-3 min-w-[190px]">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-neutral-400" />
+                      <span>Brand & Campaign</span>
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-3 min-w-[130px]">
+                    <div className="flex items-center gap-1.5">
+                      <Instagram className="h-3.5 w-3.5 text-pink-400" />
+                      <span>Audience & Reach</span>
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-3 min-w-[110px]">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Variant / SKU</span>
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-3 min-w-[180px]">
+                    <div className="flex items-center gap-1.5">
+                      <Truck className="h-3.5 w-3.5 text-emerald-400" />
                       <span>Delivery Address (Barter)</span>
                     </div>
                   </th>
-                  <th className="py-3 px-4">Status & Client Decision</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-3 min-w-[160px] pr-4">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />
+                      <span>Status & Decision</span>
+                    </div>
+                  </th>
+                  <th className="py-3.5 px-3 w-[125px] min-w-[125px] text-right sticky right-0 bg-slate-950/95 backdrop-blur-md shadow-[-4px_0_8px_rgba(0,0,0,0.3)] z-10">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-neutral-400" />
+                      <span>Actions</span>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -699,11 +820,11 @@ export default function CampaignPitchesCurationPage() {
                   return (
                     <tr
                       key={item.application_id}
-                      className={`hover:bg-white/[0.03] transition-colors ${
-                        isSelected ? 'bg-amber-500/[0.08]' : ''
+                      className={`hover:bg-white/[0.03] transition-colors group ${
+                        isSelected ? 'bg-amber-500/[0.08] border-l-2 border-l-amber-400' : ''
                       }`}
                     >
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-3 text-center">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -713,9 +834,12 @@ export default function CampaignPitchesCurationPage() {
                       </td>
 
                       {/* Creator Info */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-xs font-bold text-amber-300 overflow-hidden shrink-0">
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            onClick={() => setInspectItem(item)}
+                            className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-xs font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner group-hover:border-amber-400/40 transition-colors cursor-pointer"
+                          >
                             {item.profile_photo ? (
                               <img
                                 src={item.profile_photo}
@@ -726,12 +850,13 @@ export default function CampaignPitchesCurationPage() {
                               item.creator_name.charAt(0).toUpperCase()
                             )}
                           </div>
-                          <div>
-                            <div className="font-semibold text-white hover:text-amber-300 cursor-pointer flex items-center gap-1.5"
+                          <div className="min-w-0">
+                            <div
+                              className="font-bold text-white text-xs hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors truncate"
                               onClick={() => setInspectItem(item)}
                             >
-                              <span>{item.creator_name}</span>
-                              <span className="text-[10px] font-mono text-neutral-400 bg-white/5 border border-white/5 px-1 py-0.2 rounded">
+                              <span className="truncate">{item.creator_name}</span>
+                              <span className="text-[10px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
                                 {item.influencer_id}
                               </span>
                             </div>
@@ -740,65 +865,63 @@ export default function CampaignPitchesCurationPage() {
                                 href={`https://instagram.com/${item.instagram_username}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[11px]"
+                                className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[11px] transition-colors truncate"
                               >
-                                <Instagram className="h-3 w-3 text-pink-400" />
-                                <span>@{item.instagram_username}</span>
+                                <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
+                                <span className="truncate max-w-[120px]">@{item.instagram_username}</span>
                               </a>
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Brand & Campaign */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-semibold text-white">{item.brand_name}</div>
-                        <div className="text-[11px] text-amber-300 font-medium flex items-center gap-1 mt-0.5 max-w-[200px] truncate" title={item.campaign_title}>
+                      {/* Brand, Campaign & Batch */}
+                      <td className="py-3.5 px-3">
+                        <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span>{item.brand_name}</span>
+                        </div>
+                        <div className="text-[11px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5 max-w-[180px] truncate" title={item.campaign_title}>
                           <Target className="h-3 w-3 text-amber-400 shrink-0" />
                           <span className="truncate">{item.campaign_title || 'Campaign'}</span>
                         </div>
-                        {item.campaign_code && item.campaign_code !== item.campaign_title && (
-                          <div className="text-[10px] font-mono text-neutral-400 mt-0.5">
-                            {item.campaign_code}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Batch */}
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[140px] truncate">
-                          <Layers className="h-3 w-3 text-amber-400 shrink-0" />
-                          <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
-                        </span>
-                        {item.brand_pitch_notes && (
-                          <div className="text-[10px] text-neutral-400 mt-1 truncate max-w-[140px]" title={item.brand_pitch_notes}>
-                            Note: {item.brand_pitch_notes}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[140px] truncate" title={item.brand_pitch_batch_name || 'Batch'}>
+                            <Layers className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                            <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
+                          </span>
+                          {item.campaign_code && item.campaign_code !== item.campaign_title && (
+                            <span className="text-[10px] font-mono text-neutral-500">
+                              {item.campaign_code}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Audience & Location */}
-                      <td className="py-3.5 px-4">
-                        <div className="font-bold text-white">
-                          {item.followers.toLocaleString('en-IN')} <span className="text-[10px] font-normal text-neutral-400">followers</span>
+                      <td className="py-3.5 px-3">
+                        <div className="font-black text-white text-xs tracking-tight flex items-baseline gap-1">
+                          <span>{formatFollowerCount(item.followers)}</span>
+                          <span className="text-[10px] font-normal text-neutral-400 font-mono">
+                            ({item.followers.toLocaleString('en-IN')})
+                          </span>
                         </div>
                         <div className="text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="h-3 w-3 text-neutral-500" />
-                          <span>{[item.city, item.state].filter(Boolean).join(', ') || 'India'}</span>
+                          <MapPin className="h-3 w-3 text-neutral-500 shrink-0" />
+                          <span className="truncate max-w-[130px]">{[item.city, item.state].filter(Boolean).join(', ') || 'India'}</span>
                         </div>
                       </td>
 
                       {/* Variant / Sample */}
-                      <td className="py-3.5 px-4">
-                        <div className="text-neutral-200 truncate max-w-[130px]" title={item.selected_variant || 'Standard'}>
+                      <td className="py-3.5 px-3">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-950 border border-white/10 text-neutral-200 text-xs font-semibold truncate max-w-[110px]" title={item.selected_variant || 'Standard'}>
                           {item.selected_variant || 'Standard'}
-                        </div>
+                        </span>
                         {item.sample_reel_link && (
                           <a
                             href={item.sample_reel_link}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-[10px] text-amber-400 hover:underline flex items-center gap-1 mt-0.5"
+                            className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-1 hover:underline"
                           >
                             <ExternalLink className="h-2.5 w-2.5" />
                             Sample Reel
@@ -807,22 +930,22 @@ export default function CampaignPitchesCurationPage() {
                       </td>
 
                       {/* Delivery Address (Strictly Verified Gatekeeper) */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-3 align-middle">
                         {item.address_verification_status === 'Verified' ? (
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-500/10">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                               Address: Verified
                             </span>
-                            <div className="text-[11px] text-neutral-200 font-medium truncate max-w-[170px]" title={item.verified_address_details?.street}>
+                            <div className="text-[11px] text-neutral-200 font-medium truncate max-w-[160px]" title={item.verified_address_details?.street}>
                               {item.verified_address_details?.city}, {item.verified_address_details?.state}
                             </div>
-                            <div className="text-[10px] font-mono text-emerald-400">
+                            <div className="text-[10px] font-mono text-emerald-400 font-semibold">
                               PIN: {item.verified_address_details?.pincode}
                             </div>
                             <button
                               onClick={() => setViewAddressItem(item)}
-                              className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold hover:underline flex items-center gap-1 cursor-pointer pt-0.5"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm mt-0.5"
                             >
                               <Eye className="h-2.5 w-2.5" />
                               <span>View & Copy Courier</span>
@@ -830,8 +953,8 @@ export default function CampaignPitchesCurationPage() {
                           </div>
                         ) : item.address_verification_status === 'Pending' ? (
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
-                              <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              <Clock className="h-3 w-3 text-amber-400" />
                               Pending Verification
                             </span>
                             <div className="text-[10px] text-neutral-400">
@@ -840,8 +963,8 @@ export default function CampaignPitchesCurationPage() {
                           </div>
                         ) : item.address_verification_status === 'Rejected' ? (
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                              <XCircle className="h-3 w-3 text-rose-400 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                              <XCircle className="h-3 w-3 text-rose-400" />
                               Address: Rejected
                             </span>
                             <div className="text-[10px] text-neutral-400">
@@ -849,20 +972,20 @@ export default function CampaignPitchesCurationPage() {
                             </div>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
-                            <AlertCircle className="h-3 w-3 text-neutral-500 shrink-0" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
+                            <AlertCircle className="h-3 w-3 text-neutral-500" />
                             Not Submitted
                           </span>
                         )}
                       </td>
 
                       {/* Status & Decision */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-3 min-w-[160px] pr-4">
                         {isApproved ? (
                           <div>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                              Brand Shortlisted
+                              Shortlisted
                             </span>
                             {item.brand_reviewed_by && (
                               <div className="text-[10px] text-emerald-400/80 mt-0.5">
@@ -872,53 +995,55 @@ export default function CampaignPitchesCurationPage() {
                           </div>
                         ) : isRejected ? (
                           <div>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
                               <XCircle className="h-3.5 w-3.5 text-rose-400" />
-                              Brand Rejected
+                              Rejected
                             </span>
                             {item.brand_rejection_reason && (
-                              <div className="text-[10px] text-rose-400/80 mt-0.5 truncate max-w-[130px]" title={item.brand_rejection_reason}>
+                              <div className="text-[10px] text-rose-400/80 mt-0.5 truncate max-w-[120px]" title={item.brand_rejection_reason}>
                                 {item.brand_rejection_reason}
                               </div>
                             )}
                           </div>
                         ) : isInternalDropped ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
                             <X className="h-3.5 w-3.5 text-neutral-500" />
-                            Internal Dropped
+                            Dropped
                           </span>
                         ) : isQueued ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10">
                             <Clock className="h-3.5 w-3.5 text-blue-400 animate-pulse" />
                             Queued for KAM
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                            <Send className="h-3.5 w-3.5 text-amber-400" />
-                            Sent to Brand
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10">
+                            <Send className="h-3.5 w-3.5 text-purple-400" />
+                            With Brand
                           </span>
                         )}
                       </td>
 
-                      {/* Quick Actions */}
-                      <td className="py-3.5 px-4 text-right">
+                      {/* Quick Actions (Sticky on the right edge) */}
+                      <td className="py-3 px-3 text-right w-[125px] min-w-[125px] sticky right-0 bg-slate-900/95 backdrop-blur-md group-hover:bg-slate-900 transition-colors shadow-[-4px_0_8px_rgba(0,0,0,0.3)] z-10">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setInspectItem(item)}
-                            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 cursor-pointer"
+                            className="h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
                             title="Inspect details"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3 w-3" />
+                            <span>View</span>
                           </button>
 
                           {isQueued && (
                             <>
                               <button
                                 onClick={() => handleOpenDispatchModal(item.application_id)}
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-sm"
+                                className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                                title="Send to Brand Client Portal"
                               >
-                                <Send className="h-3 w-3" />
-                                Send
+                                <Send className="h-2.5 w-2.5" />
+                                <span>Send</span>
                               </button>
 
                               <button
@@ -926,10 +1051,10 @@ export default function CampaignPitchesCurationPage() {
                                   setSelectedIds([item.application_id])
                                   setShowInternalDropModal(true)
                                 }}
-                                className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                                className="h-7 w-7 rounded-lg bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
                                 title="Drop creator"
                               >
-                                <X className="h-4 w-4" />
+                                <X className="h-3.5 w-3.5" />
                               </button>
                             </>
                           )}
