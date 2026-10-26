@@ -20,6 +20,7 @@ import {
   Sparkles,
   Calendar,
   X,
+  Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SampleList } from '@/types/sample-roster'
@@ -127,13 +128,25 @@ export default function SampleListsDashboardPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-500/25 transition-all cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Create New Sample Roster</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <a
+            href="/api/admin/sample-lists/template"
+            download="sample_creator_roster_template.csv"
+            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+            title="Download ready-to-use CSV import template"
+          >
+            <Download className="h-4 w-4 text-emerald-400" />
+            <span>Download CSV Template</span>
+          </a>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-500/25 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create New Sample Roster</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}

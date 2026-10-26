@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, use } from 'react'
+import React, { useState, useEffect, use, useRef, useMemo } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -29,9 +29,16 @@ import {
   Loader2,
   AlertCircle,
   X,
+  Upload,
+  FileDown,
+  CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AVAILABLE_ROSTER_COLUMNS, type SampleList, type SampleListItem, type SampleRosterColumnKey } from '@/types/sample-roster'
+import {
+  SAMPLE_ROSTER_TEMPLATE_HEADERS,
+  SAMPLE_ROSTER_TEMPLATE_ROWS,
+} from '@/app/api/admin/sample-lists/template/route'
 
 export default function SampleListStudioPage({
   params,
@@ -57,9 +64,12 @@ export default function SampleListStudioPage({
   const [selectedDbCreators, setSelectedDbCreators] = useState<any[]>([])
   const [addingFromDb, setAddingFromDb] = useState(false)
 
-  // Sheet Import state
+  // Sheet Import & Template state
   const [sheetText, setSheetText] = useState('')
   const [importing, setImporting] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [copiedTemplate, setCopiedTemplate] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Share & Columns state
   const [selectedColumns, setSelectedColumns] = useState<SampleRosterColumnKey[]>([
@@ -152,14 +162,130 @@ export default function SampleListStudioPage({
     }
   }
 
-  // Parse and import from Google Sheet / CSV paste
+  // Download Sample Template CSV
+  const handleDownloadTemplate = () => {
+    const headerLine = SAMPLE_ROSTER_TEMPLATE_HEADERS.join(',')
+    const dataLines = SAMPLE_ROSTER_TEMPLATE_ROWS.map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    )
+    const csvContent = '\uFEFF' + [headerLine, ...dataLines].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'sample_creator_roster_template.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success('Downloaded sample CSV template! Open in Excel or Google Sheets.')
+  }
+
+  // Copy Template headers & sample rows to clipboard (TSV format for direct Excel/Sheet paste)
+  const handleCopyTemplateData = () => {
+    const tsvHeader = SAMPLE_ROSTER_TEMPLATE_HEADERS.join('\t')
+    const tsvRows = SAMPLE_ROSTER_TEMPLATE_ROWS.map((r) => r.join('\t')).join('\n')
+    const tsvContent = `${tsvHeader}\n${tsvRows}`
+    navigator.clipboard.writeText(tsvContent)
+    setCopiedTemplate(true)
+    toast.success('Copied template columns & sample rows to clipboard!')
+    setTimeout(() => setCopiedTemplate(false), 2500)
+  }
+
+  // Read uploaded file (CSV/TSV/TXT)
+  const processFile = (file: File) => {
+    if (!file.name.match(/\.(csv|tsv|txt)$/i)) {
+      return toast.error('Please upload a .csv, .tsv, or .txt file')
+    }
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target?.result as string
+      if (text) {
+        setSheetText(text)
+        toast.success(`Loaded "${file.name}" into importer!`)
+      }
+    }
+    reader.onerror = () => {
+      toast.error('Failed to read file')
+    }
+    reader.readAsText(file)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      processFile(file)
+      e.target.value = ''
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      processFile(file)
+    }
+  }
+
+  // Parse CSV line taking quotes and delimiters into account
+  const parseCSVLine = (line: string): string[] => {
+    const isTab = line.includes('\t')
+    if (isTab) {
+      return line.split('\t').map((c) => c.trim().replace(/^["']|["']$/g, ''))
+    }
+    const result: string[] = []
+    let current = ''
+    let inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i]
+      if (char === '"') {
+        inQuotes = !inQuotes
+      } else if (char === ',' && !inQuotes) {
+        result.push(current.trim().replace(/^["']|["']$/g, ''))
+        current = ''
+      } else {
+        current += char
+      }
+    }
+    result.push(current.trim().replace(/^["']|["']$/g, ''))
+    return result
+  }
+
+  // Live count of detected creator rows
+  const detectedRowCount = useMemo(() => {
+    if (!sheetText.trim()) return 0
+    const lines = sheetText.trim().split('\n').filter((l) => l.trim().length > 0)
+    if (lines.length === 0) return 0
+    const firstLine = lines[0].toLowerCase()
+    const hasHeader =
+      firstLine.includes('name') ||
+      firstLine.includes('instagram') ||
+      firstLine.includes('handle') ||
+      firstLine.includes('follower') ||
+      firstLine.includes('username')
+    const count = hasHeader ? lines.length - 1 : lines.length
+    return Math.max(0, count)
+  }, [sheetText])
+
+  // Parse and import from Google Sheet / CSV paste or upload
   const handleImportSheet = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!sheetText.trim()) return toast.error('Please paste data from your sheet')
+    if (!sheetText.trim()) return toast.error('Please paste or upload data from your sheet')
 
     setImporting(true)
     try {
-      const lines = sheetText.trim().split('\n')
+      const lines = sheetText.trim().split('\n').filter((l) => l.trim().length > 0)
       if (lines.length === 0) throw new Error('No data found to import')
 
       // Detect header row if present
@@ -168,15 +294,14 @@ export default function SampleListStudioPage({
         firstLine.includes('name') ||
         firstLine.includes('instagram') ||
         firstLine.includes('handle') ||
-        firstLine.includes('follower')
+        firstLine.includes('follower') ||
+        firstLine.includes('username')
 
       const dataLines = hasHeader ? lines.slice(1) : lines
       const parsedItems: any[] = []
 
       for (const line of dataLines) {
-        // Support tab-delimited or comma-delimited
-        const delimiter = line.includes('\t') ? '\t' : ','
-        const parts = line.split(delimiter).map((p) => p.trim().replace(/^["']|["']$/g, ''))
+        const parts = parseCSVLine(line)
 
         if (parts.length >= 2) {
           const creatorName = parts[0]
@@ -185,8 +310,25 @@ export default function SampleListStudioPage({
           const views = parts[3] || '0'
           const engRate = parts[4] || '0'
           const city = parts[5] || null
-          const reelUrl = parts[6] || null
-          const commercial = parts[7] || null
+
+          let niche: string | null = null
+          let reelUrl: string | null = null
+          let commercial: any = null
+
+          if (parts.length >= 7) {
+            if (parts[6]?.startsWith('http') || parts[6]?.includes('instagram.com')) {
+              reelUrl = parts[6]
+              commercial = parts[7] || null
+            } else {
+              niche = parts[6]
+              reelUrl = parts[7]?.startsWith('http') || parts[7]?.includes('instagram.com') ? parts[7] : null
+              commercial = parts[8] || (parts[7] && !parts[7].startsWith('http') ? parts[7] : null)
+            }
+          } else if (parts.length === 6) {
+            if (parts[5]?.startsWith('http')) {
+              reelUrl = parts[5]
+            }
+          }
 
           if (handle) {
             parsedItems.push({
@@ -196,6 +338,7 @@ export default function SampleListStudioPage({
               avg_reels_views: views,
               engagement_rate: engRate,
               city,
+              niche,
               sample_reel_url: reelUrl,
               brand_commercial: commercial,
             })
@@ -391,6 +534,15 @@ export default function SampleListStudioPage({
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               <span>Import Sheet / CSV</span>
+            </button>
+
+            <button
+              onClick={handleDownloadTemplate}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download CSV template to prepare your creator list in Excel or Google Sheets"
+            >
+              <Download className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Download Template</span>
             </button>
 
             <button
@@ -712,67 +864,174 @@ export default function SampleListStudioPage({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-xl bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              className="w-full max-w-2xl bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white max-h-[92vh] overflow-y-auto"
             >
+              {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-emerald-400" />
-                  <h3 className="text-base font-bold text-white">Import from Google Sheet or CSV</h3>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Import Creators from Sheet or CSV</h3>
+                    <p className="text-xs text-slate-400">Add multiple creators to this roster using a spreadsheet</p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowImportSheetModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <p className="text-slate-300 leading-relaxed">
-                  Copy and paste creator rows directly from your Google Sheet or Excel. Expected tab-delimited columns:
-                </p>
-                <div className="p-2.5 rounded-xl bg-slate-950 font-mono text-[11px] text-emerald-300 border border-emerald-500/20">
-                  Name | Instagram Handle | Followers | Avg Views | Engagement% | City | Sample Reel URL
+              {/* Template Download & Copy Card */}
+              <div className="p-3.5 rounded-xl bg-slate-950/90 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 text-emerald-300 font-bold text-xs">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Need the Roster CSV Template?</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Download our ready-to-use CSV template pre-filled with sample rows, or copy sample columns to paste into Excel or Google Sheets.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Template</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyTemplateData}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                    title="Copy tab-delimited columns & example rows"
+                  >
+                    {copiedTemplate ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedTemplate ? 'Copied!' : 'Copy Sample'}</span>
+                  </button>
                 </div>
               </div>
 
-              <form onSubmit={handleImportSheet} className="space-y-3">
-                <textarea
-                  rows={8}
-                  required
-                  value={sheetText}
-                  onChange={(e) => setSheetText(e.target.value)}
-                  placeholder="Paste rows here from Google Sheets...
-Sheetal Jadhav	@sheetaljadhavpatil	45000	25000	4.5%	Mumbai	https://instagram.com/reel/xyz
-Ishita Kaushik	@ishh.2307	120000	80000	5.2%	Delhi	https://instagram.com/reel/abc"
-                  className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-400 font-mono"
-                />
+              {/* Drag & Drop File Upload Area */}
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-3.5 rounded-xl border-2 border-dashed transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                  isDragging
+                    ? 'border-emerald-400 bg-emerald-500/10'
+                    : 'border-white/10 hover:border-emerald-500/40 bg-slate-950/50 hover:bg-slate-950/80'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">Click to upload .CSV file or drag & drop here</p>
+                    <p className="text-[11px] text-slate-400">Upload your completed template or Google Sheets export (.csv, .tsv, .txt)</p>
+                  </div>
+                </div>
+                <span className="text-[11px] px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300 font-medium shrink-0 hover:bg-white/10">
+                  Browse File
+                </span>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.tsv,.txt"
+                onChange={handleFileChange}
+                className="hidden"
+              />
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setShowImportSheetModal(false)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white border border-white/10"
+              {/* Expected Column Format Guide */}
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                  <span>Expected Columns (in order):</span>
+                  <span className="text-emerald-400 font-medium">Supports comma or tab-delimited</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950 font-mono text-[11px] text-emerald-300 border border-emerald-500/20 overflow-x-auto whitespace-nowrap">
+                  Creator Name | Instagram Handle | Followers | Avg Views | Eng % | City | Niche | Sample Reel URL | Commercial (₹)
+                </div>
+              </div>
+
+              {/* Text Area for Pasting */}
+              <form onSubmit={handleImportSheet} className="space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="text-slate-300 font-medium">Or paste rows directly from spreadsheet:</label>
+                    <div className="flex items-center gap-2">
+                      {detectedRowCount > 0 && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>{detectedRowCount} creators detected</span>
+                        </span>
+                      )}
+                      {sheetText.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setSheetText('')}
+                          className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <textarea
+                    rows={7}
+                    required
+                    value={sheetText}
+                    onChange={(e) => setSheetText(e.target.value)}
+                    placeholder={`Paste rows here from Excel or Google Sheets...
+Pooja Hegde\t@pooja_hegde\t500K\t120K\t3.8%\tMumbai\tFashion & Lifestyle\thttps://www.instagram.com/reel/C3x9abc123\t25000
+Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://www.instagram.com/reel/D2k8def456\t12000`}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-400 font-mono"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <a
+                    href="/api/admin/sample-lists/template"
+                    download="sample_creator_roster_template.csv"
+                    className="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1 transition-colors"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={importing}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {importing ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Importing...
-                      </>
-                    ) : (
-                      <>
-                        <FileSpreadsheet className="h-3.5 w-3.5" />
-                        Parse & Import Creators
-                      </>
-                    )}
-                  </button>
+                    <FileDown className="h-3.5 w-3.5" />
+                    <span>Direct template link</span>
+                  </a>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowImportSheetModal(false)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs text-slate-400 hover:text-white border border-white/10 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={importing || !sheetText.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 disabled:opacity-50 transition-all cursor-pointer shadow-md shadow-emerald-600/25"
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>Importing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="h-3.5 w-3.5" />
+                          <span>Parse & Import {detectedRowCount > 0 ? `(${detectedRowCount} Creators)` : 'Creators'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </form>
             </motion.div>

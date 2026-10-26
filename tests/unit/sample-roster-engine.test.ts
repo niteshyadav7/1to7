@@ -5,6 +5,11 @@ import {
   SampleListItem,
   BrandShortlist
 } from '@/types/sample-roster'
+import {
+  generateSampleRosterCSV,
+  SAMPLE_ROSTER_TEMPLATE_HEADERS,
+  SAMPLE_ROSTER_TEMPLATE_ROWS,
+} from '@/app/api/admin/sample-lists/template/route'
 
 // Helper metric parser replicating backend ingestion logic
 export function parseMetric(val: any): number {
@@ -206,6 +211,46 @@ describe('Sample Roster Engine & Column Visibility Shield', () => {
 
       expect(shortlist.status).toBe('converted_to_campaign')
       expect(shortlist.converted_campaign_id).toBe('camp-888')
+    })
+  })
+
+  describe('Sample Creator Roster Import Template & CSV Generation', () => {
+    it('defines standard expected columns for agency import', () => {
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Creator Name')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Instagram Username')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Followers')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Avg Reels Views')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Engagement Rate (%)')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('City')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Category / Niche')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Sample Reel URL')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS).toContain('Commercial Quoted (INR)')
+      expect(SAMPLE_ROSTER_TEMPLATE_HEADERS.length).toBe(9)
+    })
+
+    it('provides multi-genre sample rows with valid numbers and handles', () => {
+      expect(SAMPLE_ROSTER_TEMPLATE_ROWS.length).toBeGreaterThanOrEqual(4)
+
+      for (const row of SAMPLE_ROSTER_TEMPLATE_ROWS) {
+        expect(row.length).toBe(SAMPLE_ROSTER_TEMPLATE_HEADERS.length)
+        const [name, handle, followers, views, engRate] = row
+        expect(name.trim().length).toBeGreaterThan(0)
+        expect(handle.startsWith('@')).toBe(true)
+        expect(parseMetric(followers)).toBeGreaterThan(0)
+        expect(parseMetric(views)).toBeGreaterThan(0)
+        expect(parsePercentage(engRate)).toBeGreaterThan(0)
+      }
+    })
+
+    it('generates compliant CSV with UTF-8 BOM for Microsoft Excel', () => {
+      const csv = generateSampleRosterCSV()
+
+      // Must start with UTF-8 BOM so Excel opens with proper encoding
+      expect(csv.charCodeAt(0)).toBe(0xfeff)
+
+      const lines = csv.replace('\uFEFF', '').split('\n')
+      expect(lines.length).toBe(SAMPLE_ROSTER_TEMPLATE_ROWS.length + 1) // header + rows
+      expect(lines[0]).toBe(SAMPLE_ROSTER_TEMPLATE_HEADERS.join(','))
     })
   })
 })
