@@ -79,6 +79,8 @@ export interface DynamicDataTableProps<T> {
   theme?: 'dark' | 'light'
   loading?: boolean
   tableLayout?: 'auto' | 'fixed'
+  className?: string
+  headerActions?: React.ReactNode
 }
 
 export function DynamicDataTable<T extends Record<string, any>>({

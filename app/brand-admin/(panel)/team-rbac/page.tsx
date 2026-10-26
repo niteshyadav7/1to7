@@ -323,7 +323,9 @@ export default function TeamRbacPage() {
                             <div className="font-semibold text-white flex items-center gap-1.5">
                               {member.name}
                               {isMaster && (
-                                <Crown className="w-3.5 h-3.5 text-amber-400" title="Super Admin" />
+                                <span title="Super Admin">
+                                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                                </span>
                               )}
                             </div>
                             <div className="text-neutral-400 text-[11px]">{member.email}</div>

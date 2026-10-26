@@ -181,7 +181,7 @@ export function AddToSampleListModal({
             <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 shrink-0 text-sm overflow-hidden">
               {creator.profile_photo || creator.instagram_profile_pic ? (
                 <img
-                  src={creator.profile_photo || creator.instagram_profile_pic}
+                  src={(creator.profile_photo || creator.instagram_profile_pic) || ''}
                   alt={creator.full_name}
                   className="w-full h-full object-cover"
                   onError={(e) => {

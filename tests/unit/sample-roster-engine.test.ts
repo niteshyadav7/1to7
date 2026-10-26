@@ -38,7 +38,7 @@ export function sanitizeInstagramHandle(val: any): string {
 export function filterItemForClient(item: SampleListItem, visibleColumns: SampleRosterColumnKey[]) {
   const result: Record<string, any> = {
     id: item.id,
-    display_order: item.display_order
+    sort_order: item.sort_order
   }
 
   // Strictly protected columns that can NEVER be exposed to public clients
@@ -90,42 +90,40 @@ describe('Sample Roster Engine & Column Visibility Shield', () => {
       id: 'item-101',
       sample_list_id: 'roster-abc',
       creator_name: 'Pooja Hegde',
-      instagram_handle: 'pooja_hegde',
-      profile_pic_url: 'https://cdn.example.com/pooja.jpg',
-      category: 'Fashion & Lifestyle',
-      followers_count: 500000,
-      reels_views_avg: 120000,
+      instagram_username: 'pooja_hegde',
+      niche: 'Fashion & Lifestyle',
+      followers: 500000,
+      avg_reels_views: 120000,
       engagement_rate: 3.8,
-      location_city: 'Mumbai',
-      location_state: 'Maharashtra',
-      sample_reel_link: 'https://instagram.com/reel/xyz123',
-      client_commercial: 25000,
+      city: 'Mumbai',
+      sample_reel_url: 'https://instagram.com/reel/xyz123',
+      brand_commercial: 25000,
       internal_cost: 15000, // AGENCY SECRET: ₹10,000 margin
       admin_notes: 'Creator demands hotel stay; negotiate down to 13k if barter',
-      display_order: 1,
+      sort_order: 1,
       created_at: new Date().toISOString()
     }
 
     it('projects only visible columns configured by agency admin', () => {
       const visibleColumns: SampleRosterColumnKey[] = [
         'creator_name',
-        'instagram_handle',
-        'followers_count',
-        'reels_views_avg',
-        'location_city'
+        'instagram_username',
+        'followers',
+        'avg_reels_views',
+        'city'
       ]
 
       const sanitized = filterItemForClient(mockFullItem, visibleColumns)
 
       expect(sanitized.creator_name).toBe('Pooja Hegde')
-      expect(sanitized.instagram_handle).toBe('pooja_hegde')
-      expect(sanitized.followers_count).toBe(500000)
-      expect(sanitized.reels_views_avg).toBe(120000)
-      expect(sanitized.location_city).toBe('Mumbai')
+      expect(sanitized.instagram_username).toBe('pooja_hegde')
+      expect(sanitized.followers).toBe(500000)
+      expect(sanitized.avg_reels_views).toBe(120000)
+      expect(sanitized.city).toBe('Mumbai')
 
       // Excluded columns should be absent
-      expect(sanitized.sample_reel_link).toBeUndefined()
-      expect(sanitized.client_commercial).toBeUndefined()
+      expect(sanitized.sample_reel_url).toBeUndefined()
+      expect(sanitized.brand_commercial).toBeUndefined()
       expect(sanitized.internal_cost).toBeUndefined()
       expect(sanitized.admin_notes).toBeUndefined()
     })
@@ -134,29 +132,29 @@ describe('Sample Roster Engine & Column Visibility Shield', () => {
       // Malicious or accidental configuration containing internal secrets
       const leakedColumns = [
         'creator_name',
-        'instagram_handle',
+        'instagram_username',
         'internal_cost',
         'admin_notes'
-      ] as SampleRosterColumnKey[]
+      ] as any[]
 
       const sanitized = filterItemForClient(mockFullItem, leakedColumns)
 
       expect(sanitized.creator_name).toBe('Pooja Hegde')
-      expect(sanitized.instagram_handle).toBe('pooja_hegde')
+      expect(sanitized.instagram_username).toBe('pooja_hegde')
       expect(sanitized.internal_cost).toBeUndefined()
       expect(sanitized.admin_notes).toBeUndefined()
     })
 
-    it('allows client_commercial only when explicitly enabled by agency admin', () => {
+    it('allows brand_commercial only when explicitly enabled by agency admin', () => {
       const columnsWithCommercial: SampleRosterColumnKey[] = [
         'creator_name',
-        'instagram_handle',
-        'client_commercial'
+        'instagram_username',
+        'brand_commercial'
       ]
 
       const sanitized = filterItemForClient(mockFullItem, columnsWithCommercial)
 
-      expect(sanitized.client_commercial).toBe(25000)
+      expect(sanitized.brand_commercial).toBe(25000)
       expect(sanitized.internal_cost).toBeUndefined()
     })
   })
@@ -182,12 +180,14 @@ describe('Sample Roster Engine & Column Visibility Shield', () => {
         id: 'bs-999',
         sample_list_id: 'roster-abc',
         brand_name: 'Mamaearth',
-        brand_contact_name: 'Vikram Mehta',
-        brand_contact_email: 'vikram@mamaearth.in',
-        brand_notes: 'Urgent turnaround',
-        selected_item_ids: ['item-101'],
+        brand_poc_name: 'Vikram Mehta',
+        brand_poc_email: 'vikram@mamaearth.in',
+        brand_feedback_notes: 'Urgent turnaround',
+        shortlisted_item_ids: ['item-101'],
+        shortlisted_creators_count: 1,
         status: 'new',
         converted_campaign_id: null,
+        submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }

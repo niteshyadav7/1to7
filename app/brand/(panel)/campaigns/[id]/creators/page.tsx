@@ -328,7 +328,7 @@ export default function CreatorReviewStudioPage() {
             width: '12%',
             render: (c) => (
               <span className="font-bold text-slate-900 text-xs px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 whitespace-nowrap">
-                {formatFollowerCount(c.follower_count)}
+                {formatFollowerCount(c.followers)}
               </span>
             ),
           },
