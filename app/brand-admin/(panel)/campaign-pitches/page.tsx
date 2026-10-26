@@ -79,6 +79,7 @@ export default function CampaignPitchesCurationPage() {
     'sample_reel_link'
   ])
   const [showDispatchModal, setShowDispatchModal] = useState(false)
+  const [dispatchTargetBrand, setDispatchTargetBrand] = useState('')
   const [dispatchKamNotes, setDispatchKamNotes] = useState('')
   const [isDispatching, setIsDispatching] = useState(false)
 
@@ -152,6 +153,34 @@ export default function CampaignPitchesCurationPage() {
     )
   }
 
+  const selectedApplications = useMemo(() => {
+    return applications.filter(a => selectedIds.includes(a.application_id))
+  }, [applications, selectedIds])
+
+  const autoDetectedBrand = useMemo(() => {
+    const first = selectedApplications[0]
+    if (first?.brand_name && first.brand_name !== 'Brand') return first.brand_name
+    if (selectedBrand !== 'all') return selectedBrand
+    return brands[0] || ''
+  }, [selectedApplications, selectedBrand, brands])
+
+  const handleOpenDispatchModal = (appId?: string) => {
+    const targetIds = appId ? [appId] : selectedIds
+    if (targetIds.length === 0) {
+      toast.error('Please select at least one application to send to Brand')
+      return
+    }
+    if (appId) {
+      setSelectedIds([appId])
+    }
+    const targetApps = applications.filter(a => targetIds.includes(a.application_id))
+    const detected = (targetApps[0]?.brand_name && targetApps[0].brand_name !== 'Brand')
+      ? targetApps[0].brand_name
+      : (selectedBrand !== 'all' ? selectedBrand : (brands[0] || ''))
+    setDispatchTargetBrand(detected)
+    setShowDispatchModal(true)
+  }
+
   // Action: Single or Bulk Dispatch to Brand Client Portal
   const handleDispatchToBrand = async () => {
     if (selectedIds.length === 0) {
@@ -167,6 +196,7 @@ export default function CampaignPitchesCurationPage() {
         body: JSON.stringify({
           applicationIds: selectedIds,
           campaignId: selectedCampaign !== 'all' ? selectedCampaign : undefined,
+          targetBrand: dispatchTargetBrand || undefined,
           visibleColumns,
           kamNotes: dispatchKamNotes.trim() || undefined,
         }),
@@ -567,7 +597,7 @@ export default function CampaignPitchesCurationPage() {
 
               <Button
                 size="sm"
-                onClick={() => setShowDispatchModal(true)}
+                onClick={() => handleOpenDispatchModal()}
                 className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 text-xs h-8 font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer"
               >
                 <Send className="h-3.5 w-3.5" />
@@ -811,10 +841,7 @@ export default function CampaignPitchesCurationPage() {
                           {isQueued && (
                             <>
                               <button
-                                onClick={() => {
-                                  setSelectedIds([item.application_id])
-                                  setShowDispatchModal(true)
-                                }}
+                                onClick={() => handleOpenDispatchModal(item.application_id)}
                                 className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-sm"
                               >
                                 <Send className="h-3 w-3" />
@@ -956,10 +983,75 @@ export default function CampaignPitchesCurationPage() {
               </div>
 
               <div className="mt-4 space-y-4">
-                <p className="text-xs text-neutral-300 leading-relaxed">
-                  These creators will be immediately published to the client brand's portal review studio under status <strong className="text-amber-400">Sent to Brand</strong>.
-                </p>
+                {/* 1. Target Client Brand Selection Dropdown */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-amber-400" />
+                      Target Client Brand
+                    </label>
+                    {autoDetectedBrand && dispatchTargetBrand === autoDetectedBrand && (
+                      <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Auto-detected
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={dispatchTargetBrand}
+                      onChange={(e) => setDispatchTargetBrand(e.target.value)}
+                      className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      {brands.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-1">
+                    These profiles will appear live on <strong>{dispatchTargetBrand || 'the brand'}'s</strong> client portal review studio.
+                  </p>
+                </div>
 
+                {/* 2. Selected Creators Preview */}
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-neutral-400 mb-1">
+                    Selected Creators ({selectedApplications.length})
+                  </div>
+                  <div className="max-h-24 overflow-y-auto p-2 rounded-xl bg-slate-950 border border-white/5 space-y-1">
+                    {selectedApplications.map(app => (
+                      <div key={app.application_id} className="flex items-center justify-between text-xs py-0.5">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold text-white truncate">{app.creator_name}</span>
+                          <span className="text-[10px] text-neutral-500">(@{app.instagram_username})</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-amber-300/80 shrink-0">
+                          {app.followers.toLocaleString()} f
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Column Privacy Shield Badge */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                  <div className="flex items-center gap-2 text-amber-300">
+                    <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Privacy Shield Active: {visibleColumns.length} columns shared</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDispatchModal(false)
+                      setShowColumnShieldModal(true)
+                    }}
+                    className="text-[11px] text-amber-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                </div>
+
+                {/* 4. Curation Pitch Note */}
                 <div>
                   <label className="text-xs font-semibold text-neutral-300 block mb-1.5">
                     Curation Note for Brand (Optional)
@@ -967,8 +1059,8 @@ export default function CampaignPitchesCurationPage() {
                   <textarea
                     value={dispatchKamNotes}
                     onChange={(e) => setDispatchKamNotes(e.target.value)}
-                    placeholder="e.g. Curated for Tier 1 beauty aesthetic, all confirmed available for next week delivery."
-                    className="w-full text-xs p-3 border border-white/10 rounded-xl bg-slate-950 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 h-20"
+                    placeholder={`e.g. Curated for ${dispatchTargetBrand || 'brand'} festive push, verified reach & high reel retention.`}
+                    className="w-full text-xs p-3 border border-white/10 rounded-xl bg-slate-950 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 h-16"
                   />
                 </div>
               </div>
@@ -992,7 +1084,7 @@ export default function CampaignPitchesCurationPage() {
                   ) : (
                     <Send className="h-3.5 w-3.5" />
                   )}
-                  {isDispatching ? 'Dispatching...' : 'Confirm & Publish'}
+                  {isDispatching ? 'Dispatching...' : `Confirm & Publish to ${dispatchTargetBrand || 'Brand'} Portal`}
                 </Button>
               </div>
             </motion.div>

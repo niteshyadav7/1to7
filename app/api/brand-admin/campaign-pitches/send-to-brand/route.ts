@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { applicationIds, campaignId, visibleColumns, kamNotes } = body
+    const { applicationIds, campaignId, visibleColumns, kamNotes, targetBrand } = body
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return NextResponse.json(
@@ -55,10 +55,36 @@ export async function POST(request: Request) {
       )
     }
 
+    // 3. Write audit log event
+    try {
+      await pool.query(
+        `INSERT INTO public.brand_audit_logs (
+          brand_id, user_id, user_name, event_type, entity_id, details
+        ) VALUES ($1, $2, $3, $4, $5, $6);`,
+        [
+          targetBrand?.toLowerCase() || 'unassigned',
+          (admin as any).id || null,
+          reviewerName,
+          'campaign_creators_dispatched_to_brand',
+          String(campaignId || 'campaign_batch'),
+          JSON.stringify({
+            target_brand: targetBrand || 'Unspecified',
+            count: updatedCount,
+            application_ids: applicationIds,
+            kam_notes: kamNotes || null,
+          }),
+        ]
+      )
+    } catch {
+      // Non-fatal if audit logging encounters a schema variant
+    }
+
+    const brandDisplay = targetBrand ? `${targetBrand} ` : ''
     return NextResponse.json({
       success: true,
       updatedCount,
-      message: `Successfully dispatched ${updatedCount} creator profile${updatedCount > 1 ? 's' : ''} to Brand Portal!`,
+      targetBrand: targetBrand || null,
+      message: `Successfully dispatched ${updatedCount} creator profile${updatedCount > 1 ? 's' : ''} to ${brandDisplay}Brand Portal!`,
     })
   } catch (error: any) {
     console.error('Send to Brand POST Error:', error)
