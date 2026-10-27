@@ -21,54 +21,25 @@ import {
 import { Button } from '@/components/ui/button'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
-const BRAND_WORKSPACES = [
-  {
-    id: 'b-mamaearth',
-    name: 'Mamaearth',
-    slug: 'mamaearth',
-    industry: 'Beauty & Skincare',
-    initials: 'MA',
-    color: 'from-amber-500 to-amber-700',
-    assignedKam: 'Pooja Verma (KAM)',
-    activeCampaigns: 2,
-    pendingReviews: 18,
-    slaStatus: 'warning', // > 24 hours
-    oldestPendingHours: 31,
-  },
-  {
-    id: 'b-plum',
-    name: 'Plum Goodness',
-    slug: 'plum',
-    industry: 'Vegan Beauty',
-    initials: 'PL',
-    color: 'from-amber-600 to-orange-700',
-    assignedKam: 'Nitesh Yadav (Senior Ops)',
-    activeCampaigns: 1,
-    pendingReviews: 6,
-    slaStatus: 'breached', // > 48 hours
-    oldestPendingHours: 52,
-  },
-  {
-    id: 'b-sugar',
-    name: 'Sugar Cosmetics',
-    slug: 'sugar',
-    industry: 'Color Cosmetics',
-    initials: 'SU',
-    color: 'from-neutral-700 to-neutral-900',
-    assignedKam: 'Pooja Verma (KAM)',
-    activeCampaigns: 3,
-    pendingReviews: 0,
-    slaStatus: 'healthy',
-    oldestPendingHours: 0,
-  },
-]
-
 export default function BrandAdminDashboardPage() {
-  const [brands] = useState(BRAND_WORKSPACES)
+  const [brands, setBrands] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const totalPending = brands.reduce((acc, b) => acc + b.pendingReviews, 0)
-  const slaBreaches = brands.filter((b) => b.slaStatus === 'breached').length
-  const slaWarnings = brands.filter((b) => b.slaStatus === 'warning').length
+  useEffect(() => {
+    fetch('/api/brand-admin/brands')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.brands)) {
+          setBrands(data.brands)
+        }
+      })
+      .catch(() => setBrands([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const totalPending = brands.reduce((acc, b) => acc + (b.pendingReviews || 0), 0)
+  const slaBreaches = brands.filter((b) => (b.pendingReviews || 0) > 10).length
+  const slaWarnings = brands.filter((b) => (b.pendingReviews || 0) > 0 && (b.pendingReviews || 0) <= 10).length
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -171,6 +142,8 @@ export default function BrandAdminDashboardPage() {
 
       {/* Brand Workspaces Directory Dynamic Table */}
       <DynamicDataTable
+        loading={loading}
+        emptyMessage="No brand workspaces onboarded in database yet. Click 'Manage Brands' above to add your first brand client."
         title="Client Brand Accounts"
         subtitle="Manage client review workflows, track KAM assignments, and enter Virtual Brand mode."
         data={brands}

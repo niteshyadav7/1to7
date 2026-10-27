@@ -50,62 +50,13 @@ interface BrandWorkspace {
   status: 'active' | 'paused'
 }
 
-const INITIAL_BRANDS: BrandWorkspace[] = [
-  {
-    id: 'b-mamaearth',
-    name: 'Mamaearth',
-    slug: 'mamaearth',
-    industry: 'Beauty & Skincare',
-    initials: 'MA',
-    color: 'from-amber-500 to-amber-700',
-    assignedKam: 'Pooja Verma (KAM)',
-    primaryContact: 'Ananya Sharma (Brand Head)',
-    email: 'ananya@mamaearth.in',
-    phone: '+91 98765 43210',
-    password: 'brand123',
-    activeCampaigns: 2,
-    pendingReviews: 18,
-    status: 'active',
-  },
-  {
-    id: 'b-plum',
-    name: 'Plum Goodness',
-    slug: 'plum',
-    industry: 'Vegan Beauty',
-    initials: 'PL',
-    color: 'from-amber-600 to-orange-700',
-    assignedKam: 'Nitesh Yadav (Senior Ops)',
-    primaryContact: 'Rahul Sen (Marketing Lead)',
-    email: 'rahul@plumgoodness.com',
-    phone: '+91 98111 22334',
-    password: 'brand123',
-    activeCampaigns: 1,
-    pendingReviews: 6,
-    status: 'active',
-  },
-  {
-    id: 'b-sugar',
-    name: 'Sugar Cosmetics',
-    slug: 'sugar',
-    industry: 'Color Cosmetics',
-    initials: 'SU',
-    color: 'from-neutral-700 to-neutral-900',
-    assignedKam: 'Pooja Verma (KAM)',
-    primaryContact: 'Kavita Roy (Digital Lead)',
-    email: 'kavita@sugarcosmetics.com',
-    phone: '+91 99887 76655',
-    password: 'brand123',
-    activeCampaigns: 3,
-    pendingReviews: 0,
-    status: 'active',
-  },
-]
-
 export default function ClientBrandsDirectoryPage() {
-  const [brands, setBrands] = useState<BrandWorkspace[]>(INITIAL_BRANDS)
+  const [brands, setBrands] = useState<BrandWorkspace[]>([])
+  const [loading, setLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
   const [search, setSearch] = useState('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Password Setup & Credentials Modal State
   const [selectedBrandForCreds, setSelectedBrandForCreds] = useState<BrandWorkspace | null>(null)
@@ -126,118 +77,176 @@ export default function ClientBrandsDirectoryPage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [newKam, setNewKam] = useState('Pooja Verma (KAM)')
 
-  // Load persisted workspaces from localStorage
-  useEffect(() => {
+  // Fetch real brands from PostgreSQL DB
+  const fetchBrands = async () => {
+    setLoading(true)
     try {
-      const saved = localStorage.getItem('1to7_brand_workspaces')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setBrands(parsed)
-        }
+      const res = await fetch('/api/brand-admin/brands')
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.brands)) {
+        setBrands(data.brands)
+      } else {
+        setBrands([])
       }
-    } catch {
-      // ignore
-    }
-    setIsLoaded(true)
-  }, [])
-
-  const persistBrands = (updated: BrandWorkspace[]) => {
-    setBrands(updated)
-    try {
-      localStorage.setItem('1to7_brand_workspaces', JSON.stringify(updated))
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to load brands from DB:', err)
+      setBrands([])
+    } finally {
+      setLoading(false)
+      setIsLoaded(true)
     }
   }
 
-  const handleAddBrand = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchBrands()
+  }, [])
+
+  const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName || !newEmail) {
       toast.error('Brand name and email are required')
       return
     }
 
-    const initials = newName.substring(0, 2).toUpperCase()
-    const slug = newName.toLowerCase().replace(/[^a-z0-9]/g, '-')
     const passwordToUse = newPassword.trim() || 'brand123'
+    setIsSubmitting(true)
 
-    const newBrand: BrandWorkspace = {
-      id: `b-${slug}`,
-      name: newName,
-      slug,
-      industry: newIndustry || 'Consumer Goods',
-      initials,
-      color: 'from-amber-500 to-yellow-600',
-      assignedKam: newKam,
-      primaryContact: newContact || 'Brand Manager',
-      email: newEmail.trim().toLowerCase(),
-      phone: newPhone.trim() || undefined,
-      password: passwordToUse,
-      activeCampaigns: 0,
-      pendingReviews: 0,
-      status: 'active',
+    try {
+      const res = await fetch('/api/brand-admin/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName,
+          industry: newIndustry,
+          primaryContact: newContact,
+          email: newEmail,
+          phone: newPhone,
+          password: passwordToUse,
+          assignedKam: newKam,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.brand) {
+        setBrands([data.brand, ...brands])
+        setIsAddModalOpen(false)
+        setNewName('')
+        setNewIndustry('')
+        setNewContact('')
+        setNewEmail('')
+        setNewPhone('')
+        setNewPassword('brand123')
+
+        toast.success(`Successfully saved ${data.brand.name} to Database!`, {
+          description: `Login: ${data.brand.email} | Password: ${passwordToUse}`,
+          action: {
+            label: 'Copy Login',
+            onClick: () => {
+              const creds = `1to7 Brand Portal Access\nURL: ${typeof window !== 'undefined' ? window.location.origin : ''}/brand/login\nEmail: ${data.brand.email}\nPassword: ${passwordToUse}`
+              navigator.clipboard.writeText(creds)
+              toast.success('Credentials copied to clipboard!')
+            },
+          },
+        })
+      } else {
+        toast.error(data.error || 'Failed to create brand in database')
+      }
+    } catch {
+      toast.error('Network error creating brand workspace')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const updated = [newBrand, ...brands]
-    persistBrands(updated)
-    setIsAddModalOpen(false)
-    setNewName('')
-    setNewIndustry('')
-    setNewContact('')
-    setNewEmail('')
-    setNewPhone('')
-    setNewPassword('brand123')
-
-    toast.success(`Successfully onboarded ${newName} to Brand Admin!`, {
-      description: `Email: ${newBrand.email} | Password: ${passwordToUse}`,
-      action: {
-        label: 'Copy Login',
-        onClick: () => {
-          const creds = `1to7 Brand Portal Access\nURL: ${typeof window !== 'undefined' ? window.location.origin : ''}/brand/login\nEmail: ${newBrand.email}\nPassword: ${passwordToUse}`
-          navigator.clipboard.writeText(creds)
-          toast.success('Credentials copied to clipboard!')
-        },
-      },
-    })
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!brandToDelete) return
-    const updated = brands.filter((b) => b.id !== brandToDelete.id)
-    persistBrands(updated)
-    toast.success(`Deleted workspace for "${brandToDelete.name}"`)
-    setBrandToDelete(null)
+    try {
+      const res = await fetch(`/api/brand-admin/brands?id=${brandToDelete.id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setBrands(brands.filter((b) => b.id !== brandToDelete.id))
+        toast.success(`Deleted workspace "${brandToDelete.name}" from database`)
+      } else {
+        toast.error('Failed to delete brand workspace from database')
+      }
+    } catch {
+      toast.error('Network error deleting brand workspace')
+    } finally {
+      setBrandToDelete(null)
+    }
   }
 
-  const handleConfirmBulkDelete = () => {
+  const handleConfirmBulkDelete = async () => {
     if (!bulkDeleteRows || bulkDeleteRows.length === 0) return
-    const idsToDelete = new Set(bulkDeleteRows.map((r) => r.id))
-    const updated = brands.filter((b) => !idsToDelete.has(b.id))
-    persistBrands(updated)
-    toast.success(`Deleted ${bulkDeleteRows.length} brand workspaces`)
-    setBulkDeleteRows(null)
+    const idsToDelete = bulkDeleteRows.map((r) => r.id)
+    try {
+      const res = await fetch('/api/brand-admin/brands', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsToDelete }),
+      })
+      if (res.ok) {
+        const idSet = new Set(idsToDelete)
+        setBrands(brands.filter((b) => !idSet.has(b.id)))
+        toast.success(`Deleted ${bulkDeleteRows.length} brand workspaces from database`)
+      } else {
+        toast.error('Failed to bulk delete brand workspaces')
+      }
+    } catch {
+      toast.error('Network error deleting brand workspaces')
+    } finally {
+      setBulkDeleteRows(null)
+    }
   }
 
-  const handleToggleStatus = (brand: BrandWorkspace) => {
+  const handleToggleStatus = async (brand: BrandWorkspace) => {
     const nextStatus = brand.status === 'active' ? 'paused' : 'active'
-    const updated = brands.map((b) =>
-      b.id === brand.id ? { ...b, status: nextStatus as 'active' | 'paused' } : b
-    )
-    persistBrands(updated)
-    toast.success(`${brand.name} workspace status set to ${nextStatus.toUpperCase()}`)
+    try {
+      const res = await fetch('/api/brand-admin/brands', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: brand.id, status: nextStatus }),
+      })
+      if (res.ok) {
+        setBrands(
+          brands.map((b) =>
+            b.id === brand.id ? { ...b, status: nextStatus as 'active' | 'paused' } : b
+          )
+        )
+        toast.success(`${brand.name} status updated to ${nextStatus.toUpperCase()}`)
+      } else {
+        toast.error('Failed to update brand status in database')
+      }
+    } catch {
+      toast.error('Network error updating brand status')
+    }
   }
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedBrandForCreds) return
     const updatedPass = customPasswordInput.trim() || 'brand123'
-    const updated = brands.map((b) =>
-      b.id === selectedBrandForCreds.id ? { ...b, password: updatedPass } : b
-    )
-    persistBrands(updated)
-    setSelectedBrandForCreds({ ...selectedBrandForCreds, password: updatedPass })
-    toast.success(`Password for ${selectedBrandForCreds.name} updated to "${updatedPass}"!`)
+    try {
+      const res = await fetch('/api/brand-admin/brands', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedBrandForCreds.id, password: updatedPass }),
+      })
+      if (res.ok) {
+        setBrands(
+          brands.map((b) =>
+            b.id === selectedBrandForCreds.id ? { ...b, password: updatedPass } : b
+          )
+        )
+        setSelectedBrandForCreds({ ...selectedBrandForCreds, password: updatedPass })
+        toast.success(`Password for ${selectedBrandForCreds.name} updated in Database!`)
+      } else {
+        toast.error('Failed to update brand password in database')
+      }
+    } catch {
+      toast.error('Network error updating password')
+    }
   }
 
   const handleCopyCredentialsMessage = (brand: BrandWorkspace) => {
@@ -325,6 +334,8 @@ export default function ClientBrandsDirectoryPage() {
 
       {/* Dynamic Data Table for Client Brands */}
       <DynamicDataTable
+        loading={loading}
+        emptyMessage="No brand workspaces onboarded in database yet. Click '+ Add Brand Workspace' to create your first brand client."
         data={brands}
         columns={[
           {
