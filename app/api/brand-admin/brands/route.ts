@@ -25,7 +25,7 @@ export async function GET() {
         b.is_active,
         b.sla_review_hours,
         b.created_at,
-        COALESCE(adm.name, 'Pooja Verma (KAM)') as assigned_kam,
+        COALESCE(adm.name, 'Unassigned') as assigned_kam,
         COALESCE(bu.email, b.primary_contact_email) as email,
         COALESCE(bu.phone, b.primary_contact_phone) as phone,
         COALESCE(bu.full_name, b.primary_contact_name) as primary_contact,
@@ -47,6 +47,22 @@ export async function GET() {
 
     const res = await pool.query(query)
 
+    // Also fetch real available admins/KAMs from public.admins
+    const kamsRes = await pool.query(`
+      SELECT id, name, email, role, COALESCE(brand_admin_role, 'kam') as brand_admin_role
+      FROM public.admins
+      ORDER BY 
+        CASE WHEN LOWER(email) = 'superadmin@gmail.com' THEN 0 ELSE 1 END,
+        name ASC;
+    `)
+
+    const kams = (kamsRes.rows || []).map((row: any) => ({
+      id: row.id,
+      name: row.name || row.email.split('@')[0],
+      email: row.email,
+      role: row.brand_admin_role || row.role || 'KAM',
+    }))
+
     const formattedBrands = (res.rows || []).map((row: any) => {
       const initials = (row.name || 'BR').substring(0, 2).toUpperCase()
       return {
@@ -56,7 +72,7 @@ export async function GET() {
         industry: row.industry || 'Consumer Goods',
         initials,
         color: 'from-amber-500 to-yellow-600',
-        assignedKam: row.assigned_kam || 'Pooja Verma (KAM)',
+        assignedKam: row.assigned_kam || 'Unassigned',
         primaryContact: row.primary_contact || row.primary_contact_name || 'Brand POC',
         email: row.email || row.primary_contact_email || '',
         phone: row.phone || row.primary_contact_phone || undefined,
@@ -67,10 +83,10 @@ export async function GET() {
       }
     })
 
-    return NextResponse.json({ success: true, brands: formattedBrands })
+    return NextResponse.json({ success: true, brands: formattedBrands, kams })
   } catch (error: any) {
     console.error('Error fetching brands from DB:', error)
-    return NextResponse.json({ success: true, brands: [] })
+    return NextResponse.json({ success: true, brands: [], kams: [] })
   }
 }
 
@@ -83,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { name, industry, primaryContact, email, phone, password, assignedKam } = body
+    const { name, industry, primaryContact, email, phone, password, assignedKamId } = body
 
     if (!name || !email) {
       return NextResponse.json({ error: 'Brand name and login email are required' }, { status: 400 })
@@ -95,6 +111,12 @@ export async function POST(request: Request) {
     const rawPassword = (password || 'brand123').trim()
     const passwordHash = await bcrypt.hash(rawPassword, 10)
 
+    // Check if assignedKamId is a valid UUID
+    const isValidUuid =
+      typeof assignedKamId === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedKamId)
+    const kamIdToInsert = isValidUuid ? assignedKamId : null
+
     // 1. Insert into public.brands
     const brandInsertRes = await pool.query(
       `INSERT INTO public.brands (
@@ -104,8 +126,9 @@ export async function POST(request: Request) {
         primary_contact_name,
         primary_contact_email,
         primary_contact_phone,
+        assigned_1to7_kam_id,
         is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, true)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, true)
       RETURNING *`,
       [
         name.trim(),
@@ -114,10 +137,20 @@ export async function POST(request: Request) {
         primaryContact?.trim() || 'Brand POC',
         cleanEmail,
         phone?.trim() || null,
+        kamIdToInsert,
       ]
     )
 
     const newBrand = brandInsertRes.rows[0]
+
+    // Fetch KAM name if linked
+    let assignedKamName = 'Unassigned'
+    if (kamIdToInsert) {
+      const kamRes = await pool.query(`SELECT name FROM public.admins WHERE id = $1`, [kamIdToInsert])
+      if (kamRes.rows.length > 0 && kamRes.rows[0].name) {
+        assignedKamName = kamRes.rows[0].name
+      }
+    }
 
     // 2. Insert into public.brand_users
     await pool.query(
@@ -155,7 +188,7 @@ export async function POST(request: Request) {
         industry: newBrand.industry,
         initials,
         color: 'from-amber-500 to-yellow-600',
-        assignedKam: assignedKam || 'Pooja Verma (KAM)',
+        assignedKam: assignedKamName,
         primaryContact: newBrand.primary_contact_name,
         email: cleanEmail,
         phone: newBrand.primary_contact_phone || undefined,
@@ -201,6 +234,19 @@ export async function PATCH(request: Request) {
       await pool.query(
         `UPDATE public.brand_users SET password_hash = $1, updated_at = NOW() WHERE brand_id = $2`,
         [passwordHash, id]
+      )
+    }
+
+    // Assigned KAM update
+    const { assignedKamId } = body
+    if (assignedKamId !== undefined) {
+      const isValidUuid =
+        typeof assignedKamId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(assignedKamId)
+      const kamIdToUpdate = isValidUuid ? assignedKamId : null
+      await pool.query(
+        `UPDATE public.brands SET assigned_1to7_kam_id = $1, updated_at = NOW() WHERE id = $2`,
+        [kamIdToUpdate, id]
       )
     }
 

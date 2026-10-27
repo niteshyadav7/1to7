@@ -50,13 +50,47 @@ interface BrandWorkspace {
   status: 'active' | 'paused'
 }
 
+interface KamOption {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 export default function ClientBrandsDirectoryPage() {
   const [brands, setBrands] = useState<BrandWorkspace[]>([])
+  const [kams, setKams] = useState<KamOption[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isSeeding, setIsSeeding] = useState(false)
   const [search, setSearch] = useState('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // KAM Role formatting and dedicated highlight filter
+  const formatKamRole = (role: string) => {
+    switch (role?.toLowerCase()) {
+      case 'brand_superadmin':
+      case 'super_admin':
+        return 'Super Admin'
+      case 'kam_lead':
+        return 'KAM Lead'
+      case 'brand_ops':
+        return 'Brand Ops'
+      case 'kam':
+        return 'KAM'
+      case 'viewer':
+        return 'Operations'
+      default:
+        return (role || 'KAM').toUpperCase()
+    }
+  }
+
+  const isDedicatedKam = (role: string) =>
+    ['brand_superadmin', 'super_admin', 'kam_lead', 'brand_ops', 'kam'].includes((role || '').toLowerCase())
+
+  const dedicatedKams = kams.filter((k) => isDedicatedKam(k.role))
+  const otherStaff = kams.filter((k) => !isDedicatedKam(k.role))
 
   // Password Setup & Credentials Modal State
   const [selectedBrandForCreds, setSelectedBrandForCreds] = useState<BrandWorkspace | null>(null)
@@ -75,9 +109,9 @@ export default function ClientBrandsDirectoryPage() {
   const [newPhone, setNewPhone] = useState('')
   const [newPassword, setNewPassword] = useState('brand123')
   const [showNewPassword, setShowNewPassword] = useState(false)
-  const [newKam, setNewKam] = useState('Pooja Verma (KAM)')
+  const [newKamId, setNewKamId] = useState('')
 
-  // Fetch real brands from PostgreSQL DB
+  // Fetch real brands & KAM staff directly from PostgreSQL DB
   const fetchBrands = async () => {
     setLoading(true)
     try {
@@ -87,6 +121,12 @@ export default function ClientBrandsDirectoryPage() {
         setBrands(data.brands)
       } else {
         setBrands([])
+      }
+      if (res.ok && Array.isArray(data.kams)) {
+        setKams(data.kams)
+        if (data.kams.length > 0) {
+          setNewKamId((prev) => prev || data.kams[0].id)
+        }
       }
     } catch (err) {
       console.error('Failed to load brands from DB:', err)
@@ -100,6 +140,24 @@ export default function ClientBrandsDirectoryPage() {
   useEffect(() => {
     fetchBrands()
   }, [])
+
+  const handleSeedBrands = async () => {
+    setIsSeeding(true)
+    try {
+      const res = await fetch('/api/brand-admin/brands/seed', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Seeded sample brands directly into PostgreSQL!')
+        await fetchBrands()
+      } else {
+        toast.error(data.error || 'Failed to seed sample brands')
+      }
+    } catch {
+      toast.error('Network error during database seed')
+    } finally {
+      setIsSeeding(false)
+    }
+  }
 
   const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -122,7 +180,7 @@ export default function ClientBrandsDirectoryPage() {
           email: newEmail,
           phone: newPhone,
           password: passwordToUse,
-          assignedKam: newKam,
+          assignedKamId: newKamId || null,
         }),
       })
 
@@ -136,6 +194,11 @@ export default function ClientBrandsDirectoryPage() {
         setNewEmail('')
         setNewPhone('')
         setNewPassword('brand123')
+        if (kams.length > 0) {
+          setNewKamId(kams[0].id)
+        } else {
+          setNewKamId('')
+        }
 
         toast.success(`Successfully saved ${data.brand.name} to Database!`, {
           description: `Login: ${data.brand.email} | Password: ${passwordToUse}`,
@@ -323,19 +386,31 @@ export default function ClientBrandsDirectoryPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-10 shadow-lg cursor-pointer"
-        >
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Brand Workspace
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={handleSeedBrands}
+            variant="outline"
+            disabled={isSeeding}
+            className="border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-[#febd1c] font-semibold text-xs h-10 cursor-pointer transition shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+            {isSeeding ? 'Seeding Database...' : 'Seed Sample Brands'}
+          </Button>
+
+          <Button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-10 shadow-lg cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Brand Workspace
+          </Button>
+        </div>
       </div>
 
       {/* Dynamic Data Table for Client Brands */}
       <DynamicDataTable
         loading={loading}
-        emptyMessage="No brand workspaces onboarded in database yet. Click '+ Add Brand Workspace' to create your first brand client."
+        emptyMessage="No brand workspaces onboarded in database yet. Click '+ Add Brand Workspace' or 'Seed Sample Brands' to populate client brands from database."
         data={brands}
         columns={[
           {
@@ -358,14 +433,32 @@ export default function ClientBrandsDirectoryPage() {
           },
           {
             key: 'assignedKam',
-            header: 'Assigned KAM',
+            header: 'Assigned 1to7 KAM',
             sortable: true,
-            render: (brand) => (
-              <div className="min-w-0">
-                <span className="font-semibold text-amber-300 text-[11px] block truncate">{brand.assignedKam}</span>
-                <span className="text-[10px] text-neutral-400 truncate block">{brand.primaryContact}</span>
-              </div>
-            ),
+            render: (brand) => {
+              const isAssigned = brand.assignedKam && brand.assignedKam !== 'Unassigned'
+              return (
+                <div className="min-w-0 space-y-1">
+                  {isAssigned ? (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent border border-amber-500/40 shadow-sm">
+                      <span className="w-5 h-5 rounded-full bg-amber-500/30 border border-amber-400/50 text-[#febd1c] font-black text-[10px] flex items-center justify-center shrink-0">
+                        {brand.assignedKam.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="font-bold text-amber-300 text-xs tracking-tight truncate max-w-[130px]" title={brand.assignedKam}>
+                        {brand.assignedKam}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-neutral-800/80 border border-dashed border-neutral-600/50 text-[10px] text-neutral-400 font-medium">
+                      Unassigned
+                    </span>
+                  )}
+                  <span className="text-[10px] text-neutral-400 truncate block pl-0.5">
+                    POC: {brand.primaryContact}
+                  </span>
+                </div>
+              )
+            },
           },
           {
             key: 'email',
@@ -635,19 +728,44 @@ export default function ClientBrandsDirectoryPage() {
                   <span className="text-amber-400 font-semibold">🔐 Login Notice:</span> The brand team can log in using their password (<span className="font-mono text-amber-300">{newPassword || 'brand123'}</span>), instant work-email OTP, or direct 1-click WhatsApp review links.
                 </p>
 
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">
-                    Assigned 1to7 KAM
-                  </label>
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      Assigned 1to7 KAM / Account Manager
+                    </label>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Brand Custodian
+                    </span>
+                  </div>
                   <select
-                    value={newKam}
-                    onChange={(e) => setNewKam(e.target.value)}
-                    className="w-full h-10 rounded-xl bg-[#0c1017] border border-white/10 px-3 text-xs text-white focus:border-amber-500/50"
+                    value={newKamId}
+                    onChange={(e) => setNewKamId(e.target.value)}
+                    className="w-full h-10 rounded-xl bg-[#0c1017] border border-amber-500/40 px-3 text-xs text-white focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50"
                   >
-                    <option value="Pooja Verma (KAM)">Pooja Verma (KAM)</option>
-                    <option value="Nitesh Yadav (Senior Ops)">Nitesh Yadav (Senior Ops)</option>
-                    <option value="Aakash Sharma (POC)">Aakash Sharma (POC)</option>
+                    <option value="">-- Unassigned (Assign Later) --</option>
+                    {dedicatedKams.length > 0 && (
+                      <optgroup label="⭐ Dedicated 1to7 KAMs & Leads (Active Brand Custodians)">
+                        {dedicatedKams.map((k) => (
+                          <option key={k.id} value={k.id}>
+                            ⭐ {k.name} ({formatKamRole(k.role)}) — {k.email}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherStaff.length > 0 && (
+                      <optgroup label="👥 Other Team Members / Operations">
+                        {otherStaff.map((k) => (
+                          <option key={k.id} value={k.id}>
+                            {k.name} ({formatKamRole(k.role)}) — {k.email}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
+                  <p className="text-[11px] text-neutral-400">
+                    This account manager will be highlighted across all client rosters, reviews, and communications.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-3 pt-3 border-t border-white/10">

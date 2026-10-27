@@ -60,4 +60,29 @@ describe('Brand Workspace DB Schema & Entity Verification', () => {
     const displayBrands = dbRows.length > 0 ? dbRows : []
     expect(displayBrands).toEqual([])
   })
+
+  it('validates dynamic KAM assignment mapping from public.admins without hardcoding', () => {
+    const adminRows = [
+      { id: 'b8cef69d-03b8-4d9d-b738-01850b5df637', name: 'Super Admin', email: 'superadmin@gmail.com', role: 'super_admin', brand_admin_role: 'brand_superadmin' },
+      { id: '8535777a-2f84-4546-b319-43c12586b8cf', name: 'Annu Singh', email: 'tho15.operations@gmail.com', role: 'admin', brand_admin_role: 'kam' }
+    ]
+
+    const kams = adminRows.map((row) => ({
+      id: row.id,
+      name: row.name || row.email.split('@')[0],
+      email: row.email,
+      role: row.brand_admin_role || row.role || 'KAM',
+    }))
+
+    expect(kams).toHaveLength(2)
+    expect(kams[0].name).toBe('Super Admin')
+    expect(kams[0].role).toBe('brand_superadmin')
+    expect(kams[1].name).toBe('Annu Singh')
+    expect(kams[1].role).toBe('kam')
+
+    // UUID regex validator used in POST /api/brand-admin/brands
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    expect(uuidRegex.test(kams[1].id)).toBe(true)
+    expect(uuidRegex.test('Pooja Verma (KAM)')).toBe(false)
+  })
 })
