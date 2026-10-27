@@ -225,15 +225,15 @@ export default function ClientBrandsDirectoryPage() {
             header: 'Brand Workspace',
             sortable: true,
             render: (brand) => (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-xs shadow-md shrink-0`}
+                  className={`w-7 h-7 rounded-lg bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-[10px] shadow-sm shrink-0`}
                 >
                   {brand.initials}
                 </div>
-                <div>
-                  <div className="font-bold text-white text-xs sm:text-sm">{brand.name}</div>
-                  <div className="text-[11px] text-neutral-400">{brand.industry}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-white text-[11px] truncate max-w-[150px]" title={brand.name}>{brand.name}</div>
+                  <div className="text-[10px] text-neutral-400 truncate">{brand.industry}</div>
                 </div>
               </div>
             ),
@@ -243,9 +243,9 @@ export default function ClientBrandsDirectoryPage() {
             header: 'Assigned KAM',
             sortable: true,
             render: (brand) => (
-              <div>
-                <span className="font-semibold text-amber-300 text-xs block">{brand.assignedKam}</span>
-                <span className="text-[11px] text-neutral-400">{brand.primaryContact}</span>
+              <div className="min-w-0">
+                <span className="font-semibold text-amber-300 text-[11px] block truncate">{brand.assignedKam}</span>
+                <span className="text-[10px] text-neutral-400 truncate block">{brand.primaryContact}</span>
               </div>
             ),
           },
@@ -253,7 +253,7 @@ export default function ClientBrandsDirectoryPage() {
             key: 'email',
             header: 'Contact Email',
             render: (brand) => (
-              <span className="font-mono text-xs text-neutral-300">{brand.email}</span>
+              <span className="font-mono text-[10px] text-neutral-300 truncate block max-w-[140px]" title={brand.email}>{brand.email}</span>
             ),
           },
           {
@@ -262,7 +262,7 @@ export default function ClientBrandsDirectoryPage() {
             align: 'center',
             sortable: true,
             render: (brand) => (
-              <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-bold text-white text-xs">
+              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 font-bold text-white text-[11px]">
                 {brand.activeCampaigns}
               </span>
             ),
@@ -275,13 +275,13 @@ export default function ClientBrandsDirectoryPage() {
             render: (brand) => (
               <div>
                 {brand.pendingReviews > 0 ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-[#febd1c] font-bold text-xs">
-                    <Clock className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/25 text-[#febd1c] font-bold text-[10px]">
+                    <Clock className="w-2.5 h-2.5" />
                     {brand.pendingReviews} Pending
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-xs">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> All Caught Up
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-[10px]">
+                    <CheckCircle2 className="w-3 h-3" /> All Caught Up
                   </span>
                 )}
               </div>
@@ -293,7 +293,7 @@ export default function ClientBrandsDirectoryPage() {
             align: 'center',
             sortable: true,
             render: (brand) => (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {brand.status.toUpperCase()}
               </span>
             ),
@@ -304,31 +304,31 @@ export default function ClientBrandsDirectoryPage() {
             align: 'right',
             sortable: false,
             render: (brand) => (
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-1">
                 <button
                   type="button"
                   onClick={() => handleCopyBrandMagicLink(brand)}
                   title="Copy 1-Click WhatsApp Review Link for Brand POC"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
+                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-[10px] border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
                 >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Copy Magic Link</span>
+                  <Share2 className="w-2.5 h-2.5" />
+                  <span>Magic Link</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleWhatsAppBrand(brand)}
                   title="Share directly via WhatsApp"
-                  className="inline-flex items-center justify-center p-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
+                  className="inline-flex items-center justify-center h-6 w-6 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
                 >
-                  <MessageCircle className="w-3.5 h-3.5" />
+                  <MessageCircle className="w-2.5 h-2.5" />
                 </button>
 
                 <Link
                   href={`/brand-admin/virtual-brand/${brand.id}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-0.5 h-6 px-2 rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-[10px] border border-purple-500/30 transition-colors shadow-sm"
                 >
-                  <Eye className="w-3.5 h-3.5" />
+                  <Eye className="w-2.5 h-2.5" />
                   <span>Virtual</span>
                 </Link>
               </div>

@@ -113,7 +113,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   loading = false,
   tableLayout = 'auto',
   minTableWidth = 'min-w-full',
-  defaultCompact = false,
+  defaultCompact = true,
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -147,8 +147,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
     }
   }
 
-  // 5. Density toggle (compact vs comfortable)
-  const [isCompact, setIsCompact] = useState(defaultCompact ?? false)
+  // 5. Density toggle (compact vs comfortable - compact by default)
+  const [isCompact, setIsCompact] = useState(defaultCompact ?? true)
 
   // 6. Column Visibility
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<Set<string>>(new Set())
@@ -750,7 +750,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
         </div>
 
         {/* ─── FOOTER PAGINATION ─── */}
-        <div className={`p-3.5 sm:p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${
+        <div className={`${isCompact ? 'p-2 sm:p-2.5 text-[11px]' : 'p-3.5 sm:p-4 text-xs'} border-t flex flex-col sm:flex-row items-center justify-between gap-2.5 ${
           isLight ? 'border-slate-200 bg-slate-50/90 text-slate-600' : 'border-white/5 bg-[#0c1017] text-neutral-400'
         }`}>
           {/* Row Counter */}
@@ -776,7 +776,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                   setPageSize(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className={`rounded-lg px-2 py-1 text-xs focus:ring-0 ${
+                className={`rounded-lg px-2 py-0.5 ${isCompact ? 'text-[11px]' : 'text-xs'} focus:ring-0 ${
                   isLight
                     ? 'bg-white border border-slate-200 text-slate-800 focus:border-[#febd1c]'
                     : 'bg-[#121620] border border-white/10 text-white focus:border-amber-400'
@@ -797,30 +797,30 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage(1)}
-              className={`p-1.5 rounded-lg border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
               title="First Page"
             >
-              <ChevronsLeft className="w-4 h-4" />
+              <ChevronsLeft className={isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               type="button"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className={`p-1.5 rounded-lg border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
               title="Previous Page"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className={isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
 
-            <span className={`px-3 py-1 font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <span className={`px-2.5 py-0.5 font-semibold ${isCompact ? 'text-[11px]' : 'text-xs'} ${isLight ? 'text-slate-900' : 'text-white'}`}>
               Page {currentPage} of {totalPages}
             </span>
 
@@ -828,27 +828,27 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className={`p-1.5 rounded-lg border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
               title="Next Page"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className={isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               type="button"
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(totalPages)}
-              className={`p-1.5 rounded-lg border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
               }`}
               title="Last Page"
             >
-              <ChevronsRight className="w-4 h-4" />
+              <ChevronsRight className={isCompact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
           </div>
         </div>

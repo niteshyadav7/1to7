@@ -137,13 +137,13 @@ export default function BrandDeliverablesPage() {
             sortable: true,
             width: '26%',
             render: (item) => (
-              <div className="flex items-center gap-2.5 min-w-0 max-w-full">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2 min-w-0 max-w-full">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-[10px]">
                   {item.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <EllipsisTooltip text={item.creator_name} subtext={`@${item.handle} (${item.followers})`}>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                    <div className="font-bold text-slate-900 text-[11px] truncate cursor-default max-w-[140px]">
                       {item.creator_name}
                     </div>
                   </EllipsisTooltip>
@@ -151,9 +151,9 @@ export default function BrandDeliverablesPage() {
                     href={`https://instagram.com/${item.handle}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
+                    className="text-[10px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
                   >
-                    <Instagram className="w-3 h-3 shrink-0" />
+                    <Instagram className="w-2.5 h-2.5 shrink-0" />
                     <span className="truncate">@{item.handle} ({item.followers})</span>
                   </a>
                 </div>
@@ -167,7 +167,7 @@ export default function BrandDeliverablesPage() {
             width: '20%',
             render: (item) => (
               <EllipsisTooltip text={item.campaign} subtext="Brand Campaign">
-                <div className="truncate text-slate-800 text-xs font-medium max-w-full cursor-default">
+                <div className="truncate text-slate-800 text-[10px] font-medium max-w-full cursor-default">
                   {item.campaign}
                 </div>
               </EllipsisTooltip>
@@ -182,11 +182,11 @@ export default function BrandDeliverablesPage() {
                 href={item.reel_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 text-xs font-semibold transition max-w-full"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 text-[10px] font-semibold transition max-w-full"
               >
-                <Video className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Watch Reel</span>
-                <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
+                <Video className="w-3 h-3 shrink-0" />
+                <span className="truncate">Watch</span>
+                <ExternalLink className="w-2.5 h-2.5 opacity-60 shrink-0" />
               </a>
             ),
           },
@@ -197,8 +197,8 @@ export default function BrandDeliverablesPage() {
             width: '13%',
             render: (item) => (
               <div className="truncate">
-                <span className="font-bold text-slate-900 text-xs">{item.views_estimate}</span>
-                <div className="text-[10px] text-slate-400">{item.submitted_at}</div>
+                <span className="font-bold text-slate-900 text-[11px]">{item.views_estimate}</span>
+                <div className="text-[9px] text-slate-400">{item.submitted_at}</div>
               </div>
             ),
           },
@@ -210,7 +210,7 @@ export default function BrandDeliverablesPage() {
             width: '12%',
             render: (item) => (
               <span
-                className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+                className={`text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full border whitespace-nowrap ${
                   item.status === 'approved'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : item.status === 'revision_requested'
@@ -229,23 +229,24 @@ export default function BrandDeliverablesPage() {
             sortable: false,
             width: '14%',
             render: (item) => (
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-1">
                 {item.status === 'pending_brand_review' ? (
                   <>
                     <button
                       type="button"
                       onClick={() => handleApproveContent(item.id, item.creator_name)}
-                      className="px-3 py-1.5 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer"
+                      className="h-6 px-2 rounded-md bg-[#febd1c] hover:bg-[#e5a812] text-black font-bold text-[10px] shadow-xs transition flex items-center gap-1 cursor-pointer"
                     >
-                      <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <Check className="w-3 h-3 stroke-[2.5]" />
                       <span>Approve</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRequestRevision(item.id, item.creator_name)}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs transition cursor-pointer"
+                      className="h-6 w-6 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 flex items-center justify-center transition cursor-pointer"
+                      title="Request Revision"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-3 h-3" />
                     </button>
                   </>
                 ) : item.status === 'approved' ? (

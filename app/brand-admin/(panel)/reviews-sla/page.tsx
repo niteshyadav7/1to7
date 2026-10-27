@@ -185,12 +185,12 @@ export default function ReviewSlaWatchtowerPage() {
             header: 'Brand & Campaign',
             sortable: true,
             render: (batch) => (
-              <div>
-                <div className="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span>{batch.brandName}</span>
+              <div className="min-w-0">
+                <div className="font-bold text-white text-[11px] flex items-center gap-1.5 truncate max-w-[160px]" title={batch.brandName}>
+                  <Building2 className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span className="truncate">{batch.brandName}</span>
                 </div>
-                <div className="text-neutral-400 text-[11px] mt-0.5 truncate max-w-xs">
+                <div className="text-neutral-400 text-[10px] mt-0.5 truncate max-w-[150px]" title={batch.campaignName}>
                   {batch.campaignName}
                 </div>
               </div>
@@ -202,7 +202,7 @@ export default function ReviewSlaWatchtowerPage() {
             sortable: true,
             align: 'center',
             render: (batch) => (
-              <span className="font-bold text-amber-400 text-xs px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <span className="font-bold text-amber-400 text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 whitespace-nowrap">
                 {batch.shortlistedCount} Creators
               </span>
             ),
@@ -217,7 +217,7 @@ export default function ReviewSlaWatchtowerPage() {
               const isWarning = batch.status === 'warning'
               return (
                 <div
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border ${
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${
                     isBreached
                       ? 'bg-red-500/20 text-red-300 border-red-500/30'
                       : isWarning
@@ -225,7 +225,7 @@ export default function ReviewSlaWatchtowerPage() {
                       : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                   }`}
                 >
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <Clock className="w-2.5 h-2.5 shrink-0" />
                   <span>{batch.hoursElapsed}h</span>
                 </div>
               )
@@ -236,9 +236,9 @@ export default function ReviewSlaWatchtowerPage() {
             header: 'Brand Contact',
             sortable: true,
             render: (batch) => (
-              <div>
-                <div className="text-white text-xs font-semibold">{batch.brandContactName}</div>
-                <div className="text-[11px] text-neutral-500 font-mono">{batch.brandPhone}</div>
+              <div className="min-w-0">
+                <div className="text-white text-[11px] font-semibold truncate max-w-[130px]">{batch.brandContactName}</div>
+                <div className="text-[10px] text-neutral-500 font-mono truncate">{batch.brandPhone}</div>
               </div>
             ),
           },
@@ -247,7 +247,7 @@ export default function ReviewSlaWatchtowerPage() {
             header: 'Assigned KAM',
             sortable: true,
             render: (batch) => (
-              <span className="text-xs text-neutral-300 px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+              <span className="text-[10px] text-neutral-300 px-1.5 py-0.2 rounded bg-white/5 border border-white/5 truncate block max-w-[110px]">
                 {batch.assignedKam}
               </span>
             ),
@@ -265,22 +265,22 @@ export default function ReviewSlaWatchtowerPage() {
                 : 'b-mamaearth'
 
               return (
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-1">
                   <Button
                     size="sm"
                     onClick={() => handleSendWhatsAppNudge(batch)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-2.5 shadow-sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] h-6 px-2 rounded-md shadow-sm"
                   >
-                    <MessageCircle className="w-3 h-3 mr-1" />
+                    <MessageCircle className="w-2.5 h-2.5 mr-1" />
                     Nudge
                   </Button>
                   <Link href={`/brand-admin/virtual-brand/${brandSlug}`}>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs h-8 px-2.5"
+                      className="border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-[10px] h-6 px-2 rounded-md"
                     >
-                      <Eye className="w-3 h-3 mr-1" />
+                      <Eye className="w-2.5 h-2.5 mr-1" />
                       Proxy
                     </Button>
                   </Link>

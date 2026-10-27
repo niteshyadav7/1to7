@@ -299,13 +299,13 @@ export default function TeamRbacPage() {
 
         <div className="bg-[#121620] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#0c1017] text-neutral-400 font-semibold border-b border-white/10">
+            <table className="w-full text-left border-collapse text-[11px]">
+              <thead className="bg-[#0c1017] text-neutral-400 font-bold uppercase tracking-wider border-b border-white/10 text-[10px] select-none">
                 <tr>
-                  <th className="p-3.5">Staff Member</th>
-                  <th className="p-3.5">Brand Role</th>
-                  <th className="p-3.5">Approved By</th>
-                  <th className="p-3.5 text-right">Actions</th>
+                  <th className="py-2 px-2.5">Staff Member</th>
+                  <th className="py-2 px-2.5">Brand Role</th>
+                  <th className="py-2 px-2.5">Approved By</th>
+                  <th className="py-2 px-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -313,29 +313,29 @@ export default function TeamRbacPage() {
                   const isMaster = member.email.toLowerCase() === 'superadmin@gmail.com'
 
                   return (
-                    <tr key={member.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xs">
+                    <tr key={member.id} className="hover:bg-white/[0.03] transition-colors">
+                      <td className="py-1.5 px-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-[10px] shrink-0">
                             {member.name ? member.name[0].toUpperCase() : 'A'}
                           </div>
-                          <div>
-                            <div className="font-semibold text-white flex items-center gap-1.5">
-                              {member.name}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-white text-[11px] flex items-center gap-1.5 truncate" title={member.name || ''}>
+                              <span className="truncate">{member.name}</span>
                               {isMaster && (
-                                <span title="Super Admin">
-                                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                                <span title="Super Admin" className="shrink-0">
+                                  <Crown className="w-3 h-3 text-amber-400" />
                                 </span>
                               )}
                             </div>
-                            <div className="text-neutral-400 text-[11px]">{member.email}</div>
+                            <div className="text-neutral-400 text-[10px] truncate" title={member.email}>{member.email}</div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="p-3.5">
+                      <td className="py-1.5 px-2.5">
                         {isMaster ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                             MASTER SUPERADMIN
                           </span>
                         ) : (
@@ -346,7 +346,7 @@ export default function TeamRbacPage() {
                               setSelectedRoles((prev) => ({ ...prev, [member.id]: newRole }))
                               handleUpdateStatus(member, 'approved', newRole)
                             }}
-                            className="h-8 rounded-lg bg-[#0c1017] border border-white/10 px-2 text-xs text-white focus:border-amber-500/50"
+                            className="h-6 rounded-md bg-[#0c1017] border border-white/10 px-1.5 text-[10px] text-white focus:border-amber-500/50"
                           >
                             {ROLE_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>
@@ -357,13 +357,13 @@ export default function TeamRbacPage() {
                         )}
                       </td>
 
-                      <td className="p-3.5 text-neutral-400 text-[11px]">
+                      <td className="py-1.5 px-2.5 text-neutral-400 text-[10px]">
                         {member.brand_admin_approved_by || 'Auto-Verified'}
                       </td>
 
-                      <td className="p-3.5 text-right">
+                      <td className="py-1.5 px-2.5 text-right">
                         {isMaster ? (
-                          <span className="text-[11px] text-neutral-500 font-semibold italic">
+                          <span className="text-[10px] text-neutral-500 font-semibold italic">
                             Permanent Access
                           </span>
                         ) : (
@@ -372,9 +372,9 @@ export default function TeamRbacPage() {
                             variant="ghost"
                             disabled={updatingId === member.id}
                             onClick={() => handleUpdateStatus(member, 'rejected')}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-8"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-[10px] font-bold h-6 px-2 rounded-md"
                           >
-                            <UserX className="w-3.5 h-3.5 mr-1" />
+                            <UserX className="w-3 h-3 mr-1" />
                             Revoke
                           </Button>
                         )}

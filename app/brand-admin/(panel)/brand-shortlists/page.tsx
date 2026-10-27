@@ -463,65 +463,66 @@ export default function BrandShortlistsDeskPage() {
               {/* Creators Table */}
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 <div className="rounded-xl border border-white/10 overflow-hidden bg-slate-950">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left border-collapse text-[11px]">
                     <thead>
                       <tr className="border-b border-white/10 bg-slate-900/60 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="py-2.5 px-3">Creator</th>
-                        <th className="py-2.5 px-3 text-center">Followers</th>
-                        <th className="py-2.5 px-3 text-center">Avg Views</th>
-                        <th className="py-2.5 px-3 text-center">Eng. Rate</th>
-                        <th className="py-2.5 px-3">Location</th>
-                        <th className="py-2.5 px-3">Sample Reel</th>
-                        <th className="py-2.5 px-3 text-right">Quoted Price (₹)</th>
-                        <th className="py-2.5 px-3 text-right text-amber-400">Secret Cost (₹)</th>
+                        <th className="py-2 px-2">Creator</th>
+                        <th className="py-2 px-2 text-center">Followers</th>
+                        <th className="py-2 px-2 text-center">Avg Views</th>
+                        <th className="py-2 px-2 text-center">Eng. Rate</th>
+                        <th className="py-2 px-2">Location</th>
+                        <th className="py-2 px-2">Sample Reel</th>
+                        <th className="py-2 px-2 text-right">Quoted Price (₹)</th>
+                        <th className="py-2 px-2 text-right text-amber-400">Secret Cost (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {(selectedShortlist.shortlisted_items || []).map((item) => (
                         <tr key={item.id} className="hover:bg-white/[0.02]">
-                          <td className="py-2.5 px-3">
-                            <p className="font-bold text-white">{item.creator_name}</p>
+                          <td className="py-1.5 px-2">
+                            <p className="font-bold text-white text-[11px] truncate max-w-[140px]" title={item.creator_name}>{item.creator_name}</p>
                             <a
                               href={`https://instagram.com/${item.instagram_username}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[11px] text-pink-400 hover:underline inline-flex items-center gap-0.5"
+                              className="text-[10px] text-pink-400 hover:underline inline-flex items-center gap-0.5 truncate max-w-[120px]"
+                              title={`@${item.instagram_username}`}
                             >
                               <span>@{item.instagram_username}</span>
-                              <ExternalLink className="h-2.5 w-2.5" />
+                              <ExternalLink className="h-2 w-2" />
                             </a>
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold">
+                          <td className="py-1.5 px-2 text-center font-bold text-[11px]">
                             {item.followers ? item.followers.toLocaleString() : '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-center text-slate-300">
+                          <td className="py-1.5 px-2 text-center text-slate-300 text-[11px]">
                             {item.avg_reels_views ? item.avg_reels_views.toLocaleString() : '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300">
+                          <td className="py-1.5 px-2 text-center">
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300">
                               {item.engagement_rate}%
                             </span>
                           </td>
-                          <td className="py-2.5 px-3 text-slate-300">{item.city || 'Pan India'}</td>
-                          <td className="py-2.5 px-3">
+                          <td className="py-1.5 px-2 text-slate-300 text-[10px] truncate max-w-[100px]">{item.city || 'Pan India'}</td>
+                          <td className="py-1.5 px-2">
                             {item.sample_reel_url ? (
                               <a
                                 href={item.sample_reel_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-purple-300 hover:underline inline-flex items-center gap-1 text-[11px]"
+                                className="text-purple-300 hover:underline inline-flex items-center gap-1 text-[10px] h-6 px-1.5 rounded bg-purple-500/10 border border-purple-500/20"
                               >
-                                <Video className="h-3 w-3" />
+                                <Video className="h-2.5 w-2.5" />
                                 <span>Watch</span>
                               </a>
                             ) : (
                               '—'
                             )}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-slate-200">
+                          <td className="py-1.5 px-2 text-right font-bold text-slate-200 text-[11px]">
                             {item.brand_commercial ? `₹${item.brand_commercial.toLocaleString()}` : '—'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono text-amber-300">
+                          <td className="py-1.5 px-2 text-right font-mono text-amber-300 text-[11px]">
                             {item.internal_cost ? `₹${item.internal_cost.toLocaleString()}` : '—'}
                           </td>
                         </tr>

@@ -221,19 +221,20 @@ export default function BrandAdminVirtualBrandDetailPage() {
             header: 'Creator & Profile',
             sortable: true,
             render: (c) => (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
                   {c.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div className="font-bold text-white text-xs sm:text-sm">{c.name}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-white text-[11px] truncate max-w-[140px]" title={c.name}>{c.name}</div>
                   <a
                     href={`https://instagram.com/${c.handle}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-1"
+                    className="text-[10px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
+                    title={`@${c.handle}`}
                   >
-                    <Instagram className="w-3 h-3" /> @{c.handle}
+                    <Instagram className="w-2.5 h-2.5" /> @{c.handle}
                   </a>
                 </div>
               </div>
@@ -245,7 +246,7 @@ export default function BrandAdminVirtualBrandDetailPage() {
             sortable: true,
             align: 'center',
             render: (c) => (
-              <span className="font-bold text-white text-xs px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
+              <span className="font-bold text-white text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10 whitespace-nowrap">
                 {formatFollowerCount(c.followers)}
               </span>
             ),
@@ -254,14 +255,14 @@ export default function BrandAdminVirtualBrandDetailPage() {
             key: 'city',
             header: 'Location',
             sortable: true,
-            render: (c) => <span className="text-neutral-300 text-xs">{c.city}</span>,
+            render: (c) => <span className="text-neutral-300 text-[10px] truncate block max-w-[110px]">{c.city}</span>,
           },
           {
             key: 'sample',
             header: 'Sample Product Specs',
             render: (c) => (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/15 text-amber-300 text-xs max-w-xs truncate">
-                <Package className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/5 border border-amber-500/15 text-amber-300 text-[10px] max-w-xs truncate" title={c.sample}>
+                <Package className="w-3 h-3 shrink-0 text-amber-400" />
                 <span className="truncate">{c.sample}</span>
               </div>
             ),
@@ -272,20 +273,20 @@ export default function BrandAdminVirtualBrandDetailPage() {
             align: 'center',
             sortable: true,
             render: (c) => (
-              <div>
+              <div className="min-w-0">
                 <span
-                  className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                  className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-full border whitespace-nowrap ${
                     c.status === 'approved'
-                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                       : c.status === 'rejected'
-                      ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                      : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                      : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                   }`}
                 >
                   {c.status}
                 </span>
                 {c.rejectionReason && (
-                  <div className="text-[10px] text-red-400 mt-0.5 truncate max-w-[140px]" title={c.rejectionReason}>
+                  <div className="text-[9px] text-red-400 mt-0.5 truncate max-w-[120px]" title={c.rejectionReason}>
                     {c.rejectionReason}
                   </div>
                 )}
@@ -298,34 +299,34 @@ export default function BrandAdminVirtualBrandDetailPage() {
             align: 'right',
             sortable: false,
             render: (c) => (
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-1">
                 {c.status === 'pending' ? (
                   <>
                     <Button
                       size="sm"
                       onClick={() => handleProxyApprove(c.id, c.name)}
-                      className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs h-8 px-2.5 shadow-sm"
+                      className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] h-6 px-2 rounded-md shadow-sm"
                     >
-                      <Check className="w-3 h-3 mr-1" />
+                      <Check className="w-2.5 h-2.5 mr-1" />
                       Approve
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => setRejectModalCreator(c)}
-                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-8 px-2"
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-[10px] h-6 w-6 p-0 rounded-md"
                     >
-                      <ThumbsDown className="w-3 h-3" />
+                      <ThumbsDown className="w-2.5 h-2.5" />
                     </Button>
                   </>
                 ) : c.status === 'approved' ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                  <span className="inline-flex items-center gap-1 text-emerald-400 text-[10px] font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Approved
                   </span>
                 ) : (
                   <button
                     onClick={() => handleProxyApprove(c.id, c.name)}
-                    className="text-amber-400 hover:text-amber-300 text-xs underline font-medium"
+                    className="text-amber-400 hover:text-amber-300 text-[10px] underline font-medium cursor-pointer"
                   >
                     Re-Approve
                   </button>

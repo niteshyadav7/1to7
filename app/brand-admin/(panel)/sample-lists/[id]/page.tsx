@@ -724,28 +724,28 @@ export default function SampleListStudioPage({
       {/* Creators Table */}
       <div className="rounded-2xl bg-slate-900 border border-white/10 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left border-collapse text-[11px]">
             <thead>
-              <tr className="border-b border-white/10 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                <th className="py-3 px-4">Creator & Instagram</th>
-                <th className="py-3 px-3 text-center">Followers</th>
-                <th className="py-3 px-3 text-center">Avg Reels Views</th>
-                <th className="py-3 px-3 text-center">Eng. Rate</th>
-                <th className="py-3 px-3">Location & Niche</th>
-                <th className="py-3 px-3">Sample Reel</th>
-                <th className="py-3 px-3 text-right">Commercial (₹)</th>
-                <th className="py-3 px-3 text-right">
+              <tr className="border-b border-white/10 bg-slate-950/60 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <th className="py-2 px-3">Creator & Instagram</th>
+                <th className="py-2 px-2 text-center">Followers</th>
+                <th className="py-2 px-2 text-center">Avg Reels Views</th>
+                <th className="py-2 px-2 text-center">Eng. Rate</th>
+                <th className="py-2 px-2">Location & Niche</th>
+                <th className="py-2 px-2">Sample Reel</th>
+                <th className="py-2 px-2 text-right">Commercial (₹)</th>
+                <th className="py-2 px-2 text-right">
                   <span className="inline-flex items-center gap-1 text-amber-400" title="Internal Cost (Hidden from client)">
-                    <Lock className="h-3 w-3" /> Cost (₹)
+                    <Lock className="h-2.5 w-2.5" /> Cost (₹)
                   </span>
                 </th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-2 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500 text-xs">
                     No creators in this sample roster matching your search.
                   </td>
                 </tr>
@@ -753,20 +753,21 @@ export default function SampleListStudioPage({
                 filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                     {/* Name & Handle */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 text-xs shrink-0">
+                    <td className="py-1.5 px-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 text-[10px] shrink-0">
                           {item.creator_name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-white truncate">{item.creator_name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-white text-[11px] truncate max-w-[140px]" title={item.creator_name}>{item.creator_name}</p>
                           <a
                             href={`https://instagram.com/${item.instagram_username}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[11px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-1 truncate"
+                            className="text-[10px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
+                            title={`@${item.instagram_username}`}
                           >
-                            <Instagram className="h-3 w-3 shrink-0" />
+                            <Instagram className="h-2.5 w-2.5 shrink-0" />
                             <span>@{item.instagram_username}</span>
                           </a>
                         </div>
@@ -774,66 +775,66 @@ export default function SampleListStudioPage({
                     </td>
 
                     {/* Followers */}
-                    <td className="py-3 px-3 text-center font-bold text-slate-200">
+                    <td className="py-1.5 px-2 text-center font-bold text-slate-200 text-[11px]">
                       {item.followers > 0 ? item.followers.toLocaleString() : '—'}
                     </td>
 
                     {/* Avg Views */}
-                    <td className="py-3 px-3 text-center font-semibold text-slate-300">
+                    <td className="py-1.5 px-2 text-center font-semibold text-slate-300 text-[11px]">
                       {item.avg_reels_views > 0 ? item.avg_reels_views.toLocaleString() : '—'}
                     </td>
 
                     {/* Engagement */}
-                    <td className="py-3 px-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                    <td className="py-1.5 px-2 text-center">
+                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
                         {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
                       </span>
                     </td>
 
                     {/* Location & Niche */}
-                    <td className="py-3 px-3 text-slate-300">
-                      <p className="truncate">{item.city || 'Pan India'}</p>
+                    <td className="py-1.5 px-2 text-slate-300">
+                      <p className="truncate text-[10px] max-w-[100px]">{item.city || 'Pan India'}</p>
                       {item.niche && (
-                        <span className="text-[10px] text-pink-400/90 font-medium">{item.niche}</span>
+                        <span className="text-[9px] text-pink-400/90 font-medium truncate block max-w-[100px]">{item.niche}</span>
                       )}
                     </td>
 
                     {/* Sample Reel */}
-                    <td className="py-3 px-3">
+                    <td className="py-1.5 px-2">
                       {item.sample_reel_url ? (
                         <a
                           href={item.sample_reel_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-purple-300 hover:text-purple-200 inline-flex items-center gap-1 text-[11px] font-semibold transition-colors"
+                          className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-purple-300 hover:text-purple-200 inline-flex items-center gap-1 text-[10px] font-semibold transition-colors"
                         >
-                          <Video className="h-3 w-3" />
-                          <span>Watch Reel</span>
+                          <Video className="h-2.5 w-2.5" />
+                          <span>Watch</span>
                         </a>
                       ) : (
-                        <span className="text-slate-500 italic text-[11px]">No sample</span>
+                        <span className="text-slate-500 italic text-[10px]">No sample</span>
                       )}
                     </td>
 
                     {/* Brand Commercial */}
-                    <td className="py-3 px-3 text-right font-bold text-slate-200">
+                    <td className="py-1.5 px-2 text-right font-bold text-slate-200 text-[11px]">
                       {item.brand_commercial ? `₹${item.brand_commercial.toLocaleString()}` : '—'}
                     </td>
 
                     {/* Internal Cost (Secret) */}
-                    <td className="py-3 px-3 text-right font-mono text-amber-300/90 text-xs">
+                    <td className="py-1.5 px-2 text-right font-mono text-amber-300/90 text-[11px]">
                       {item.internal_cost ? `₹${item.internal_cost.toLocaleString()}` : '—'}
                     </td>
 
                     {/* Actions */}
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-1.5 px-3 text-right">
                       <button
                         type="button"
                         onClick={() => handleDeleteItem(item.id, item.creator_name)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        className="h-6 w-6 rounded-md inline-flex items-center justify-center text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                         title="Remove from roster"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     </td>
                   </tr>

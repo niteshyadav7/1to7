@@ -180,15 +180,15 @@ export default function BrandAdminDashboardPage() {
             header: 'Brand Workspace',
             sortable: true,
             render: (brand) => (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-xl bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-xs shadow-md shrink-0`}
+                  className={`w-7 h-7 rounded-lg bg-gradient-to-br ${brand.color} flex items-center justify-center text-white font-black text-[10px] shadow-sm shrink-0`}
                 >
                   {brand.initials}
                 </div>
-                <div>
-                  <div className="font-bold text-white text-xs sm:text-sm">{brand.name}</div>
-                  <div className="text-[11px] text-neutral-400">{brand.industry}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-white text-[11px] truncate max-w-[150px]" title={brand.name}>{brand.name}</div>
+                  <div className="text-[10px] text-neutral-400 truncate">{brand.industry}</div>
                 </div>
               </div>
             ),
@@ -198,7 +198,7 @@ export default function BrandAdminDashboardPage() {
             header: 'Assigned KAM',
             sortable: true,
             render: (brand) => (
-              <span className="font-semibold text-amber-300 text-xs">{brand.assignedKam}</span>
+              <span className="font-semibold text-amber-300 text-[11px] truncate block">{brand.assignedKam}</span>
             ),
           },
           {
@@ -207,7 +207,7 @@ export default function BrandAdminDashboardPage() {
             align: 'center',
             sortable: true,
             render: (brand) => (
-              <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 font-bold text-white text-xs">
+              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 font-bold text-white text-[11px]">
                 {brand.activeCampaigns}
               </span>
             ),
@@ -220,13 +220,13 @@ export default function BrandAdminDashboardPage() {
             render: (brand) => (
               <div className="text-center">
                 {brand.pendingReviews > 0 ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/25 text-[#febd1c] font-bold text-xs">
-                    <Clock className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/25 text-[#febd1c] font-bold text-[10px]">
+                    <Clock className="w-2.5 h-2.5" />
                     {brand.pendingReviews} ({brand.oldestPendingHours}h)
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-xs">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> All Caught Up
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-medium text-[10px]">
+                    <CheckCircle2 className="w-3 h-3" /> All Caught Up
                   </span>
                 )}
               </div>
@@ -240,20 +240,20 @@ export default function BrandAdminDashboardPage() {
             render: (brand) => {
               if (brand.slaStatus === 'breached') {
                 return (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
-                    SLA BREACH (&gt;48h)
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
+                    BREACH (&gt;48h)
                   </span>
                 )
               }
               if (brand.slaStatus === 'warning') {
                 return (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     WARNING (&gt;24h)
                   </span>
                 )
               }
               return (
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   HEALTHY
                 </span>
               )
@@ -267,10 +267,10 @@ export default function BrandAdminDashboardPage() {
             render: (brand) => (
               <Link
                 href={`/brand-admin/virtual-brand/${brand.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-[10px] border border-purple-500/30 transition-colors shadow-sm"
               >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Virtual Brand Mode</span>
+                <Eye className="w-2.5 h-2.5" />
+                <span>Virtual Brand</span>
               </Link>
             ),
           },

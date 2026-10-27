@@ -155,9 +155,9 @@ export default function CampaignMappingPage() {
             header: 'Campaign & Category',
             sortable: true,
             render: (item) => (
-              <div>
-                <div className="font-bold text-white text-xs sm:text-sm">{item.campaignName}</div>
-                <div className="text-neutral-400 text-[11px] mt-0.5">{item.category}</div>
+              <div className="min-w-0">
+                <div className="font-bold text-white text-[11px] truncate max-w-[160px]" title={item.campaignName}>{item.campaignName}</div>
+                <div className="text-neutral-400 text-[10px] mt-0.5 truncate">{item.category}</div>
               </div>
             ),
           },
@@ -166,16 +166,16 @@ export default function CampaignMappingPage() {
             header: 'Assigned Brand Workspace',
             sortable: true,
             render: (item) => (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 font-semibold text-xs">
-                <Building2 className="w-3.5 h-3.5" />
-                {item.brandName}
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-amber-300 font-semibold text-[10px] max-w-[140px] truncate" title={item.brandName}>
+                <Building2 className="w-2.5 h-2.5 shrink-0" />
+                <span className="truncate">{item.brandName}</span>
               </div>
             ),
           },
           {
             key: 'deliverablesRequired',
             header: 'Deliverables Scope',
-            render: (item) => <span className="text-neutral-300 text-xs">{item.deliverablesRequired}</span>,
+            render: (item) => <span className="text-neutral-300 text-[10px] truncate block max-w-[130px]">{item.deliverablesRequired}</span>,
           },
           {
             key: 'approvalMode',
@@ -183,11 +183,11 @@ export default function CampaignMappingPage() {
             sortable: true,
             render: (item) => (
               item.approvalMode === 'strict_brand_approval' ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  <ShieldCheck className="w-3 h-3" /> Strict Brand Sign-Off
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                  <ShieldCheck className="w-2.5 h-2.5" /> Strict Brand Sign-Off
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 whitespace-nowrap">
                   Auto-Approve (72h SLA)
                 </span>
               )
@@ -203,9 +203,9 @@ export default function CampaignMappingPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => handleToggleMode(item.id)}
-                className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-8"
+                className="border-white/10 hover:bg-white/5 text-neutral-300 text-[10px] h-6 px-2 rounded-md"
               >
-                <Sliders className="w-3 h-3 mr-1 text-amber-400" />
+                <Sliders className="w-2.5 h-2.5 mr-1 text-amber-400" />
                 Toggle Mode
               </Button>
             ),

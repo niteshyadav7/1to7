@@ -346,10 +346,10 @@ export default function BrandSampleRostersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left border-collapse text-[11px]">
                     <thead>
-                      <tr className="bg-slate-950/80 text-slate-400 text-[11px] font-bold uppercase tracking-wider border-b border-white/10">
-                        <th className="p-3 w-10 text-center">
+                      <tr className="bg-slate-950/80 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-white/10">
+                        <th className="p-2 w-9 text-center">
                           <input
                             type="checkbox"
                             checked={selectedIds.size === filteredCreators.length && filteredCreators.length > 0}
@@ -357,13 +357,13 @@ export default function BrandSampleRostersPage() {
                             className="rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-0 cursor-pointer"
                           />
                         </th>
-                        <th className="p-3">Creator & Instagram</th>
-                        {isColVisible('followers') && <th className="p-3 text-right">Followers</th>}
-                        {isColVisible('avg_reels_views') && <th className="p-3 text-right">Avg Views</th>}
-                        {isColVisible('engagement_rate') && <th className="p-3 text-right">Eng. Rate</th>}
-                        {isColVisible('city') && <th className="p-3">City & Niche</th>}
-                        {isColVisible('sample_reel_url') && <th className="p-3 text-center">Sample Reel</th>}
-                        {isColVisible('brand_commercial') && <th className="p-3 text-right">Commercial (₹)</th>}
+                        <th className="py-2 px-2">Creator & Instagram</th>
+                        {isColVisible('followers') && <th className="py-2 px-2 text-right">Followers</th>}
+                        {isColVisible('avg_reels_views') && <th className="py-2 px-2 text-right">Avg Views</th>}
+                        {isColVisible('engagement_rate') && <th className="py-2 px-2 text-right">Eng. Rate</th>}
+                        {isColVisible('city') && <th className="py-2 px-2">City & Niche</th>}
+                        {isColVisible('sample_reel_url') && <th className="py-2 px-2 text-center">Sample Reel</th>}
+                        {isColVisible('brand_commercial') && <th className="py-2 px-2 text-right">Commercial (₹)</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -379,7 +379,7 @@ export default function BrandSampleRostersPage() {
                                 : 'hover:bg-white/5'
                             }`}
                           >
-                            <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <td className="p-2 w-9 text-center" onClick={(e) => e.stopPropagation()}>
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -388,13 +388,13 @@ export default function BrandSampleRostersPage() {
                               />
                             </td>
 
-                            <td className="p-3">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 shrink-0 text-xs">
+                            <td className="py-1.5 px-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 shrink-0 text-[10px]">
                                   {creator.creator_name.charAt(0).toUpperCase()}
                                 </div>
-                                <div className="min-w-0">
-                                  <div className="font-bold text-white text-xs truncate">
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-white text-[11px] truncate max-w-[140px]" title={creator.creator_name}>
                                     {creator.creator_name}
                                   </div>
                                   <a
@@ -402,24 +402,25 @@ export default function BrandSampleRostersPage() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="text-[11px] text-pink-400 hover:text-pink-300 flex items-center gap-1 truncate"
+                                    className="text-[10px] text-pink-400 hover:text-pink-300 flex items-center gap-0.5 truncate max-w-[120px]"
+                                    title={`@${creator.instagram_username}`}
                                   >
-                                    <Instagram className="h-3 w-3 shrink-0" />
-                                    <span>@{creator.instagram_username}</span>
-                                    <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                                    <Instagram className="h-2.5 w-2.5 shrink-0" />
+                                    <span className="truncate">@{creator.instagram_username}</span>
+                                    <ExternalLink className="h-2 w-2 opacity-60" />
                                   </a>
                                 </div>
                               </div>
                             </td>
 
                             {isColVisible('followers') && (
-                              <td className="p-3 text-right font-bold text-slate-200">
+                              <td className="py-1.5 px-2 text-right font-bold text-slate-200 text-[11px]">
                                 {Number(creator.followers).toLocaleString()}
                               </td>
                             )}
 
                             {isColVisible('avg_reels_views') && (
-                              <td className="p-3 text-right text-slate-300">
+                              <td className="py-1.5 px-2 text-right text-slate-300 text-[11px]">
                                 {creator.avg_reels_views > 0
                                   ? Number(creator.avg_reels_views).toLocaleString()
                                   : '—'}
@@ -427,51 +428,51 @@ export default function BrandSampleRostersPage() {
                             )}
 
                             {isColVisible('engagement_rate') && (
-                              <td className="p-3 text-right">
+                              <td className="py-1.5 px-2 text-right">
                                 {creator.engagement_rate > 0 ? (
-                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold">
+                                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
                                     {creator.engagement_rate}%
                                   </span>
                                 ) : (
-                                  <span className="text-slate-500">—</span>
+                                  <span className="text-slate-500 text-[10px]">—</span>
                                 )}
                               </td>
                             )}
 
                             {isColVisible('city') && (
-                              <td className="p-3">
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1 text-slate-300">
-                                    <MapPin className="h-3 w-3 text-slate-500" />
-                                    <span>{creator.city || 'Pan-India'}</span>
+                              <td className="py-1.5 px-2">
+                                <div className="space-y-0.5 min-w-0">
+                                  <div className="flex items-center gap-1 text-slate-300 text-[10px]">
+                                    <MapPin className="h-2.5 w-2.5 text-slate-500 shrink-0" />
+                                    <span className="truncate max-w-[100px]">{creator.city || 'Pan-India'}</span>
                                   </div>
                                   {creator.niche && (
-                                    <span className="text-[10px] text-purple-300">{creator.niche}</span>
+                                    <span className="text-[9px] text-purple-300 truncate max-w-[100px] block">{creator.niche}</span>
                                   )}
                                 </div>
                               </td>
                             )}
 
                             {isColVisible('sample_reel_url') && (
-                              <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
                                 {creator.sample_reel_url ? (
                                   <a
                                     href={creator.sample_reel_url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-1.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 inline-flex items-center gap-1 text-[11px] font-semibold border border-pink-500/30 transition-colors"
+                                    className="h-6 px-2 rounded-md bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 inline-flex items-center gap-1 text-[10px] font-semibold border border-pink-500/30 transition-colors"
                                   >
-                                    <Video className="h-3 w-3" />
-                                    <span>Watch Reel</span>
+                                    <Video className="h-2.5 w-2.5" />
+                                    <span>Watch</span>
                                   </a>
                                 ) : (
-                                  <span className="text-slate-500 text-[11px]">—</span>
+                                  <span className="text-slate-500 text-[10px]">—</span>
                                 )}
                               </td>
                             )}
 
                             {isColVisible('brand_commercial') && (
-                              <td className="p-3 text-right font-black text-amber-400">
+                              <td className="py-1.5 px-2 text-right font-black text-amber-400 text-[11px]">
                                 {creator.brand_commercial ? `₹${Number(creator.brand_commercial).toLocaleString()}` : '—'}
                               </td>
                             )}

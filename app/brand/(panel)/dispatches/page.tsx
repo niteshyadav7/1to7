@@ -117,16 +117,16 @@ export default function BrandDispatchesTrackerPage() {
             width: '24%',
             render: (d) => (
               <div className="flex items-center gap-2 min-w-0 max-w-full">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-[10px]">
                   {d.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <EllipsisTooltip text={d.creator_name} subtext={`@${d.handle} • ${d.city}`}>
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                    <div className="font-bold text-slate-900 text-[11px] truncate cursor-default max-w-[140px]">
                       {d.creator_name}
                     </div>
                   </EllipsisTooltip>
-                  <div className="text-[11px] text-pink-600 font-medium truncate">
+                  <div className="text-[10px] text-pink-600 font-medium truncate">
                     @{d.handle} • {d.city}
                   </div>
                 </div>
@@ -140,7 +140,7 @@ export default function BrandDispatchesTrackerPage() {
             width: '20%',
             render: (d) => (
               <EllipsisTooltip text={d.campaign} subtext="Brand Campaign">
-                <div className="truncate text-slate-800 text-xs font-medium max-w-full cursor-default">
+                <div className="truncate text-slate-800 text-[10px] font-medium max-w-full cursor-default">
                   {d.campaign}
                 </div>
               </EllipsisTooltip>
@@ -152,8 +152,8 @@ export default function BrandDispatchesTrackerPage() {
             width: '23%',
             render: (d) => (
               <EllipsisTooltip text={d.sample_choice} subtext="Selected Sample Kit">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden cursor-default">
-                  <Package className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
+                  <Package className="w-3 h-3 text-amber-600 shrink-0" />
                   <span className="truncate block min-w-0">{d.sample_choice}</span>
                 </div>
               </EllipsisTooltip>
@@ -167,11 +167,11 @@ export default function BrandDispatchesTrackerPage() {
             render: (d) => (
               <div className="min-w-0 max-w-full">
                 <EllipsisTooltip text={d.awb_number} subtext={d.courier_partner}>
-                  <span className="font-mono text-xs font-bold text-slate-900 block truncate cursor-default">
+                  <span className="font-mono text-[10px] font-bold text-slate-900 block truncate cursor-default">
                     {d.awb_number}
                   </span>
                 </EllipsisTooltip>
-                <span className="text-[11px] text-slate-500 truncate block">
+                <span className="text-[9px] text-slate-500 truncate block">
                   {d.courier_partner}
                 </span>
               </div>
@@ -194,7 +194,7 @@ export default function BrandDispatchesTrackerPage() {
                   : 'bg-slate-100 text-slate-700 border-slate-200'
 
               return (
-                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${colorClass}`}>
+                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.2 rounded-full border whitespace-nowrap ${colorClass}`}>
                   {d.status}
                 </span>
               )
@@ -211,10 +211,10 @@ export default function BrandDispatchesTrackerPage() {
                 href={`https://www.delhivery.com/track/package/${d.awb_number}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-1 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                className="h-6 px-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 text-[10px] font-semibold transition inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
               >
                 <span>Track</span>
-                <ExternalLink className="w-3 h-3 text-slate-500" />
+                <ExternalLink className="w-2.5 h-2.5 text-slate-500" />
               </a>
             ),
           },

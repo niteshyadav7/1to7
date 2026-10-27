@@ -284,8 +284,8 @@ export default function CreatorReviewStudioPage() {
             sortable: true,
             width: '26%',
             render: (c) => (
-              <div className="flex items-center gap-2.5 min-w-0 max-w-full">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-xs">
+              <div className="flex items-center gap-2 min-w-0 max-w-full">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-[10px]">
                   {c.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -293,23 +293,23 @@ export default function CreatorReviewStudioPage() {
                     text={c.creator_name}
                     subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}${c.brand_pitch_notes ? ` • Note: ${c.brand_pitch_notes}` : ''}`}
                   >
-                    <div className="font-bold text-slate-900 text-xs sm:text-sm truncate cursor-default">
+                    <div className="font-bold text-slate-900 text-[11px] truncate cursor-default max-w-[140px]">
                       {c.creator_name}
                     </div>
                   </EllipsisTooltip>
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                     <a
                       href={`https://instagram.com/${c.instagram_username}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-1 truncate max-w-full"
+                      className="text-[10px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
                     >
-                      <Instagram className="w-3 h-3 shrink-0" />
+                      <Instagram className="w-2.5 h-2.5 shrink-0" />
                       <span className="truncate">@{c.instagram_username}</span>
                     </a>
                     {c.brand_pitch_batch_name && (
                       <span
-                        className="text-[9px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 truncate max-w-[120px]"
+                        className="text-[9px] font-semibold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 truncate max-w-[100px]"
                         title={`Shortlist: ${c.brand_pitch_batch_name}`}
                       >
                         {c.brand_pitch_batch_name}
@@ -327,7 +327,7 @@ export default function CreatorReviewStudioPage() {
             align: 'center',
             width: '12%',
             render: (c) => (
-              <span className="font-bold text-slate-900 text-xs px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 whitespace-nowrap">
+              <span className="font-bold text-slate-900 text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 whitespace-nowrap">
                 {formatFollowerCount(c.followers)}
               </span>
             ),
@@ -339,8 +339,8 @@ export default function CreatorReviewStudioPage() {
             width: '12%',
             render: (c) => (
               <EllipsisTooltip text={c.city || 'Pan India'} subtext="Creator Location">
-                <div className="inline-flex items-center gap-1 text-slate-600 text-xs truncate max-w-full cursor-default">
-                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                <div className="inline-flex items-center gap-1 text-slate-600 text-[10px] truncate max-w-full cursor-default">
+                  <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
                   <span className="truncate">{c.city || 'Pan India'}</span>
                 </div>
               </EllipsisTooltip>
@@ -353,13 +353,13 @@ export default function CreatorReviewStudioPage() {
             render: (c) => (
               c.selected_variant ? (
                 <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs max-w-full min-w-0 overflow-hidden cursor-default">
-                    <Package className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
+                    <Package className="w-3 h-3 shrink-0 text-amber-600" />
                     <span className="truncate block min-w-0">{c.selected_variant}</span>
                   </div>
                 </EllipsisTooltip>
               ) : (
-                <span className="text-slate-400 text-xs italic">Standard Sample</span>
+                <span className="text-slate-400 text-[10px] italic">Standard Sample</span>
               )
             ),
           },
@@ -373,9 +373,9 @@ export default function CreatorReviewStudioPage() {
               const isApproved = c.brand_review_status === 'brand_approved'
               const isRejected = c.brand_review_status === 'brand_rejected'
               return (
-                <div>
+                <div className="min-w-0">
                   <span
-                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full border whitespace-nowrap ${
+                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${
                       isApproved
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
@@ -383,10 +383,10 @@ export default function CreatorReviewStudioPage() {
                         : 'bg-amber-50 text-amber-800 border-amber-200'
                     }`}
                   >
-                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending Review'}
+                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
                   </span>
                   {c.brand_rejection_reason && (
-                    <div className="text-[10px] text-red-600 mt-0.5 truncate max-w-[140px]" title={c.brand_rejection_reason}>
+                    <div className="text-[9px] text-red-600 mt-0.5 truncate max-w-[120px]" title={c.brand_rejection_reason}>
                       {c.brand_rejection_reason}
                     </div>
                   )}
@@ -401,20 +401,20 @@ export default function CreatorReviewStudioPage() {
             sortable: false,
             width: '16%',
             render: (c) => (
-              <div className="flex items-center justify-end gap-1.5">
+              <div className="flex items-center justify-end gap-1">
                 {c.brand_review_status === 'pending_brand_review' ? (
                   <>
                     <button
                       type="button"
                       onClick={() => handleApprove(c.application_id, c.creator_name)}
                       disabled={actionInProgress === c.application_id}
-                      className="px-3 py-1.5 rounded-xl bg-[#febd1c] hover:bg-[#e5a812] text-black font-semibold text-xs shadow-xs transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      className="h-6 px-2 rounded-md bg-[#febd1c] hover:bg-[#e5a812] text-black font-bold text-[10px] shadow-xs transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
                     >
                       {actionInProgress === c.application_id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         <>
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <Check className="w-3 h-3 stroke-[2.5]" />
                           <span>Approve</span>
                         </>
                       )}
@@ -426,16 +426,16 @@ export default function CreatorReviewStudioPage() {
                         setSelectedReason(rejectionReasons[0])
                         setCustomNote('')
                       }}
-                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 text-xs transition cursor-pointer"
+                      className="h-6 w-6 rounded-md border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
                       title="Decline Creator"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </>
                 ) : c.brand_review_status === 'brand_approved' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-700 font-semibold text-xs flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Approved
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-emerald-700 font-semibold text-[10px] flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Approved
                     </span>
                     <button
                       type="button"
@@ -444,20 +444,20 @@ export default function CreatorReviewStudioPage() {
                         setSelectedReason(rejectionReasons[0])
                         setCustomNote('')
                       }}
-                      className="text-[11px] text-slate-400 hover:text-red-600 underline cursor-pointer"
+                      className="text-[9px] text-slate-400 hover:text-red-600 underline cursor-pointer"
                     >
                       Change
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-red-600 font-semibold text-xs flex items-center gap-1">
-                      <XCircle className="w-3.5 h-3.5" /> Rejected
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-red-600 font-semibold text-[10px] flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Rejected
                     </span>
                     <button
                       type="button"
                       onClick={() => handleApprove(c.application_id, c.creator_name)}
-                      className="text-[11px] text-slate-400 hover:text-emerald-700 underline cursor-pointer"
+                      className="text-[9px] text-slate-400 hover:text-emerald-700 underline cursor-pointer"
                     >
                       Approve
                     </button>
