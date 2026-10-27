@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { useRealtime } from '@/hooks/useRealtime'
+import { DynamicDataTable, ColumnDef } from '@/components/brand/DynamicDataTable'
 import {
   CampaignPitchItem,
   CAMPAIGN_PITCH_COLUMNS,
@@ -451,6 +452,347 @@ export default function CampaignPitchesCurationPage() {
     toast.success('Exported CSV successfully')
   }
 
+  // Memoized column definitions for DynamicDataTable
+  const columns: ColumnDef<CampaignPitchItem>[] = useMemo(
+    () => [
+      {
+        key: 'creator_name',
+        header: 'Creator',
+        sortable: true,
+        wrap: true,
+        width: '24%',
+        accessor: (row) => row.creator_name,
+        render: (item) => (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              onClick={(e) => {
+                e.stopPropagation()
+                setInspectItem(item)
+              }}
+              className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-xs font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner hover:border-amber-400/40 transition-colors cursor-pointer"
+            >
+              {item.profile_photo ? (
+                <img
+                  src={item.profile_photo}
+                  alt={item.creator_name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                item.creator_name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div
+                className="font-bold text-white text-xs hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors truncate"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setInspectItem(item)
+                }}
+              >
+                <span className="truncate">{item.creator_name}</span>
+                <span className="text-[10px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
+                  {item.influencer_id}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <a
+                  href={`https://instagram.com/${item.instagram_username}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[11px] transition-colors truncate"
+                >
+                  <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
+                  <span className="truncate max-w-[130px]">@{item.instagram_username}</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'brand_name',
+        header: 'Brand & Campaign',
+        sortable: true,
+        wrap: true,
+        width: '20%',
+        accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
+        render: (item) => (
+          <div className="min-w-0">
+            <div className="font-bold text-white text-xs truncate">
+              {item.brand_name}
+            </div>
+            <div
+              className="text-[11px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5 truncate"
+              title={item.campaign_title}
+            >
+              <Target className="h-3 w-3 text-amber-400 shrink-0" />
+              <span className="truncate">{item.campaign_title || 'Campaign'}</span>
+            </div>
+            <div className="flex items-center gap-1 mt-1 flex-wrap">
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[160px] truncate"
+                title={item.brand_pitch_batch_name || 'Batch'}
+              >
+                <Layers className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
+              </span>
+              {item.campaign_code && item.campaign_code !== item.campaign_title && (
+                <span className="text-[10px] font-mono text-neutral-500">
+                  {item.campaign_code}
+                </span>
+              )}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'followers',
+        header: 'Audience & Reach',
+        sortable: true,
+        wrap: true,
+        width: '13%',
+        accessor: (row) => row.followers || 0,
+        render: (item) => (
+          <div>
+            <div className="font-black text-white text-xs tracking-tight flex items-baseline gap-1">
+              <span>{formatFollowerCount(item.followers)}</span>
+              <span className="text-[10px] font-normal text-neutral-400 font-mono">
+                ({(item.followers || 0).toLocaleString('en-IN')})
+              </span>
+            </div>
+            <div className="text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
+              <MapPin className="h-3 w-3 text-neutral-500 shrink-0" />
+              <span className="truncate max-w-[130px]">
+                {[item.city, item.state].filter(Boolean).join(', ') || 'India'}
+              </span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'selected_variant',
+        header: 'Variant / SKU',
+        sortable: true,
+        wrap: true,
+        width: '11%',
+        accessor: (row) => row.selected_variant || 'Standard',
+        render: (item) => (
+          <div>
+            <span
+              className="inline-block px-2 py-0.5 rounded-md bg-slate-950 border border-white/10 text-neutral-200 text-xs font-semibold truncate max-w-[120px]"
+              title={item.selected_variant || 'Standard'}
+            >
+              {item.selected_variant || 'Standard'}
+            </span>
+            {item.sample_reel_link && (
+              <a
+                href={item.sample_reel_link}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-1 hover:underline"
+              >
+                <ExternalLink className="h-2.5 w-2.5" />
+                Sample Reel
+              </a>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'address_verification_status',
+        header: 'Delivery Address',
+        sortable: true,
+        wrap: true,
+        width: '18%',
+        accessor: (row) => row.address_verification_status || 'None',
+        render: (item) => (
+          <div>
+            {item.address_verification_status === 'Verified' ? (
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-500/10">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Address: Verified
+                </span>
+                <div
+                  className="text-[11px] text-neutral-200 font-medium truncate max-w-[170px]"
+                  title={item.verified_address_details?.street}
+                >
+                  {item.verified_address_details?.city}, {item.verified_address_details?.state}
+                </div>
+                <div className="text-[10px] font-mono text-emerald-400 font-semibold">
+                  PIN: {item.verified_address_details?.pincode}
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setViewAddressItem(item)
+                  }}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm mt-0.5"
+                >
+                  <Eye className="h-2.5 w-2.5" />
+                  <span>View & Copy Courier</span>
+                </button>
+              </div>
+            ) : item.address_verification_status === 'Pending' ? (
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <Clock className="h-3 w-3 text-amber-400" />
+                  Pending Verification
+                </span>
+                <div className="text-[10px] text-neutral-400">
+                  Awaiting Address Desk
+                </div>
+              </div>
+            ) : item.address_verification_status === 'Rejected' ? (
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                  <XCircle className="h-3 w-3 text-rose-400" />
+                  Address: Rejected
+                </span>
+                <div className="text-[10px] text-neutral-400">
+                  Update Requested
+                </div>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
+                <AlertCircle className="h-3 w-3 text-neutral-500" />
+                Not Submitted
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'brand_review_status',
+        header: 'Status & Decision',
+        sortable: true,
+        wrap: true,
+        width: '13%',
+        accessor: (row) => row.brand_review_status,
+        render: (item) => {
+          const isApproved = item.brand_review_status === 'brand_approved'
+          const isRejected = item.brand_review_status === 'brand_rejected'
+          const isInternalDropped = item.brand_review_status === 'internal_rejected'
+          const isQueued = item.brand_review_status === 'queued_for_brand_admin'
+
+          if (isApproved) {
+            return (
+              <div>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  Shortlisted
+                </span>
+                {item.brand_reviewed_by && (
+                  <div className="text-[10px] text-emerald-400/80 mt-0.5">
+                    By {item.brand_reviewed_by}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          if (isRejected) {
+            return (
+              <div>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                  <XCircle className="h-3.5 w-3.5 text-rose-400" />
+                  Rejected
+                </span>
+                {item.brand_rejection_reason && (
+                  <div
+                    className="text-[10px] text-rose-400/80 mt-0.5 truncate max-w-[120px]"
+                    title={item.brand_rejection_reason}
+                  >
+                    {item.brand_rejection_reason}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          if (isInternalDropped) {
+            return (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
+                <X className="h-3.5 w-3.5 text-neutral-500" />
+                Dropped
+              </span>
+            )
+          }
+
+          if (isQueued) {
+            return (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10">
+                <Clock className="h-3.5 w-3.5 text-blue-400 animate-pulse" />
+                Queued for KAM
+              </span>
+            )
+          }
+
+          return (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10">
+              <Send className="h-3.5 w-3.5 text-purple-400" />
+              With Brand
+            </span>
+          )
+        },
+      },
+      {
+        key: 'actions',
+        header: 'Actions',
+        sortable: false,
+        hideable: false,
+        align: 'right',
+        width: '11%',
+        render: (item) => {
+          const isQueued = item.brand_review_status === 'queued_for_brand_admin'
+          return (
+            <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setInspectItem(item)}
+                className="h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
+                title="Inspect details"
+              >
+                <Eye className="h-3 w-3" />
+                <span>View</span>
+              </button>
+
+              {isQueued && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenDispatchModal(item.application_id)}
+                    className="h-7 px-2 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                    title="Send to Brand Client Portal"
+                  >
+                    <Send className="h-2.5 w-2.5" />
+                    <span>Send</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIds([item.application_id])
+                      setShowInternalDropModal(true)
+                    }}
+                    className="h-7 w-7 rounded-lg bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
+                    title="Drop creator"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          )
+        },
+      },
+    ],
+    []
+  )
+
   return (
     <div className="w-full max-w-[1680px] mx-auto space-y-5 pb-24">
       {/* 1. Header & Desk Actions */}
@@ -621,576 +963,174 @@ export default function CampaignPitchesCurationPage() {
         })}
       </div>
 
-      {/* 3. Filter & Search Toolbar */}
+      {/* 3. Campaign & Brand Scope Selectors */}
       <div className="bg-slate-900/80 backdrop-blur-xl p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-xl space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Brand Filter */}
-          <div>
-            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-              Client Brand
-            </label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              <select
-                value={selectedBrand}
-                onChange={(e) => {
-                  setSelectedBrand(e.target.value)
-                  setSelectedCampaign('all')
-                }}
-                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none hover:border-white/20"
-              >
-                <option value="all">All Brands ({brands.length})</option>
-                {brands.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Campaign Filter */}
-          <div>
-            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-              Campaign
-            </label>
-            <div className="relative">
-              <Target className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              <select
-                value={selectedCampaign}
-                onChange={(e) => setSelectedCampaign(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
-              >
-                <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
-                {filteredCampaignsList.map(c => {
-                  const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
-                  const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
-                  const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
-                  const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {brandText}{titleText}{codeText}
-                    </option>
-                  )
-                })}
-              </select>
-              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Batch Filter */}
-          <div>
-            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-              Pitch Batch
-            </label>
-            <div className="relative">
-              <Layers className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              <select
-                value={selectedBatch}
-                onChange={(e) => setSelectedBatch(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
-              >
-                <option value="all">All Batches ({batches.length})</option>
-                {batches.map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Search Box */}
-          <div>
-            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-              Search Creator / Handle
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, handle, city, pincode..."
-                className="pl-9 pr-8 text-xs h-9 bg-slate-950 border-white/10 text-white placeholder-neutral-500 focus:border-amber-400 rounded-xl hover:border-white/20"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-2.5 text-neutral-500 hover:text-white cursor-pointer"
-                  title="Clear search"
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+            {/* Brand Filter */}
+            <div>
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Client Brand
+              </label>
+              <div className="relative">
+                <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => {
+                    setSelectedBrand(e.target.value)
+                    setSelectedCampaign('all')
+                  }}
+                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none hover:border-white/20"
                 >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+                  <option value="all">All Brands ({brands.length})</option>
+                  {brands.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Campaign Filter */}
+            <div>
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Campaign
+              </label>
+              <div className="relative">
+                <Target className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+                <select
+                  value={selectedCampaign}
+                  onChange={(e) => setSelectedCampaign(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
+                >
+                  <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
+                  {filteredCampaignsList.map(c => {
+                    const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
+                    const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
+                    const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
+                    const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {brandText}{titleText}{codeText}
+                      </option>
+                    )
+                  })}
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Batch Filter */}
+            <div>
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Pitch Batch
+              </label>
+              <div className="relative">
+                <Layers className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+                <select
+                  value={selectedBatch}
+                  onChange={(e) => setSelectedBatch(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
+                >
+                  <option value="all">All Batches ({batches.length})</option>
+                  {batches.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Toolbar Sub-bar: Status segmented bar & Active Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-white/5 text-xs">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-            {[
-              { id: 'all', label: 'All', count: counts.all },
-              { id: 'queued_for_brand_admin', label: 'Queued', count: counts.queued_for_brand_admin, color: 'text-blue-400' },
-              { id: 'pending_brand_review', label: 'Sent to Brand', count: counts.pending_brand_review, color: 'text-purple-400' },
-              { id: 'brand_approved', label: 'Shortlisted', count: counts.brand_approved, color: 'text-emerald-400' },
-              { id: 'brand_rejected', label: 'Rejected', count: counts.brand_rejected, color: 'text-rose-400' },
-              { id: 'internal_rejected', label: 'Internal Dropped', count: counts.internal_rejected, color: 'text-neutral-400' },
-            ].map((tab) => {
-              const isTabActive = selectedStatus === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setSelectedStatus(tab.id)}
-                  className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isTabActive
-                      ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md shadow-amber-500/20'
-                      : 'bg-slate-950/70 text-neutral-400 hover:text-white hover:bg-white/5 border border-white/5'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    isTabActive ? 'bg-black/20 text-neutral-950 font-black' : tab.color || 'bg-white/5 text-neutral-400'
-                  }`}>
-                    {tab.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="flex items-center gap-2 text-neutral-400">
-            <span className="text-[11px] text-neutral-400">
-              Showing <strong className="text-white font-bold">{applications.length}</strong> profile{applications.length !== 1 ? 's' : ''}
-            </span>
-            {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all' || search) && (
-              <button
-                onClick={() => {
-                  setSelectedBrand('all')
-                  setSelectedCampaign('all')
-                  setSelectedBatch('all')
-                  setSelectedStatus('all')
-                  setSearch('')
-                }}
-                className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 hover:underline cursor-pointer ml-1"
-              >
-                <RotateCcw className="h-3 w-3" />
-                Reset Filters
-              </button>
-            )}
-          </div>
+          {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedBrand('all')
+                setSelectedCampaign('all')
+                setSelectedBatch('all')
+                setSelectedStatus('all')
+                setSearch('')
+              }}
+              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 hover:underline cursor-pointer px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0 self-start md:self-end h-9"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset Scope
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 4. Floating / Sticky Bulk Action Bar */}
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="sticky top-4 z-30 bg-slate-950/95 text-white p-3.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 border border-amber-500/40 backdrop-blur-xl shadow-amber-500/10"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-6 w-6 rounded-full bg-amber-500 items-center justify-center text-xs font-black text-black">
-                {selectedIds.length}
-              </span>
-              <span className="text-xs font-semibold text-neutral-200">
-                creator profile{selectedIds.length > 1 ? 's' : ''} selected
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowColumnShieldModal(true)}
-                className="bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border-white/10 text-xs h-8 flex items-center gap-1.5 cursor-pointer rounded-xl"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                Configure Shared Columns ({visibleColumns.length})
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => handleOpenDispatchModal()}
-                className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 text-xs h-8 font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 cursor-pointer rounded-xl"
-              >
-                <Send className="h-3.5 w-3.5" />
-                🚀 Send to Brand Portal
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowInternalDropModal(true)}
-                className="bg-neutral-900 hover:bg-rose-950/40 text-rose-300 border-rose-500/30 text-xs h-8 flex items-center gap-1.5 cursor-pointer rounded-xl"
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                Drop / Don't Send
-              </Button>
-
-              <button
-                onClick={() => setSelectedIds([])}
-                className="text-xs text-neutral-400 hover:text-white px-2 py-1 cursor-pointer font-medium"
-              >
-                Clear
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 5. Curation Table */}
-      <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-        {loading ? (
-          <div className="py-24 flex flex-col items-center justify-center text-neutral-400">
-            <RefreshCw className="h-8 w-8 text-amber-400 animate-spin mb-3" />
-            <p className="text-sm font-semibold text-white">Loading campaign curation profiles...</p>
-            <p className="text-xs text-neutral-500 mt-1">Syncing with database and address confirmation desk</p>
-          </div>
-        ) : applications.length === 0 ? (
-          <div className="py-24 text-center px-4">
-            <div className="h-14 w-14 rounded-2xl bg-slate-950 flex items-center justify-center mx-auto text-neutral-500 mb-3 border border-white/5 shadow-inner">
-              <Layers className="h-7 w-7 text-neutral-400" />
-            </div>
-            <h3 className="text-base font-bold text-white">No applications match your active filter</h3>
-            <p className="text-xs text-neutral-400 max-w-sm mx-auto mt-1 leading-relaxed">
-              Try switching your brand, campaign, or status filters, or clear search queries to view all records.
-            </p>
-            {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all' || search) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedBrand('all')
-                  setSelectedCampaign('all')
-                  setSelectedBatch('all')
-                  setSelectedStatus('all')
-                  setSearch('')
-                }}
-                className="mt-4 border-amber-500/30 text-amber-300 hover:bg-amber-500/10 text-xs h-8 cursor-pointer rounded-xl"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Reset All Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-neutral-300 border-collapse min-w-[1140px]">
-              <thead>
-                <tr className="bg-slate-950/90 border-b border-white/10 text-neutral-400 font-bold uppercase tracking-wider text-[10px]">
-                  <th className="py-3.5 px-3 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length > 0 && selectedIds.length === applications.length}
-                      onChange={handleSelectAll}
-                      className="rounded border-neutral-700 bg-slate-950 text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[200px]">
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-neutral-400" />
-                      <span>Creator</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[190px]">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-neutral-400" />
-                      <span>Brand & Campaign</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[130px]">
-                    <div className="flex items-center gap-1.5">
-                      <Instagram className="h-3.5 w-3.5 text-pink-400" />
-                      <span>Audience & Reach</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[110px]">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="h-3.5 w-3.5 text-amber-400" />
-                      <span>Variant / SKU</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[180px]">
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Delivery Address (Barter)</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 min-w-[160px] pr-4">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-400" />
-                      <span>Status & Decision</span>
-                    </div>
-                  </th>
-                  <th className="py-3.5 px-3 w-[125px] min-w-[125px] text-right sticky right-0 bg-slate-950/95 backdrop-blur-md shadow-[-4px_0_8px_rgba(0,0,0,0.3)] z-10">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <SlidersHorizontal className="h-3.5 w-3.5 text-neutral-400" />
-                      <span>Actions</span>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {applications.map((item) => {
-                  const isSelected = selectedIds.includes(item.application_id)
-                  const isApproved = item.brand_review_status === 'brand_approved'
-                  const isRejected = item.brand_review_status === 'brand_rejected'
-                  const isInternalDropped = item.brand_review_status === 'internal_rejected'
-                  const isQueued = item.brand_review_status === 'queued_for_brand_admin'
-                  const isPending = item.brand_review_status === 'pending_brand_review'
-
-                  return (
-                    <tr
-                      key={item.application_id}
-                      className={`hover:bg-white/[0.03] transition-colors group ${
-                        isSelected ? 'bg-amber-500/[0.08] border-l-2 border-l-amber-400' : ''
-                      }`}
-                    >
-                      <td className="py-3.5 px-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleSelectOne(item.application_id)}
-                          className="rounded border-neutral-700 bg-slate-950 text-amber-500 focus:ring-amber-400 h-4 w-4 cursor-pointer"
-                        />
-                      </td>
-
-                      {/* Creator Info */}
-                      <td className="py-3.5 px-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            onClick={() => setInspectItem(item)}
-                            className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-xs font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner group-hover:border-amber-400/40 transition-colors cursor-pointer"
-                          >
-                            {item.profile_photo ? (
-                              <img
-                                src={item.profile_photo}
-                                alt={item.creator_name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              item.creator_name.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <div
-                              className="font-bold text-white text-xs hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors truncate"
-                              onClick={() => setInspectItem(item)}
-                            >
-                              <span className="truncate">{item.creator_name}</span>
-                              <span className="text-[10px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
-                                {item.influencer_id}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <a
-                                href={`https://instagram.com/${item.instagram_username}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[11px] transition-colors truncate"
-                              >
-                                <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
-                                <span className="truncate max-w-[120px]">@{item.instagram_username}</span>
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Brand, Campaign & Batch */}
-                      <td className="py-3.5 px-3">
-                        <div className="font-bold text-white text-xs flex items-center gap-1.5">
-                          <span>{item.brand_name}</span>
-                        </div>
-                        <div className="text-[11px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5 max-w-[180px] truncate" title={item.campaign_title}>
-                          <Target className="h-3 w-3 text-amber-400 shrink-0" />
-                          <span className="truncate">{item.campaign_title || 'Campaign'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 mt-1 flex-wrap">
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[140px] truncate" title={item.brand_pitch_batch_name || 'Batch'}>
-                            <Layers className="h-2.5 w-2.5 text-amber-400 shrink-0" />
-                            <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
-                          </span>
-                          {item.campaign_code && item.campaign_code !== item.campaign_title && (
-                            <span className="text-[10px] font-mono text-neutral-500">
-                              {item.campaign_code}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Audience & Location */}
-                      <td className="py-3.5 px-3">
-                        <div className="font-black text-white text-xs tracking-tight flex items-baseline gap-1">
-                          <span>{formatFollowerCount(item.followers)}</span>
-                          <span className="text-[10px] font-normal text-neutral-400 font-mono">
-                            ({item.followers.toLocaleString('en-IN')})
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="h-3 w-3 text-neutral-500 shrink-0" />
-                          <span className="truncate max-w-[130px]">{[item.city, item.state].filter(Boolean).join(', ') || 'India'}</span>
-                        </div>
-                      </td>
-
-                      {/* Variant / Sample */}
-                      <td className="py-3.5 px-3">
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-950 border border-white/10 text-neutral-200 text-xs font-semibold truncate max-w-[110px]" title={item.selected_variant || 'Standard'}>
-                          {item.selected_variant || 'Standard'}
-                        </span>
-                        {item.sample_reel_link && (
-                          <a
-                            href={item.sample_reel_link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-1 hover:underline"
-                          >
-                            <ExternalLink className="h-2.5 w-2.5" />
-                            Sample Reel
-                          </a>
-                        )}
-                      </td>
-
-                      {/* Delivery Address (Strictly Verified Gatekeeper) */}
-                      <td className="py-3.5 px-3 align-middle">
-                        {item.address_verification_status === 'Verified' ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-500/10">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              Address: Verified
-                            </span>
-                            <div className="text-[11px] text-neutral-200 font-medium truncate max-w-[160px]" title={item.verified_address_details?.street}>
-                              {item.verified_address_details?.city}, {item.verified_address_details?.state}
-                            </div>
-                            <div className="text-[10px] font-mono text-emerald-400 font-semibold">
-                              PIN: {item.verified_address_details?.pincode}
-                            </div>
-                            <button
-                              onClick={() => setViewAddressItem(item)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm mt-0.5"
-                            >
-                              <Eye className="h-2.5 w-2.5" />
-                              <span>View & Copy Courier</span>
-                            </button>
-                          </div>
-                        ) : item.address_verification_status === 'Pending' ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                              <Clock className="h-3 w-3 text-amber-400" />
-                              Pending Verification
-                            </span>
-                            <div className="text-[10px] text-neutral-400">
-                              Awaiting Address Desk
-                            </div>
-                          </div>
-                        ) : item.address_verification_status === 'Rejected' ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                              <XCircle className="h-3 w-3 text-rose-400" />
-                              Address: Rejected
-                            </span>
-                            <div className="text-[10px] text-neutral-400">
-                              Update Requested
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
-                            <AlertCircle className="h-3 w-3 text-neutral-500" />
-                            Not Submitted
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Status & Decision */}
-                      <td className="py-3.5 px-3 min-w-[160px] pr-4">
-                        {isApproved ? (
-                          <div>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                              Shortlisted
-                            </span>
-                            {item.brand_reviewed_by && (
-                              <div className="text-[10px] text-emerald-400/80 mt-0.5">
-                                By {item.brand_reviewed_by}
-                              </div>
-                            )}
-                          </div>
-                        ) : isRejected ? (
-                          <div>
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                              <XCircle className="h-3.5 w-3.5 text-rose-400" />
-                              Rejected
-                            </span>
-                            {item.brand_rejection_reason && (
-                              <div className="text-[10px] text-rose-400/80 mt-0.5 truncate max-w-[120px]" title={item.brand_rejection_reason}>
-                                {item.brand_rejection_reason}
-                              </div>
-                            )}
-                          </div>
-                        ) : isInternalDropped ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
-                            <X className="h-3.5 w-3.5 text-neutral-500" />
-                            Dropped
-                          </span>
-                        ) : isQueued ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10">
-                            <Clock className="h-3.5 w-3.5 text-blue-400 animate-pulse" />
-                            Queued for KAM
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10">
-                            <Send className="h-3.5 w-3.5 text-purple-400" />
-                            With Brand
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Quick Actions (Sticky on the right edge) */}
-                      <td className="py-3 px-3 text-right w-[125px] min-w-[125px] sticky right-0 bg-slate-900/95 backdrop-blur-md group-hover:bg-slate-900 transition-colors shadow-[-4px_0_8px_rgba(0,0,0,0.3)] z-10">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => setInspectItem(item)}
-                            className="h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
-                            title="Inspect details"
-                          >
-                            <Eye className="h-3 w-3" />
-                            <span>View</span>
-                          </button>
-
-                          {isQueued && (
-                            <>
-                              <button
-                                onClick={() => handleOpenDispatchModal(item.application_id)}
-                                className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
-                                title="Send to Brand Client Portal"
-                              >
-                                <Send className="h-2.5 w-2.5" />
-                                <span>Send</span>
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setSelectedIds([item.application_id])
-                                  setShowInternalDropModal(true)
-                                }}
-                                className="h-7 w-7 rounded-lg bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
-                                title="Drop creator"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* 4. Luxury Dynamic Curation Data Table */}
+      <DynamicDataTable
+        data={applications}
+        columns={columns}
+        keyField="application_id"
+        loading={loading}
+        tableLayout="fixed"
+        minTableWidth="min-w-[1060px]"
+        selectedRowIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        filterTabs={{
+          key: 'status',
+          activeValue: selectedStatus,
+          onChange: (val) => setSelectedStatus(val),
+          options: [
+            { label: 'All', value: 'all', count: counts.all },
+            { label: 'Queued', value: 'queued_for_brand_admin', count: counts.queued_for_brand_admin },
+            { label: 'Sent to Brand', value: 'pending_brand_review', count: counts.pending_brand_review },
+            { label: 'Shortlisted', value: 'brand_approved', count: counts.brand_approved },
+            { label: 'Rejected', value: 'brand_rejected', count: counts.brand_rejected },
+            { label: 'Internal Dropped', value: 'internal_rejected', count: counts.internal_rejected },
+          ],
+        }}
+        searchPlaceholder="Search creator, handle, brand, campaign, city..."
+        searchFields={[
+          'creator_name',
+          'instagram_username',
+          'influencer_id',
+          'brand_name',
+          'campaign_title',
+          'campaign_code',
+          'city',
+          'state',
+          'brand_pitch_batch_name',
+        ]}
+        bulkActions={[
+          {
+            label: 'Send to Brand Portal',
+            icon: Send,
+            variant: 'default',
+            onClick: (rows) => {
+              setSelectedIds(rows.map((r) => r.application_id))
+              handleOpenDispatchModal()
+            },
+          },
+          {
+            label: `Configure Shared Columns (${visibleColumns.length})`,
+            icon: ShieldCheck,
+            variant: 'outline',
+            onClick: (rows) => {
+              setSelectedIds(rows.map((r) => r.application_id))
+              setShowColumnShieldModal(true)
+            },
+          },
+          {
+            label: "Drop / Don't Send",
+            icon: XCircle,
+            variant: 'danger',
+            onClick: (rows) => {
+              setSelectedIds(rows.map((r) => r.application_id))
+              setShowInternalDropModal(true)
+            },
+          },
+        ]}
+        exportFilename="campaign_curation_pitches.csv"
+        defaultPageSize={10}
+        pageSizeOptions={[10, 25, 50, 100]}
+        emptyMessage="No applications match your active filter"
+        onRowClick={(row) => setInspectItem(row)}
+      />
 
       {/* 6. Column Visibility Shield Modal */}
       <AnimatePresence>

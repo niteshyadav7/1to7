@@ -36,6 +36,7 @@ export interface ColumnDef<T> {
   hideable?: boolean
   align?: 'left' | 'center' | 'right'
   width?: string
+  wrap?: boolean
   accessor?: (row: T) => any
   render?: (row: T, index: number) => React.ReactNode
 }
@@ -68,6 +69,8 @@ export interface DynamicDataTableProps<T> {
     onChange: (value: string) => void
   }
   bulkActions?: BulkAction<T>[]
+  selectedRowIds?: string[]
+  onSelectionChange?: (selectedIds: string[]) => void
   exportFilename?: string
   defaultPageSize?: number
   pageSizeOptions?: number[]
@@ -79,6 +82,7 @@ export interface DynamicDataTableProps<T> {
   theme?: 'dark' | 'light'
   loading?: boolean
   tableLayout?: 'auto' | 'fixed'
+  minTableWidth?: string
   className?: string
   headerActions?: React.ReactNode
 }
@@ -93,6 +97,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
   searchFields,
   filterTabs,
   bulkActions = [],
+  selectedRowIds,
+  onSelectionChange,
   exportFilename = 'export_data.csv',
   defaultPageSize = 10,
   pageSizeOptions = [5, 10, 25, 50],
@@ -105,6 +111,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   theme = 'dark',
   loading = false,
   tableLayout = 'auto',
+  minTableWidth = 'min-w-full',
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -119,7 +126,24 @@ export function DynamicDataTable<T extends Record<string, any>>({
   const [pageSize, setPageSize] = useState(defaultPageSize)
 
   // 4. Row Selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set(selectedRowIds || []))
+
+  React.useEffect(() => {
+    if (selectedRowIds !== undefined) {
+      setInternalSelectedIds(new Set(selectedRowIds))
+    }
+  }, [selectedRowIds])
+
+  const selectedIds = useMemo(() => {
+    return selectedRowIds !== undefined ? new Set(selectedRowIds) : internalSelectedIds
+  }, [selectedRowIds, internalSelectedIds])
+
+  const updateSelectedIds = (newSet: Set<string>) => {
+    setInternalSelectedIds(newSet)
+    if (onSelectionChange) {
+      onSelectionChange(Array.from(newSet))
+    }
+  }
 
   // 5. Density toggle (compact vs comfortable)
   const [isCompact, setIsCompact] = useState(false)
@@ -212,24 +236,20 @@ export function DynamicDataTable<T extends Record<string, any>>({
     paginatedData.some((row) => selectedIds.has(getRowId(row))) && !isAllPageSelected
 
   const handleSelectAllPage = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (isAllPageSelected) {
-        paginatedData.forEach((row) => next.delete(getRowId(row)))
-      } else {
-        paginatedData.forEach((row) => next.add(getRowId(row)))
-      }
-      return next
-    })
+    const next = new Set(selectedIds)
+    if (isAllPageSelected) {
+      paginatedData.forEach((row) => next.delete(getRowId(row)))
+    } else {
+      paginatedData.forEach((row) => next.add(getRowId(row)))
+    }
+    updateSelectedIds(next)
   }
 
   const handleToggleRow = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    updateSelectedIds(next)
   }
 
   // Selected rows
@@ -487,7 +507,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               <span>Selected for Bulk Actions</span>
               <button
                 type="button"
-                onClick={() => setSelectedIds(new Set())}
+                onClick={() => updateSelectedIds(new Set())}
                 className={`text-[11px] underline ml-2 cursor-pointer ${isLight ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-400 hover:text-white'}`}
               >
                 Clear Selection
@@ -509,6 +529,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
                         ? 'bg-purple-600 hover:bg-purple-500 text-white'
                         : action.variant === 'emerald'
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        : action.variant === 'outline'
+                        ? 'bg-slate-900 hover:bg-slate-800 text-neutral-200 border border-white/20'
                         : 'bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950'
                     }`}
                   >
@@ -527,7 +549,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
         isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-xl'
       }`}>
         <div className="overflow-x-auto w-full max-w-full scrollbar-none">
-          <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''}`}>
+          <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''} ${minTableWidth}`}>
             {/* Header */}
             <thead className={`font-bold uppercase tracking-wider text-[11px] border-b select-none sticky top-0 z-10 ${
               isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
@@ -563,7 +585,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       onClick={() => canSort && handleSort(col.key)}
                       style={{ width: col.width }}
                       className={`py-3 px-2.5 sm:px-3 transition-colors ${
-                        tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
+                        col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
                       } ${
                         col.align === 'center'
                           ? 'text-center'
@@ -702,7 +724,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                             key={col.key}
                             style={{ width: col.width }}
                             className={`${
-                              tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
+                              col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
                             } ${
                               isCompact ? 'py-2 px-2.5' : 'py-2.5 px-2.5 sm:px-3'
                             } ${
