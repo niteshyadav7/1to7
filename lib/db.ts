@@ -82,6 +82,29 @@ export async function ensurePocMigration(): Promise<void> {
           ALTER TABLE public.admins ADD COLUMN creator_view_phone TEXT;
         END IF;
 
+        -- Brand Admin RBAC columns on admins
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'admins' 
+            AND column_name = 'brand_admin_access'
+        ) THEN
+          ALTER TABLE public.admins 
+            ADD COLUMN brand_admin_access BOOLEAN DEFAULT false,
+            ADD COLUMN brand_admin_role TEXT DEFAULT 'viewer',
+            ADD COLUMN brand_admin_status TEXT DEFAULT 'pending',
+            ADD COLUMN brand_admin_approved_by TEXT,
+            ADD COLUMN brand_admin_approved_at TIMESTAMP WITH TIME ZONE;
+
+          UPDATE public.admins
+          SET brand_admin_access = true,
+              brand_admin_role = 'brand_superadmin',
+              brand_admin_status = 'approved',
+              brand_admin_approved_by = 'system',
+              brand_admin_approved_at = NOW()
+          WHERE LOWER(email) = 'superadmin@gmail.com';
+        END IF;
+
         -- 3. manager_phone column on campaigns for auto-linked brand manager phone
         IF NOT EXISTS (
           SELECT 1 FROM information_schema.columns 
