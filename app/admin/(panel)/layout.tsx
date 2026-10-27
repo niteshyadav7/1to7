@@ -38,17 +38,6 @@ import {
   AdminPermissionsProvider,
   useAdminPermissions,
 } from '@/components/admin/AdminPermissionsContext'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 
 interface NavLink {
@@ -117,6 +106,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
 
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const { headerContent } = useAdminHeader()
   const { admin, loading, isSuperAdmin, canAccessModule } = useAdminPermissions()
 
@@ -334,38 +324,14 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </Link>
-          <AlertDialog>
-            <AlertDialogTrigger className="flex items-center gap-3 w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer">
-              <LogOut className="h-4.5 w-4.5" />
-              Sign Out
-            </AlertDialogTrigger>
-            <AlertDialogContent className="w-full max-w-[440px] p-6 sm:p-7 rounded-3xl bg-slate-900/98 backdrop-blur-2xl border border-white/10 text-white shadow-2xl shadow-black/90 font-sans">
-              <AlertDialogHeader className="space-y-4 text-center items-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-b from-red-500/20 to-red-950/40 shadow-inner shadow-red-500/20 ring-1 ring-red-500/30 mx-auto">
-                  <AlertTriangle className="h-7 w-7 text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]" />
-                </div>
-                <div className="space-y-1.5">
-                  <AlertDialogTitle className="text-xl font-bold tracking-tight text-white">
-                    Ready to Sign Out?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-slate-400 text-sm leading-relaxed max-w-[320px] mx-auto">
-                    You are about to sign out of the <span className="text-slate-200 font-semibold">Admin Portal</span>. You will need to enter your credentials again to access management tools.
-                  </AlertDialogDescription>
-                </div>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="mt-4 flex flex-row items-center justify-between gap-3 pt-3 border-t border-white/5 w-full">
-                <AlertDialogCancel className="flex-1 bg-slate-800/90 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white rounded-xl h-11 transition-all font-medium flex items-center justify-center cursor-pointer">
-                  Stay Logged In
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleLogout}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center"
-                >
-                  Yes, Sign Out
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <button
+            type="button"
+            onClick={() => setShowLogoutDialog(true)}
+            className="flex items-center gap-3 w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
+          >
+            <LogOut className="h-4.5 w-4.5" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -439,6 +405,47 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           )}
         </main>
       </div>
+
+      {/* Sign Out Confirmation Modal */}
+      {showLogoutDialog && (
+        <div className="fixed inset-0 isolate z-50 flex items-center justify-center p-4">
+          <div
+            onClick={() => setShowLogoutDialog(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+          />
+          <div className="relative z-50 w-full max-w-[440px] p-6 sm:p-7 rounded-3xl bg-slate-900/98 backdrop-blur-2xl border border-white/10 text-white shadow-2xl shadow-black/90 font-sans">
+            <div className="space-y-4 text-center items-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-b from-red-500/20 to-red-950/40 shadow-inner shadow-red-500/20 ring-1 ring-red-500/30 mx-auto">
+                <AlertTriangle className="h-7 w-7 text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold tracking-tight text-white">
+                  Ready to Sign Out?
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed max-w-[320px] mx-auto">
+                  You are about to sign out of the <span className="text-slate-200 font-semibold">Admin Portal</span>. You will need to enter your credentials again to access management tools.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-row items-center justify-between gap-3 pt-3 border-t border-white/5 w-full">
+              <button
+                type="button"
+                onClick={() => setShowLogoutDialog(false)}
+                className="flex-1 bg-slate-800/90 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white rounded-xl h-11 transition-all font-medium flex items-center justify-center cursor-pointer text-sm"
+              >
+                Stay Logged In
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white cursor-pointer rounded-xl h-11 shadow-[0_0_20px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-all border border-red-500/50 hover:border-red-400 font-semibold tracking-wide flex items-center justify-center text-sm"
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
