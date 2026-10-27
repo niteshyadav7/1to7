@@ -35,6 +35,10 @@ interface ParsedRow {
   gender: string
   state: string
   city: string
+  address?: string
+  pincode?: string
+  alt_mobile?: string
+  recipient_name?: string
   status: string
   influencer_id: string
   partial_payment?: string
@@ -45,6 +49,7 @@ interface ParsedRow {
   account_number?: string
   ifsc_code?: string
   category?: string
+  form_data?: Record<string, any>
   _valid: boolean
   _errors: string[]
 }
@@ -100,6 +105,33 @@ const COLUMN_MAP: Record<string, string> = {
   'gender': 'gender',
   'state': 'state',
   'city': 'city',
+  'complete delivery address': 'address',
+  'delivery address': 'address',
+  'shipping address': 'address',
+  'address': 'address',
+  'full address': 'address',
+  'house address': 'address',
+  'street address': 'address',
+  'address line 1': 'address',
+  'address_line1': 'address',
+  'postal address': 'address',
+  'residential address': 'address',
+  'courier address': 'address',
+  'pincode': 'pincode',
+  'pin code': 'pincode',
+  'pin': 'pincode',
+  'postal code': 'pincode',
+  'zip': 'pincode',
+  'zipcode': 'pincode',
+  'delivery pincode': 'pincode',
+  'altername number (if any)': 'alt_mobile',
+  'alternate number': 'alt_mobile',
+  'alternate mobile': 'alt_mobile',
+  'alt phone': 'alt_mobile',
+  'alt mobile': 'alt_mobile',
+  'altername number': 'alt_mobile',
+  'recipient name': 'recipient_name',
+  'receiver name': 'recipient_name',
   'status': 'status',
   'application status': 'status',
   'user id': 'influencer_id',
@@ -284,6 +316,10 @@ interface CleanedUploadRow {
   gender: string
   state: string
   city: string
+  address?: string
+  pincode?: string
+  alt_mobile?: string
+  recipient_name?: string
   category: string
   account_name: string
   account_number: string
@@ -559,7 +595,7 @@ export default function ImportPage() {
 
           // Preserve all non-system custom question columns (e.g. from Google Forms)
           const customData: Record<string, string> = {}
-          const standardColRegex = /^(user\s*id|influencer\s*id|id|name|full\s*name|creator\s*name|influencer\s*name|what\s*is\s*your\s*name\??|phone|phone\s*number|mobile|mobile\s*number|contact|whatsapp|email|email\s*id|email\s*address|instagram|instagram\s*id|instagram\s*username|instagram\s*handle|instagram\s*link|insta\s*id|ig|followers|follower\s*count|approx\s*followers|gender|sex|state|region|city|location|category|niche|account\s*name|account\s*holder\s*name|a\/c\s*name|account\s*number|account\s*no|bank\s*account\s*number|bank\s*a\/c\s*no|ifsc|ifsc\s*code|bank\s*ifsc|timestamp)$/i
+          const standardColRegex = /^(user\s*id|influencer\s*id|id|name|full\s*name|creator\s*name|influencer\s*name|what\s*is\s*your\s*name\??|phone|phone\s*number|mobile|mobile\s*number|contact|whatsapp|email|email\s*id|email\s*address|instagram|instagram\s*id|instagram\s*username|instagram\s*handle|instagram\s*link|insta\s*id|ig|followers|follower\s*count|approx\s*followers|gender|sex|state|region|city|location|category|niche|account\s*name|account\s*holder\s*name|a\/c\s*name|account\s*number|account\s*no|bank\s*account\s*number|bank\s*a\/c\s*no|ifsc|ifsc\s*code|bank\s*ifsc|timestamp|complete\s*delivery\s*address|delivery\s*address|shipping\s*address|address|pincode|pin\s*code|pin|postal\s*code|zip|zipcode|delivery\s*pincode|altername\s*number(\s*\(if\s*any\))?|alternate\s*number|alternate\s*mobile|alt\s*phone|alt\s*mobile|recipient\s*name|receiver\s*name)$/i
 
           for (const [colName, colVal] of Object.entries(row)) {
             const cleanCol = colName.trim().toLowerCase().replace(/[_\-\.]/g, ' ').replace(/\s+/g, ' ')
@@ -567,6 +603,11 @@ export default function ImportPage() {
               customData[colName.trim()] = String(colVal).trim()
             }
           }
+
+          const address = (row['Complete Delivery Address'] || row['Delivery Address'] || row['Address'] || row['Shipping Address'] || '').trim()
+          const pincode = (row['Pincode'] || row['Pin Code'] || row['PIN'] || row['Postal Code'] || '').trim()
+          const altMobile = (row['Altername Number (If any)'] || row['Alternate Number'] || row['Alt Mobile'] || row['Alternate Phone'] || '').trim()
+          const recipientName = (row['Recipient Name'] || row['Receiver Name'] || '').trim()
 
           return {
             _index: idx + 1,
@@ -579,6 +620,10 @@ export default function ImportPage() {
             gender: gender,
             state: state,
             city: city,
+            address: address || undefined,
+            pincode: pincode || undefined,
+            alt_mobile: altMobile || undefined,
+            recipient_name: recipientName || undefined,
             category: category,
             account_name: accName,
             account_number: accNum,
@@ -694,6 +739,10 @@ export default function ImportPage() {
         gender: r.gender || '',
         state: r.state || '',
         city: r.city || '',
+        address: r.address || '',
+        pincode: r.pincode || '',
+        alt_mobile: r.alt_mobile || '',
+        recipient_name: r.recipient_name || '',
         category: r.category || '',
         account_name: r.account_name || '',
         account_number: r.account_number || '',
@@ -776,6 +825,10 @@ export default function ImportPage() {
           gender: r.gender || undefined,
           state: r.state || undefined,
           city: r.city || undefined,
+          address: r.address || undefined,
+          pincode: r.pincode || undefined,
+          alt_mobile: r.alt_mobile || undefined,
+          recipient_name: r.recipient_name || undefined,
           status: r.status || 'Applied',
           agreed_commercial: (r as any).agreed_commercial ? Number(String((r as any).agreed_commercial).replace(/[^0-9.]/g, '')) : undefined,
           partial_payment: r.partial_payment ? Number(r.partial_payment.replace(/[^0-9.]/g, '')) : undefined,

@@ -23,6 +23,18 @@ function parseFollowersCount(val: any): number | null {
   return isNaN(num) ? null : num
 }
 
+function cleanPincode(p: any): string | null {
+  if (!p) return null
+  const d = String(p).replace(/\D/g, '')
+  const m = d.match(/\d{6}/)
+  return m ? m[0] : (d.length >= 6 ? d.slice(0, 6) : null)
+}
+
+function sanitizeAddress(str: any): string {
+  if (!str) return ''
+  return String(str).replace(/\r\n/g, ', ').replace(/[\r\n]+/g, ', ').replace(/\s+/g, ' ').trim()
+}
+
 interface ImportRow {
   influencer_id?: string
   mobile?: string
@@ -33,6 +45,11 @@ interface ImportRow {
   gender?: string
   state?: string
   city?: string
+  address?: string
+  pincode?: string
+  alt_mobile?: string
+  recipient_name?: string
+  address_status?: string
   status?: string
   form_data?: Record<string, any>
   agreed_commercial?: number
@@ -63,12 +80,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Maximum 1000 rows per import' }, { status: 400 })
     }
 
-    let campaign: { id: string; campaign_code: string; brand_name: string } | null = null
+    let campaign: { id: string; campaign_code: string; brand_name: string; deliverables?: string } | null = null
     if (campaign_id) {
       // Verify the campaign exists
       const { data, error: campaignError } = await supabase
         .from('campaigns')
-        .select('id, campaign_code, brand_name')
+        .select('id, campaign_code, brand_name, deliverables')
         .eq('id', campaign_id)
         .single()
 
@@ -127,7 +144,7 @@ export async function POST(request: Request) {
     if (mobiles.length > 0) {
       const { data: byMobiles } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile, shipping_addresses')
         .in('mobile', mobiles)
       
       byMobiles?.forEach(u => {
@@ -139,7 +156,7 @@ export async function POST(request: Request) {
     if (influencerIds.length > 0) {
       const { data: byIds } = await supabase
         .from('users')
-        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile')
+        .select('id, mobile, influencer_id, account_number, account_name, ifsc_code, category, full_name, instagram_username, gender, state, city, followers, dob, pincode, shoe_size, tshirt_size, alt_mobile, shipping_addresses')
         .in('influencer_id', influencerIds)
       
       byIds?.forEach(u => {
@@ -194,10 +211,44 @@ export async function POST(request: Request) {
       }
 
       const dobVal = findFdVal([/^(dob|d\.o\.b\.?|date\s*of\s*birth|birth\s*date|birthday)$/i])
-      const pincodeVal = findFdVal([/^(pincode|pin\s*code|zip|zipcode|postal\s*code|delivery\s*pincode)$/i])
+      const pincodeVal = cleanPincode(row.pincode) || cleanPincode(findFdVal([/^(pincode|pin\s*code|zip|zipcode|postal\s*code|delivery\s*pincode)$/i]))
       const shoeVal = findFdVal([/^(shoe\s*size|footwear\s*size)$/i])
       const tshirtVal = findFdVal([/^(t-?shirt\s*size|shirt\s*size|clothing\s*size|cloth\s*size)$/i])
-      const altMobileVal = findFdVal([/^(alt(ernate)?\s*(mobile|phone|contact)|whatsapp(\s*(number|no))?)$/i])
+      const altMobileVal = row.alt_mobile || findFdVal([/^(alt(ernate)?\s*(mobile|phone|contact|number)|whatsapp(\s*(number|no))?)$/i])
+      const addressVal = sanitizeAddress(row.address || findFdVal([/^(complete\s*delivery\s*address|delivery\s*address|shipping\s*address|street\s*address|address\s*line\s*1|address)$/i]))
+      const recipientNameVal = sanitizeAddress(row.recipient_name || row.full_name || findFdVal([/^(recipient\s*name|contact\s*person)$/i]))
+
+      let shippingAddressObj: any = null
+      if (addressVal) {
+        const addrId = `addr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
+        const recipient = recipientNameVal || (existing?.full_name && existing.full_name !== 'Imported Creator' ? existing.full_name : '') || row.full_name?.trim() || 'Creator'
+        const phone = mobile || existing?.mobile || ''
+        const city = row.city?.trim() || existing?.city || ''
+        const state = (row.state?.trim() || existing?.state || '').toUpperCase()
+        const pin = pincodeVal || existing?.pincode || ''
+
+        shippingAddressObj = {
+          id: addrId,
+          title: 'Home',
+          recipient_name: recipient,
+          name: recipient,
+          mobile: phone,
+          ...(altMobileVal ? { alt_mobile: altMobileVal } : {}),
+          address_line1: addressVal,
+          address_line2: '',
+          landmark: '',
+          city: city,
+          state: state,
+          pincode: pin,
+          delivery_remarks: 'Imported via Admin Portal',
+          is_default: true,
+          address_type: 'home',
+          created_at: new Date().toISOString(),
+          confirmed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      }
+      (item as any).shippingAddressObj = shippingAddressObj
 
       if (existing) {
         // User already exists in DB - safely update missing fields only (never overwrite existing real data)
@@ -233,6 +284,17 @@ export async function POST(request: Request) {
         if (!existing.tshirt_size && tshirtVal) updates.tshirt_size = tshirtVal
         if (!existing.alt_mobile && altMobileVal) updates.alt_mobile = altMobileVal
 
+        if (shippingAddressObj) {
+          let existingAddresses = Array.isArray(existing.shipping_addresses) ? [...existing.shipping_addresses] : []
+          existingAddresses = existingAddresses.map((a: any) => ({ ...a, is_default: false }))
+          existingAddresses.unshift(shippingAddressObj)
+          if (existingAddresses.length > 5) existingAddresses = existingAddresses.slice(0, 5)
+          updates.shipping_addresses = existingAddresses
+          if (row.city?.trim()) updates.city = row.city.trim()
+          if (row.state?.trim()) updates.state = row.state.trim()
+          if (pincodeVal) updates.pincode = pincodeVal
+        }
+
         toUpdateUsers.push({ userId: existing.id, updates, rowItem: item })
       } else if (mobile && inBatchCreatedMobiles.has(mobile)) {
         // User is a duplicate within the same batch! Merge fields into the previous record
@@ -257,6 +319,13 @@ export async function POST(request: Request) {
         if (shoeVal && !previous.shoe_size) previous.shoe_size = shoeVal
         if (tshirtVal && !previous.tshirt_size) previous.tshirt_size = tshirtVal
         if (altMobileVal && !previous.alt_mobile) previous.alt_mobile = altMobileVal
+
+        if (shippingAddressObj) {
+          previous.shipping_addresses = [shippingAddressObj]
+          if (row.city?.trim()) previous.city = row.city.trim()
+          if (row.state?.trim()) previous.state = row.state.trim()
+          if (pincodeVal) previous.pincode = pincodeVal
+        }
       } else {
         // Brand new user
         const finalMobile = mobile || `import_${Date.now()}_${Math.floor(Math.random() * 10000)}`
@@ -285,6 +354,7 @@ export async function POST(request: Request) {
           shoe_size: shoeVal || null,
           tshirt_size: tshirtVal || null,
           alt_mobile: altMobileVal || null,
+          shipping_addresses: shippingAddressObj ? [shippingAddressObj] : []
         }
 
         // If explicit influencer ID provided from CSV, preserve it; otherwise DB trigger assigns sequentially
@@ -449,6 +519,22 @@ export async function POST(request: Request) {
             ? (row.final_payment !== undefined ? row.final_payment : 0)
             : 0
 
+          const shippingAddressObj = (item as any).shippingAddressObj
+          if (shippingAddressObj) {
+            formData.shipping_address = shippingAddressObj
+            const formattedAddr = `${shippingAddressObj.address_line1}, ${shippingAddressObj.city}, ${shippingAddressObj.state} - ${shippingAddressObj.pincode} (Recipient: ${shippingAddressObj.recipient_name}, Ph: ${shippingAddressObj.mobile})`
+            formData.formatted_shipping_address = formattedAddr
+            formData.address_status = 'Approved'
+            formData.address_verified = true
+            formData.address_confirmed = true
+            formData.address_verified_at = new Date().toISOString()
+            formData.address_confirmed_at = new Date().toISOString()
+            formData.address_verified_by_admin = admin.name || 'Admin'
+          }
+          if (!formData.deliverables && campaign?.deliverables) {
+            formData.deliverables = campaign.deliverables
+          }
+
           if (existingApp) {
             const updatePayload: Record<string, any> = {
               status: applicationStatus,
@@ -457,6 +543,16 @@ export async function POST(request: Request) {
             if (row.partial_payment !== undefined) updatePayload.partial_payment = row.partial_payment
             updatePayload.final_payment = finalPaymentToSave
             if (row.pending_amount !== undefined) updatePayload.pending_amount = row.pending_amount
+
+            if (shippingAddressObj) {
+              updatePayload.address_status = 'Approved'
+              updatePayload.address_verified_at = new Date().toISOString()
+              updatePayload.address_verified_by = admin.id
+              // If status was not explicitly specified and application was in Applied state, upgrade to Approved
+              if (!row.status && existingApp.status === 'Applied') {
+                updatePayload.status = 'Approved'
+              }
+            }
 
             if (Object.keys(formData).length > 0) {
               const existingFormData = typeof existingApp.form_data === 'object' && existingApp.form_data !== null ? existingApp.form_data : {}
@@ -469,11 +565,17 @@ export async function POST(request: Request) {
             const appPayload: Record<string, any> = {
               user_id: userId,
               campaign_id: campaign_id,
-              status: applicationStatus,
+              status: (shippingAddressObj && !row.status) ? 'Approved' : applicationStatus,
               form_data: formData,
               final_payment: finalPaymentToSave,
               pending_amount: row.pending_amount !== undefined ? row.pending_amount : (rawCommercial || 0),
               partial_payment: row.partial_payment !== undefined ? row.partial_payment : 0,
+            }
+
+            if (shippingAddressObj) {
+              appPayload.address_status = 'Approved'
+              appPayload.address_verified_at = new Date().toISOString()
+              appPayload.address_verified_by = admin.id
             }
 
             const { error: appError } = await supabase.from('applications').insert(appPayload)

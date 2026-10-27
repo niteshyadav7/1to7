@@ -35,12 +35,57 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
   const [showOfflineBanner, setShowOfflineBanner] = useState<boolean>(false)
   const [showRestoredBanner, setShowRestoredBanner] = useState<boolean>(false)
   const [showSlowBanner, setShowSlowBanner] = useState<boolean>(false)
-  const [slowDismissed, setSlowDismissed] = useState<boolean>(false)
+  const [slowDismissed, setSlowDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return sessionStorage.getItem('slow_network_banner_dismissed') === 'true'
+      } catch {
+        return false
+      }
+    }
+    return false
+  })
   const [isChecking, setIsChecking] = useState<boolean>(false)
 
   const hasMounted = useRef(false)
   const restoredTimerRef = useRef<NodeJS.Timeout | null>(null)
   const slowTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Detect whether running in local development environment
+  const isLocalEnvironment = useCallback(() => {
+    if (typeof window === 'undefined') return false
+    const host = window.location.hostname
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.local')
+    )
+  }, [])
+
+  // User manual dismissal handler persisted in sessionStorage
+  const dismissSlowBanner = useCallback(() => {
+    setShowSlowBanner(false)
+    setSlowDismissed(true)
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('slow_network_banner_dismissed', 'true')
+      } catch {}
+    }
+  }, [])
+
+  // Auto-hide slow banner after 10 seconds so it doesn't linger indefinitely
+  useEffect(() => {
+    if (showSlowBanner) {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+      slowTimerRef.current = setTimeout(() => {
+        setShowSlowBanner(false)
+      }, 10000)
+    }
+    return () => {
+      if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+    }
+  }, [showSlowBanner])
 
   // Active ping function to check internet connectivity & response latency
   const checkConnection = useCallback(async (): Promise<boolean> => {
@@ -64,8 +109,9 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
         setIsOnline(true)
         setShowOfflineBanner(false)
 
-        // If latency is over 2500ms, mark as slow
-        if (duration > 2500) {
+        // Only mark as slow if latency is genuinely critical (> 4500ms) AND not on localhost.
+        // Localhost compilation/SSR spikes do not indicate bad internet connection.
+        if (duration > 4500 && !isLocalEnvironment()) {
           setIsSlow(true)
           if (!slowDismissed) setShowSlowBanner(true)
         } else {
@@ -86,7 +132,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
     } finally {
       setIsChecking(false)
     }
-  }, [slowDismissed])
+  }, [slowDismissed, isLocalEnvironment])
 
   // Monitor Network Information API & event listeners
   useEffect(() => {
@@ -127,12 +173,20 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
           setRtt(roundTrip)
           setDownlink(bandwidth)
 
-          // Slow 2G, 2G or High Latency (>1800ms) or Downlink (<0.3 Mbps)
+          // On localhost, skip false-positive slow network alerts from Chrome's fluctuating connection estimator
+          if (isLocalEnvironment()) {
+            setIsSlow(false)
+            setShowSlowBanner(false)
+            return
+          }
+
+          // Strict threshold: Slow 2G, 2G, or 3G with extreme latency (>2500ms), or severe bandwidth (<0.1 Mbps)
+          // Chrome idle connections often report downlink < 0.35 Mbps even on 4G; do not flag 4G as slow.
           const isNetworkSlow =
             type === 'slow-2g' ||
             type === '2g' ||
-            (type === '3g' && roundTrip > 1800) ||
-            bandwidth < 0.35
+            (type === '3g' && roundTrip > 2500) ||
+            (type !== '4g' && bandwidth < 0.1 && roundTrip > 2000)
 
           if (isNetworkSlow && navigator.onLine) {
             setIsSlow(true)
@@ -142,7 +196,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
           } else {
             setIsSlow(false)
             setShowSlowBanner(false)
-            setSlowDismissed(false)
+            // Note: Never reset slowDismissed here to prevent banner popping back up in the same session
           }
         }
       }
@@ -187,7 +241,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
       if (restoredTimerRef.current) clearTimeout(restoredTimerRef.current)
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
     }
-  }, [checkConnection, slowDismissed])
+  }, [checkConnection, slowDismissed, isLocalEnvironment])
 
   return (
     <NetworkStatusContext.Provider
@@ -315,10 +369,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
                     <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin' : ''}`} />
                   </button>
                   <button
-                    onClick={() => {
-                      setShowSlowBanner(false)
-                      setSlowDismissed(true)
-                    }}
+                    onClick={dismissSlowBanner}
                     title="Dismiss"
                     className="p-1.5 rounded-lg hover:bg-black/10 text-slate-900 transition-colors cursor-pointer"
                   >

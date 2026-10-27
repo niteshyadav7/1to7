@@ -133,6 +133,44 @@ const TARGET_FIELDS: FieldDefinition[] = [
     required: false,
     description: 'Creator niche (e.g. Fashion, Beauty, Tech)',
     synonyms: ['category', 'niche', 'content category', 'genre']
+  },
+  {
+    key: 'address',
+    label: 'Complete Delivery Address',
+    required: false,
+    description: 'Street address, house/flat no, landmark for courier dispatch',
+    synonyms: [
+      'complete delivery address', 'delivery address', 'address', 'shipping address',
+      'full address', 'house address', 'street address', 'address line 1', 'address_line1',
+      'postal address', 'residential address', 'courier address'
+    ]
+  },
+  {
+    key: 'pincode',
+    label: 'Pincode / Postal Code',
+    required: false,
+    description: '6-digit postal code for courier dispatch',
+    synonyms: [
+      'pincode', 'pin code', 'pin', 'postal code', 'zip', 'zipcode', 'delivery pincode',
+      'pin_code', 'postal_code'
+    ]
+  },
+  {
+    key: 'alt_mobile',
+    label: 'Alternate Number (If any)',
+    required: false,
+    description: 'Secondary contact number for delivery partner',
+    synonyms: [
+      'altername number (if any)', 'alternate number', 'alternate mobile', 'alt phone',
+      'altername number', 'alt mobile', 'secondary phone', 'alternate contact'
+    ]
+  },
+  {
+    key: 'recipient_name',
+    label: 'Recipient Name',
+    required: false,
+    description: 'Name of the package recipient',
+    synonyms: ['recipient name', 'receiver name', 'contact person']
   }
 ]
 
@@ -508,6 +546,11 @@ export function ApplicationImportModal({
       const rawStatus = mappings.status ? row[mappings.status] : ''
       const status = normalizeStatus(rawStatus, defaultStatus)
 
+      const address = mappings.address ? row[mappings.address]?.trim() : ''
+      const pincode = mappings.pincode ? row[mappings.pincode]?.trim() : ''
+      const altMobile = mappings.alt_mobile ? row[mappings.alt_mobile]?.trim() : ''
+      const recipientName = mappings.recipient_name ? row[mappings.recipient_name]?.trim() : ''
+
       // Collect all mapped campaign questions into form_data
       const formData: Record<string, any> = {}
 
@@ -554,6 +597,10 @@ export function ApplicationImportModal({
         followers: followersCount || undefined,
         city: city || undefined,
         state: state || undefined,
+        address: address || undefined,
+        pincode: pincode || undefined,
+        alt_mobile: altMobile || undefined,
+        recipient_name: recipientName || undefined,
         gender: gender || undefined,
         category: category || undefined,
         agreed_commercial: agreedCommercial,
@@ -619,6 +666,10 @@ export function ApplicationImportModal({
           followers: r.followers,
           city: r.city,
           state: r.state,
+          address: r.address,
+          pincode: r.pincode,
+          alt_mobile: r.alt_mobile,
+          recipient_name: r.recipient_name,
           gender: r.gender,
           category: r.category,
           agreed_commercial: r.agreed_commercial,

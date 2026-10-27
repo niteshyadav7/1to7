@@ -39,7 +39,9 @@ import {
   Share2,
   MessageCircle,
   Link2,
+  AlertTriangle,
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
