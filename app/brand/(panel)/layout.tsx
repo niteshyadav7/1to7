@@ -36,7 +36,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/brand/dashboard', icon: LayoutDashboard },
   { name: 'Campaigns & Review', href: '/brand/campaigns', icon: Users },
-  { name: 'Sample Pitch Decks', href: '/brand/sample-rosters', icon: BookmarkPlus, badge: 'Pitched' },
+  { name: 'Pitch Decks', href: '/brand/sample-rosters', icon: BookmarkPlus, badge: 'Pitched' },
   { name: 'Sample Dispatches', href: '/brand/dispatches', icon: Truck },
   { name: 'Live Deliverables', href: '/brand/deliverables', icon: Video },
   { name: 'Analytics & ROI', href: '/brand/reports', icon: BarChart3 },
@@ -173,20 +173,24 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
                 key={item.href}
                 href={item.href}
                 title={isCollapsed ? (item.badge ? `${item.name} (${item.badge})` : item.name) : undefined}
-                className={`flex items-center rounded-xl text-sm font-medium transition-all relative ${
-                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2.5'
+                className={`flex items-center rounded-xl text-xs font-medium transition-all relative ${
+                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
                 } ${
                   active
-                    ? 'bg-[#febd1c] text-black font-semibold shadow-sm'
+                    ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-sm'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-black' : 'text-slate-400'}`} />
+                <div className="flex items-center gap-2.5">
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-neutral-950' : 'text-slate-400'}`} />
                   {!isCollapsed && <span>{item.name}</span>}
                 </div>
                 {!isCollapsed && item.badge && (
-                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300">
+                  <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded-full ${
+                    active
+                      ? 'bg-neutral-950 text-[#febd1c]'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                  }`}>
                     {item.badge}
                   </span>
                 )}
