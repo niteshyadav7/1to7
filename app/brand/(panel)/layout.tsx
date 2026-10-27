@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
   Building2,
   Sparkles,
   ExternalLink,
@@ -48,6 +49,23 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [brandUser, setBrandUser] = useState<BrandPayload | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState(false)
+
+  // Load saved sidebar collapse preference
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('brand_sidebar_collapsed')
+      if (saved !== null) setIsCollapsed(JSON.parse(saved))
+    } catch { /* ignore */ }
+  }, [])
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem('brand_sidebar_collapsed', JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   // Fetch brand session
   useEffect(() => {
@@ -107,29 +125,46 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="min-h-screen bg-[#f9f9f9] flex flex-col text-[#1a1c1c] font-sans antialiased selection:bg-[#febd1c]/30 selection:text-black">
-      {/* ─── DESKTOP SIDEBAR (Strictly #2d3132 dark charcoal slate - Fixed Admin Style) ─── */}
-      <aside className="hidden md:flex flex-col w-64 fixed top-0 left-0 z-40 h-screen bg-[#2d3132] border-r border-white/10 select-none overflow-hidden">
+      {/* ─── DESKTOP SIDEBAR (Strictly #2d3132 dark charcoal slate - Fixed Admin Style with Collapsible state) ─── */}
+      <aside className={`hidden md:flex flex-col fixed top-0 left-0 z-40 h-screen bg-[#2d3132] border-r border-white/10 select-none overflow-hidden transition-all duration-300 ${
+        isCollapsed ? 'md:w-20' : 'md:w-64'
+      } md:w-64`}>
         {/* Brand Workspace Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
+        <div className={`p-4 border-b border-white/10 flex items-center shrink-0 ${
+          isCollapsed ? 'md:flex-col md:gap-2.5 md:justify-center' : 'justify-between'
+        }`}>
+          <div className="flex items-center gap-2.5 min-w-0">
             <img
               src="/logo-icon.svg"
               alt="1to7 Media"
-              className="w-10 h-10 object-contain drop-shadow-md shrink-0"
+              className="w-9 h-9 object-contain drop-shadow-md shrink-0"
             />
-            <div className="overflow-hidden">
-              <h2 className="font-bold text-white text-base truncate leading-tight">
-                {brandUser?.brand_name || 'Brand Workspace'}
-              </h2>
-              <span className="text-[11px] uppercase tracking-wider text-amber-400 font-medium">
-                {brandUser?.role === 'owner' ? 'Director Workspace' : 'Brand Reviewer'}
-              </span>
-            </div>
+            {!isCollapsed && (
+              <div className="overflow-hidden min-w-0">
+                <h2 className="font-bold text-white text-sm truncate leading-tight">
+                  {brandUser?.brand_name || 'Brand Workspace'}
+                </h2>
+                <span className="text-[10px] uppercase tracking-wider text-amber-400 font-medium truncate block">
+                  {brandUser?.role === 'owner' ? 'Director Workspace' : 'Brand Reviewer'}
+                </span>
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            className="hidden md:flex items-center justify-center h-7 w-7 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          >
+            <ChevronLeft className={`h-4 w-4 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
+          </button>
         </div>
 
         {/* Navigation Items (Scrollable internally) */}
-        <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <nav className={`flex-1 space-y-1.5 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+          isCollapsed ? 'p-2' : 'p-3.5'
+        }`}>
           {navItems.map((item) => {
             const active = isActive(item.href)
             const Icon = item.icon
@@ -137,20 +172,26 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                title={isCollapsed ? (item.badge ? `${item.name} (${item.badge})` : item.name) : undefined}
+                className={`flex items-center rounded-xl text-sm font-medium transition-all relative ${
+                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2.5'
+                } ${
                   active
                     ? 'bg-[#febd1c] text-black font-semibold shadow-sm'
                     : 'text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${active ? 'text-black' : 'text-slate-400'}`} />
-                  <span>{item.name}</span>
+                  <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-black' : 'text-slate-400'}`} />
+                  {!isCollapsed && <span>{item.name}</span>}
                 </div>
-                {item.badge && (
+                {!isCollapsed && item.badge && (
                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300">
                     {item.badge}
                   </span>
+                )}
+                {isCollapsed && item.badge && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
                 )}
               </Link>
             )
@@ -158,24 +199,36 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         </nav>
 
         {/* User Mini Profile & Logout */}
-        <div className="p-4 border-t border-white/10 bg-[#242728] shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="overflow-hidden pr-2">
-              <p className="text-xs font-semibold text-white truncate">
-                {brandUser?.full_name || 'Brand Manager'}
-              </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                {brandUser?.email || 'brand@company.com'}
-              </p>
-            </div>
+        <div className={`border-t border-white/10 bg-[#242728] shrink-0 ${
+          isCollapsed ? 'p-2 flex justify-center' : 'p-3.5'
+        }`}>
+          {isCollapsed ? (
             <button
               onClick={handleLogout}
-              title="Sign Out"
+              title={`Sign Out (${brandUser?.full_name || 'Brand Manager'})`}
               className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/10 transition cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
-          </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="overflow-hidden pr-2">
+                <p className="text-xs font-semibold text-white truncate">
+                  {brandUser?.full_name || 'Brand Manager'}
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {brandUser?.email || 'brand@company.com'}
+                </p>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Sign Out"
+                className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/10 transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -249,7 +302,9 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
       </AnimatePresence>
 
       {/* ─── MAIN CONTENT CANVAS (#f9f9f9) (Padded on desktop to accommodate fixed sidebar) ─── */}
-      <div className="flex-1 flex flex-col min-h-screen min-w-0 md:pl-64 pb-16 md:pb-0">
+      <div className={`flex-1 flex flex-col min-h-screen min-w-0 pb-16 md:pb-0 transition-[padding] duration-300 ${
+        isCollapsed ? 'md:pl-20' : 'md:pl-64'
+      }`}>
         {/* Sticky Desktop Sub-header */}
         <header className="hidden md:flex h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
