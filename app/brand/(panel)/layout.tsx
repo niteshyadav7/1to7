@@ -106,11 +106,11 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="min-h-screen bg-[#f9f9f9] flex flex-col md:flex-row text-[#1a1c1c] font-sans antialiased selection:bg-[#febd1c]/30 selection:text-black">
-      {/* ─── DESKTOP SIDEBAR (Strictly #2d3132 dark charcoal slate) ─── */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#2d3132] border-r border-white/10 shrink-0 select-none">
+    <div className="min-h-screen bg-[#f9f9f9] flex flex-col text-[#1a1c1c] font-sans antialiased selection:bg-[#febd1c]/30 selection:text-black">
+      {/* ─── DESKTOP SIDEBAR (Strictly #2d3132 dark charcoal slate - Fixed Admin Style) ─── */}
+      <aside className="hidden md:flex flex-col w-64 fixed top-0 left-0 z-40 h-screen bg-[#2d3132] border-r border-white/10 select-none overflow-hidden">
         {/* Brand Workspace Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+        <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <img
               src="/logo-icon.svg"
@@ -128,8 +128,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
           </div>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto">
+        {/* Navigation Items (Scrollable internally) */}
+        <nav className="flex-1 p-3.5 space-y-1.5 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {navItems.map((item) => {
             const active = isActive(item.href)
             const Icon = item.icon
@@ -158,7 +158,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         </nav>
 
         {/* User Mini Profile & Logout */}
-        <div className="p-4 border-t border-white/10 bg-[#242728]">
+        <div className="p-4 border-t border-white/10 bg-[#242728] shrink-0">
           <div className="flex items-center justify-between">
             <div className="overflow-hidden pr-2">
               <p className="text-xs font-semibold text-white truncate">
@@ -223,7 +223,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium ${
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium ${
                       active
                         ? 'bg-[#febd1c] text-black font-semibold'
                         : 'text-slate-300 hover:bg-white/10'
@@ -248,8 +248,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         )}
       </AnimatePresence>
 
-      {/* ─── MAIN CONTENT CANVAS (#f9f9f9) ─── */}
-      <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+      {/* ─── MAIN CONTENT CANVAS (#f9f9f9) (Padded on desktop to accommodate fixed sidebar) ─── */}
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 md:pl-64 pb-16 md:pb-0">
         {/* Sticky Desktop Sub-header */}
         <header className="hidden md:flex h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
