@@ -63,6 +63,7 @@ function formatFollowerCount(num: number | null | undefined): string {
 export default function CampaignPitchesCurationPage() {
   const [applications, setApplications] = useState<CampaignPitchItem[]>([])
   const [brands, setBrands] = useState<string[]>([])
+  const [registeredBrands, setRegisteredBrands] = useState<Array<{ id: string; name: string; slug: string; assignedKam?: string }>>([])
   const [campaigns, setCampaigns] = useState<Array<{ id: string; campaign_code: string; title: string; brand_name: string }>>([])
   const [batches, setBatches] = useState<string[]>([])
   const [counts, setCounts] = useState({
@@ -129,7 +130,7 @@ export default function CampaignPitchesCurationPage() {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
 
   const handleOpenShareModal = (targetBrand?: string, targetBatch?: string) => {
-    const brandToUse = targetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Brand Client'))
+    const brandToUse = targetBrand || (registeredBrands[0]?.name || '')
     const batchToUse = targetBatch || (selectedBatch !== 'all' ? selectedBatch : (batches[0] || ''))
     
     setShareBrand(brandToUse)
@@ -246,6 +247,7 @@ export default function CampaignPitchesCurationPage() {
       if (res.ok) {
         setApplications(data.applications || [])
         setBrands(data.brands || [])
+        setRegisteredBrands(data.registeredBrands || [])
         setCampaigns(data.campaigns || [])
         setBatches(data.batches || [])
         if (data.counts) setCounts(data.counts)
@@ -298,10 +300,15 @@ export default function CampaignPitchesCurationPage() {
 
   const autoDetectedBrand = useMemo(() => {
     const first = selectedApplications[0]
-    if (first?.brand_name && first.brand_name !== 'Brand') return first.brand_name
-    if (selectedBrand !== 'all') return selectedBrand
-    return brands[0] || ''
-  }, [selectedApplications, selectedBrand, brands])
+    const appBrandName = first?.brand_name?.toLowerCase().trim()
+    if (appBrandName) {
+      const match = registeredBrands.find(
+        b => b.name.toLowerCase().trim() === appBrandName || b.slug.toLowerCase().trim() === appBrandName
+      )
+      if (match) return match.name
+    }
+    return registeredBrands[0]?.name || ''
+  }, [selectedApplications, registeredBrands])
 
   const handleOpenDispatchModal = (appId?: string) => {
     const targetIds = appId ? [appId] : selectedIds
@@ -313,9 +320,11 @@ export default function CampaignPitchesCurationPage() {
       setSelectedIds([appId])
     }
     const targetApps = applications.filter(a => targetIds.includes(a.application_id))
-    const detected = (targetApps[0]?.brand_name && targetApps[0].brand_name !== 'Brand')
-      ? targetApps[0].brand_name
-      : (selectedBrand !== 'all' ? selectedBrand : (brands[0] || ''))
+    const appBrandName = targetApps[0]?.brand_name?.toLowerCase().trim()
+    const match = registeredBrands.find(
+      b => b.name.toLowerCase().trim() === appBrandName || b.slug.toLowerCase().trim() === appBrandName
+    )
+    const detected = match ? match.name : (registeredBrands[0]?.name || '')
     setDispatchTargetBrand(detected)
     setShowDispatchModal(true)
   }
@@ -324,6 +333,16 @@ export default function CampaignPitchesCurationPage() {
   const handleDispatchToBrand = async () => {
     if (selectedIds.length === 0) {
       toast.error('Please select at least one application to send to Brand')
+      return
+    }
+
+    if (registeredBrands.length === 0) {
+      toast.error('No registered Brand Client Workspaces found in database. Please onboard a brand workspace first.')
+      return
+    }
+
+    if (!dispatchTargetBrand) {
+      toast.error('Please choose a registered Brand Client Workspace')
       return
     }
 
@@ -344,7 +363,7 @@ export default function CampaignPitchesCurationPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || `Dispatched ${selectedIds.length} profiles to Brand Portal!`)
-        const dispatchedBrand = dispatchTargetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Brand Client'))
+        const dispatchedBrand = dispatchTargetBrand || (registeredBrands[0]?.name || 'Brand Client')
         const dispatchedBatch = data.batch_name || selectedBatch
         setShowDispatchModal(false)
         setDispatchKamNotes('')
@@ -1006,10 +1025,25 @@ export default function CampaignPitchesCurationPage() {
                   }}
                   className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none hover:border-white/20"
                 >
-                  <option value="all">All Brands ({brands.length})</option>
-                  {brands.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
+                  <option value="all">
+                    All Brands ({brands.length + registeredBrands.length})
+                  </option>
+                  {registeredBrands.length > 0 && (
+                    <optgroup label="⭐ Registered Client Workspaces (Brand Admin)">
+                      {registeredBrands.map(b => (
+                        <option key={`reg-${b.id}`} value={b.name}>
+                          ⭐ {b.name} (Client Workspace)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="🏷️ Influencer Campaign Brands (Source Tags)">
+                    {brands.map(b => (
+                      <option key={`camp-${b}`} value={b}>
+                        🏷️ {b} (Campaign Tag)
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
                 <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
               </div>
@@ -1283,20 +1317,47 @@ export default function CampaignPitchesCurationPage() {
                       </span>
                     )}
                   </div>
-                  <div className="relative">
-                    <select
-                      value={dispatchTargetBrand}
-                      onChange={(e) => setDispatchTargetBrand(e.target.value)}
-                      className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      {brands.map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <p className="text-[10px] text-neutral-400 mt-1">
-                    These profiles will appear live on <strong>{dispatchTargetBrand || 'the brand'}'s</strong> client portal review studio.
-                  </p>
+                  {registeredBrands.length === 0 ? (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-amber-300 text-xs">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                        No Client Brand Workspaces Found
+                      </div>
+                      <p className="text-[11px] text-neutral-300 leading-relaxed">
+                        Creators can only be dispatched to registered Brand Workspaces created in Brand Admin. No client brand accounts exist in the database right now.
+                      </p>
+                      <Link href="/brand-admin/brands">
+                        <Button
+                          size="sm"
+                          type="button"
+                          className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-[11px] h-7 px-3 rounded-lg shadow-sm"
+                        >
+                          <Building2 className="h-3 w-3 mr-1.5" />
+                          Onboard Brand Workspace
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <select
+                          value={dispatchTargetBrand}
+                          onChange={(e) => setDispatchTargetBrand(e.target.value)}
+                          className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
+                        >
+                          <option value="">-- Choose Registered Brand Workspace --</option>
+                          {registeredBrands.map(b => (
+                            <option key={b.id} value={b.name}>
+                              ⭐ {b.name} (Assigned KAM: {b.assignedKam || 'Ops'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-1">
+                        These profiles will appear live on <strong>{dispatchTargetBrand || 'the brand'}&apos;s</strong> client portal review studio.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* 2. Selected Creators Preview */}
@@ -1386,8 +1447,8 @@ export default function CampaignPitchesCurationPage() {
                 </Button>
                 <Button
                   onClick={handleDispatchToBrand}
-                  disabled={isDispatching}
-                  className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer shadow-md"
+                  disabled={isDispatching || registeredBrands.length === 0 || !dispatchTargetBrand}
+                  className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-950/20"
                 >
                   {isDispatching ? (
                     <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -1836,35 +1897,35 @@ export default function CampaignPitchesCurationPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
-                      Client Brand *
+                      Client Brand Workspace *
                     </label>
-                    <select
-                      value={shareBrand}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setShareBrand(val)
-                        let cName = 'Brand Marketing Lead'
-                        let cEmail = 'marketing@brand.com'
-                        if (val.toLowerCase().includes('mama')) {
-                          cName = 'Ananya Sharma (Brand Head)'
-                          cEmail = 'ananya@mamaearth.in'
-                        } else if (val.toLowerCase().includes('plum')) {
-                          cName = 'Rahul Sen (Marketing Lead)'
-                          cEmail = 'rahul@plumgoodness.com'
-                        } else if (val.toLowerCase().includes('sugar')) {
-                          cName = 'Kavita Roy (Digital Lead)'
-                          cEmail = 'kavita@sugarcosmetics.com'
-                        }
-                        setShareContactName(cName)
-                        setShareContactEmail(cEmail)
-                        fetchShareLink(val, shareBatch, cName, cEmail)
-                      }}
-                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-emerald-400 transition cursor-pointer"
-                    >
-                      {brands.map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
+                    {registeredBrands.length === 0 ? (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
+                        No registered brand workspaces in database. Create one in Client Brands first.
+                      </div>
+                    ) : (
+                      <select
+                        value={shareBrand}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setShareBrand(val)
+                          const regB = registeredBrands.find(b => b.name === val)
+                          const cName = regB ? `${regB.name} Lead` : 'Brand Marketing Lead'
+                          const cEmail = 'marketing@brand.com'
+                          setShareContactName(cName)
+                          setShareContactEmail(cEmail)
+                          fetchShareLink(val, shareBatch, cName, cEmail)
+                        }}
+                        className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-emerald-400 transition cursor-pointer"
+                      >
+                        <option value="">-- Choose Registered Workspace --</option>
+                        {registeredBrands.map(b => (
+                          <option key={b.id} value={b.name}>
+                            ⭐ {b.name} ({b.assignedKam || 'Ops'})
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>

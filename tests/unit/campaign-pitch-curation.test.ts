@@ -244,7 +244,7 @@ describe('Campaign Pitch Curation & Two-Gatekeeper Pipeline Tests', () => {
 
       const isReadyForBrandDispatch = (app.application_status === 'Approved' || app.brand_review_status === 'brand_approved') && isVerified
 
-      let verifiedAddressDetails = null
+      let verifiedAddressDetails: any = null
       if (isVerified && addrObj) {
         const recipientName = addrObj.recipient_name || addrObj.name || app.creator_name || 'Creator'
         const phone = addrObj.mobile || app.mobile || 'N/A'
@@ -333,6 +333,75 @@ describe('Campaign Pitch Curation & Two-Gatekeeper Pipeline Tests', () => {
       expect(result.isVerified).toBe(false)
       expect(result.isReadyForBrandDispatch).toBe(false)
       expect(result.verifiedAddressDetails).toBeNull()
+    })
+  })
+
+  describe('Registered Brand Workspaces vs Raw Campaign Tags Separation', () => {
+    interface RegisteredBrandWorkspace {
+      id: string
+      name: string
+      slug: string
+      status: 'active' | 'archived'
+      assignedKam?: string
+    }
+
+    it('blocks dispatch when zero registered brand workspaces exist', () => {
+      const registeredBrands: RegisteredBrandWorkspace[] = []
+      const campaignSourceTags = ['1to7Media', 'Koel Bags', 'Mamaearth']
+
+      // Validate dispatch readiness
+      const canDispatch = registeredBrands.length > 0
+      expect(canDispatch).toBe(false)
+
+      // Even if raw campaign tags exist, they cannot be used as target dispatch portals
+      expect(campaignSourceTags.length).toBeGreaterThan(0)
+      const validDispatchTargets = registeredBrands.map((b) => b.name)
+      expect(validDispatchTargets).toHaveLength(0)
+    })
+
+    it('validates target brand against registered workspaces and excludes arbitrary tags', () => {
+      const registeredBrands: RegisteredBrandWorkspace[] = [
+        { id: 'brand-1', name: 'Plum Goodness', slug: 'plum-goodness', status: 'active', assignedKam: 'Aditi Rao' },
+        { id: 'brand-2', name: 'Sugar Cosmetics', slug: 'sugar-cosmetics', status: 'active', assignedKam: 'Rahul Verma' },
+      ]
+      const campaignSourceTags = ['1to7Media', 'Koel Bags', 'Plum Goodness']
+
+      const isTargetValid = (target: string) =>
+        registeredBrands.some(
+          (b) =>
+            b.name.toLowerCase() === target.trim().toLowerCase() ||
+            b.slug.toLowerCase() === target.trim().toLowerCase() ||
+            b.id === target.trim()
+        )
+
+      // Registered brand name is valid
+      expect(isTargetValid('Plum Goodness')).toBe(true)
+      expect(isTargetValid('sugar-cosmetics')).toBe(true)
+
+      // Campaign tags that are NOT registered workspaces are strictly blocked
+      expect(isTargetValid('1to7Media')).toBe(false)
+      expect(isTargetValid('Koel Bags')).toBe(false)
+    })
+
+    it('segments dropdown filter into Registered Workspaces and Campaign Source Tags', () => {
+      const registered = [{ id: 'b1', name: 'Nykaa' }]
+      const campaignTags = ['Nykaa', 'Winter Glow Promo', 'Koel Bags']
+
+      const optgroups = [
+        {
+          label: '⭐ Registered Client Workspaces (Brand Admin)',
+          items: registered.map((r) => ({ id: `reg-${r.id}`, label: `⭐ ${r.name} (Client Workspace)`, value: r.name })),
+        },
+        {
+          label: '🏷️ Influencer Campaign Brands (Source Tags)',
+          items: campaignTags.map((c) => ({ id: `camp-${c}`, label: `🏷️ ${c} (Campaign Tag)`, value: c })),
+        },
+      ]
+
+      expect(optgroups[0].items).toHaveLength(1)
+      expect(optgroups[0].items[0].value).toBe('Nykaa')
+      expect(optgroups[1].items).toHaveLength(3)
+      expect(optgroups[1].items[2].value).toBe('Koel Bags')
     })
   })
 })

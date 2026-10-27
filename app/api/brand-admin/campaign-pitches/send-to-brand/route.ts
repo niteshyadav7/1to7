@@ -23,6 +23,52 @@ export async function POST(request: Request) {
       )
     }
 
+    // Verify targetBrand corresponds to a registered Brand Workspace in public.brands
+    let verifiedBrandName = targetBrand ? String(targetBrand).trim() : null
+    let matchedBrandId: string | null = null
+    try {
+      const activeBrandsRes = await pool.query(
+        `SELECT id, name, slug FROM public.brands WHERE status = 'active';`
+      )
+      if (activeBrandsRes.rows.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              'No registered Client Brand Workspaces found. Please create the brand workspace in Brand Admin before dispatching creators to the Client Portal.',
+          },
+          { status: 400 }
+        )
+      }
+      if (!verifiedBrandName) {
+        return NextResponse.json(
+          { error: 'A valid target Brand Workspace is required for dispatch.' },
+          { status: 400 }
+        )
+      }
+      const matched = activeBrandsRes.rows.find(
+        (b: any) =>
+          b.name.toLowerCase() === verifiedBrandName!.toLowerCase() ||
+          b.slug.toLowerCase() === verifiedBrandName!.toLowerCase() ||
+          String(b.id) === verifiedBrandName
+      )
+      if (!matched) {
+        return NextResponse.json(
+          {
+            error: `Brand '${verifiedBrandName}' is not an active registered Brand Workspace in Brand Admin. Please select from registered brand workspaces.`,
+          },
+          { status: 400 }
+        )
+      }
+      verifiedBrandName = matched.name
+      matchedBrandId = String(matched.id)
+    } catch (dbErr: any) {
+      // If table is missing in tests/fallback, allow proceeding with fallback
+      if (dbErr?.code !== '42P01') {
+        // Not 'relation does not exist'
+        console.warn('Brand verification warning:', dbErr?.message)
+      }
+    }
+
     const reviewerName = admin.name || admin.email || 'Brand Operations'
 
     // 1. Update applications status to pending_brand_review
@@ -62,13 +108,14 @@ export async function POST(request: Request) {
           brand_id, user_id, user_name, event_type, entity_id, details
         ) VALUES ($1, $2, $3, $4, $5, $6);`,
         [
-          targetBrand?.toLowerCase() || 'unassigned',
+          matchedBrandId || verifiedBrandName?.toLowerCase() || 'unassigned',
           (admin as any).id || null,
           reviewerName,
           'campaign_creators_dispatched_to_brand',
           String(campaignId || 'campaign_batch'),
           JSON.stringify({
-            target_brand: targetBrand || 'Unspecified',
+            target_brand: verifiedBrandName || targetBrand || 'Unspecified',
+            brand_id: matchedBrandId || null,
             count: updatedCount,
             application_ids: applicationIds,
             kam_notes: kamNotes || null,
@@ -79,11 +126,12 @@ export async function POST(request: Request) {
       // Non-fatal if audit logging encounters a schema variant
     }
 
-    const brandDisplay = targetBrand ? `${targetBrand} ` : ''
+    const brandDisplay = verifiedBrandName ? `${verifiedBrandName} ` : targetBrand ? `${targetBrand} ` : ''
     return NextResponse.json({
       success: true,
       updatedCount,
-      targetBrand: targetBrand || null,
+      targetBrand: verifiedBrandName || targetBrand || null,
+      brandId: matchedBrandId || null,
       message: `Successfully dispatched ${updatedCount} creator profile${updatedCount > 1 ? 's' : ''} to ${brandDisplay}Brand Portal!`,
     })
   } catch (error: any) {

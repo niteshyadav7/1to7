@@ -45,6 +45,30 @@ export async function GET(request: Request) {
       })
     })
 
+    // 1.5 Query registered client brand workspaces from public.brands (created in Brand Admin)
+    let registeredBrands: Array<{ id: string; name: string; slug: string; assignedKam?: string }> = []
+    try {
+      const regRes = await pool.query(`
+        SELECT 
+          b.id, 
+          b.name, 
+          b.slug,
+          COALESCE(adm.name, 'Unassigned') as assigned_kam
+        FROM public.brands b
+        LEFT JOIN public.admins adm ON b.assigned_1to7_kam_id = adm.id
+        WHERE b.status = 'active'
+        ORDER BY b.name ASC;
+      `)
+      registeredBrands = regRes.rows.map(r => ({
+        id: String(r.id),
+        name: r.name,
+        slug: r.slug,
+        assignedKam: r.assigned_kam,
+      }))
+    } catch {
+      // Non-fatal if table is uninitialized
+    }
+
     // 2. Fetch pitched / queued applications
     const query = `
       SELECT 
@@ -230,6 +254,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       applications: filteredItems,
       brands: Array.from(brandsSet),
+      registeredBrands,
       campaigns: campaignsList,
       batches: Array.from(batchesSet),
       counts,
