@@ -32,58 +32,91 @@ interface NavItem {
   href: string
   icon: any
   badge?: string
+  badgeVariant?: 'blue' | 'amber' | 'emerald' | 'purple' | 'rose'
+  isPulse?: boolean
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavSection {
+  title: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'Dashboard',
-    href: '/brand-admin/dashboard',
-    icon: LayoutDashboard,
+    title: 'Workspace',
+    items: [
+      {
+        title: 'Dashboard',
+        href: '/brand-admin/dashboard',
+        icon: LayoutDashboard,
+      },
+      {
+        title: 'Client Brands',
+        href: '/brand-admin/brands',
+        icon: Building2,
+      },
+    ],
   },
   {
-    title: 'Client Brands',
-    href: '/brand-admin/brands',
-    icon: Building2,
+    title: 'Pitch & Curation',
+    items: [
+      {
+        title: 'Campaign Curation',
+        href: '/brand-admin/campaign-pitches',
+        icon: Sparkles,
+        badge: 'Desk',
+        badgeVariant: 'blue',
+      },
+      {
+        title: 'Sample Rosters',
+        href: '/brand-admin/sample-lists',
+        icon: BookmarkPlus,
+        badge: 'Pitch',
+        badgeVariant: 'amber',
+      },
+      {
+        title: 'Brand Shortlists',
+        href: '/brand-admin/brand-shortlists',
+        icon: CheckSquare,
+        badge: 'Inbound',
+        badgeVariant: 'emerald',
+      },
+    ],
   },
   {
-    title: 'Campaign Curation',
-    href: '/brand-admin/campaign-pitches',
-    icon: Sparkles,
-    badge: 'Desk',
+    title: 'Live Watchtower',
+    items: [
+      {
+        title: 'Virtual Brand Studio',
+        href: '/brand-admin/virtual-brand',
+        icon: Eye,
+        badge: 'Proxy',
+        badgeVariant: 'purple',
+      },
+      {
+        title: 'Review SLA Watchtower',
+        href: '/brand-admin/reviews-sla',
+        icon: Clock,
+        badge: 'Live',
+        badgeVariant: 'rose',
+        isPulse: true,
+      },
+    ],
   },
   {
-    title: 'Sample Rosters',
-    href: '/brand-admin/sample-lists',
-    icon: BookmarkPlus,
-    badge: 'Pitch',
-  },
-  {
-    title: 'Brand Shortlists',
-    href: '/brand-admin/brand-shortlists',
-    icon: CheckSquare,
-    badge: 'Inbound',
-  },
-  {
-    title: 'Virtual Brand Studio',
-    href: '/brand-admin/virtual-brand',
-    icon: Eye,
-    badge: 'Proxy',
-  },
-  {
-    title: 'Review SLA Watchtower',
-    href: '/brand-admin/reviews-sla',
-    icon: Clock,
-    badge: 'Live',
-  },
-  {
-    title: 'Campaign Mapping',
-    href: '/brand-admin/campaign-mapping',
-    icon: Target,
-  },
-  {
-    title: 'Staff RBAC & Approvals',
-    href: '/brand-admin/team-rbac',
-    icon: ShieldCheck,
+    title: 'Governance & Settings',
+    items: [
+      {
+        title: 'Campaign Mapping',
+        href: '/brand-admin/campaign-mapping',
+        icon: Target,
+      },
+      {
+        title: 'Staff RBAC & Approvals',
+        href: '/brand-admin/team-rbac',
+        icon: ShieldCheck,
+      },
+    ],
   },
 ]
 
@@ -164,6 +197,41 @@ export default function BrandAdminPanelLayout({
     }
   }
 
+  const getBadgeStyle = (variant?: string, isActive?: boolean) => {
+    if (isActive) {
+      return 'bg-neutral-950 text-[#febd1c]'
+    }
+    switch (variant) {
+      case 'blue':
+        return 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+      case 'emerald':
+        return 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+      case 'purple':
+        return 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
+      case 'rose':
+        return 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+      case 'amber':
+      default:
+        return 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+    }
+  }
+
+  const getDotColor = (variant?: string) => {
+    switch (variant) {
+      case 'blue':
+        return 'bg-sky-400'
+      case 'emerald':
+        return 'bg-emerald-400'
+      case 'purple':
+        return 'bg-purple-400'
+      case 'rose':
+        return 'bg-rose-400'
+      case 'amber':
+      default:
+        return 'bg-amber-400'
+    }
+  }
+
   return (
     <div className="min-h-screen w-full max-w-full bg-[#0c1017] text-white flex flex-col font-sans">
       {/* Desktop Sidebar (Fixed sticky admin style with collapsible state) */}
@@ -172,7 +240,7 @@ export default function BrandAdminPanelLayout({
       } w-72`}>
         {/* Brand Header */}
         <div className={`p-4 border-b border-white/10 flex items-center shrink-0 ${
-          isCollapsed ? 'lg:flex-col lg:gap-2.5 lg:justify-center' : 'justify-between'
+          isCollapsed ? 'lg:flex-col lg:gap-3 lg:justify-center' : 'justify-between'
         }`}>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-9 h-9 rounded-xl bg-[#0c1017] border border-white/10 flex items-center justify-center p-1.5 shadow-md shrink-0">
@@ -207,89 +275,107 @@ export default function BrandAdminPanelLayout({
           </button>
         </div>
 
-        {/* Current User Pill */}
+        {/* Current User Card */}
         {user && (
           <div
-            className={`my-2 p-2 rounded-xl bg-[#171d2a] border border-white/5 flex items-center shrink-0 ${
+            className={`my-2 p-2.5 rounded-xl bg-[#151923] border border-white/5 flex items-center shrink-0 shadow-sm ${
               isCollapsed ? 'mx-2 justify-center' : 'mx-3 gap-2.5'
             }`}
             title={isCollapsed ? `${user.name} (${user.is_super_admin ? 'Super Admin' : user.brand_admin_role.toUpperCase()})` : undefined}
           >
-            <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xs shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center text-amber-300 font-bold text-xs shrink-0 shadow-inner">
               {user.name ? user.name[0].toUpperCase() : 'A'}
             </div>
             {!isCollapsed && (
               <div className="overflow-hidden min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white truncate">{user.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-xs font-bold text-white truncate">{user.name}</p>
                   {user.is_super_admin ? (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
                       <Crown className="w-2.5 h-2.5" /> Super Admin
                     </span>
                   ) : (
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-blue-500/20 text-blue-300">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 shrink-0">
                       {user.brand_admin_role.toUpperCase()}
                     </span>
                   )}
                 </div>
+                <p className="text-[10px] text-neutral-400 truncate mt-0.5 font-mono">
+                  {user.email || 'brand-ops@1to7.in'}
+                </p>
               </div>
             )}
           </div>
         )}
 
-        {/* Navigation Items (Scrollable internally) */}
-        <nav className={`flex-1 space-y-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
-          isCollapsed ? 'px-2 py-2' : 'px-3 py-2'
+        {/* Navigation Sections (Scrollable internally) */}
+        <nav className={`flex-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+          isCollapsed ? 'px-2 py-2 space-y-2' : 'px-3 py-2 space-y-4'
         }`}>
-          {!isCollapsed && (
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              Brand Management
-            </div>
-          )}
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/brand-admin/dashboard' && pathname.startsWith(item.href))
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={isCollapsed ? (item.badge ? `${item.title} (${item.badge})` : item.title) : undefined}
-                className={`flex items-center rounded-xl text-xs font-medium transition-all duration-200 group relative ${
-                  isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2.5'
-                } ${
-                  isActive
-                    ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md shadow-amber-500/10'
-                    : 'text-neutral-300 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-colors ${
-                      isActive ? 'text-neutral-950' : 'text-neutral-400 group-hover:text-white'
-                    }`}
-                  />
-                  {!isCollapsed && <span>{item.title}</span>}
+          {NAV_SECTIONS.map((section, sIdx) => (
+            <div key={section.title} className={sIdx > 0 && isCollapsed ? 'pt-2 border-t border-white/5' : ''}>
+              {!isCollapsed && (
+                <div className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center justify-between">
+                  <span>{section.title}</span>
+                  <span className="text-[9px] font-mono text-neutral-600">{section.items.length}</span>
                 </div>
-                {!isCollapsed && item.badge && (
-                  <span
-                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                      isActive
-                        ? 'bg-neutral-950 text-[#febd1c]'
-                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-                {isCollapsed && item.badge && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400" />
-                )}
-              </Link>
-            )
-          })}
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== '/brand-admin/dashboard' && pathname.startsWith(item.href))
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={isCollapsed ? (item.badge ? `${item.title} (${item.badge})` : item.title) : undefined}
+                      className={`flex items-center rounded-xl text-xs font-medium transition-all duration-200 group relative ${
+                        isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
+                      } ${
+                        isActive
+                          ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md shadow-amber-500/10'
+                          : 'text-neutral-300 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon
+                          className={`w-4 h-4 shrink-0 transition-colors ${
+                            isActive ? 'text-neutral-950' : 'text-neutral-400 group-hover:text-white'
+                          }`}
+                        />
+                        {!isCollapsed && <span>{item.title}</span>}
+                      </div>
+
+                      {!isCollapsed && item.badge && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold tracking-wide ${getBadgeStyle(
+                            item.badgeVariant,
+                            isActive
+                          )}`}
+                        >
+                          {item.isPulse && !isActive && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                          )}
+                          {item.badge}
+                        </span>
+                      )}
+
+                      {isCollapsed && item.badge && (
+                        <span
+                          className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${getDotColor(
+                            item.badgeVariant
+                          )} ${item.isPulse ? 'animate-pulse ring-2 ring-rose-500/40' : ''}`}
+                        />
+                      )}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Footer Switches */}
@@ -299,16 +385,21 @@ export default function BrandAdminPanelLayout({
           {/* Switch to Influencer Admin */}
           <Link
             href="/admin/dashboard"
-            title={isCollapsed ? "Switch to Influencer Admin" : undefined}
+            title={isCollapsed ? "Switch to Creator Ops Admin" : undefined}
             className={`flex items-center rounded-xl text-xs font-medium text-neutral-400 hover:text-white hover:bg-white/5 transition-colors border border-white/5 ${
-              isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3.5 py-2'
+              isCollapsed ? 'justify-center p-2.5' : 'justify-between px-3 py-2'
             }`}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
               <ArrowRightLeft className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-              {!isCollapsed && <span>Influencer Admin</span>}
+              {!isCollapsed && (
+                <div className="min-w-0 flex flex-col text-left">
+                  <span className="text-xs font-semibold text-neutral-300 truncate">Influencer Admin</span>
+                  <span className="text-[9px] text-neutral-500 font-mono truncate">Creator Operations</span>
+                </div>
+              )}
             </div>
-            {!isCollapsed && <ExternalLink className="w-3 h-3 text-neutral-500 shrink-0" />}
+            {!isCollapsed && <ExternalLink className="w-3 h-3 text-neutral-500 shrink-0 ml-1" />}
           </Link>
 
           {/* Sign Out */}
@@ -316,11 +407,11 @@ export default function BrandAdminPanelLayout({
             type="button"
             onClick={handleLogout}
             title={isCollapsed ? "Sign Out" : undefined}
-            className={`w-full flex items-center rounded-xl text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3.5 py-2'
+            className={`w-full flex items-center rounded-xl text-xs font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors cursor-pointer border border-transparent hover:border-rose-500/20 ${
+              isCollapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2'
             }`}
           >
-            <LogOut className="w-3.5 h-3.5 shrink-0" />
+            <LogOut className="w-3.5 h-3.5 shrink-0 text-rose-400" />
             {!isCollapsed && <span>Sign Out</span>}
           </button>
         </div>
@@ -383,26 +474,47 @@ export default function BrandAdminPanelLayout({
                 </div>
               )}
 
-              <nav className="flex-1 space-y-1">
-                {NAV_ITEMS.map((item) => {
-                  const Icon = item.icon
-                  const isActive = pathname === item.href
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
-                        isActive
-                          ? 'bg-[#febd1c] text-neutral-950 font-bold'
-                          : 'text-neutral-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  )
-                })}
+              <nav className="flex-1 overflow-y-auto space-y-4 pr-1">
+                {NAV_SECTIONS.map((section) => (
+                  <div key={section.title} className="space-y-1">
+                    <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                      {section.title}
+                    </div>
+                    {section.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive =
+                        pathname === item.href ||
+                        (item.href !== '/brand-admin/dashboard' && pathname.startsWith(item.href))
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
+                            isActive
+                              ? 'bg-[#febd1c] text-neutral-950 font-bold'
+                              : 'text-neutral-300 hover:bg-white/5'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Icon className="w-4 h-4" />
+                            <span>{item.title}</span>
+                          </div>
+                          {item.badge && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded-full text-[9px] font-semibold ${getBadgeStyle(
+                                item.badgeVariant,
+                                isActive
+                              )}`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ))}
               </nav>
 
               <div className="pt-4 border-t border-white/10 space-y-2">
