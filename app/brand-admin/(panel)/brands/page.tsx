@@ -62,7 +62,6 @@ export default function ClientBrandsDirectoryPage() {
   const [kams, setKams] = useState<KamOption[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isSeeding, setIsSeeding] = useState(false)
   const [search, setSearch] = useState('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -140,24 +139,6 @@ export default function ClientBrandsDirectoryPage() {
   useEffect(() => {
     fetchBrands()
   }, [])
-
-  const handleSeedBrands = async () => {
-    setIsSeeding(true)
-    try {
-      const res = await fetch('/api/brand-admin/brands/seed', { method: 'POST' })
-      const data = await res.json()
-      if (res.ok) {
-        toast.success(data.message || 'Seeded sample brands directly into PostgreSQL!')
-        await fetchBrands()
-      } else {
-        toast.error(data.error || 'Failed to seed sample brands')
-      }
-    } catch {
-      toast.error('Network error during database seed')
-    } finally {
-      setIsSeeding(false)
-    }
-  }
 
   const handleAddBrand = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -386,31 +367,19 @@ export default function ClientBrandsDirectoryPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            onClick={handleSeedBrands}
-            variant="outline"
-            disabled={isSeeding}
-            className="border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-[#febd1c] font-semibold text-xs h-10 cursor-pointer transition shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
-            {isSeeding ? 'Seeding Database...' : 'Seed Sample Brands'}
-          </Button>
-
-          <Button
-            onClick={() => setIsAddModalOpen(true)}
-            className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-10 shadow-lg cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Brand Workspace
-          </Button>
-        </div>
+        <Button
+          onClick={() => setIsAddModalOpen(true)}
+          className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-10 shadow-lg cursor-pointer"
+        >
+          <Plus className="w-4 h-4 mr-1.5" />
+          Add Brand Workspace
+        </Button>
       </div>
 
       {/* Dynamic Data Table for Client Brands */}
       <DynamicDataTable
         loading={loading}
-        emptyMessage="No brand workspaces onboarded in database yet. Click '+ Add Brand Workspace' or 'Seed Sample Brands' to populate client brands from database."
+        emptyMessage="No brand workspaces onboarded in database yet. Click '+ Add Brand Workspace' to create your first brand client."
         data={brands}
         columns={[
           {
