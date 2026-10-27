@@ -1,5 +1,7 @@
 export type BrandUserRole = 'owner' | 'admin' | 'reviewer' | 'viewer'
 
+export type { BrandReviewTokenPayload } from '@/lib/brand-auth'
+
 export type BrandReviewStatus = 
   | 'not_sent'
   | 'unpitched'

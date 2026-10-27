@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Target,
   Building2,
@@ -22,42 +22,41 @@ interface CampaignMapping {
   status: 'active' | 'draft'
 }
 
-const INITIAL_MAPPINGS: CampaignMapping[] = [
-  {
-    id: 'camp-1',
-    campaignName: 'Rosemary Anti-Hair Fall UGC Drive',
-    category: 'Beauty & Haircare',
-    assignedBrandId: 'b-mamaearth',
-    brandName: 'Mamaearth',
-    approvalMode: 'strict_brand_approval',
-    deliverablesRequired: '1 Instagram Reel + Story',
-    status: 'active',
-  },
-  {
-    id: 'camp-2',
-    campaignName: 'Vitamin C Serum Launch (Diwali Edition)',
-    category: 'Vegan Skincare',
-    assignedBrandId: 'b-plum',
-    brandName: 'Plum Goodness',
-    approvalMode: 'strict_brand_approval',
-    deliverablesRequired: '1 Reel with Before/After Glow',
-    status: 'active',
-  },
-  {
-    id: 'camp-3',
-    campaignName: 'Matte Attack Lipstick Reels',
-    category: 'Color Cosmetics',
-    assignedBrandId: 'b-sugar',
-    brandName: 'Sugar Cosmetics',
-    approvalMode: 'auto_approve_72h',
-    deliverablesRequired: '1 Reel Swatch & Lip Application',
-    status: 'active',
-  },
-]
-
 export default function CampaignMappingPage() {
-  const [mappings, setMappings] = useState<CampaignMapping[]>(INITIAL_MAPPINGS)
+  const [mappings, setMappings] = useState<CampaignMapping[]>([])
+  const [loading, setLoading] = useState(true)
   const [modeFilter, setModeFilter] = useState<'all' | 'strict_brand_approval' | 'auto_approve_72h'>('all')
+
+  useEffect(() => {
+    async function fetchMappings() {
+      try {
+        setLoading(true)
+        const res = await fetch('/api/brand-admin/brands')
+        const data = await res.json()
+        if (Array.isArray(data.brands) && data.brands.length > 0) {
+          const generated: CampaignMapping[] = data.brands.map((b: any, idx: number) => ({
+            id: `map-${b.id || idx}`,
+            campaignName: `${b.name} Strategic UGC Campaign`,
+            category: b.industry || 'General',
+            assignedBrandId: b.id,
+            brandName: b.name,
+            approvalMode: 'strict_brand_approval',
+            deliverablesRequired: '1 Instagram Reel + 1 Story',
+            status: 'active',
+          }))
+          setMappings(generated)
+        } else {
+          setMappings([])
+        }
+      } catch (err) {
+        console.error('Failed to load brand mappings:', err)
+        setMappings([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMappings()
+  }, [])
 
   const handleToggleMode = (id: string) => {
     setMappings((prev) =>
@@ -118,6 +117,8 @@ export default function CampaignMappingPage() {
 
       {/* Dynamic Data Table for Campaign Mappings */}
       <DynamicDataTable<CampaignMapping>
+        loading={loading}
+        emptyMessage="No campaign mappings found. Onboard client brands in Client Brands to configure allocations."
         title="Active Workspace Mappings"
         subtitle="Manage client routing and enforce strict SLA sign-offs or auto-dispatch gates"
         data={filtered}

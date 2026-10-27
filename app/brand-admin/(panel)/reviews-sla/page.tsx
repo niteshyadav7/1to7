@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Clock,
@@ -29,53 +29,34 @@ interface SlaBatch {
   brandPhone: string
   brandEmail: string
   assignedKam: string
+  brandId?: string
 }
 
-const MOCK_SLA_BATCHES: SlaBatch[] = [
-  {
-    id: 'batch-1',
-    brandName: 'Plum Goodness',
-    campaignName: 'Vitamin C Serum Launch (Diwali Edition)',
-    shortlistedCount: 6,
-    submittedAt: '23 Oct 2026, 09:30 PM',
-    hoursElapsed: 52,
-    status: 'breached',
-    brandContactName: 'Rahul Sen',
-    brandPhone: '+919876543210',
-    brandEmail: 'rahul@plumgoodness.com',
-    assignedKam: 'Nitesh Yadav (Senior Ops)',
-  },
-  {
-    id: 'batch-2',
-    brandName: 'Mamaearth',
-    campaignName: 'Rosemary Anti-Hair Fall UGC Drive',
-    shortlistedCount: 18,
-    submittedAt: '24 Oct 2026, 06:15 PM',
-    hoursElapsed: 31,
-    status: 'warning',
-    brandContactName: 'Ananya Sharma',
-    brandPhone: '+919876543211',
-    brandEmail: 'ananya@mamaearth.in',
-    assignedKam: 'Pooja Verma (KAM)',
-  },
-  {
-    id: 'batch-3',
-    brandName: 'Sugar Cosmetics',
-    campaignName: 'Matte Attack Lipstick Reels',
-    shortlistedCount: 12,
-    submittedAt: '25 Oct 2026, 04:00 PM',
-    hoursElapsed: 9,
-    status: 'on_track',
-    brandContactName: 'Kavita Roy',
-    brandPhone: '+919876543212',
-    brandEmail: 'kavita@sugarcosmetics.com',
-    assignedKam: 'Pooja Verma (KAM)',
-  },
-]
-
 export default function ReviewSlaWatchtowerPage() {
-  const [batches] = useState<SlaBatch[]>(MOCK_SLA_BATCHES)
+  const [batches, setBatches] = useState<SlaBatch[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'all' | 'breached' | 'warning' | 'on_track'>('all')
+
+  const fetchBatches = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/brand-admin/reviews-sla')
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.batches)) {
+        setBatches(data.batches)
+      } else {
+        setBatches([])
+      }
+    } catch {
+      setBatches([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchBatches()
+  }, [])
 
   const handleSendWhatsAppNudge = (batch: SlaBatch) => {
     const text = encodeURIComponent(
@@ -104,6 +85,10 @@ export default function ReviewSlaWatchtowerPage() {
     return true
   })
 
+  const breachedBatches = batches.filter((b) => b.status === 'breached')
+  const warningBatches = batches.filter((b) => b.status === 'warning')
+  const onTrackBatches = batches.filter((b) => b.status === 'on_track')
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -128,7 +113,9 @@ export default function ReviewSlaWatchtowerPage() {
           </div>
           <div>
             <div className="text-xs text-neutral-400">SLA Breached (&gt;48h)</div>
-            <div className="text-xl font-bold text-red-400">1 Campaign (Plum)</div>
+            <div className="text-xl font-bold text-red-400">
+              {breachedBatches.length} {breachedBatches.length === 1 ? 'Campaign' : 'Campaigns'}
+            </div>
           </div>
         </div>
 
@@ -138,7 +125,9 @@ export default function ReviewSlaWatchtowerPage() {
           </div>
           <div>
             <div className="text-xs text-neutral-400">Warning (&gt;24h)</div>
-            <div className="text-xl font-bold text-amber-400">1 Campaign (Mamaearth)</div>
+            <div className="text-xl font-bold text-amber-400">
+              {warningBatches.length} {warningBatches.length === 1 ? 'Campaign' : 'Campaigns'}
+            </div>
           </div>
         </div>
 
@@ -148,7 +137,9 @@ export default function ReviewSlaWatchtowerPage() {
           </div>
           <div>
             <div className="text-xs text-neutral-400">On Track (&lt;24h)</div>
-            <div className="text-xl font-bold text-emerald-400">1 Campaign (Sugar)</div>
+            <div className="text-xl font-bold text-emerald-400">
+              {onTrackBatches.length} {onTrackBatches.length === 1 ? 'Campaign' : 'Campaigns'}
+            </div>
           </div>
         </div>
       </div>
@@ -157,6 +148,8 @@ export default function ReviewSlaWatchtowerPage() {
       <DynamicDataTable<SlaBatch>
         title="Live Brand Review Batches"
         subtitle="Sort by hours elapsed to identify critical bottlenecks or trigger WhatsApp escalations"
+        loading={loading}
+        emptyMessage="No pending review batches or SLA bottlenecks in database. All client brand reviews are caught up!"
         data={filteredBatches}
         exportFilename="sla_watchtower_report.csv"
         searchPlaceholder="Search brand, campaign, contact, or KAM..."
@@ -258,11 +251,9 @@ export default function ReviewSlaWatchtowerPage() {
             align: 'right',
             sortable: false,
             render: (batch) => {
-              const brandSlug = batch.brandName.toLowerCase().includes('plum')
-                ? 'b-plum'
-                : batch.brandName.toLowerCase().includes('sugar')
-                ? 'b-sugar'
-                : 'b-mamaearth'
+              const targetUrl = batch.brandId
+                ? `/brand-admin/virtual-brand/${batch.brandId}`
+                : '/brand-admin/virtual-brand'
 
               return (
                 <div className="flex items-center justify-end gap-1">
@@ -274,7 +265,7 @@ export default function ReviewSlaWatchtowerPage() {
                     <MessageCircle className="w-2.5 h-2.5 mr-1" />
                     Nudge
                   </Button>
-                  <Link href={`/brand-admin/virtual-brand/${brandSlug}`}>
+                  <Link href={targetUrl}>
                     <Button
                       size="sm"
                       variant="outline"

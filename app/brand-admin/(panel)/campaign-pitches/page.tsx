@@ -114,10 +114,10 @@ export default function CampaignPitchesCurationPage() {
 
   // 1-Click WhatsApp Review Link Share Modal
   const [showShareModal, setShowShareModal] = useState(false)
-  const [shareBrand, setShareBrand] = useState('Mamaearth')
+  const [shareBrand, setShareBrand] = useState('')
   const [shareBatch, setShareBatch] = useState('')
-  const [shareContactName, setShareContactName] = useState('Ananya Sharma')
-  const [shareContactEmail, setShareContactEmail] = useState('ananya@mamaearth.in')
+  const [shareContactName, setShareContactName] = useState('')
+  const [shareContactEmail, setShareContactEmail] = useState('')
   const [generatedLinkData, setGeneratedLinkData] = useState<{
     url: string
     token: string
@@ -129,7 +129,7 @@ export default function CampaignPitchesCurationPage() {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
 
   const handleOpenShareModal = (targetBrand?: string, targetBatch?: string) => {
-    const brandToUse = targetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Mamaearth'))
+    const brandToUse = targetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Brand Client'))
     const batchToUse = targetBatch || (selectedBatch !== 'all' ? selectedBatch : (batches[0] || ''))
     
     setShareBrand(brandToUse)
@@ -344,7 +344,7 @@ export default function CampaignPitchesCurationPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || `Dispatched ${selectedIds.length} profiles to Brand Portal!`)
-        const dispatchedBrand = dispatchTargetBrand || (selectedBrand !== 'all' ? selectedBrand : 'Mamaearth')
+        const dispatchedBrand = dispatchTargetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Brand Client'))
         const dispatchedBatch = data.batch_name || selectedBatch
         setShowDispatchModal(false)
         setDispatchKamNotes('')

@@ -94,7 +94,9 @@ export default function BrandAdminDashboardPage() {
             <Clock className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-[#febd1c]">{totalPending}</div>
-          <div className="text-[11px] text-neutral-400 font-medium mt-1">Across 6 active campaigns</div>
+          <div className="text-[11px] text-neutral-400 font-medium mt-1">
+            {brands.length > 0 ? `Across ${brands.reduce((acc, b) => acc + (b.activeCampaigns || 0), 0)} active campaigns` : '0 active campaigns'}
+          </div>
         </div>
 
         <div className="p-4 sm:p-5 rounded-2xl bg-[#121620] border border-amber-500/20 shadow-lg">
@@ -103,7 +105,9 @@ export default function BrandAdminDashboardPage() {
             <AlertTriangle className="w-4 h-4 text-amber-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-amber-400">{slaWarnings}</div>
-          <div className="text-[11px] text-amber-400/80 font-medium mt-1">Mamaearth pending 31h</div>
+          <div className="text-[11px] text-amber-400/80 font-medium mt-1">
+            {slaWarnings > 0 ? `${slaWarnings} reviews need KAM attention` : 'All reviews on track'}
+          </div>
         </div>
 
         <div className="p-4 sm:p-5 rounded-2xl bg-[#121620] border border-red-500/20 shadow-lg">
@@ -112,7 +116,9 @@ export default function BrandAdminDashboardPage() {
             <ShieldAlert className="w-4 h-4 text-red-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-red-400">{slaBreaches}</div>
-          <div className="text-[11px] text-red-400/80 font-medium mt-1">Plum Goodness pending 52h</div>
+          <div className="text-[11px] text-red-400/80 font-medium mt-1">
+            {slaBreaches > 0 ? `${slaBreaches} reviews critically delayed` : 'Zero SLA breaches'}
+          </div>
         </div>
       </div>
 
@@ -128,7 +134,7 @@ export default function BrandAdminDashboardPage() {
                 Urgent Action Needed: {slaBreaches} Brand Review SLA Breached (&gt;48 hours)
               </h3>
               <p className="text-xs text-neutral-400">
-                Creators for Plum Goodness are blocked from courier dispatch. Send a WhatsApp nudge or use Virtual Brand Mode to approve on their behalf.
+                Creators are blocked from courier dispatch. Send a WhatsApp nudge or use Virtual Brand Mode to approve on client behalf.
               </p>
             </div>
           </div>

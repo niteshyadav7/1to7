@@ -1,5 +1,8 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import BrandAdminVirtualBrandDetailPage from './[brandId]/page'
 
 export default function VirtualBrandDefaultPage() {
-  redirect('/brand-admin/virtual-brand/b-mamaearth')
+  return <BrandAdminVirtualBrandDetailPage />
 }
+

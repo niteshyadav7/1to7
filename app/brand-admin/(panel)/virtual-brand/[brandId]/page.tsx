@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -29,66 +29,52 @@ import { toast } from 'sonner'
 import { formatFollowerCount } from '@/lib/utils/brand-privacy-utils'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 
-const ALL_BRANDS = [
-  { id: 'b-mamaearth', name: 'Mamaearth', campaign: 'Rosemary Anti-Hair Fall UGC Drive' },
-  { id: 'b-plum', name: 'Plum Goodness', campaign: 'Vitamin C Serum Launch (Diwali Edition)' },
-  { id: 'b-sugar', name: 'Sugar Cosmetics', campaign: 'Matte Attack Lipstick Reels' },
-]
+interface VirtualBrandOption {
+  id: string
+  name: string
+  slug: string
+  industry?: string
+}
 
 export default function BrandAdminVirtualBrandDetailPage() {
   const params = useParams<{ brandId: string }>()
   const router = useRouter()
-  const brandId = params?.brandId || 'b-mamaearth'
+  const brandId = params?.brandId
 
-  const currentBrand = ALL_BRANDS.find((b) => b.id === brandId) || {
-    id: brandId,
-    name: brandId.replace('b-', '').toUpperCase(),
-    campaign: 'Active Influencer Campaign',
-  }
-
+  const [brands, setBrands] = useState<VirtualBrandOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creators, setCreators] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
   const [rejectModalCreator, setRejectModalCreator] = useState<any | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
 
-  const [creators, setCreators] = useState([
-    {
-      id: 'app-vb-1',
-      name: 'Pooja Verma',
-      handle: 'pooja.lifestyle',
-      followers: 125000,
-      city: 'Mumbai',
-      sample: 'Sample Kit (30ml) • Size: Standard',
-      status: 'pending',
-    },
-    {
-      id: 'app-vb-2',
-      name: 'Rohan Malhotra',
-      handle: 'rohan_fitness',
-      followers: 84000,
-      city: 'Delhi',
-      sample: 'Face Wash (100ml) • Size: Full',
-      status: 'pending',
-    },
-    {
-      id: 'app-vb-3',
-      name: 'Simran Kaur',
-      handle: 'simran.beautyvlogs',
-      followers: 210000,
-      city: 'Chandigarh',
-      sample: 'Glow Combo Kit',
-      status: 'approved',
-    },
-    {
-      id: 'app-vb-4',
-      name: 'Aakash Mehta',
-      handle: 'aakash_style',
-      followers: 45000,
-      city: 'Bengaluru',
-      sample: 'Trial Sachet (15ml)',
-      status: 'rejected',
-      rejectionReason: 'Aesthetic did not align with luxury reel guidelines',
-    },
-  ])
+  useEffect(() => {
+    async function fetchBrands() {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/brand-admin/brands')
+        const data = await res.json()
+        if (res.ok && Array.isArray(data.brands)) {
+          setBrands(data.brands)
+        } else {
+          setBrands([])
+        }
+      } catch {
+        setBrands([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchBrands()
+  }, [])
+
+  const currentBrand =
+    brands.find((b) => b.id === brandId || b.slug === brandId) ||
+    brands[0] || {
+      id: brandId || '',
+      name: 'Unassigned Workspace',
+      slug: '',
+    }
 
   // Proxy Approve on behalf of the client brand
   const handleProxyApprove = (id: string, name: string) => {
@@ -126,6 +112,33 @@ export default function BrandAdminVirtualBrandDetailPage() {
     if (activeTab === 'rejected') return c.status === 'rejected'
     return true
   })
+
+  if (!loading && brands.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-6 text-center space-y-6">
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center shadow-lg">
+          <Eye className="w-8 h-8" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            No Brand Workspaces in Database
+          </h2>
+          <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-relaxed">
+            There are currently no active brand workspaces in PostgreSQL. Onboard a client brand in the Client Brands Directory to enter Virtual Brand Studio mode.
+          </p>
+        </div>
+        <div>
+          <Link
+            href="/brand-admin/brands"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs transition shadow-md"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Open Client Brands Directory</span>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -175,12 +188,12 @@ export default function BrandAdminVirtualBrandDetailPage() {
           <Building2 className="w-4 h-4 text-amber-400" />
           <span>Switch Client Brand:</span>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {ALL_BRANDS.map((b) => (
+            {brands.map((b) => (
               <button
                 key={b.id}
                 onClick={() => router.push(`/brand-admin/virtual-brand/${b.id}`)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                  b.id === brandId
+                  b.id === currentBrand.id
                     ? 'bg-[#febd1c] text-neutral-950 font-bold'
                     : 'bg-[#0c1017] text-neutral-300 hover:text-white border border-white/5'
                 }`}
@@ -192,18 +205,15 @@ export default function BrandAdminVirtualBrandDetailPage() {
         </div>
 
         <div className="text-neutral-400 text-[11px]">
-          Campaign: <strong className="text-white">{currentBrand.campaign}</strong>
+          Workspace: <strong className="text-white">{currentBrand.name}</strong>
         </div>
       </div>
 
       {/* Dynamic Data Table for Creator Shortlists */}
       <DynamicDataTable
-        data={creators.filter((c) => {
-          if (activeTab === 'pending') return c.status === 'pending'
-          if (activeTab === 'approved') return c.status === 'approved'
-          if (activeTab === 'rejected') return c.status === 'rejected'
-          return true
-        })}
+        loading={loading}
+        emptyMessage="No creators currently awaiting review for this brand workspace."
+        data={filtered}
         filterTabs={{
           key: 'status',
           options: [
