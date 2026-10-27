@@ -16,9 +16,11 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
-  ChevronRight,
   Filter,
   Download,
+  Share2,
+  Copy,
+  MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -129,6 +131,56 @@ export default function ClientBrandsDirectoryPage() {
     setNewContact('')
     setNewEmail('')
     toast.success(`Successfully onboarded ${newName} to Brand Admin!`)
+  }
+
+  const handleCopyBrandMagicLink = async (brand: BrandWorkspace) => {
+    try {
+      const res = await fetch('/api/brand-admin/campaign-pitches/generate-review-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_id: brand.id,
+          brand_name: brand.name,
+          brand_slug: brand.slug,
+          contact_name: brand.primaryContact,
+          contact_email: brand.email,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.url) {
+        navigator.clipboard.writeText(data.url)
+        toast.success(`Copied 1-Click WhatsApp Review Link for ${brand.name} (${brand.primaryContact})!`)
+      } else {
+        toast.error(data.error || 'Failed to generate link')
+      }
+    } catch {
+      toast.error('Network error generating client link')
+    }
+  }
+
+  const handleWhatsAppBrand = async (brand: BrandWorkspace) => {
+    try {
+      const res = await fetch('/api/brand-admin/campaign-pitches/generate-review-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_id: brand.id,
+          brand_name: brand.name,
+          brand_slug: brand.slug,
+          contact_name: brand.primaryContact,
+          contact_email: brand.email,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.whatsappMessage) {
+        const encoded = encodeURIComponent(data.whatsappMessage)
+        window.open(`https://wa.me/?text=${encoded}`, '_blank')
+      } else {
+        toast.error(data.error || 'Failed to generate WhatsApp link')
+      }
+    } catch {
+      toast.error('Network error generating WhatsApp link')
+    }
   }
 
   const filteredBrands = brands.filter(
@@ -252,13 +304,34 @@ export default function ClientBrandsDirectoryPage() {
             align: 'right',
             sortable: false,
             render: (brand) => (
-              <Link
-                href={`/brand-admin/virtual-brand/${brand.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow-sm"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Enter Virtual Mode</span>
-              </Link>
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleCopyBrandMagicLink(brand)}
+                  title="Copy 1-Click WhatsApp Review Link for Brand POC"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-xs border border-emerald-500/30 transition-colors shadow-sm cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Copy Magic Link</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleWhatsAppBrand(brand)}
+                  title="Share directly via WhatsApp"
+                  className="inline-flex items-center justify-center p-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                </button>
+
+                <Link
+                  href={`/brand-admin/virtual-brand/${brand.id}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-xs border border-purple-500/30 transition-colors shadow-sm"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Virtual</span>
+                </Link>
+              </div>
             ),
           },
         ]}

@@ -35,7 +35,10 @@ import {
   Package,
   ChevronDown,
   RotateCcw,
-  CheckCheck
+  CheckCheck,
+  Share2,
+  MessageCircle,
+  Link2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -107,6 +110,114 @@ export default function CampaignPitchesCurationPage() {
 
   // Verified Delivery Address Modal
   const [viewAddressItem, setViewAddressItem] = useState<CampaignPitchItem | null>(null)
+
+  // 1-Click WhatsApp Review Link Share Modal
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareBrand, setShareBrand] = useState('Mamaearth')
+  const [shareBatch, setShareBatch] = useState('')
+  const [shareContactName, setShareContactName] = useState('Ananya Sharma')
+  const [shareContactEmail, setShareContactEmail] = useState('ananya@mamaearth.in')
+  const [generatedLinkData, setGeneratedLinkData] = useState<{
+    url: string
+    token: string
+    whatsappMessage: string
+    emailSubject: string
+    emailBody: string
+    expiresIn: string
+  } | null>(null)
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false)
+
+  const handleOpenShareModal = (targetBrand?: string, targetBatch?: string) => {
+    const brandToUse = targetBrand || (selectedBrand !== 'all' ? selectedBrand : (brands[0] || 'Mamaearth'))
+    const batchToUse = targetBatch || (selectedBatch !== 'all' ? selectedBatch : (batches[0] || ''))
+    
+    setShareBrand(brandToUse)
+    setShareBatch(batchToUse)
+
+    // Dynamic POC mapping
+    let defaultContact = 'Brand Marketing Lead'
+    let defaultEmail = 'marketing@brand.com'
+    if (brandToUse.toLowerCase().includes('mama')) {
+      defaultContact = 'Ananya Sharma (Brand Head)'
+      defaultEmail = 'ananya@mamaearth.in'
+    } else if (brandToUse.toLowerCase().includes('plum')) {
+      defaultContact = 'Rahul Sen (Marketing Lead)'
+      defaultEmail = 'rahul@plumgoodness.com'
+    } else if (brandToUse.toLowerCase().includes('sugar')) {
+      defaultContact = 'Kavita Roy (Digital Lead)'
+      defaultEmail = 'kavita@sugarcosmetics.com'
+    }
+
+    setShareContactName(defaultContact)
+    setShareContactEmail(defaultEmail)
+    setShowShareModal(true)
+    fetchShareLink(brandToUse, batchToUse, defaultContact, defaultEmail)
+  }
+
+  const fetchShareLink = async (bName: string, bBatch: string, cName: string, cEmail: string) => {
+    try {
+      setIsGeneratingLink(true)
+      const count = applications.filter(a => 
+        (bName === 'all' || a.brand_name === bName) && 
+        (!bBatch || bBatch === 'all' || a.brand_pitch_batch_name === bBatch)
+      ).length
+
+      const res = await fetch('/api/brand-admin/campaign-pitches/generate-review-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_name: bName,
+          batch_name: bBatch && bBatch !== 'all' ? bBatch : undefined,
+          campaign_title: selectedCampaign !== 'all' ? campaigns.find(c => c.id === selectedCampaign)?.title : undefined,
+          contact_name: cName,
+          contact_email: cEmail,
+          creator_count: count > 0 ? count : undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setGeneratedLinkData({
+          url: data.url,
+          token: data.token,
+          whatsappMessage: data.whatsappMessage,
+          emailSubject: data.emailSubject,
+          emailBody: data.emailBody,
+          expiresIn: data.expiresIn || '14 days',
+        })
+      } else {
+        toast.error(data.error || 'Failed to generate review link')
+      }
+    } catch {
+      toast.error('Network error generating review link')
+    } finally {
+      setIsGeneratingLink(false)
+    }
+  }
+
+  const handleCopyReviewUrl = () => {
+    if (!generatedLinkData?.url) return
+    navigator.clipboard.writeText(generatedLinkData.url)
+    toast.success('Copied 1-Click Review Link to clipboard!')
+  }
+
+  const handleCopyWhatsAppMessage = () => {
+    if (!generatedLinkData?.whatsappMessage) return
+    navigator.clipboard.writeText(generatedLinkData.whatsappMessage)
+    toast.success('Copied pre-formatted WhatsApp message!')
+  }
+
+  const handleOpenWhatsAppShare = () => {
+    if (!generatedLinkData?.whatsappMessage) return
+    const encoded = encodeURIComponent(generatedLinkData.whatsappMessage)
+    window.open(`https://wa.me/?text=${encoded}`, '_blank')
+  }
+
+  const handleCopyEmailTemplate = () => {
+    if (!generatedLinkData?.emailBody) return
+    navigator.clipboard.writeText(`${generatedLinkData.emailSubject}\n\n${generatedLinkData.emailBody}`)
+    toast.success('Copied email pitch template!')
+  }
 
   const handleCopyCourierManifest = (item: CampaignPitchItem) => {
     const text = item.verified_address_details?.courier_copy_text
@@ -232,10 +343,14 @@ export default function CampaignPitchesCurationPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success(data.message || `Dispatched ${selectedIds.length} profiles to Brand Portal!`)
+        const dispatchedBrand = dispatchTargetBrand || (selectedBrand !== 'all' ? selectedBrand : 'Mamaearth')
+        const dispatchedBatch = data.batch_name || selectedBatch
         setShowDispatchModal(false)
         setDispatchKamNotes('')
         setSelectedIds([])
         fetchData()
+        // Seamless handoff: Open Share Modal to immediately send to client on WhatsApp
+        handleOpenShareModal(dispatchedBrand, dispatchedBatch)
       } else {
         toast.error(data.error || 'Failed to dispatch to brand')
       }
@@ -357,7 +472,14 @@ export default function CampaignPitchesCurationPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => handleOpenShareModal()}
+            className="bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs h-9 flex items-center gap-1.5 cursor-pointer rounded-xl shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+          >
+            <Share2 className="h-3.5 w-3.5 text-slate-950 stroke-[2.5]" />
+            <span>1-Click Client Link</span>
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1696,6 +1818,222 @@ export default function CampaignPitchesCurationPage() {
                 >
                   <Copy className="h-3.5 w-3.5" />
                   Copy Courier Manifest
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      {/* 11. 1-Click WhatsApp Review Link Share Modal */}
+      <AnimatePresence>
+        {showShareModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-white/12 text-white relative overflow-hidden"
+            >
+              {/* Subtle ambient glow */}
+              <div className="absolute -top-16 -right-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Modal Header */}
+              <div className="flex items-start justify-between pb-4 border-b border-white/10 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-lg shadow-emerald-500/10">
+                    <Share2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                      1-Click Client Pitch Link
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Zero Password
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-snug">
+                      Bypass login walls. Brand marketing leads open this link and approve creators in 1 tap.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer transition"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="mt-5 space-y-4 relative z-10 text-xs">
+                {/* Brand & Batch Selectors */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
+                      Client Brand *
+                    </label>
+                    <select
+                      value={shareBrand}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setShareBrand(val)
+                        let cName = 'Brand Marketing Lead'
+                        let cEmail = 'marketing@brand.com'
+                        if (val.toLowerCase().includes('mama')) {
+                          cName = 'Ananya Sharma (Brand Head)'
+                          cEmail = 'ananya@mamaearth.in'
+                        } else if (val.toLowerCase().includes('plum')) {
+                          cName = 'Rahul Sen (Marketing Lead)'
+                          cEmail = 'rahul@plumgoodness.com'
+                        } else if (val.toLowerCase().includes('sugar')) {
+                          cName = 'Kavita Roy (Digital Lead)'
+                          cEmail = 'kavita@sugarcosmetics.com'
+                        }
+                        setShareContactName(cName)
+                        setShareContactEmail(cEmail)
+                        fetchShareLink(val, shareBatch, cName, cEmail)
+                      }}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-emerald-400 transition cursor-pointer"
+                    >
+                      {brands.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
+                      Pitch Batch
+                    </label>
+                    <select
+                      value={shareBatch}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setShareBatch(val)
+                        fetchShareLink(shareBrand, val, shareContactName, shareContactEmail)
+                      }}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-emerald-400 transition cursor-pointer"
+                    >
+                      <option value="">All Active Shortlists</option>
+                      {batches.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Contact Recipient info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
+                      Recipient POC Name
+                    </label>
+                    <Input
+                      value={shareContactName}
+                      onChange={(e) => setShareContactName(e.target.value)}
+                      placeholder="e.g. Ananya Sharma"
+                      className="h-8.5 bg-slate-950 border-white/10 text-white text-xs rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
+                      Work Email
+                    </label>
+                    <Input
+                      value={shareContactEmail}
+                      onChange={(e) => setShareContactEmail(e.target.value)}
+                      placeholder="ananya@brand.com"
+                      className="h-8.5 bg-slate-950 border-white/10 text-white text-xs rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                {/* Generated Link Display Box */}
+                <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <Link2 className="h-3.5 w-3.5" />
+                      Encrypted 1-Click Access URL (14-Day Token)
+                    </span>
+                    <button
+                      onClick={handleCopyReviewUrl}
+                      disabled={isGeneratingLink || !generatedLinkData?.url}
+                      className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>Copy URL</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      readOnly
+                      value={isGeneratingLink ? 'Generating secure token...' : (generatedLinkData?.url || '')}
+                      className="w-full pl-3 pr-20 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-mono text-emerald-300 select-all focus:outline-none"
+                    />
+                    <button
+                      onClick={handleCopyReviewUrl}
+                      className="absolute right-1.5 top-1.5 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[10px] transition cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <ShieldCheck className="h-3 w-3" />
+                      Auto-sets 30-Day Brand Session Cookie
+                    </span>
+                    <span>Expires in 14 days</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons: WhatsApp & Email Sharing */}
+                <div className="space-y-2 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <Button
+                      onClick={handleOpenWhatsAppShare}
+                      disabled={!generatedLinkData?.whatsappMessage}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 flex items-center justify-center gap-2 rounded-xl shadow-lg shadow-emerald-950 cursor-pointer"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Open in WhatsApp Web / App</span>
+                    </Button>
+
+                    <Button
+                      onClick={handleCopyWhatsAppMessage}
+                      disabled={!generatedLinkData?.whatsappMessage}
+                      variant="outline"
+                      className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-300 font-bold text-xs h-10 flex items-center justify-center gap-2 rounded-xl cursor-pointer"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span>Copy WhatsApp Message</span>
+                    </Button>
+                  </div>
+
+                  <Button
+                    onClick={handleCopyEmailTemplate}
+                    disabled={!generatedLinkData?.emailBody}
+                    variant="outline"
+                    className="w-full border-white/10 hover:bg-white/5 text-slate-300 font-semibold text-xs h-9 flex items-center justify-center gap-2 rounded-xl cursor-pointer"
+                  >
+                    <Copy className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Copy Full Email Roster Pitch</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-5 flex items-center justify-between pt-4 border-t border-white/10 text-xs">
+                <span className="text-[11px] text-slate-400">
+                  Target: <strong className="text-white">{shareBrand}</strong> {shareBatch ? `(${shareBatch})` : ''}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowShareModal(false)}
+                  className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-8 cursor-pointer rounded-xl"
+                >
+                  Done
                 </Button>
               </div>
             </motion.div>

@@ -7,14 +7,27 @@ const key = new TextEncoder().encode(secretKey)
 
 export const BRAND_COOKIE_NAME = 'brand_token'
 
+export interface BrandReviewTokenPayload {
+  brand_id: string
+  brand_name: string
+  brand_slug: string
+  email: string
+  full_name?: string
+  role?: BrandUserRole
+  campaign_id?: string
+  batch_name?: string
+  token_type?: 'pitch_review' | 'direct_access'
+}
+
 /**
  * Encrypt a brand session payload into a signed JWT.
+ * Defaults to 30 days for persistent client sessions.
  */
-export async function encryptBrandToken(payload: BrandPayload): Promise<string> {
+export async function encryptBrandToken(payload: BrandPayload, expiresIn = '30d'): Promise<string> {
   return await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d') // 7 days expiration for brand sessions
+    .setExpirationTime(expiresIn)
     .sign(key)
 }
 
@@ -27,6 +40,45 @@ export async function decryptBrandToken(token: string): Promise<BrandPayload | n
       algorithms: ['HS256'],
     })
     return payload as unknown as BrandPayload
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Generate a short-lived or 14-day signed review token for client WhatsApp / Email links.
+ */
+export async function generateBrandReviewToken(
+  payload: BrandReviewTokenPayload,
+  expiresIn = '14d'
+): Promise<string> {
+  return await new SignJWT({
+    id: `review-${payload.brand_slug}-${Date.now()}`,
+    brand_id: payload.brand_id,
+    brand_name: payload.brand_name,
+    brand_slug: payload.brand_slug,
+    email: payload.email || `reviewer@${payload.brand_slug}.com`,
+    full_name: payload.full_name || `${payload.brand_name} Brand Lead`,
+    role: payload.role || 'reviewer',
+    campaign_id: payload.campaign_id,
+    batch_name: payload.batch_name,
+    token_type: payload.token_type || 'pitch_review',
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(expiresIn)
+    .sign(key)
+}
+
+/**
+ * Decrypt and verify a brand pitch review token.
+ */
+export async function verifyBrandReviewToken(token: string): Promise<any | null> {
+  try {
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: ['HS256'],
+    })
+    return payload
   } catch {
     return null
   }
