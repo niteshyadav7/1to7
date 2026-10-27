@@ -453,6 +453,7 @@ export default function CampaignPitchesCurationPage() {
   }
 
   // Memoized column definitions for DynamicDataTable
+  // Memoized column definitions for DynamicDataTable with decided widths, compact typography and ellipsis truncation
   const columns: ColumnDef<CampaignPitchItem>[] = useMemo(
     () => [
       {
@@ -460,16 +461,16 @@ export default function CampaignPitchesCurationPage() {
         header: 'Creator',
         sortable: true,
         wrap: true,
-        width: '24%',
+        width: '21%',
         accessor: (row) => row.creator_name,
         render: (item) => (
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
             <div
               onClick={(e) => {
                 e.stopPropagation()
                 setInspectItem(item)
               }}
-              className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-xs font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner hover:border-amber-400/40 transition-colors cursor-pointer"
+              className="h-7 w-7 rounded-lg bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-[10px] font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner hover:border-amber-400/40 transition-colors cursor-pointer"
             >
               {item.profile_photo ? (
                 <img
@@ -483,27 +484,29 @@ export default function CampaignPitchesCurationPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div
-                className="font-bold text-white text-xs hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors truncate"
+                className="font-bold text-white text-[11px] hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation()
                   setInspectItem(item)
                 }}
+                title={item.creator_name}
               >
-                <span className="truncate">{item.creator_name}</span>
-                <span className="text-[10px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
+                <span className="truncate max-w-[120px]">{item.creator_name}</span>
+                <span className="text-[9px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
                   {item.influencer_id}
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-1 mt-0.5">
                 <a
                   href={`https://instagram.com/${item.instagram_username}`}
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[11px] transition-colors truncate"
+                  className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[10px] transition-colors truncate max-w-[130px]"
+                  title={`@${item.instagram_username}`}
                 >
-                  <Instagram className="h-3 w-3 text-pink-400 shrink-0" />
-                  <span className="truncate max-w-[130px]">@{item.instagram_username}</span>
+                  <Instagram className="h-2.5 w-2.5 text-pink-400 shrink-0" />
+                  <span className="truncate">@{item.instagram_username}</span>
                 </a>
               </div>
             </div>
@@ -515,30 +518,30 @@ export default function CampaignPitchesCurationPage() {
         header: 'Brand & Campaign',
         sortable: true,
         wrap: true,
-        width: '20%',
+        width: '19%',
         accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
         render: (item) => (
           <div className="min-w-0">
-            <div className="font-bold text-white text-xs truncate">
+            <div className="font-bold text-white text-[11px] truncate max-w-[150px]" title={item.brand_name}>
               {item.brand_name}
             </div>
             <div
-              className="text-[11px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5 truncate"
-              title={item.campaign_title}
+              className="text-[10px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5"
+              title={item.campaign_title || 'Campaign'}
             >
-              <Target className="h-3 w-3 text-amber-400 shrink-0" />
-              <span className="truncate">{item.campaign_title || 'Campaign'}</span>
+              <Target className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+              <span className="truncate max-w-[145px]">{item.campaign_title || 'Campaign'}</span>
             </div>
-            <div className="flex items-center gap-1 mt-1 flex-wrap">
+            <div className="flex items-center gap-1 mt-0.5 flex-wrap">
               <span
-                className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[160px] truncate"
+                className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[130px]"
                 title={item.brand_pitch_batch_name || 'Batch'}
               >
-                <Layers className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                <Layers className="h-2 w-2 text-amber-400 shrink-0" />
                 <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
               </span>
               {item.campaign_code && item.campaign_code !== item.campaign_title && (
-                <span className="text-[10px] font-mono text-neutral-500">
+                <span className="text-[9px] font-mono text-neutral-500 truncate max-w-[90px]" title={item.campaign_code}>
                   {item.campaign_code}
                 </span>
               )}
@@ -554,16 +557,19 @@ export default function CampaignPitchesCurationPage() {
         width: '13%',
         accessor: (row) => row.followers || 0,
         render: (item) => (
-          <div>
-            <div className="font-black text-white text-xs tracking-tight flex items-baseline gap-1">
+          <div className="min-w-0">
+            <div className="font-black text-white text-[11px] tracking-tight flex items-baseline gap-1">
               <span>{formatFollowerCount(item.followers)}</span>
-              <span className="text-[10px] font-normal text-neutral-400 font-mono">
+              <span className="text-[9px] font-normal text-neutral-400 font-mono">
                 ({(item.followers || 0).toLocaleString('en-IN')})
               </span>
             </div>
-            <div className="text-[11px] text-neutral-400 flex items-center gap-1 mt-0.5">
-              <MapPin className="h-3 w-3 text-neutral-500 shrink-0" />
-              <span className="truncate max-w-[130px]">
+            <div
+              className="text-[10px] text-neutral-400 flex items-center gap-1 mt-0.5"
+              title={[item.city, item.state].filter(Boolean).join(', ') || 'India'}
+            >
+              <MapPin className="h-2.5 w-2.5 text-neutral-500 shrink-0" />
+              <span className="truncate max-w-[110px]">
                 {[item.city, item.state].filter(Boolean).join(', ') || 'India'}
               </span>
             </div>
@@ -578,9 +584,9 @@ export default function CampaignPitchesCurationPage() {
         width: '11%',
         accessor: (row) => row.selected_variant || 'Standard',
         render: (item) => (
-          <div>
+          <div className="min-w-0">
             <span
-              className="inline-block px-2 py-0.5 rounded-md bg-slate-950 border border-white/10 text-neutral-200 text-xs font-semibold truncate max-w-[120px]"
+              className="inline-block px-1.5 py-0.5 rounded bg-slate-950 border border-white/10 text-neutral-200 text-[10px] font-semibold truncate max-w-[95px]"
               title={item.selected_variant || 'Standard'}
             >
               {item.selected_variant || 'Standard'}
@@ -591,10 +597,11 @@ export default function CampaignPitchesCurationPage() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-1 hover:underline"
+                className="text-[9px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-0.5 hover:underline truncate max-w-[95px]"
+                title="Sample Reel"
               >
-                <ExternalLink className="h-2.5 w-2.5" />
-                Sample Reel
+                <ExternalLink className="h-2 w-2 shrink-0" />
+                <span className="truncate">Sample Reel</span>
               </a>
             )}
           </div>
@@ -605,23 +612,23 @@ export default function CampaignPitchesCurationPage() {
         header: 'Delivery Address',
         sortable: true,
         wrap: true,
-        width: '18%',
+        width: '16%',
         accessor: (row) => row.address_verification_status || 'None',
         render: (item) => (
-          <div>
+          <div className="min-w-0">
             {item.address_verification_status === 'Verified' ? (
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-500/10">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="space-y-0.5">
+                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
                   Address: Verified
                 </span>
                 <div
-                  className="text-[11px] text-neutral-200 font-medium truncate max-w-[170px]"
-                  title={item.verified_address_details?.street}
+                  className="text-[10px] text-neutral-200 font-medium truncate max-w-[140px]"
+                  title={[item.verified_address_details?.street, item.verified_address_details?.city, item.verified_address_details?.state].filter(Boolean).join(', ')}
                 >
                   {item.verified_address_details?.city}, {item.verified_address_details?.state}
                 </div>
-                <div className="text-[10px] font-mono text-emerald-400 font-semibold">
+                <div className="text-[9px] font-mono text-emerald-400 font-semibold">
                   PIN: {item.verified_address_details?.pincode}
                 </div>
                 <button
@@ -630,35 +637,35 @@ export default function CampaignPitchesCurationPage() {
                     e.stopPropagation()
                     setViewAddressItem(item)
                   }}
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-2 py-0.5 rounded-md transition-all cursor-pointer shadow-sm mt-0.5"
+                  className="inline-flex items-center gap-1 text-[9px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-1.5 py-0.5 rounded transition-all cursor-pointer shadow-sm mt-0.5"
                 >
                   <Eye className="h-2.5 w-2.5" />
-                  <span>View & Copy Courier</span>
+                  <span>View & Copy</span>
                 </button>
               </div>
             ) : item.address_verification_status === 'Pending' ? (
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  <Clock className="h-3 w-3 text-amber-400" />
-                  Pending Verification
+              <div className="space-y-0.5">
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <Clock className="h-2.5 w-2.5 text-amber-400" />
+                  Pending
                 </span>
-                <div className="text-[10px] text-neutral-400">
-                  Awaiting Address Desk
+                <div className="text-[9px] text-neutral-400">
+                  Awaiting Desk
                 </div>
               </div>
             ) : item.address_verification_status === 'Rejected' ? (
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                  <XCircle className="h-3 w-3 text-rose-400" />
-                  Address: Rejected
+              <div className="space-y-0.5">
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                  <XCircle className="h-2.5 w-2.5 text-rose-400" />
+                  Rejected
                 </span>
-                <div className="text-[10px] text-neutral-400">
+                <div className="text-[9px] text-neutral-400">
                   Update Requested
                 </div>
               </div>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
-                <AlertCircle className="h-3 w-3 text-neutral-500" />
+              <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
+                <AlertCircle className="h-2.5 w-2.5 text-neutral-500" />
                 Not Submitted
               </span>
             )}
@@ -670,7 +677,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Status & Decision',
         sortable: true,
         wrap: true,
-        width: '13%',
+        width: '11%',
         accessor: (row) => row.brand_review_status,
         render: (item) => {
           const isApproved = item.brand_review_status === 'brand_approved'
@@ -680,13 +687,13 @@ export default function CampaignPitchesCurationPage() {
 
           if (isApproved) {
             return (
-              <div>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  Shortlisted
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 truncate max-w-[110px]">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">Shortlisted</span>
                 </span>
                 {item.brand_reviewed_by && (
-                  <div className="text-[10px] text-emerald-400/80 mt-0.5">
+                  <div className="text-[9px] text-emerald-400/80 mt-0.5 truncate max-w-[110px]" title={`By ${item.brand_reviewed_by}`}>
                     By {item.brand_reviewed_by}
                   </div>
                 )}
@@ -696,14 +703,14 @@ export default function CampaignPitchesCurationPage() {
 
           if (isRejected) {
             return (
-              <div>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                  <XCircle className="h-3.5 w-3.5 text-rose-400" />
-                  Rejected
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 truncate max-w-[110px]">
+                  <XCircle className="h-3 w-3 text-rose-400 shrink-0" />
+                  <span className="truncate">Rejected</span>
                 </span>
                 {item.brand_rejection_reason && (
                   <div
-                    className="text-[10px] text-rose-400/80 mt-0.5 truncate max-w-[120px]"
+                    className="text-[9px] text-rose-400/80 mt-0.5 truncate max-w-[110px]"
                     title={item.brand_rejection_reason}
                   >
                     {item.brand_rejection_reason}
@@ -715,26 +722,26 @@ export default function CampaignPitchesCurationPage() {
 
           if (isInternalDropped) {
             return (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700">
-                <X className="h-3.5 w-3.5 text-neutral-500" />
-                Dropped
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 truncate max-w-[110px]">
+                <X className="h-3 w-3 text-neutral-500 shrink-0" />
+                <span className="truncate">Dropped</span>
               </span>
             )
           }
 
           if (isQueued) {
             return (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10">
-                <Clock className="h-3.5 w-3.5 text-blue-400 animate-pulse" />
-                Queued for KAM
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[115px]">
+                <Clock className="h-3 w-3 text-blue-400 animate-pulse shrink-0" />
+                <span className="truncate">Queued for KAM</span>
               </span>
             )
           }
 
           return (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10">
-              <Send className="h-3.5 w-3.5 text-purple-400" />
-              With Brand
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[110px]">
+              <Send className="h-3 w-3 text-purple-400 shrink-0" />
+              <span className="truncate">With Brand</span>
             </span>
           )
         },
@@ -745,18 +752,18 @@ export default function CampaignPitchesCurationPage() {
         sortable: false,
         hideable: false,
         align: 'right',
-        width: '11%',
+        width: '9%',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
           return (
-            <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setInspectItem(item)}
-                className="h-7 px-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
+                className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[10px] font-medium flex items-center gap-0.5 transition-all cursor-pointer"
                 title="Inspect details"
               >
-                <Eye className="h-3 w-3" />
+                <Eye className="h-2.5 w-2.5" />
                 <span>View</span>
               </button>
 
@@ -765,7 +772,7 @@ export default function CampaignPitchesCurationPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenDispatchModal(item.application_id)}
-                    className="h-7 px-2 rounded-lg text-[11px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-md shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                    className="h-6 px-2 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
                     title="Send to Brand Client Portal"
                   >
                     <Send className="h-2.5 w-2.5" />
@@ -778,10 +785,10 @@ export default function CampaignPitchesCurationPage() {
                       setSelectedIds([item.application_id])
                       setShowInternalDropModal(true)
                     }}
-                    className="h-7 w-7 rounded-lg bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
+                    className="h-6 w-6 rounded-md bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0"
                     title="Drop creator"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 </>
               )}
@@ -1069,6 +1076,7 @@ export default function CampaignPitchesCurationPage() {
         loading={loading}
         tableLayout="fixed"
         minTableWidth="min-w-[1060px]"
+        defaultCompact={true}
         selectedRowIds={selectedIds}
         onSelectionChange={setSelectedIds}
         filterTabs={{

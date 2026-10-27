@@ -83,6 +83,7 @@ export interface DynamicDataTableProps<T> {
   loading?: boolean
   tableLayout?: 'auto' | 'fixed'
   minTableWidth?: string
+  defaultCompact?: boolean
   className?: string
   headerActions?: React.ReactNode
 }
@@ -112,6 +113,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   loading = false,
   tableLayout = 'auto',
   minTableWidth = 'min-w-full',
+  defaultCompact = false,
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -146,7 +148,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   }
 
   // 5. Density toggle (compact vs comfortable)
-  const [isCompact, setIsCompact] = useState(false)
+  const [isCompact, setIsCompact] = useState(defaultCompact ?? false)
 
   // 6. Column Visibility
   const [hiddenColumnKeys, setHiddenColumnKeys] = useState<Set<string>>(new Set())
@@ -318,7 +320,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
       )}
 
       {/* ─── CONTROLS BAR (Filter Tabs, Search, Column Visibility, Density, Export) ─── */}
-      <div className={`p-3 sm:p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+      <div className={`p-2 sm:p-2.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-2 ${
         isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-lg'
       }`}>
         {/* Left: Filter Tabs (if provided) */}
@@ -334,7 +336,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     filterTabs.onChange(opt.value)
                     setCurrentPage(1)
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                     isActive
                       ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md'
                       : isLight
@@ -345,7 +347,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                   <span>{opt.label}</span>
                   {typeof opt.count === 'number' && (
                     <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
                         isActive
                           ? 'bg-neutral-950/20 text-neutral-950'
                           : isLight
@@ -363,10 +365,10 @@ export function DynamicDataTable<T extends Record<string, any>>({
         )}
 
         {/* Right Controls: Search, Column Manager, Density, CSV Export */}
-        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap md:ml-auto">
+        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap md:ml-auto">
           {/* Live Search */}
-          <div className="relative flex-1 sm:w-60 min-w-[180px]">
-            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-500'}`} />
+          <div className="relative flex-1 sm:w-56 min-w-[160px]">
+            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-500'}`} />
             <Input
               type="text"
               value={search}
@@ -375,7 +377,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                 setCurrentPage(1)
               }}
               placeholder={searchPlaceholder}
-              className={`pl-8 pr-7 h-9 text-xs rounded-xl transition ${
+              className={`pl-7 pr-6 h-8 text-xs rounded-lg transition ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#febd1c]'
                   : 'bg-[#0c1017] border-white/10 text-white placeholder:text-neutral-500 focus:border-amber-400'
@@ -385,7 +387,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-xs ${
+                className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
                   isLight ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-white'
                 }`}
               >
@@ -399,7 +401,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             type="button"
             onClick={() => setIsCompact(!isCompact)}
             title={isCompact ? 'Comfortable Density' : 'Compact Density'}
-            className={`h-9 px-2.5 rounded-xl border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`h-8 px-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
               isLight
                 ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-50'
                 : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
@@ -414,7 +416,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             <button
               type="button"
               onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-              className={`h-9 px-2.5 rounded-xl border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`h-8 px-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-50'
                   : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
@@ -425,10 +427,10 @@ export function DynamicDataTable<T extends Record<string, any>>({
             </button>
 
             {isColumnDropdownOpen && (
-              <div className={`absolute right-0 top-11 z-50 w-52 p-2 rounded-2xl border shadow-2xl space-y-1 ${
+              <div className={`absolute right-0 top-10 z-50 w-52 p-2 rounded-xl border shadow-2xl space-y-1 ${
                 isLight ? 'bg-white border-slate-200 text-slate-700 shadow-xl' : 'bg-[#121620] border-white/10 text-neutral-300'
               }`}>
-                <div className={`px-2 py-1 text-[11px] font-bold uppercase tracking-wider border-b mb-1 ${
+                <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border-b mb-1 ${
                   isLight ? 'text-slate-400 border-slate-100' : 'text-neutral-400 border-white/5'
                 }`}>
                   Toggle Columns
@@ -440,7 +442,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     return (
                       <label
                         key={col.key}
-                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer ${
+                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer ${
                           isLight ? 'text-slate-700 hover:bg-slate-50' : 'text-neutral-300 hover:bg-white/5'
                         }`}
                       >
@@ -475,7 +477,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             size="sm"
             variant="outline"
             onClick={handleExportCSV}
-            className={`h-9 text-xs px-3 rounded-xl border ${
+            className={`h-8 text-xs px-2.5 rounded-lg border ${
               isLight
                 ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                 : 'border-white/10 bg-[#0c1017] hover:bg-white/5 text-neutral-300'
@@ -551,24 +553,24 @@ export function DynamicDataTable<T extends Record<string, any>>({
         <div className="overflow-x-auto w-full max-w-full scrollbar-none">
           <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''} ${minTableWidth}`}>
             {/* Header */}
-            <thead className={`font-bold uppercase tracking-wider text-[11px] border-b select-none sticky top-0 z-10 ${
+            <thead className={`font-bold uppercase tracking-wider text-[10px] border-b select-none sticky top-0 z-10 ${
               isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
             }`}>
               <tr>
                 {/* Master Selection Checkbox */}
                 {bulkActions.length > 0 && (
-                  <th className="p-3 sm:p-3.5 w-10 text-center">
+                  <th className={`${isCompact ? 'p-2 w-9' : 'p-3 sm:p-3.5 w-10'} text-center`}>
                     <button
                       type="button"
                       onClick={handleSelectAllPage}
                       className="cursor-pointer transition-colors"
                     >
                       {isAllPageSelected ? (
-                        <CheckSquare className="w-4 h-4 text-[#febd1c]" />
+                        <CheckSquare className="w-3.5 h-3.5 text-[#febd1c]" />
                       ) : isSomePageSelected ? (
-                        <MinusSquare className="w-4 h-4 text-amber-500" />
+                        <MinusSquare className="w-3.5 h-3.5 text-amber-500" />
                       ) : (
-                        <Square className={`w-4 h-4 ${isLight ? 'text-slate-400' : 'text-neutral-600'}`} />
+                        <Square className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-600'}`} />
                       )}
                     </button>
                   </th>
@@ -584,7 +586,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       key={col.key}
                       onClick={() => canSort && handleSort(col.key)}
                       style={{ width: col.width }}
-                      className={`py-3 px-2.5 sm:px-3 transition-colors ${
+                      className={`${isCompact ? 'py-2 px-2' : 'py-2.5 px-2.5 sm:px-3'} transition-colors ${
                         col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
                       } ${
                         col.align === 'center'
@@ -693,7 +695,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     >
                       {/* Checkbox */}
                       {bulkActions.length > 0 && (
-                        <td className="p-3 sm:p-3.5 text-center">
+                        <td className={`${isCompact ? 'p-2 w-9' : 'p-3 sm:p-3.5 w-10'} text-center`}>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -703,9 +705,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                             className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-black' : 'text-neutral-500 hover:text-amber-400'}`}
                           >
                             {isSelected ? (
-                              <CheckSquare className="w-4 h-4 text-[#febd1c]" />
+                              <CheckSquare className="w-3.5 h-3.5 text-[#febd1c]" />
                             ) : (
-                              <Square className={`w-4 h-4 ${isLight ? 'text-slate-300' : 'text-neutral-600'}`} />
+                              <Square className={`w-3.5 h-3.5 ${isLight ? 'text-slate-300' : 'text-neutral-600'}`} />
                             )}
                           </button>
                         </td>
@@ -726,7 +728,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                             className={`${
                               col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
                             } ${
-                              isCompact ? 'py-2 px-2.5' : 'py-2.5 px-2.5 sm:px-3'
+                              isCompact ? 'py-1.5 px-2 text-[11px]' : 'py-2.5 px-2.5 sm:px-3 text-xs'
                             } ${
                               col.align === 'center'
                                 ? 'text-center'
