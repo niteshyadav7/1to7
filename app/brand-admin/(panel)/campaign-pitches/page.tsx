@@ -472,6 +472,7 @@ export default function CampaignPitchesCurationPage() {
           </p>
         </div>
 
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
             onClick={() => handleOpenShareModal()}
@@ -1823,6 +1824,8 @@ export default function CampaignPitchesCurationPage() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
       {/* 11. 1-Click WhatsApp Review Link Share Modal */}
       <AnimatePresence>
         {showShareModal && (
