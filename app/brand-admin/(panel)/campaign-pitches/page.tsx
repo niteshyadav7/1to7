@@ -509,6 +509,21 @@ export default function CampaignPitchesCurationPage() {
                   <span className="truncate">@{item.instagram_username}</span>
                 </a>
               </div>
+              {/* Small View Icon Button below Insta ID */}
+              <div className="mt-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setInspectItem(item)
+                  }}
+                  className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 transition-all cursor-pointer shadow-xs"
+                  title="View creator application details"
+                >
+                  <Eye className="h-2.5 w-2.5 shrink-0" />
+                  <span>View</span>
+                </button>
+              </div>
             </div>
           </div>
         ),
@@ -518,7 +533,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Brand & Campaign',
         sortable: true,
         wrap: true,
-        width: '19%',
+        width: '18%',
         accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
         render: (item) => (
           <div className="min-w-0">
@@ -752,27 +767,29 @@ export default function CampaignPitchesCurationPage() {
         sortable: false,
         hideable: false,
         align: 'right',
-        width: '9%',
+        width: '10%',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
           return (
             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                onClick={() => setInspectItem(item)}
-                className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[10px] font-medium flex items-center gap-0.5 transition-all cursor-pointer"
-                title="Inspect details"
-              >
-                <Eye className="h-2.5 w-2.5" />
-                <span>View</span>
-              </button>
+              {!isQueued && (
+                <button
+                  type="button"
+                  onClick={() => setInspectItem(item)}
+                  className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[10px] font-medium flex items-center gap-0.5 transition-all cursor-pointer"
+                  title="Inspect details"
+                >
+                  <Eye className="h-2.5 w-2.5" />
+                  <span>View</span>
+                </button>
+              )}
 
               {isQueued && (
                 <>
                   <button
                     type="button"
                     onClick={() => handleOpenDispatchModal(item.application_id)}
-                    className="h-6 px-2 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                    className="h-6 px-2 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                     title="Send to Brand Client Portal"
                   >
                     <Send className="h-2.5 w-2.5" />
