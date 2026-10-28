@@ -317,31 +317,6 @@ export default function BrandLoginPage() {
               </div>
             )}
 
-            {/* QUICK DEMO ACCOUNTS HELPER */}
-            <div className="mb-4 p-2.5 rounded-2xl bg-white/[0.03] border border-white/8 text-[11px] space-y-1.5">
-              <div className="text-slate-400 font-semibold flex items-center justify-between">
-                <span>Quick Test Brands:</span>
-                <span className="text-[10px] text-[#FF8C73]">1-Tap Fill</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { name: 'TheHype Demo', email: 'brand@thehype.in' },
-                  { name: 'Mamaearth', email: 'ananya@mamaearth.in' },
-                  { name: 'Plum Goodness', email: 'rahul@plumgoodness.com' },
-                  { name: 'Sugar Cosmetics', email: 'kavita@sugarcosmetics.com' },
-                ].map((item) => (
-                  <button
-                    key={item.email}
-                    type="button"
-                    onClick={() => handleSelectDemoAccount(item.email)}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#F95738]/20 border border-white/10 hover:border-[#F95738]/40 text-slate-300 hover:text-[#FF8C73] text-[11px] font-medium transition cursor-pointer"
-                  >
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* ─── TAB 1: ZERO-PASSWORD OTP WORKFLOW ─── */}
             {authMode === 'otp' && (
               <div>

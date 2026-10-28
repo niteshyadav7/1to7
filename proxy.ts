@@ -13,10 +13,11 @@ export async function proxy(request: NextRequest) {
     (process.env.BRAND_PORTAL_HOST && host === process.env.BRAND_PORTAL_HOST)
 
   if (isBrandHost) {
-    // Root route on brand domain directs to Brand Workspace
+    // Root route on brand domain: Check if brand_token cookie exists
     if (pathname === '/') {
+      const brandToken = request.cookies.get('brand_token')?.value
       const url = request.nextUrl.clone()
-      url.pathname = '/brand/campaigns'
+      url.pathname = brandToken ? '/brand/campaigns' : '/brand/login'
       return NextResponse.redirect(url)
     }
 
