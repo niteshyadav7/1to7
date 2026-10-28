@@ -98,7 +98,7 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
     key: 'instagram_username',
     label: 'Instagram Handle',
     patterns: [
-      /^(instagram|instagram\s*handle|insta\s*handle|ig\s*handle|instagram\s*username|insta\s*username|instagram\s*link|instagram\s*profile)$/i
+      /^(instagram|instagram[\s_]*handle|insta[\s_]*handle|ig[\s_]*handle|instagram[\s_]*username|insta[\s_]*username|instagram[\s_]*link|instagram[\s_]*profile)$/i
     ]
   },
   {
@@ -623,6 +623,9 @@ export function extractProfileUpdatesFromFormData(
         } else if (['city', 'state', 'pincode', 'shoe_size', 'tshirt_size', 'bio', 'youtube', 'languages'].includes(targetCanonical)) {
           profileUpdates[targetCanonical] = valueStr
           hasChanges = true
+        } else if (targetCanonical === 'instagram_username') {
+          profileUpdates.instagram_username = valueStr.replace(/^@/, '').trim()
+          hasChanges = true
         } else {
           // Dynamic custom attribute specified by admin (e.g. skin_type, food_preference, height)
           const customKey = createAttributeSlug(targetCanonical)
@@ -683,6 +686,9 @@ export function extractProfileUpdatesFromFormData(
         hasChanges = true
       } else if (['city', 'state', 'pincode', 'shoe_size', 'tshirt_size', 'bio', 'youtube', 'languages'].includes(canonicalKey)) {
         profileUpdates[canonicalKey] = valueStr
+        hasChanges = true
+      } else if (canonicalKey === 'instagram_username') {
+        profileUpdates.instagram_username = valueStr.replace(/^@/, '').trim()
         hasChanges = true
       }
 

@@ -261,11 +261,13 @@ export async function POST(request: Request) {
       .select('id, username, followers, is_primary')
       .eq('user_id', userId)
 
-    if (selectedInstagramProfile) {
-      const targetUser = String(selectedInstagramProfile.username || '').replace(/^@/, '').trim().toLowerCase()
+    const rawTargetUsername = String(selectedInstagramProfile?.username || formData?.instagram_username || '').replace(/^@/, '').trim()
+    const targetUser = rawTargetUsername.toLowerCase()
+
+    if (targetUser) {
       const match = dbUserProfiles?.find(
-        p => (selectedInstagramProfile.id && p.id === selectedInstagramProfile.id) ||
-             (targetUser && p.username.toLowerCase() === targetUser)
+        p => (selectedInstagramProfile?.id && p.id === selectedInstagramProfile.id) ||
+             (p.username && p.username.toLowerCase() === targetUser)
       )
       if (match) {
         verifiedSelectedProfile = {
@@ -273,13 +275,22 @@ export async function POST(request: Request) {
           username: match.username,
           followers: match.followers || 0
         }
-      } else if (selectedInstagramProfile.username) {
-        if (user.instagram_username && user.instagram_username.toLowerCase() === targetUser) {
-          verifiedSelectedProfile = {
-            id: null,
-            username: user.instagram_username,
-            followers: user.followers || 0
-          }
+      } else if (user.instagram_username && user.instagram_username.toLowerCase() === targetUser) {
+        verifiedSelectedProfile = {
+          id: null,
+          username: user.instagram_username,
+          followers: user.followers || 0
+        }
+      } else if (rawTargetUsername) {
+        // Creator provided a new or corrected handle (e.g. stale sheet import or handle change)
+        const parsedFollowers = selectedInstagramProfile?.followers !== undefined && selectedInstagramProfile?.followers !== null
+          ? (typeof selectedInstagramProfile.followers === 'number' ? selectedInstagramProfile.followers : parseInt(String(selectedInstagramProfile.followers).replace(/\D/g, ''), 10) || 0)
+          : (user.followers || 0)
+
+        verifiedSelectedProfile = {
+          id: null,
+          username: rawTargetUsername,
+          followers: parsedFollowers
         }
       }
     }
@@ -392,9 +403,34 @@ export async function POST(request: Request) {
           try {
             if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
               const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
-              if (hasChanges && Object.keys(profileUpdates).length > 0) {
+              if (verifiedSelectedProfile?.username && verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase()) {
+                profileUpdates.instagram_username = verifiedSelectedProfile.username
+                if (verifiedSelectedProfile.followers > 0) {
+                  profileUpdates.followers = verifiedSelectedProfile.followers
+                }
+              }
+              if (Object.keys(profileUpdates).length > 0) {
                 profileUpdates.updated_at = new Date().toISOString()
                 await supabase.from('users').update(profileUpdates).eq('id', userId)
+              }
+            }
+            if (verifiedSelectedProfile?.username && (!verifiedSelectedProfile.id || verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase())) {
+              const norm = verifiedSelectedProfile.username.toLowerCase()
+              const { data: existingProf } = await supabase
+                .from('user_instagram_profiles')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('normalized_username', norm)
+                .maybeSingle()
+              
+              if (!existingProf) {
+                await supabase.from('user_instagram_profiles').insert([{
+                  user_id: userId,
+                  username: verifiedSelectedProfile.username,
+                  normalized_username: norm,
+                  followers: verifiedSelectedProfile.followers || 0,
+                  is_primary: true
+                }])
               }
             }
             if (user?.email) {
@@ -467,9 +503,34 @@ export async function POST(request: Request) {
       try {
         if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
           const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
-          if (hasChanges && Object.keys(profileUpdates).length > 0) {
+          if (verifiedSelectedProfile?.username && verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase()) {
+            profileUpdates.instagram_username = verifiedSelectedProfile.username
+            if (verifiedSelectedProfile.followers > 0) {
+              profileUpdates.followers = verifiedSelectedProfile.followers
+            }
+          }
+          if (Object.keys(profileUpdates).length > 0) {
             profileUpdates.updated_at = new Date().toISOString()
             await supabase.from('users').update(profileUpdates).eq('id', userId)
+          }
+        }
+        if (verifiedSelectedProfile?.username && (!verifiedSelectedProfile.id || verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase())) {
+          const norm = verifiedSelectedProfile.username.toLowerCase()
+          const { data: existingProf } = await supabase
+            .from('user_instagram_profiles')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('normalized_username', norm)
+            .maybeSingle()
+          
+          if (!existingProf) {
+            await supabase.from('user_instagram_profiles').insert([{
+              user_id: userId,
+              username: verifiedSelectedProfile.username,
+              normalized_username: norm,
+              followers: verifiedSelectedProfile.followers || 0,
+              is_primary: true
+            }])
           }
         }
         if (user?.email) {

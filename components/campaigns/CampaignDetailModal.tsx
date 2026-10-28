@@ -12,7 +12,10 @@ import {
   Lock,
   Clock,
   RotateCcw,
-  XCircle
+  XCircle,
+  Pencil,
+  Package,
+  Phone
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,7 +32,7 @@ import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLa
 import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
-import AddressSelectorField from '@/components/campaigns/AddressSelectorField'
+import AddressSelectorField, { formatAddressToString } from '@/components/campaigns/AddressSelectorField'
 import { getPrefillValueForField, isAddressField, isStandardProfileField } from '@/lib/utils/profile-sync-utils'
 
 function getActiveCustomState(
@@ -92,6 +95,7 @@ interface Campaign {
   form_link?: string
   form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
   order_form?: boolean
+  address_required?: boolean
   order_form_fields?: { name: string; type: string; required: boolean; options: string[] }[]
   show_order_form?: boolean
   applied?: boolean
@@ -167,6 +171,10 @@ export default function CampaignDetailModal({
   const [hasAttemptedCustomSubmit, setHasAttemptedCustomSubmit] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [quickAddressModalOpen, setQuickAddressModalOpen] = useState(false)
+  const [showReviewStep, setShowReviewStep] = useState(false)
+  const [isEditingReviewInstagram, setIsEditingReviewInstagram] = useState(false)
+  const [reviewInstagramUsername, setReviewInstagramUsername] = useState('')
+  const [reviewFollowers, setReviewFollowers] = useState<number | string>('')
   const { user: authUser, isProfileComplete, getMissingFields, refreshUserProfile } = useAuth()
   const user = propUser || authUser
   const router = useRouter()
@@ -295,6 +303,10 @@ export default function CampaignDetailModal({
       setIsSuccess(false)
       setHasAttemptedInlineSubmit(false)
       setHasAttemptedCustomSubmit(false)
+      setShowReviewStep(false)
+      setIsEditingReviewInstagram(false)
+      setReviewInstagramUsername('')
+      setReviewFollowers('')
       // Force refresh user data to ensure we have the latest completeness status
       refreshUserProfile()
     }
@@ -479,13 +491,33 @@ export default function CampaignDetailModal({
       return
     }
 
+    // Initialize review values for Instagram
+    const currentHandle = inlineData.instagram_username || activeSelectedProfile?.username || user?.instagram_username || ''
+    const currentFollowers = inlineData.followers !== undefined && inlineData.followers !== '' && Number(inlineData.followers) > 0
+      ? inlineData.followers
+      : (activeSelectedProfile?.followers ?? user?.followers ?? 0)
+
+    setReviewInstagramUsername(currentHandle)
+    setReviewFollowers(currentFollowers)
+    setIsEditingReviewInstagram(false)
+    setShowReviewStep(true)
+  }
+
+  const executeFinalSubmission = async () => {
     setSavingProfile(true)
     try {
-      // Submit application with both inline profile fields and custom form questions in a single fast request
+      const cleanInsta = reviewInstagramUsername ? reviewInstagramUsername.replace(/^@/, '').trim() : ''
+      const effectiveFollowerCount = Number(reviewFollowers) > 0
+        ? Number(reviewFollowers)
+        : (activeSelectedProfile?.followers ?? user?.followers ?? 0)
+
+      // Submit application with both inline profile fields, custom form questions, comments, and confirmed Instagram identity
       const combinedFormData = {
         ...inlineData,
         ...(hasCustomFields ? customFormData : {}),
         comments: commentText || '',
+        ...(cleanInsta ? { instagram_username: cleanInsta } : {}),
+        ...(effectiveFollowerCount > 0 ? { followers: effectiveFollowerCount } : {})
       }
 
       const res = await fetch(applyEndpoint, {
@@ -495,18 +527,19 @@ export default function CampaignDetailModal({
           campaignId: campaign.id,
           formData: combinedFormData,
           selectedStore: selectedStoreOutlet,
-          selectedInstagramProfile: activeSelectedProfile ? {
-            id: activeSelectedProfile.id,
-            username: activeSelectedProfile.username,
-            followers: activeSelectedProfile.followers,
-            is_primary: activeSelectedProfile.is_primary,
-          } : undefined,
+          selectedInstagramProfile: {
+            id: activeSelectedProfile?.id,
+            username: cleanInsta || activeSelectedProfile?.username || user?.instagram_username || '',
+            followers: effectiveFollowerCount,
+            is_primary: activeSelectedProfile?.is_primary ?? true,
+          },
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
 
       setIsSuccess(true)
+      setShowReviewStep(false)
       toast.success(adminMode ? 'Application submitted on behalf of creator!' : 'Application submitted successfully!')
       if (onSuccess) {
         onSuccess()
@@ -522,6 +555,35 @@ export default function CampaignDetailModal({
       setSavingProfile(false)
     }
   }
+
+  const resolvedReviewAddress = (() => {
+    if (customFormData.shipping_address && typeof customFormData.shipping_address === 'object') {
+      return customFormData.shipping_address
+    }
+    if (inlineData.shipping_address && typeof inlineData.shipping_address === 'object') {
+      return inlineData.shipping_address
+    }
+    for (const [k, v] of Object.entries(customFormData)) {
+      if (k.endsWith('_details') && typeof v === 'object' && v !== null && (v as any).address_line1) {
+        return v
+      }
+      if (typeof v === 'object' && v !== null && (v as any).address_line1) {
+        return v
+      }
+    }
+    if (user?.shipping_addresses && Array.isArray(user.shipping_addresses) && user.shipping_addresses.length > 0) {
+      return user.shipping_addresses.find((a: any) => a.is_default) || user.shipping_addresses[0]
+    }
+    if (inlineData.address || (user as any)?.address || inlineData.state || user?.state || inlineData.city || user?.city) {
+      return {
+        address_line1: inlineData.address || (user as any)?.address || '',
+        city: inlineData.city || user?.city || '',
+        state: inlineData.state || user?.state || '',
+        pincode: inlineData.pincode || user?.pincode || ''
+      }
+    }
+    return null
+  })()
 
   const DetailCard = ({ label, value, icon: Icon, color }: { label: string, value: string | React.ReactNode, icon?: any, color?: string }) => (
     <div className="bg-gray-muted border border-border-subtle rounded-lg p-4 flex flex-col gap-1.5 transition-all hover:bg-surface-container">
@@ -760,18 +822,315 @@ export default function CampaignDetailModal({
                     exit={{ opacity: 0, scale: 1.05 }}
                     className="absolute inset-0 z-20 bg-white flex flex-col pointer-events-auto"
                   >
-                    {/* Header with campaign info */}
-                    <div className="p-4 sm:p-6 pb-4 border-b border-border-subtle bg-gray-muted">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-charcoal-surface flex items-center gap-2">
-                            ✈️ Apply to Campaign
-                            {adminMode && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200">
-                                Super Admin (Acting for {user?.full_name || 'Creator'})
+                    {showReviewStep ? (
+                      <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        {/* Review Header with campaign info */}
+                        <div className="p-4 sm:p-6 pb-4 border-b border-border-subtle bg-gray-muted shrink-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-bold text-charcoal-surface flex items-center gap-2">
+                                <ClipboardList className="h-5 w-5 text-primary" />
+                                Review Application Details
+                                {adminMode && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200">
+                                    Super Admin (Acting for {user?.full_name || 'Creator'})
+                                  </span>
+                                )}
+                              </h3>
+                              <p className="text-secondary text-xs sm:text-sm mt-0.5">
+                                Please review your details and Instagram handle before submitting to <strong className="text-charcoal-surface">{campaign.brand_name}</strong>
+                              </p>
+                            </div>
+                            <button 
+                              onClick={() => setShowProfileInline(false)}
+                              className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Review Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar scrollbar-none">
+                          {/* Alert Tip Box */}
+                          <div className="p-3.5 rounded-lg bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs flex items-start gap-2.5 shadow-2xs">
+                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5 leading-relaxed">
+                              <p className="font-bold text-amber-950">Important Creator Verification</p>
+                              <p className="text-amber-900 text-[11px]">
+                                If your Instagram handle or address in our database originated from an older sheet import or changed recently, verify or update them below so brands can shortlist you and deliver products without errors.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 1. Instagram Profile Card */}
+                          <div className="bg-white border border-border-subtle rounded-lg p-4 shadow-2xs space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-border-subtle/60">
+                              <span className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                <Instagram className="h-3.5 w-3.5 text-pink-600" />
+                                Instagram Identity
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingReviewInstagram(prev => !prev)}
+                                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <Pencil className="h-3 w-3" />
+                                {isEditingReviewInstagram ? 'Save & Close' : 'Edit Handle'}
+                              </button>
+                            </div>
+
+                            {isEditingReviewInstagram ? (
+                              <div className="space-y-3 pt-1">
+                                <div className="space-y-1.5">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest">
+                                    Instagram Handle / Username
+                                  </label>
+                                  <div className="relative">
+                                    <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    <Input
+                                      value={reviewInstagramUsername}
+                                      onChange={(e) => setReviewInstagramUsername(e.target.value)}
+                                      placeholder="e.g. your_handle"
+                                      className="pl-9 h-11 text-sm font-semibold border-border-subtle focus-visible:ring-primary-container"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest">
+                                    Followers Count
+                                  </label>
+                                  <div className="relative">
+                                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    <Input
+                                      type="number"
+                                      value={reviewFollowers}
+                                      onChange={(e) => setReviewFollowers(e.target.value)}
+                                      placeholder="e.g. 25000"
+                                      className="pl-9 h-11 text-sm font-semibold border-border-subtle focus-visible:ring-primary-container"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between pt-1">
+                                  <span className="text-[11px] text-emerald-700 font-medium">
+                                    ✓ Handle will update your profile in our system.
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => setIsEditingReviewInstagram(false)}
+                                    className="h-8 px-3 text-xs bg-primary-container text-black font-bold cursor-pointer"
+                                  >
+                                    Done
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3.5 pt-1">
+                                <div className="h-11 w-11 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                                  <Instagram className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm sm:text-base font-bold text-charcoal-surface truncate">
+                                      {getInstagramDisplayHandle(reviewInstagramUsername || activeSelectedProfile?.username || user?.instagram_username)}
+                                    </p>
+                                    <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-full font-bold">
+                                      Verified Profile
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-secondary font-semibold mt-0.5">
+                                    {(Number(reviewFollowers || activeSelectedProfile?.followers || user?.followers || 0)).toLocaleString('en-IN')} Followers
+                                    <span className="text-secondary/70 font-normal"> • Submission Profile</span>
+                                  </p>
+                                </div>
+                              </div>
                             )}
-                          </h3>
+                          </div>
+
+                          {/* 2. Delivery & Location Card */}
+                          <div className="bg-white border border-border-subtle rounded-lg p-4 shadow-2xs space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-border-subtle/60">
+                              <span className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-blue-600" />
+                                Delivery & Location Details
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowReviewStep(false)}
+                                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <Pencil className="h-3 w-3" />
+                                Edit in Form
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              <div className="bg-gray-muted p-2.5 rounded-md border border-border-subtle">
+                                <p className="text-[10px] font-bold text-secondary uppercase tracking-wider">State / UT</p>
+                                <p className="font-semibold text-charcoal-surface mt-0.5 truncate">
+                                  {inlineData.state || user?.state || 'Not specified'}
+                                </p>
+                              </div>
+                              <div className="bg-gray-muted p-2.5 rounded-md border border-border-subtle">
+                                <p className="text-[10px] font-bold text-secondary uppercase tracking-wider">City</p>
+                                <p className="font-semibold text-charcoal-surface mt-0.5 truncate">
+                                  {inlineData.city || user?.city || 'Not specified'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {resolvedReviewAddress && (resolvedReviewAddress.address_line1 || resolvedReviewAddress.city) ? (
+                              <div className="bg-gray-muted p-3 rounded-md border border-border-subtle space-y-1.5 text-xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-secondary uppercase tracking-wider flex items-center gap-1">
+                                    <Package className="h-3 w-3 text-secondary" />
+                                    Delivery / Shipping Address
+                                  </span>
+                                  {resolvedReviewAddress.pincode && (
+                                    <span className="text-[10px] font-bold text-charcoal-surface bg-white px-1.5 py-0.5 rounded border border-border-subtle">
+                                      PIN: {resolvedReviewAddress.pincode}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="font-medium text-charcoal-surface leading-relaxed break-words">
+                                  {formatAddressToString(resolvedReviewAddress)}
+                                </p>
+                                {user?.mobile && (
+                                  <p className="text-[11px] text-secondary flex items-center gap-1 pt-0.5">
+                                    <Phone className="h-3 w-3" />
+                                    Contact: <span className="font-semibold text-charcoal-surface">{user.mobile}</span>
+                                  </p>
+                                )}
+                              </div>
+                            ) : campaign.address_required ? (
+                              <div className="bg-amber-50 p-2.5 rounded-md border border-amber-200 text-amber-900 text-xs flex items-center justify-between">
+                                <span>Delivery address is required for this campaign.</span>
+                                <button
+                                  onClick={() => setShowReviewStep(false)}
+                                  className="text-xs font-bold text-amber-950 underline hover:no-underline cursor-pointer"
+                                >
+                                  Add Address
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-secondary">
+                                No physical shipping required for this digital campaign.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 3. Campaign Question Answers */}
+                          {hasCustomFields && (
+                            <div className="bg-white border border-border-subtle rounded-lg p-4 shadow-2xs space-y-3">
+                              <div className="flex items-center justify-between pb-2 border-b border-border-subtle/60">
+                                <span className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                  <FileText className="h-3.5 w-3.5 text-primary" />
+                                  Campaign Question Responses
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowReviewStep(false)}
+                                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Edit
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {campaign.form_fields!.map((f, idx) => {
+                                  const val = customFormData[f.name]
+                                  if (!val && val !== 0) return null
+                                  const isImg = f.type === 'image' || (typeof val === 'string' && (val.startsWith('http') && (val.includes('.png') || val.includes('.jpg') || val.includes('.webp') || val.includes('/uploads/'))))
+
+                                  return (
+                                    <div key={idx} className="bg-gray-muted p-2.5 rounded-md border border-border-subtle space-y-1">
+                                      <p className="text-[10px] font-bold text-secondary uppercase tracking-wider">{f.name}</p>
+                                      {isImg ? (
+                                        <img src={val} alt={f.name} className="h-16 w-auto rounded border border-border-subtle object-cover mt-1" />
+                                      ) : (
+                                        <p className="text-xs font-semibold text-charcoal-surface break-words leading-snug">
+                                          {typeof val === 'object' ? formatAddressToString(val) : String(val)}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 4. Comments / Pitch */}
+                          {commentText && commentText.trim() && (
+                            <div className="bg-white border border-border-subtle rounded-lg p-4 shadow-2xs space-y-2">
+                              <div className="flex items-center justify-between pb-2 border-b border-border-subtle/60">
+                                <span className="text-[10px] font-bold text-secondary uppercase tracking-widest flex items-center gap-1.5">
+                                  <MessageSquare className="h-3.5 w-3.5 text-secondary" />
+                                  Your Comments / Notes
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowReviewStep(false)}
+                                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Edit
+                                </button>
+                              </div>
+                              <p className="text-xs text-charcoal-surface italic bg-gray-muted p-2.5 rounded-md border border-border-subtle leading-relaxed">
+                                "{commentText.trim()}"
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 5. Store Outlet */}
+                          {selectedStoreOutlet && (
+                            <div className="bg-white border border-border-subtle rounded-lg p-4 shadow-2xs space-y-1 text-xs">
+                              <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Selected Store Outlet</p>
+                              <p className="font-bold text-charcoal-surface">{selectedStoreOutlet.name || selectedStoreOutlet.city}</p>
+                              <p className="text-secondary text-[11px]">{selectedStoreOutlet.address || `${selectedStoreOutlet.city}, ${selectedStoreOutlet.state}`}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Review Footer Actions */}
+                        <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex gap-3 bg-white shrink-0">
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowReviewStep(false)}
+                            className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
+                          >
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Edit Details
+                          </Button>
+                          <Button
+                            onClick={executeFinalSubmission}
+                            disabled={savingProfile}
+                            className="flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer bg-primary-container hover:bg-primary-container/90 text-black"
+                          >
+                            {savingProfile ? (
+                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                            ) : (
+                              <><CheckCircle2 className="mr-2 h-4 w-4" /> Confirm & Apply</>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col h-full overflow-hidden">
+                        {/* Header with campaign info */}
+                        <div className="p-4 sm:p-6 pb-4 border-b border-border-subtle bg-gray-muted shrink-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-lg font-bold text-charcoal-surface flex items-center gap-2">
+                                ✈️ Apply to Campaign
+                                {adminMode && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-extrabold bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200">
+                                    Super Admin (Acting for {user?.full_name || 'Creator'})
+                                  </span>
+                                )}
+                              </h3>
                           <p className="text-secondary text-sm mt-0.5">{campaign.brand_name}</p>
                         </div>
                         <button 
@@ -1049,8 +1408,10 @@ export default function CampaignDetailModal({
                             )}
                           </Button>
                         </div>
-                     </div>
-                  </motion.div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
                 )}
               </AnimatePresence>
 

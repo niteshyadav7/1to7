@@ -77,6 +77,7 @@ CASE 66: Dispatch Modal Workspace Auto-Defaulting, Stale Closure Remediation & B
 CASE 67: Broken Microservice Endpoint & Multi-Tenant RBAC Boundary Failure in Sample Roster Creator Import (Ghost 404 Disappearance & Zero-State Auto-Loading)
 CASE 68: Dual-Tier Commercial Costing & Agency Margin Shield Architecture (Selective Client Quote Pitching vs Zero-Margin PII Leakage)
 CASE 69: Domain Semantic Conflation: Order Form Requirement Hijacking Physical Delivery Address Workflows (Wakefit Purchase Proof vs Barter Courier Dispatch UX)
+CASE 70: Stale Sheet Import Discrepancies: Application Review & Confirmation Gatekeeper with In-Place Handle and Courier Address Reconciliation (Preventing Orphaned Deliveries & Mismatched Social Identity)
 
 
 
@@ -2890,6 +2891,63 @@ When creators clicked the button, the `AddressConfirmationModal` opened, demandi
 
 [INTERVIEW STAR TAKEAWAY]
 "Beware of disjunctive truthy guards (`A || B`) when modeling multi-workflow domain systems. Conflating distinct business requirements (e.g., physical courier delivery vs purchase invoice upload) into a single condition creates state leaks where one feature silently hijacks another. Always model independent workflows with orthogonal flags, decouple their UI state machines, and ensure both paths support zero-redirect in-place execution."
+
+
+
+====================================================================================================
+CASE 70: Stale Sheet Import Discrepancies: Application Review & Confirmation Gatekeeper with In-Place Handle and Courier Address Reconciliation
+====================================================================================================
+CATEGORIES: Frontend Architecture / Data Integrity / State Synchronization / Creator Experience / Schema Normalization
+INTERVIEW QUESTION: "How do you handle data drift and user mistrust when migrating legacy offline spreadsheet records into an automated application pipeline?"
+
+[SITUATION]
+Over 15,000 creator records were originally ingested into the platform's PostgreSQL database via bulk Google Sheet imports. As creators evolved, many changed their Instagram handles, changed their cities/addresses, or had typos introduced during manual sheet data entry.
+When creators clicked "Complete & Apply" (or "Save & Apply") on campaign detail cards, the application was submitted instantly to `/api/apply` without a pre-flight review gatekeeper.
+Consequently:
+1. Brands shortlisted creators based on stale, defunct Instagram handles, leading to rejected collaboration reviews or 404 Instagram page visits.
+2. Product sample dispatches were shipped to obsolete courier addresses, causing expensive Return to Origin (RTO) courier failures and creator dissatisfaction.
+3. Creators had no visibility into what exact parameters (Instagram handle, follower count, shipping address, quotation, answers) were being transmitted to the brand.
+
+[ROOT CAUSE INVESTIGATION]
+1. Blind Immediate Submission Workflow:
+   - In `components/campaigns/CampaignDetailModal.tsx`, clicking `Complete & Apply` immediately triggered `handleSaveInline()`, which fired `fetch('/api/apply', { method: 'POST' })` with zero intermediate review step.
+   - Even when creators knew their sheet-imported profile had an outdated handle or wrong address, the modal did not provide a consolidated review screen showing the final state of their submission.
+2. Backend Fallback Inversion to Stale Profiles:
+   - In `/api/apply/route.ts` and `/api/admin/virtual-profile/[userId]/apply/route.ts`, the profile validation logic checked if `selectedInstagramProfile.username` matched an existing record in `user_instagram_profiles` or `user.instagram_username`.
+   - If a creator provided an updated handle that did not exist in their historical DB records, `verifiedSelectedProfile` evaluated to `null`.
+   - Lines 288-301 then executed a fallback:
+     `primary = dbUserProfiles.find(p => p.is_primary) || user.instagram_username`
+   - This silently reverted the application handle back to the stale sheet import handle and locked it into `applied_instagram_username`!
+3. Canonical Field Underscore Regex Blindspot:
+   - In `lib/utils/profile-sync-utils.ts`, canonical regex pattern `/^instagram\s*username$/i` matched spaces (`\s*`) but failed on snake_case keys (`instagram_username`).
+   - Consequently, profile updates sent as `formData.instagram_username` were bypassed by fallback canonical profile sync.
+
+[SOLUTION & ARCHITECTURE]
+1. Consolidated Pre-Flight Review & Confirmation Gatekeeper:
+   - Introduced an in-modal Review & Confirmation screen in `components/campaigns/CampaignDetailModal.tsx`.
+   - When a creator clicks "Complete & Apply" (or "Save & Apply"), `handleSaveInline()` validates all required fields and mobile verification. Upon success, instead of firing the API, it transitions to `showReviewStep = true`.
+   - The Review screen presents:
+     a) Verified Instagram Identity Card: Shows Instagram gradient avatar, display handle (`@handle`), and follower count. Features an in-place "Edit Handle" mode allowing creators to correct typos or handle changes directly.
+     b) Location & Delivery Details Card: Displays State, City, contact phone, and full courier shipping address (formatted via `formatAddressToString`). Highlights whether physical delivery is required or digital-only.
+     c) Campaign Question Responses: Presents custom question answers (e.g., Commercials quote, shoot availability, size preferences) and image attachments.
+     d) Comments & Pitch Summary: Displays creator notes for the brand.
+     e) Action Bar: Features an `Edit Details` button (`setShowReviewStep(false)`) to return to editing without losing any input state, and a primary `Confirm & Apply` button that executes `executeFinalSubmission()`.
+2. Responsive & Platform Design Tokens Compliance:
+   - Styled using platform design tokens (`bg-white`, `border-border-subtle`, `bg-gray-muted`, `bg-primary-container text-black font-bold uppercase`, `text-charcoal-surface`).
+   - Fully responsive across mobile (iPhone SE, 360px) and desktop with smooth scroll containers (`no-scrollbar scrollbar-none`).
+3. Backend Correction Acceptance & Bidirectional Profile Sync:
+   - Updated `/api/apply/route.ts` and `/api/admin/virtual-profile/[userId]/apply/route.ts` to accept corrected handles in `selectedInstagramProfile.username` or `formData.instagram_username`.
+   - If the handle differs from stale DB records, the API accepts it as `verifiedSelectedProfile`, locks it into `applied_instagram_username`, updates `users.instagram_username`, and inserts/upserts the verified handle into `user_instagram_profiles`.
+4. Canonical Regex Normalization:
+   - Updated canonical field matching in `lib/utils/profile-sync-utils.ts` to `/^(instagram|instagram[\s_]*handle|insta[\s_]*handle|ig[\s_]*handle|instagram[\s_]*username|insta[\s_]*username|instagram[\s_]*link|instagram[\s_]*profile)$/i`, supporting both snake_case and whitespace variations.
+5. Automated Test Suite:
+   - Created `tests/unit/application-review-confirmation.test.ts` (9 tests) covering handle cleaning, display formatting, address resolution hierarchy, required field gatekeeping, and payload assembly.
+   - All 38 test suites (302 tests) passing green.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never treat legacy imported records as infallible ground truth when initiating high-stakes business transactions (such as influencer brand pitches or courier logistics dispatch). Implement an explicit pre-flight Review & Confirmation gatekeeper that presents the exact identity and delivery parameters being committed, gives users in-place amendment capabilities, and bidirectionally syncs verified changes back into core database profiles."
+
+
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

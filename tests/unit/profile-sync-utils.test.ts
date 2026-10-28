@@ -168,6 +168,18 @@ describe('profile-sync-utils', () => {
       expect(customAttributes.skin_type).toBeDefined()
       expect(customAttributes.skin_type.value).toBe('Oily / Sensitive')
     })
+
+    it('syncs instagram_username to profileUpdates when present in formData', () => {
+      const formData = {
+        'Instagram Handle': '@new_creator_handle',
+      }
+      const existingProfile = {
+        instagram_username: 'old_sheet_import_handle',
+      }
+      const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, existingProfile)
+      expect(hasChanges).toBe(true)
+      expect(profileUpdates.instagram_username).toBe('new_creator_handle')
+    })
   })
 })
 
