@@ -36,6 +36,8 @@ export interface ColumnDef<T> {
   hideable?: boolean
   align?: 'left' | 'center' | 'right'
   width?: string
+  minWidth?: string
+  maxWidth?: string
   wrap?: boolean
   accessor?: (row: T) => any
   render?: (row: T, index: number) => React.ReactNode
@@ -585,7 +587,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     <th
                       key={col.key}
                       onClick={() => canSort && handleSort(col.key)}
-                      style={{ width: col.width }}
+                      style={{ width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.maxWidth }}
                       className={`${isCompact ? 'py-2 px-2' : 'py-2.5 px-2.5 sm:px-3'} transition-colors ${
                         col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
                       } ${
@@ -724,7 +726,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                         return (
                           <td
                             key={col.key}
-                            style={{ width: col.width }}
+                            style={{ width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.maxWidth }}
                             className={`${
                               col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
                             } ${

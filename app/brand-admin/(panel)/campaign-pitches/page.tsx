@@ -617,7 +617,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Creator',
         sortable: true,
         wrap: true,
-        width: '19%',
+        width: '17%',
+        minWidth: '180px',
         accessor: (row) => row.creator_name,
         render: (item) => (
           <div className="flex items-center gap-2 min-w-0">
@@ -689,7 +690,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Brand & Campaign',
         sortable: true,
         wrap: true,
-        width: '16%',
+        width: '15%',
+        minWidth: '160px',
         accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
         render: (item) => (
           <div className="min-w-0">
@@ -739,7 +741,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Audience & Reach',
         sortable: true,
         wrap: true,
-        width: '12%',
+        width: '10%',
+        minWidth: '110px',
         accessor: (row) => row.followers || 0,
         render: (item) => (
           <div className="min-w-0">
@@ -766,7 +769,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Variant / SKU',
         sortable: true,
         wrap: true,
-        width: '10%',
+        width: '9%',
+        minWidth: '95px',
         accessor: (row) => row.selected_variant || 'Standard',
         render: (item) => (
           <div className="min-w-0">
@@ -797,7 +801,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Delivery Address',
         sortable: true,
         wrap: true,
-        width: '14%',
+        width: '13%',
+        minWidth: '135px',
         accessor: (row) => row.address_verification_status || 'None',
         render: (item) => (
           <div className="min-w-0">
@@ -862,7 +867,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Costing / Commercial',
         sortable: true,
         wrap: true,
-        width: '12%',
+        width: '11%',
+        minWidth: '120px',
         accessor: (row) => row.client_commercial || 0,
         render: (item) => {
           const hasCommercial = item.client_commercial && item.client_commercial > 0
@@ -932,7 +938,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Status & Decision',
         sortable: true,
         wrap: true,
-        width: '10%',
+        width: '13%',
+        minWidth: '140px',
         accessor: (row) => row.brand_review_status,
         render: (item) => {
           const isApproved = item.brand_review_status === 'brand_approved'
@@ -987,13 +994,13 @@ export default function CampaignPitchesCurationPage() {
           if (isQueued) {
             return (
               <div className="min-w-0">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[115px]">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[135px]">
                   <Clock className="h-3 w-3 text-blue-400 animate-pulse shrink-0" />
                   <span className="truncate">Queued for KAM</span>
                 </span>
                 {item.brand_pitched_by && (
                   <div
-                    className="text-[9px] text-blue-300/80 mt-0.5 truncate max-w-[115px]"
+                    className="text-[9px] text-blue-300/80 mt-0.5 truncate max-w-[135px]"
                     title={`Forwarded by ${item.brand_pitched_by}${item.brand_pitched_at ? ` on ${new Date(item.brand_pitched_at).toLocaleString('en-IN')}` : ''}`}
                   >
                     Fwd: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
@@ -1005,13 +1012,13 @@ export default function CampaignPitchesCurationPage() {
 
           return (
             <div className="min-w-0">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[110px]">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[135px]">
                 <Send className="h-3 w-3 text-purple-400 shrink-0" />
                 <span className="truncate">With Brand</span>
               </span>
               {item.brand_pitched_by && (
                 <div
-                  className="text-[9px] text-purple-300/80 mt-0.5 truncate max-w-[110px]"
+                  className="text-[9px] text-purple-300/80 mt-0.5 truncate max-w-[135px]"
                   title={`Dispatched / Forwarded by ${item.brand_pitched_by}`}
                 >
                   By: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
@@ -1027,11 +1034,12 @@ export default function CampaignPitchesCurationPage() {
         sortable: false,
         hideable: false,
         align: 'right',
-        width: '7%',
+        width: '10%',
+        minWidth: '110px',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
           return (
-            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-1.5 shrink-0 whitespace-nowrap min-w-[85px]" onClick={(e) => e.stopPropagation()}>
               {!isQueued && (
                 <button
                   type="button"
@@ -1049,7 +1057,7 @@ export default function CampaignPitchesCurationPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenDispatchModal(item.application_id)}
-                    className="h-6 px-2 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="h-6 px-2.5 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                     title="Send to Brand Client Portal"
                   >
                     <Send className="h-2.5 w-2.5" />
@@ -1398,7 +1406,7 @@ export default function CampaignPitchesCurationPage() {
         keyField="application_id"
         loading={loading}
         tableLayout="fixed"
-        minTableWidth="min-w-[1140px]"
+        minTableWidth="min-w-[1260px]"
         defaultCompact={true}
         selectedRowIds={selectedIds}
         onSelectionChange={setSelectedIds}
