@@ -5,22 +5,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard,
   Users,
-  Truck,
-  Video,
-  BarChart3,
-  Shield,
   LogOut,
   Menu,
   X,
-  ChevronDown,
   ChevronLeft,
   Building2,
   Sparkles,
-  ExternalLink,
-  Bell,
-  CheckCircle2,
   BookmarkPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -34,13 +25,8 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', href: '/brand/dashboard', icon: LayoutDashboard },
-  { name: 'Campaigns & Review', href: '/brand/campaigns', icon: Users },
-  { name: 'Pitch Decks', href: '/brand/sample-rosters', icon: BookmarkPlus, badge: 'Pitched' },
-  { name: 'Sample Dispatches', href: '/brand/dispatches', icon: Truck },
-  { name: 'Live Deliverables', href: '/brand/deliverables', icon: Video },
-  { name: 'Analytics & ROI', href: '/brand/reports', icon: BarChart3 },
-  { name: 'Brand Admin', href: '/brand/admin/team', icon: Shield },
+  { name: 'Creator Review Studio', href: '/brand/campaigns', icon: Users },
+  { name: 'Sample Pitch Decks', href: '/brand/sample-rosters', icon: BookmarkPlus, badge: 'Pitched' },
 ]
 
 export default function BrandPanelLayout({ children }: { children: React.ReactNode }) {
@@ -117,8 +103,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   }
 
   const isActive = (href: string) => {
-    if (href === '/brand/dashboard') {
-      return pathname === '/brand/dashboard' || pathname === '/brand'
+    if (href === '/brand/campaigns') {
+      return pathname.startsWith('/brand/campaigns') || pathname === '/brand' || pathname === '/brand/dashboard'
     }
     return pathname.startsWith(href)
   }
@@ -142,10 +128,10 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
             {!isCollapsed && (
               <div className="overflow-hidden min-w-0">
                 <h2 className="font-bold text-white text-sm truncate leading-tight">
-                  {brandUser?.brand_name || 'Brand Workspace'}
+                  {brandUser?.brand_name || 'Brand Review Studio'}
                 </h2>
                 <span className="text-[10px] uppercase tracking-wider text-amber-400 font-medium truncate block">
-                  {brandUser?.role === 'owner' ? 'Director Workspace' : 'Brand Reviewer'}
+                  Client Review Workspace
                 </span>
               </div>
             )}
@@ -326,14 +312,6 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Real-time Live Sync</span>
             </div>
-
-            <Link
-              href="/admin/applications"
-              className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 hover:text-black py-1.5 px-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
-            >
-              <span>1to7 Internal Admin</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </header>
 

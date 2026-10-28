@@ -128,7 +128,7 @@ export default function BrandLoginPage() {
       }
 
       toast.success(`Welcome back, ${data.user?.full_name || 'Brand Partner'}!`)
-      router.push('/brand/dashboard')
+      router.push('/brand/campaigns')
     } catch (err: any) {
       setErrorMsg(err.message || 'Invalid verification code')
       toast.error(err.message || 'Verification failed')
@@ -161,7 +161,7 @@ export default function BrandLoginPage() {
       }
 
       toast.success(`Welcome back, ${data.user?.full_name || 'Brand Partner'}!`)
-      router.push('/brand/dashboard')
+      router.push('/brand/campaigns')
     } catch (err: any) {
       setErrorMsg(err.message || 'Something went wrong. Please try again.')
       toast.error(err.message || 'Login failed')

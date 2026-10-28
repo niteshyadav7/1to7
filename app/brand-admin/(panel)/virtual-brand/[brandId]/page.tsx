@@ -165,7 +165,7 @@ export default function BrandAdminVirtualBrandDetailPage() {
 
         <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
           <Link
-            href="/brand/dashboard"
+            href="/brand/campaigns"
             target="_blank"
             className="px-3.5 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 text-xs font-semibold border border-purple-500/30 flex items-center gap-1.5 transition-colors"
           >

@@ -21,6 +21,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Package,
+  IndianRupee,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandCreatorItem } from '@/types/brand'
@@ -348,19 +349,27 @@ export default function CreatorReviewStudioPage() {
           },
           {
             key: 'selected_variant',
-            header: 'Selected Sample Kit',
-            width: '20%',
+            header: 'Sample & Commercial Quote',
+            width: '22%',
             render: (c) => (
-              c.selected_variant ? (
-                <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
-                    <Package className="w-3 h-3 shrink-0 text-amber-600" />
-                    <span className="truncate block min-w-0">{c.selected_variant}</span>
+              <div className="flex flex-col gap-1 max-w-full">
+                {c.selected_variant ? (
+                  <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
+                      <Package className="w-3 h-3 shrink-0 text-amber-600" />
+                      <span className="truncate block min-w-0">{c.selected_variant}</span>
+                    </div>
+                  </EllipsisTooltip>
+                ) : (
+                  <span className="text-slate-400 text-[10px] italic">Standard Sample</span>
+                )}
+                {c.client_commercial ? (
+                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold w-fit">
+                    <IndianRupee className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                    <span>₹{c.client_commercial.toLocaleString('en-IN')} Quote</span>
                   </div>
-                </EllipsisTooltip>
-              ) : (
-                <span className="text-slate-400 text-[10px] italic">Standard Sample</span>
-              )
+                ) : null}
+              </div>
             ),
           },
           {
