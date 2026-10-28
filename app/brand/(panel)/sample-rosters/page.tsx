@@ -213,25 +213,17 @@ export default function BrandSampleRostersPage() {
     return (activeRoster.visible_columns as string[]).includes(key)
   }
 
-  return (
-    <div className="space-y-5 pb-28 font-sans text-slate-900">
-      {/* ─── 1. PAGE HEADER (Vibrant Luxury Banner) ─── */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#2E1035] text-white shadow-xl relative overflow-hidden border border-white/10">
-        <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#F95738]/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 max-w-3xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#F95738] to-[#FF7659] text-white text-[10px] font-extrabold uppercase tracking-widest shadow-sm">
-            <Flame className="h-3 w-3" />
-            <span>Curated by TheHype Ops</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Sample Creator Pitch Decks
-          </h1>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Hand-picked influencer proposals curated for your brand. Review creator reach, watch sample Reels, and shortlist approved talent in 1 tap.
-          </p>
-        </div>
-      </div>
+  const totalFollowers = useMemo(
+    () => creators.reduce((acc, c) => acc + (Number(c.followers) || 0), 0),
+    [creators]
+  )
+  const totalViews = useMemo(
+    () => creators.reduce((acc, c) => acc + (Number(c.avg_reels_views) || 0), 0),
+    [creators]
+  )
 
+  return (
+    <div className="space-y-4 pb-28 font-sans text-slate-900">
       {loading ? (
         <div className="py-20 text-center space-y-3 bg-white rounded-3xl border border-slate-200 shadow-xs">
           <Loader2 className="h-7 w-7 animate-spin text-[#F95738] mx-auto" />
@@ -250,163 +242,140 @@ export default function BrandSampleRostersPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-5">
-          {/* ─── 2. PITCHED ROSTERS SELECTOR STRIP ─── */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
-                Available Pitch Decks ({rosters.length})
-              </span>
-            </div>
+        <div className="space-y-4">
+          {/* ─── 1. HORIZONTAL SWIPEABLE DECK SWITCHER (Shown when > 1 deck exists) ─── */}
+          {rosters.length > 1 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-0.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                  Switch Pitch Deck ({rosters.length})
+                </span>
+                <span className="text-[10px] text-slate-400 sm:hidden">Swipe →</span>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {rosters.map((r) => {
-                const isSelected = r.id === selectedRosterId
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => setSelectedRosterId(r.id)}
-                    className={`p-4 rounded-2xl text-left transition-all cursor-pointer border relative overflow-hidden ${
-                      isSelected
-                        ? 'bg-gradient-to-br from-[#FFF2EF] via-white to-orange-50/40 border-[#F95738] ring-2 ring-[#F95738]/20 shadow-md'
-                        : 'bg-white text-slate-900 border-slate-200 hover:border-[#F95738]/40 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
-                            {r.title}
-                          </h3>
-                          {r.brand_name && (
-                            <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80">
-                              {r.brand_name}
+              <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-x-auto pb-1 no-scrollbar snap-x">
+                {rosters.map((r) => {
+                  const isSelected = r.id === selectedRosterId
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setSelectedRosterId(r.id)}
+                      className={`min-w-[230px] sm:min-w-0 snap-start p-3.5 rounded-2xl text-left transition-all cursor-pointer border relative overflow-hidden shrink-0 ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-[#FFF2EF] via-white to-orange-50/40 border-[#F95738] ring-2 ring-[#F95738]/20 shadow-sm'
+                          : 'bg-white text-slate-900 border-slate-200 hover:border-[#F95738]/40 shadow-2xs'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                              {r.title}
+                            </h3>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+                              {r.category_niche || 'General'}
                             </span>
-                          )}
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70">
-                            {r.category_niche || 'General'}
-                          </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
+                            <span className="font-bold text-slate-700">
+                              {r.items_count || 0} creators
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {r.published_at
+                                ? new Date(r.published_at).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })
+                                : 'Recent'}
+                            </span>
+                          </div>
                         </div>
-                        {r.pitch_note_to_brand && (
-                          <p className="text-[11px] italic line-clamp-1 text-slate-500">
-                            &ldquo;{r.pitch_note_to_brand}&rdquo;
-                          </p>
+
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ─── 2. ACTIVE ROSTER COMPACT HERO & CONTROLS ─── */}
+          {activeRoster && (
+            <div className="space-y-3.5">
+              {/* Compact Hero + Search/Filter Card */}
+              <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                {/* Dark Gradient Top Strip inside Card */}
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#2E1035] text-white relative overflow-hidden">
+                  <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#F95738]/25 rounded-full blur-2xl pointer-events-none" />
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-[#F95738] to-[#FF7659] text-white text-[9px] font-extrabold uppercase tracking-wider">
+                          <Flame className="h-2.5 w-2.5" />
+                          <span>{activeRoster.category_niche || 'Curated Pitch'}</span>
+                        </span>
+                        {existingShortlist && (
+                          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            <span>
+                              Shortlist Submitted ({existingShortlist.shortlisted_creators_count})
+                            </span>
+                          </span>
                         )}
                       </div>
 
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white flex items-center justify-center shrink-0 shadow-xs">
-                          <Check className="h-3 w-3 stroke-[3]" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-500">
-                      <span className="flex items-center gap-1 font-semibold text-slate-700">
-                        <Users className="h-3 w-3 text-[#F95738]" />
-                        <strong>{r.items_count || 0}</strong> creators
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-slate-400" />
-                        {r.published_at
-                          ? new Date(r.published_at).toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                            })
-                          : 'Recent'}
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* ─── 3. ACTIVE ROSTER WORKSPACE ─── */}
-          {activeRoster && (
-            <div className="space-y-4">
-              {/* Roster Header & Controls Card */}
-              <div className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-base sm:text-xl font-black text-slate-900">
+                      <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight truncate">
                         {activeRoster.title}
-                      </h2>
-                      <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">
-                        {creators.length} Creators
-                      </span>
-                      {existingShortlist && (
-                        <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                          <span>
-                            Shortlist Submitted ({existingShortlist.shortlisted_creators_count})
-                          </span>
-                        </span>
+                      </h1>
+
+                      {activeRoster.pitch_note_to_brand && (
+                        <p className="text-xs text-slate-300 line-clamp-2">
+                          <strong className="text-[#FF8A70]">KAM Note:</strong>{' '}
+                          {activeRoster.pitch_note_to_brand}
+                        </p>
                       )}
                     </div>
 
-                    {activeRoster.pitch_note_to_brand && (
-                      <p className="text-xs text-slate-600 pt-1">
-                        <strong className="text-[#D83B1C]">KAM Note:</strong>{' '}
-                        {activeRoster.pitch_note_to_brand}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Right Controls: View Switcher + Primary Action */}
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('grid')}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                          viewMode === 'grid'
-                            ? 'bg-white text-[#F95738] shadow-xs'
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                      >
-                        <LayoutGrid className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Cards</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setViewMode('table')}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                          viewMode === 'table'
-                            ? 'bg-white text-[#F95738] shadow-xs'
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                      >
-                        <List className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Table</span>
-                      </button>
+                    {/* Compact KPI Pills */}
+                    <div className="grid grid-cols-3 gap-2 shrink-0">
+                      <div className="px-3 py-1.5 rounded-2xl bg-white/10 border border-white/10 text-center">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-slate-300 block">
+                          Creators
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-white">
+                          {creators.length}
+                        </span>
+                      </div>
+                      <div className="px-3 py-1.5 rounded-2xl bg-white/10 border border-white/10 text-center">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-indigo-300 block">
+                          Reach
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-white">
+                          {formatCompactNumber(totalFollowers)}
+                        </span>
+                      </div>
+                      <div className="px-3 py-1.5 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-center">
+                        <span className="text-[9px] uppercase font-bold tracking-wider text-emerald-300 block">
+                          Selected
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-emerald-300">
+                          {selectedIds.size}/{creators.length}
+                        </span>
+                      </div>
                     </div>
-
-                    {canShortlist ? (
-                      <button
-                        type="button"
-                        disabled={selectedIds.size === 0}
-                        onClick={() => setShowShortlistModal(true)}
-                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-[#F95738]/20 disabled:opacity-35 disabled:cursor-not-allowed transition-all cursor-pointer"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                        <span>Shortlist ({selectedIds.size})</span>
-                      </button>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-                        <Eye className="w-3.5 h-3.5 text-amber-600" />
-                        <span>View Only</span>
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Search & Selection Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="relative flex-1 max-w-md">
+                {/* Controls & Search Bar */}
+                <div className="p-3 sm:p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                     <input
                       type="text"
@@ -417,8 +386,8 @@ export default function BrandSampleRostersPage() {
                     />
                   </div>
 
-                  {canShortlist && (
-                    <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
+                    {canShortlist && (
                       <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold">
                         <button
                           type="button"
@@ -443,7 +412,37 @@ export default function BrandSampleRostersPage() {
                           Selected ({selectedIds.size})
                         </button>
                       </div>
+                    )}
 
+                    {/* View Mode Toggle: Cards vs Compact List */}
+                    <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('grid')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                          viewMode === 'grid'
+                            ? 'bg-white text-[#F95738] shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                        <span>Cards</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewMode('table')}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                          viewMode === 'table'
+                            ? 'bg-white text-[#F95738] shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        <List className="h-3.5 w-3.5" />
+                        <span>List</span>
+                      </button>
+                    </div>
+
+                    {canShortlist ? (
                       <button
                         type="button"
                         onClick={toggleSelectAll}
@@ -454,8 +453,13 @@ export default function BrandSampleRostersPage() {
                           ? 'Clear All'
                           : 'Select All'}
                       </button>
-                    </div>
-                  )}
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
+                        <Eye className="w-3 h-3 text-amber-600" />
+                        <span>View Only</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

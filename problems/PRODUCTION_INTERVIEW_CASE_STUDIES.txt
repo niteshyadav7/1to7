@@ -88,6 +88,7 @@ CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATER
 CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
 CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
 CASE 80: Multi-Tab Cookie Collision, Cross-Tenant `brand_id IS NULL` SQL Leakage & Stale Tab Roster Submission (`1to7 Brand` vs `Invergy`)
+CASE 81: Zero-Sidebar Mobile-First Brand Portal Architecture: Replacing Desktop Left Sidebars with a Sticky 2-Tab Segmented Navigation Hub & Responsive Creator Review Cards
 
 
 
@@ -3382,6 +3383,35 @@ An admin cloned the `Doctors` sample roster (originally created on `28 Oct` for 
 
 [INTERVIEW STAR TAKEAWAY]
 "When admins impersonate multiple tenants in the same browser, HTTP-only cookies are shared across all tabs. Never rely solely on the ambient cookie when mutating a tenant-scoped resource, never include `OR tenant_id IS NULL` in tenant portal queries, and always bind `focus`/`visibilitychange` revalidation plus explicit `?rosterId=` deep-linking so stale tabs self-heal the moment a user switches back to them."
+
+====================================================================================================
+CASE 81: Zero-Sidebar Mobile-First Brand Portal Architecture: Replacing Desktop Left Sidebars with a Sticky 2-Tab Segmented Navigation Hub & Responsive Creator Review Cards
+----------------------------------------------------------------------------------------------------
+Category: Mobile-First Architecture / Navigation Ergonomics / Responsive Card-Table Duality
+Interview Question:
+"When an enterprise client portal only has two core workflows and 80%+ of client stakeholders access it from mobile phones, why is a traditional desktop sidebar + mobile hamburger/bottom-bar anti-pattern harmful, and how do you re-architect the layout?"
+
+[SITUATION]
+The Brand Client Portal (`/brand/*`) only had two primary workspaces: `Sample Pitch Decks` (`/brand/sample-rosters`) and `Campaign Applications` (`/brand/campaigns`). However, it used a 256px fixed left sidebar (`w-64`) on desktop and a hamburger drawer + fixed bottom bar on mobile:
+1. On desktop/tablet, the left sidebar consumed ~20-25% of horizontal viewport width just to display 2 links.
+2. On mobile, hiding 2 links behind a hamburger menu added unnecessary friction, while the fixed bottom navigation bar clashed with the floating `Confirm Shortlist (X)` action dock.
+3. Furthermore, `/brand/campaigns` and `/brand/campaigns/[id]/creators` rendered desktop-only `<DynamicDataTable>` views rather than mobile-first cards.
+
+[ROOT CAUSE]
+The Brand Portal inherited a multi-module SaaS admin shell (`aside.w-64`) originally designed for 8+ navigation items, even after the portal was streamlined to two focused client workflows (Sample Pitch Decks and Campaign Applications).
+
+[SOLUTION & ARCHITECTURE]
+1. Zero-Sidebar Sticky Top Hub with Integrated 2-Tab Segmented Pill Switcher (`app/brand/(panel)/layout.tsx`):
+   - Removed the fixed left sidebar (`w-64`), hamburger drawer, and bottom tab bar entirely.
+   - Built a unified sticky top header (`bg-[#0F172A]/95`) housing brand identity, live badge counts, and a 1-tap 2-Tab Segmented Switcher (`Sample Pitch Decks` | `Campaign Applications`) centered in the top bar on desktop and spanning full width as a thumb-friendly 2-column segmented control on mobile.
+   - Freed the bottom viewport edge on mobile exclusively for contextual floating action docks (`Confirm Shortlist (X)` and `Approve Selected (X)`).
+2. Compact Above-the-Fold Sample Pitch Workspace (`app/brand/(panel)/sample-rosters/page.tsx`):
+   - Consolidated the hero banner and active deck controls into a single compact header card with live KPI pills (`Creators`, `Reach`, `Selected`), and rendered a horizontal swipeable deck switcher only when `rosters.length > 1`.
+3. Mobile-First Campaign & Creator Application Cards (`app/brand/(panel)/campaigns/page.tsx` & `app/brand/(panel)/campaigns/[id]/creators/page.tsx`):
+   - Added responsive `Cards | Table` view modes (defaulting to mobile-first Cards) for both Campaign Directories and Creator Application Reviews, complete with 1-tap `Approve Creator` / `Reject` buttons, courier address manifest copy, and a floating bulk decision dock.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never force a 2-tab mobile-first product into a desktop sidebar + hamburger drawer template. When a client portal has two primary destinations, a sticky top segmented control keeps 100% of navigation visible at all times with zero menu taps, reclaims 256px of horizontal width, and leaves the bottom thumb zone completely unobstructed for primary transaction docks."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

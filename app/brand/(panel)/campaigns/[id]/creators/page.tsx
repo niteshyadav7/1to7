@@ -5,25 +5,23 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Users,
   CheckCircle2,
   XCircle,
   Clock,
   Instagram,
   MapPin,
   Search,
-  Filter,
   Check,
   X,
-  Sparkles,
   ArrowLeft,
   Loader2,
-  ExternalLink,
-  ShieldCheck,
   Package,
   Truck,
   Copy,
   IndianRupee,
+  LayoutGrid,
+  List,
+  ArrowUpRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandCreatorItem } from '@/types/brand'
@@ -40,11 +38,23 @@ const rejectionReasons = [
   'Other / criteria not satisfied',
 ]
 
+const AVATAR_GRADIENTS = [
+  'from-[#F95738] to-[#FF8A5B] shadow-[#F95738]/25',
+  'from-violet-600 to-indigo-600 shadow-violet-500/25',
+  'from-rose-500 to-pink-600 shadow-rose-500/25',
+  'from-emerald-500 to-teal-600 shadow-emerald-500/25',
+  'from-blue-600 to-cyan-500 shadow-blue-500/25',
+  'from-amber-500 to-orange-600 shadow-amber-500/25',
+]
+
 export default function CreatorReviewStudioPage() {
   const { id: campaignId } = useParams<{ id: string }>()
   const [creators, setCreators] = useState<BrandCreatorItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [search, setSearch] = useState('')
+  const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
 
   // Rejection modal state
@@ -53,25 +63,40 @@ export default function CreatorReviewStudioPage() {
   const [customNote, setCustomNote] = useState('')
 
   // Fetch creators for this campaign
-  const fetchCreators = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(`/api/brand/campaigns/${campaignId}/creators`)
-      const data = await res.json()
-      if (res.ok && data.creators) {
-        setCreators(data.creators)
-      } else {
-        toast.error(data.error || 'Failed to fetch creators')
+  const fetchCreators = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) setLoading(true)
+        const res = await fetch(`/api/brand/campaigns/${campaignId}/creators`, { cache: 'no-store' })
+        const data = await res.json()
+        if (res.ok && data.creators) {
+          setCreators(data.creators)
+        } else if (!silent) {
+          toast.error(data.error || 'Failed to fetch creators')
+        }
+      } catch {
+        if (!silent) toast.error('Network error loading creators')
+      } finally {
+        if (!silent) setLoading(false)
       }
-    } catch {
-      toast.error('Network error loading creators')
-    } finally {
-      setLoading(false)
-    }
-  }, [campaignId])
+    },
+    [campaignId]
+  )
 
   useEffect(() => {
-    fetchCreators()
+    fetchCreators(false)
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchCreators(true)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleFocus)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
   }, [fetchCreators])
 
   // Tab counts
@@ -84,7 +109,14 @@ export default function CreatorReviewStudioPage() {
     }
   }, [creators])
 
-  // Filtered creators based on active tab
+  // Auto-switch from pending to all if there are 0 pending but > 0 approved/rejected on initial load
+  useEffect(() => {
+    if (!loading && creators.length > 0 && counts.pending === 0 && activeTab === 'pending') {
+      setActiveTab('all')
+    }
+  }, [loading, creators.length, counts.pending, activeTab])
+
+  // Filtered creators based on active tab & search
   const filteredCreators = useMemo(() => {
     return creators.filter((creator) => {
       if (activeTab === 'pending' && creator.brand_review_status !== 'pending_brand_review') {
@@ -96,9 +128,33 @@ export default function CreatorReviewStudioPage() {
       if (activeTab === 'rejected' && creator.brand_review_status !== 'brand_rejected') {
         return false
       }
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        return (
+          creator.creator_name?.toLowerCase().includes(q) ||
+          creator.instagram_username?.toLowerCase().includes(q) ||
+          creator.city?.toLowerCase().includes(q) ||
+          creator.selected_variant?.toLowerCase().includes(q)
+        )
+      }
       return true
     })
-  }, [creators, activeTab])
+  }, [creators, activeTab, search])
+
+  const toggleSelectApp = (appId: string) => {
+    const next = new Set(selectedAppIds)
+    if (next.has(appId)) next.delete(appId)
+    else next.add(appId)
+    setSelectedAppIds(next)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedAppIds.size === filteredCreators.length && filteredCreators.length > 0) {
+      setSelectedAppIds(new Set())
+    } else {
+      setSelectedAppIds(new Set(filteredCreators.map((c) => c.application_id)))
+    }
+  }
 
   // 1-Click Approve Action
   const handleApprove = async (applicationId: string, creatorName: string) => {
@@ -117,14 +173,23 @@ export default function CreatorReviewStudioPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to approve creator')
 
       toast.success(`Approved ${creatorName}! Product sample dispatch is queued.`)
-      
+
       setCreators((prev) =>
         prev.map((c) =>
           c.application_id === applicationId
-            ? { ...c, brand_review_status: 'brand_approved', brand_reviewed_at: new Date().toISOString() }
+            ? {
+                ...c,
+                brand_review_status: 'brand_approved',
+                brand_reviewed_at: new Date().toISOString(),
+              }
             : c
         )
       )
+      setSelectedAppIds((prev) => {
+        const next = new Set(prev)
+        next.delete(applicationId)
+        return next
+      })
     } catch (err: any) {
       toast.error(err.message || 'Approval failed')
     } finally {
@@ -213,6 +278,7 @@ export default function CreatorReviewStudioPage() {
             : c
         )
       )
+      setSelectedAppIds(new Set())
     } catch (err: any) {
       toast.error(err.message || 'Bulk action failed')
     } finally {
@@ -220,310 +286,553 @@ export default function CreatorReviewStudioPage() {
     }
   }
 
+  const selectedCreatorItems = useMemo(
+    () => creators.filter((c) => selectedAppIds.has(c.application_id)),
+    [creators, selectedAppIds]
+  )
+
   return (
-    <div className="space-y-6 pb-20 font-sans">
-      {/* ─── BREADCRUMBS & TOP BAR ─── */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/brand/campaigns"
-          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-black hover:bg-slate-50 transition shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Creator Review Studio
-          </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Review and 1-click approve shortlisted creators for sample dispatch.
-          </p>
+    <div className="space-y-4 pb-28 font-sans text-slate-900">
+      {/* ─── 1. COMPACT MOBILE-FIRST HEADER & FILTER BAR ─── */}
+      <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#2E1035] text-white relative overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#F95738]/25 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <Link
+                href="/brand/campaigns"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition shrink-0 mt-0.5 sm:mt-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <div>
+                <h1 className="text-base sm:text-xl font-black text-white tracking-tight">
+                  Campaign Creator Applications
+                </h1>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  1-tap approve or reject shortlisted creators for product sample dispatch.
+                </p>
+              </div>
+            </div>
+
+            {/* Status Filter Pills inside Header */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+              {[
+                { key: 'pending', label: 'Pending', count: counts.pending },
+                { key: 'approved', label: 'Approved', count: counts.approved },
+                { key: 'rejected', label: 'Rejected', count: counts.rejected },
+                { key: 'all', label: 'All', count: counts.all },
+              ].map((tab) => {
+                const isActive = activeTab === tab.key
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                      isActive
+                        ? 'bg-[#F95738] text-white shadow-sm'
+                        : 'bg-white/10 text-slate-300 hover:bg-white/15 hover:text-white'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                        isActive ? 'bg-black/25 text-white' : 'bg-white/10 text-slate-200'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Search + View Toggle + Select All Strip */}
+        <div className="p-3 sm:p-4 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search creator name, @handle, city, sample variant..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-2">
+            <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-white text-[#F95738] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-white text-[#F95738] shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                <span>Table</span>
+              </button>
+            </div>
+
+            {filteredCreators.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-[#F95738]/30 bg-[#FFF2EF] hover:bg-[#F95738] text-[#D83B1C] hover:text-white transition-colors cursor-pointer"
+              >
+                {selectedAppIds.size === filteredCreators.length ? 'Clear All' : 'Select All'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ─── PRODUCTION GRADE DYNAMIC DATA TABLE ─── */}
-      <DynamicDataTable<BrandCreatorItem>
-        theme="light"
-        keyField="application_id"
-        tableLayout="fixed"
-        loading={loading}
-        title="Campaign Creator Shortlists"
-        subtitle="1-click approve creators or bulk select candidates for automated courier dispatch"
-        data={filteredCreators}
-        exportFilename={`thehype_campaign_${campaignId}_creators.csv`}
-        searchPlaceholder="Search creator handle, name, city, or sample..."
-        filterTabs={{
-          key: 'status',
-          options: [
-            { label: 'Pending Review', value: 'pending', count: counts.pending },
-            { label: 'Approved', value: 'approved', count: counts.approved },
-            { label: 'Rejected', value: 'rejected', count: counts.rejected },
-            { label: 'All Creators', value: 'all', count: counts.all },
-          ],
-          activeValue: activeTab,
-          onChange: (val) => setActiveTab(val as any),
-        }}
-        bulkActions={[
-          {
-            label: 'Bulk 1-Click Approve',
-            icon: Check,
-            variant: 'default',
-            onClick: async (selected) => {
-              await handleBulkAction(selected, true)
-            },
-          },
-          {
-            label: 'Bulk Reject',
-            icon: X,
-            variant: 'danger',
-            onClick: async (selected) => {
-              await handleBulkAction(selected, false)
-            },
-          },
-        ]}
-        columns={[
-          {
-            key: 'creator_name',
-            header: 'Creator & Instagram Profile',
-            sortable: true,
-            width: '26%',
-            render: (c) => (
-              <div className="flex items-center gap-2 min-w-0 max-w-full">
-                <div className="w-7 h-7 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] font-black flex items-center justify-center shrink-0 text-[10px]">
-                  {c.creator_name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <EllipsisTooltip
-                    text={c.creator_name}
-                    subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}${c.brand_pitch_notes ? ` • Note: ${c.brand_pitch_notes}` : ''}`}
-                  >
-                    <div className="font-bold text-slate-900 text-[11px] truncate cursor-default max-w-[140px]">
-                      {c.creator_name}
+      {/* ─── 2. CREATOR CARDS OR TABLE ─── */}
+      {loading ? (
+        <div className="py-16 text-center space-y-2 bg-white rounded-3xl border border-slate-200">
+          <Loader2 className="h-6 w-6 animate-spin text-[#F95738] mx-auto" />
+          <p className="text-xs text-slate-500 font-semibold">Loading creator applications...</p>
+        </div>
+      ) : viewMode === 'cards' ? (
+        filteredCreators.length === 0 ? (
+          <div className="py-14 text-center text-xs text-slate-500 bg-white rounded-3xl border border-slate-200 p-8">
+            No creators found in this filter view.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {filteredCreators.map((c, idx) => {
+              const isApproved = c.brand_review_status === 'brand_approved'
+              const isRejected = c.brand_review_status === 'brand_rejected'
+              const isSelected = selectedAppIds.has(c.application_id)
+              const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
+              const isVerifiedAddr =
+                c.address_verification_status === 'Verified' && c.verified_address
+
+              return (
+                <div
+                  key={c.application_id}
+                  className={`rounded-3xl bg-white border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-xs ${
+                    isApproved
+                      ? 'border-emerald-500/70 bg-gradient-to-b from-emerald-50/20 via-white to-white'
+                      : isRejected
+                        ? 'border-red-200 bg-slate-50/40'
+                        : isSelected
+                          ? 'border-[#F95738] ring-2 ring-[#F95738]/20'
+                          : 'border-slate-200/90 hover:border-[#F95738]/50'
+                  }`}
+                >
+                  <div
+                    className={`h-1 w-full bg-gradient-to-r ${
+                      isApproved
+                        ? 'from-emerald-400 to-teal-600'
+                        : isRejected
+                          ? 'from-red-400 to-rose-500'
+                          : gradientClass.split(' ').slice(0, 2).join(' ')
+                    }`}
+                  />
+
+                  <div className="p-4 space-y-3">
+                    {/* Top Row: Avatar + Name + Instagram + Checkbox */}
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`h-11 w-11 rounded-2xl bg-gradient-to-br ${gradientClass} text-white flex items-center justify-center font-black text-sm shrink-0 shadow-sm`}
+                        >
+                          {c.creator_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-extrabold text-sm text-slate-900 truncate">
+                            {c.creator_name}
+                          </h3>
+                          <a
+                            href={`https://instagram.com/${c.instagram_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-pink-600 hover:underline mt-0.5"
+                          >
+                            <Instagram className="h-3 w-3 shrink-0 text-pink-500" />
+                            <span className="truncate">@{c.instagram_username}</span>
+                            <ArrowUpRight className="h-3 w-3 shrink-0 opacity-70" />
+                          </a>
+                        </div>
+                      </div>
+
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectApp(c.application_id)}
+                        className="h-4 w-4 rounded border-slate-300 accent-[#F95738] cursor-pointer mt-1 shrink-0"
+                      />
                     </div>
-                  </EllipsisTooltip>
-                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                    <a
-                      href={`https://instagram.com/${c.instagram_username}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
-                    >
-                      <Instagram className="w-2.5 h-2.5 shrink-0" />
-                      <span className="truncate">@{c.instagram_username}</span>
-                    </a>
-                    {c.brand_pitch_batch_name && (
-                      <span
-                        className="text-[9px] font-semibold text-[#D83B1C] bg-[#FFF2EF] px-1 py-0.2 rounded border border-[#F95738]/20 truncate max-w-[100px]"
-                        title={`Shortlist: ${c.brand_pitch_batch_name}`}
-                      >
-                        {c.brand_pitch_batch_name}
+
+                    {/* Metrics & Badges Row */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200/70 text-[10px] font-extrabold">
+                        <span>{formatFollowerCount(c.followers)} Followers</span>
                       </span>
+
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">
+                        <MapPin className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                        <span className="truncate max-w-[110px]">{c.city || 'Pan India'}</span>
+                      </span>
+
+                      {c.client_commercial ? (
+                        <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-extrabold">
+                          <IndianRupee className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                          <span>₹{c.client_commercial.toLocaleString('en-IN')}</span>
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {/* Product Variant & Delivery Address Strip */}
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-2.5 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-500 font-semibold flex items-center gap-1">
+                          <Package className="w-3 h-3 text-[#F95738] shrink-0" />
+                          <span>Sample:</span>
+                        </span>
+                        <span className="font-bold text-slate-900 truncate">
+                          {c.selected_variant || 'Standard Sample'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+                        <span className="text-slate-500 font-semibold flex items-center gap-1">
+                          <Truck className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>Address:</span>
+                        </span>
+                        {isVerifiedAddr && c.verified_address ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (c.verified_address?.courier_text) {
+                                navigator.clipboard.writeText(c.verified_address.courier_text)
+                                toast.success(`Copied courier manifest for ${c.creator_name}`)
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                          >
+                            <span>
+                              {c.verified_address.city}, {c.verified_address.pincode}
+                            </span>
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        ) : c.address_verification_status === 'Pending' ? (
+                          <span className="text-[10px] font-bold text-amber-700">
+                            Verification Pending
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 italic">Awaiting</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Footer: 1-Tap Approve / Reject */}
+                  <div className="px-4 pb-4 pt-1">
+                    {c.brand_review_status === 'pending_brand_review' ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(c.application_id, c.creator_name)}
+                          disabled={actionInProgress === c.application_id}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#F95738]/20 transition cursor-pointer disabled:opacity-50"
+                        >
+                          {actionInProgress === c.application_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              <span>Approve Creator</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRejectModalItem(c)
+                            setSelectedReason(rejectionReasons[0])
+                            setCustomNote('')
+                          }}
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold text-xs flex items-center justify-center gap-1 transition cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    ) : isApproved ? (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <span className="text-emerald-800 font-extrabold text-xs flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Approved for Dispatch</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRejectModalItem(c)
+                            setSelectedReason(rejectionReasons[0])
+                            setCustomNote('')
+                          }}
+                          className="text-[11px] font-bold text-slate-500 hover:text-red-600 underline cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-red-50 border border-red-200">
+                        <span className="text-red-700 font-extrabold text-xs flex items-center gap-1.5 truncate">
+                          <XCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          <span className="truncate">{c.brand_rejection_reason || 'Rejected'}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleApprove(c.application_id, c.creator_name)}
+                          className="text-[11px] font-bold text-emerald-700 hover:underline shrink-0 ml-2 cursor-pointer"
+                        >
+                          Approve
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            ),
-          },
-          {
-            key: 'follower_count',
-            header: 'Followers',
-            sortable: true,
-            align: 'center',
-            width: '12%',
-            render: (c) => (
-              <span className="font-bold text-slate-900 text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 whitespace-nowrap">
-                {formatFollowerCount(c.followers)}
-              </span>
-            ),
-          },
-          {
-            key: 'city',
-            header: 'City',
-            sortable: true,
-            width: '12%',
-            render: (c) => (
-              <EllipsisTooltip text={c.city || 'Pan India'} subtext="Creator Location">
-                <div className="inline-flex items-center gap-1 text-slate-600 text-[10px] truncate max-w-full cursor-default">
+              )
+            })}
+          </div>
+        )
+      ) : (
+        /* ─── DESKTOP TABLE VIEW ─── */
+        <DynamicDataTable<BrandCreatorItem>
+          theme="light"
+          keyField="application_id"
+          tableLayout="fixed"
+          loading={loading}
+          title="Campaign Creator Shortlists"
+          subtitle="1-click approve creators or bulk select candidates for automated courier dispatch"
+          data={filteredCreators}
+          exportFilename={`thehype_campaign_${campaignId}_creators.csv`}
+          searchPlaceholder="Search creator handle, name, city, or sample..."
+          bulkActions={[
+            {
+              label: 'Bulk 1-Click Approve',
+              icon: Check,
+              variant: 'default',
+              onClick: async (selected) => {
+                await handleBulkAction(selected, true)
+              },
+            },
+            {
+              label: 'Bulk Reject',
+              icon: X,
+              variant: 'danger',
+              onClick: async (selected) => {
+                await handleBulkAction(selected, false)
+              },
+            },
+          ]}
+          columns={[
+            {
+              key: 'creator_name',
+              header: 'Creator & Instagram Profile',
+              sortable: true,
+              width: '26%',
+              render: (c) => (
+                <div className="flex items-center gap-2 min-w-0 max-w-full">
+                  <div className="w-7 h-7 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] font-black flex items-center justify-center shrink-0 text-[10px]">
+                    {c.creator_name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <EllipsisTooltip
+                      text={c.creator_name}
+                      subtext={`@${c.instagram_username} • ${c.city || 'Pan India'}`}
+                    >
+                      <div className="font-bold text-slate-900 text-[11px] truncate cursor-default max-w-[140px]">
+                        {c.creator_name}
+                      </div>
+                    </EllipsisTooltip>
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                      <a
+                        href={`https://instagram.com/${c.instagram_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-pink-600 hover:text-pink-700 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
+                      >
+                        <Instagram className="w-2.5 h-2.5 shrink-0" />
+                        <span className="truncate">@{c.instagram_username}</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: 'follower_count',
+              header: 'Followers',
+              sortable: true,
+              align: 'center',
+              width: '12%',
+              render: (c) => (
+                <span className="font-bold text-slate-900 text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 whitespace-nowrap">
+                  {formatFollowerCount(c.followers)}
+                </span>
+              ),
+            },
+            {
+              key: 'city',
+              header: 'City',
+              sortable: true,
+              width: '12%',
+              render: (c) => (
+                <div className="inline-flex items-center gap-1 text-slate-600 text-[10px] truncate max-w-full">
                   <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
                   <span className="truncate">{c.city || 'Pan India'}</span>
                 </div>
-              </EllipsisTooltip>
-            ),
-          },
-          {
-            key: 'selected_variant',
-            header: 'Sample & Commercial Quote',
-            width: '22%',
-            render: (c) => (
-              <div className="flex flex-col gap-1 max-w-full">
-                {c.selected_variant ? (
-                  <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
-                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
-                      <Package className="w-3 h-3 shrink-0 text-[#F95738]" />
-                      <span className="truncate block min-w-0">{c.selected_variant}</span>
-                    </div>
-                  </EllipsisTooltip>
-                ) : (
-                  <span className="text-slate-400 text-[10px] italic">Standard Sample</span>
-                )}
-                {c.client_commercial ? (
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold w-fit">
-                    <IndianRupee className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                    <span>₹{c.client_commercial.toLocaleString('en-IN')} Quote</span>
-                  </div>
-                ) : null}
-              </div>
-            ),
-          },
-          {
-            key: 'delivery_address',
-            header: 'Delivery Address',
-            width: '18%',
-            render: (c) => {
-              const isVerified = c.address_verification_status === 'Verified' && c.verified_address
-              const isPending = c.address_verification_status === 'Pending'
-
-              if (isVerified && c.verified_address) {
-                return (
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 w-fit">
-                      <Truck className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                      <span>Address Verified</span>
-                    </span>
-                    <EllipsisTooltip text={`${c.verified_address.street || ''}, ${c.verified_address.city || ''} - ${c.verified_address.pincode || ''}`} subtext="Verified Shipping Destination">
-                      <div className="text-[10px] text-slate-700 truncate cursor-pointer font-medium" onClick={() => {
-                        if (c.verified_address?.courier_text) {
-                          navigator.clipboard.writeText(c.verified_address.courier_text)
-                          toast.success(`Copied courier manifest for ${c.creator_name}`)
-                        }
-                      }}>
-                        {c.verified_address.city}, {c.verified_address.pincode}
-                      </div>
-                    </EllipsisTooltip>
-                  </div>
-                )
-              }
-
-              if (isPending) {
-                return (
-                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
-                    <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                    <span>Verification Pending</span>
-                  </span>
-                )
-              }
-
-              return (
-                <span className="text-[10px] text-slate-400 italic">
-                  Not Submitted
-                </span>
-              )
+              ),
             },
-          },
-          {
-            key: 'brand_review_status',
-            header: 'Status',
-            align: 'center',
-            sortable: true,
-            width: '14%',
-            render: (c) => {
-              const isApproved = c.brand_review_status === 'brand_approved'
-              const isRejected = c.brand_review_status === 'brand_rejected'
-              return (
-                <div className="min-w-0">
+            {
+              key: 'selected_variant',
+              header: 'Sample & Commercial Quote',
+              width: '20%',
+              render: (c) => (
+                <div className="flex flex-col gap-1 max-w-full">
+                  <span className="text-[10px] font-semibold text-slate-700 truncate">
+                    {c.selected_variant || 'Standard Sample'}
+                  </span>
+                  {c.client_commercial ? (
+                    <span className="text-[10px] font-bold text-emerald-700">
+                      ₹{c.client_commercial.toLocaleString('en-IN')}
+                    </span>
+                  ) : null}
+                </div>
+              ),
+            },
+            {
+              key: 'brand_review_status',
+              header: 'Status',
+              align: 'center',
+              sortable: true,
+              width: '14%',
+              render: (c) => {
+                const isApproved = c.brand_review_status === 'brand_approved'
+                const isRejected = c.brand_review_status === 'brand_rejected'
+                return (
                   <span
                     className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${
                       isApproved
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
-                        ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-[#FFF2EF] text-[#D83B1C] border-[#F95738]/30'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-[#FFF2EF] text-[#D83B1C] border-[#F95738]/30'
                     }`}
                   >
                     {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
                   </span>
-                  {c.brand_rejection_reason && (
-                    <div className="text-[9px] text-red-600 mt-0.5 truncate max-w-[120px]" title={c.brand_rejection_reason}>
-                      {c.brand_rejection_reason}
-                    </div>
+                )
+              },
+            },
+            {
+              key: 'actions',
+              header: '1-Click Decision',
+              align: 'right',
+              sortable: false,
+              width: '16%',
+              render: (c) => (
+                <div className="flex items-center justify-end gap-1">
+                  {c.brand_review_status === 'pending_brand_review' ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(c.application_id, c.creator_name)}
+                        disabled={actionInProgress === c.application_id}
+                        className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <span>Approve</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRejectModalItem(c)
+                          setSelectedReason(rejectionReasons[0])
+                          setCustomNote('')
+                        }}
+                        className="h-6 w-6 rounded-md border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : c.brand_review_status === 'brand_approved' ? (
+                    <span className="text-emerald-700 font-semibold text-[10px]">Approved</span>
+                  ) : (
+                    <span className="text-red-600 font-semibold text-[10px]">Rejected</span>
                   )}
                 </div>
-              )
+              ),
             },
-          },
-          {
-            key: 'actions',
-            header: '1-Click Decision',
-            align: 'right',
-            sortable: false,
-            width: '16%',
-            render: (c) => (
-              <div className="flex items-center justify-end gap-1">
-                {c.brand_review_status === 'pending_brand_review' ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(c.application_id, c.creator_name)}
-                      disabled={actionInProgress === c.application_id}
-                      className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm shadow-[#F95738]/20 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                    >
-                      {actionInProgress === c.application_id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Check className="w-3 h-3 stroke-[2.5]" />
-                          <span>Approve</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRejectModalItem(c)
-                        setSelectedReason(rejectionReasons[0])
-                        setCustomNote('')
-                      }}
-                      className="h-6 w-6 rounded-md border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
-                      title="Decline Creator"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </>
-                ) : c.brand_review_status === 'brand_approved' ? (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-emerald-700 font-semibold text-[10px] flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Approved
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRejectModalItem(c)
-                        setSelectedReason(rejectionReasons[0])
-                        setCustomNote('')
-                      }}
-                      className="text-[9px] text-slate-400 hover:text-red-600 underline cursor-pointer"
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-red-600 font-semibold text-[10px] flex items-center gap-1">
-                      <XCircle className="w-3 h-3" /> Rejected
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(c.application_id, c.creator_name)}
-                      className="text-[9px] text-slate-400 hover:text-emerald-700 underline cursor-pointer"
-                    >
-                      Approve
-                    </button>
-                  </div>
-                )}
+          ]}
+        />
+      )}
+
+      {/* ─── FLOATING MOBILE BULK DECISION DOCK ─── */}
+      {selectedAppIds.size > 0 && (
+        <div className="fixed bottom-0 inset-x-0 sm:bottom-5 sm:inset-x-4 max-w-xl mx-auto z-40">
+          <div className="p-3 sm:px-5 sm:py-3.5 sm:rounded-2xl bg-[#0F172A]/95 backdrop-blur-xl border-t sm:border border-white/15 shadow-2xl flex items-center justify-between gap-3 text-white">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#F95738] text-white flex items-center justify-center font-black text-xs">
+                {selectedAppIds.size}
               </div>
-            ),
-          },
-        ]}
-      />
+              <div>
+                <p className="text-xs font-extrabold text-white">
+                  {selectedAppIds.size} Creator{selectedAppIds.size === 1 ? '' : 's'} Selected
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAppIds(new Set())}
+                  className="text-[10px] text-slate-400 hover:text-white underline cursor-pointer"
+                >
+                  Clear selection
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={actionInProgress === 'bulk'}
+                onClick={() => handleBulkAction(selectedCreatorItems, false)}
+                className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-200 font-bold text-xs cursor-pointer"
+              >
+                Reject ({selectedAppIds.size})
+              </button>
+              <button
+                type="button"
+                disabled={actionInProgress === 'bulk'}
+                onClick={() => handleBulkAction(selectedCreatorItems, true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Approve ({selectedAppIds.size})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── REJECTION REASON MODAL ─── */}
       <AnimatePresence>
@@ -537,7 +846,7 @@ export default function CreatorReviewStudioPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 cursor-default"
+              className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 cursor-default max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-red-600">
