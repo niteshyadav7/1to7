@@ -573,6 +573,25 @@ export default function SampleListStudioPage({
     return true
   })
 
+  // Format compact number helper
+  const formatCompactNumber = (num: number): string => {
+    const n = Number(num) || 0
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`
+    return n.toLocaleString('en-IN')
+  }
+
+  // Financial & Metric Overview for KAM
+  const { totalFollowers, totalViews, totalCommercial, totalCost, grossMargin, marginPct } = useMemo(() => {
+    const totalFollowers = items.reduce((acc, i) => acc + (Number(i.followers) || 0), 0)
+    const totalViews = items.reduce((acc, i) => acc + (Number(i.avg_reels_views) || 0), 0)
+    const totalCommercial = items.reduce((acc, i) => acc + (Number(i.brand_commercial) || 0), 0)
+    const totalCost = items.reduce((acc, i) => acc + (Number(i.internal_cost) || 0), 0)
+    const grossMargin = totalCommercial - totalCost
+    const marginPct = totalCommercial > 0 ? Math.round((grossMargin / totalCommercial) * 100) : 0
+    return { totalFollowers, totalViews, totalCommercial, totalCost, grossMargin, marginPct }
+  }, [items])
+
   if (loading) {
     return (
       <div className="py-24 text-center flex flex-col items-center justify-center gap-2">
@@ -595,76 +614,92 @@ export default function SampleListStudioPage({
   }
 
   return (
-    <div className="space-y-6 pb-24">
-      {/* Top Breadcrumb & Title */}
+    <div className="space-y-5 pb-24">
+      {/* ─── 1. BREADCRUMB & STUDIO HEADER ─── */}
       <div className="space-y-3">
         <Link
           href="/brand-admin/sample-lists"
-          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-semibold transition-colors"
+          className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-semibold transition-colors w-fit"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span>Back to All Sample Rosters</span>
         </Link>
 
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
+        {/* Master Header Card */}
+        <div className="p-5 rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="space-y-1.5 min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-white">{list.title}</h1>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{list.title}</h1>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/25">
                 {list.category_niche || 'General Pitch'}
               </span>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/25 flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                <span>Target: {list.brand_name}</span>
+              </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1 flex items-center gap-2">
-              <Building2 className="h-3.5 w-3.5 text-slate-500" />
-              <span>Target Client: <strong className="text-slate-200">{list.brand_name}</strong></span>
+
+            <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+              <span className="flex items-center gap-1 text-slate-300 font-semibold">
+                <Users className="h-3.5 w-3.5 text-purple-400" />
+                {items.length} Creators
+              </span>
               <span>•</span>
-              <Users className="h-3.5 w-3.5 text-slate-500" />
-              <span>{items.length} Creators in Roster</span>
-            </p>
+              <span>Combined Reach: <strong className="text-slate-200">{formatCompactNumber(totalFollowers)}</strong></span>
+              {totalCommercial > 0 && (
+                <>
+                  <span>•</span>
+                  <span>Pitch Value: <strong className="text-emerald-400">₹{totalCommercial.toLocaleString('en-IN')}</strong></span>
+                  {totalCost > 0 && (
+                    <span className="text-amber-400 font-medium">
+                      (Margin: ₹{grossMargin.toLocaleString('en-IN')} / {marginPct}%)
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+
+            {list.description && (
+              <p className="text-xs text-slate-400 max-w-2xl line-clamp-2 pt-0.5 leading-relaxed">
+                {list.description}
+              </p>
+            )}
           </div>
 
-          {/* Action Toolbar */}
+          {/* Unified Action Toolbar */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setShowAddFromDbModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               <Users className="h-3.5 w-3.5" />
-              <span>+ Add 1to7 Creators</span>
+              <span>+ Add Creators</span>
             </button>
 
             <button
               onClick={() => setShowImportSheetModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>Import Sheet / CSV</span>
+              <span>Import Sheet</span>
             </button>
 
             <button
               onClick={handleDownloadTemplate}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Download CSV template to prepare your creator list in Excel or Google Sheets"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download CSV template"
             >
               <Download className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Download Template</span>
-            </button>
-
-            <button
-              onClick={() => setShowPublishModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/25 transition-all cursor-pointer"
-              title="Publish and send this sample roster directly to the brand's portal table"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>{list.is_published_to_brand ? 'Update on Brand Portal' : 'Send to Brand Portal'}</span>
+              <span className="hidden sm:inline">Template</span>
             </button>
 
             <button
               onClick={() => setShowShareModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/25 transition-all cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Configure visible columns and client PII shield"
             >
-              <Shield className="h-3.5 w-3.5" />
-              <span>Columns & Share</span>
+              <Shield className="h-3.5 w-3.5 text-purple-400" />
+              <span>Columns & Shield</span>
             </button>
 
             <button
@@ -672,136 +707,198 @@ export default function SampleListStudioPage({
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-bold transition-all cursor-pointer"
               title="Download client presentation CSV"
             >
-              <Download className="h-4 w-4" />
+              <FileDown className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => setShowPublishModal(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-amber-400/20 transition-all cursor-pointer"
+              title="Publish and send this sample roster directly to the brand client workspace"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>{list.is_published_to_brand ? 'Update on Brand Portal' : 'Send to Brand Portal'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Brand Portal Publication Banner */}
-      {list.is_published_to_brand && (
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-yellow-950/30 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-400/20 text-amber-300 shrink-0">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="font-bold text-white flex items-center gap-1.5">
-                <span>Active on Brand Client Portal</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                  Target: {list.brand_name}
+      {/* ─── 2. TWO-CARD CHANNEL DOCK (Client Portal & Public Link) ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {/* Channel 1: Authenticated Brand Client Portal */}
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col justify-between gap-3 shadow-xs">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Channel 1 • Brand Portal
                 </span>
+                {list.is_published_to_brand ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Live on Portal</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400 border border-white/10">
+                    Draft • Not Yet Sent
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-200 font-semibold">
+                Client Workspace: <strong className="text-white">{list.brand_name}</strong>
               </p>
-              <p className="text-[11px] text-slate-400">
-                Brand client can inspect the creators table and submit shortlists directly inside their portal.
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Client reviews profiles and shortlists talent directly inside their authenticated portal.
                 {list.published_at && (
-                  <span className="text-amber-300/80 ml-1">
+                  <span className="text-slate-500 ml-1">
                     (Sent {new Date(list.published_at).toLocaleDateString()})
                   </span>
                 )}
               </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <a
-              href="/brand/sample-rosters"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-bold text-xs flex items-center gap-1.5 border border-amber-400/30 transition-all cursor-pointer"
-            >
-              <span>View in Brand Portal</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* Share Notification Banner */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-slate-900 border border-purple-500/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 shrink-0">
-            <Share2 className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="font-bold text-white">Client Presentation Link Ready</p>
-            <p className="text-[11px] text-slate-400">
-              Sharing with <strong>{selectedColumns.length} visible columns</strong>. Creator PII & agency margins are strictly protected.
-            </p>
+            {list.is_published_to_brand && (
+              <a
+                href="/brand/sample-rosters"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-bold text-xs flex items-center gap-1 border border-amber-400/30 transition-all cursor-pointer shrink-0"
+              >
+                <span>Open Portal</span>
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={handleCopyLink}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              copiedLink
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                : 'bg-white/10 hover:bg-white/15 text-white'
-            }`}
-          >
-            {copiedLink ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            <span>{copiedLink ? 'Link Copied!' : 'Copy Share Link'}</span>
-          </button>
+        {/* Channel 2: Public Presentation Share Link */}
+        <div className="p-4 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col justify-between gap-3 shadow-xs">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Channel 2 • Public Deck
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                  <Share2 className="h-2.5 w-2.5" />
+                  <span>Public Link Active</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-200 font-semibold">
+                {selectedColumns.length} Columns Visible • Margin Shield Protected
+              </p>
+              <p className="text-[11px] text-slate-400 leading-snug">
+                Zero login required for Brand POCs/CMOs. Internal costs and creator PII are permanently stripped.
+              </p>
+            </div>
 
-          <a
-            href={`/view/roster/${list.share_token}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
-            title="Preview Client View in new tab"
-          >
-            <ExternalLink className="h-4 w-4" />
-          </a>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer border ${
+                  copiedLink
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                }`}
+              >
+                {copiedLink ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
+              </button>
+
+              <a
+                href={`/view/roster/${list.share_token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors"
+                title="Preview public view in new tab"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Unified Brand Power Switch (YES/NO) & Brand Approval Filter Tabs */}
-      <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      {/* ─── 3. BRAND POWER SWITCH & CLIENT FEEDBACK STRIP ─── */}
+      <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-3 flex-wrap">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-              Brand Approval / Shortlist Power
+              Brand Curation Power
             </span>
             <span className="text-xs text-slate-300">
-              Can <strong className="text-white">{list.brand_name}</strong> approve/shortlist creators or only view?
+              Can <strong className="text-white">{list.brand_name}</strong> shortlist creators or view only?
             </span>
           </div>
-          <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-white/10 self-start sm:self-auto">
+
+          <div className="inline-flex rounded-xl bg-slate-950 p-0.5 border border-white/10">
             <button
               type="button"
               onClick={() => handleQuickToggleShortlisting(true)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
                 allowBrandShortlisting
                   ? 'bg-emerald-500 text-slate-950 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              ✓ YES (Can Approve / Shortlist)
+              <Check className="h-3 w-3" />
+              <span>YES (Can Approve)</span>
             </button>
             <button
               type="button"
               onClick={() => handleQuickToggleShortlisting(false)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
                 !allowBrandShortlisting
                   ? 'bg-amber-400 text-slate-950 shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              👁️ NO (Show Only)
+              <Eye className="h-3 w-3" />
+              <span>NO (Show Only)</span>
             </button>
           </div>
         </div>
 
-        {/* Filter Tabs for Brand Decisions inside the same tab */}
+        {/* Client Decision Alert Pill if brand responded */}
+        {brandShortlist ? (
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>
+              Shortlist Received: <strong>{shortlistedIdsSet.size}</strong> creators approved
+              {brandShortlist.brand_poc_name && ` by ${brandShortlist.brand_poc_name}`}
+            </span>
+          </div>
+        ) : (
+          <div className="text-[11px] text-slate-400">
+            {allowBrandShortlisting
+              ? '● Waiting for client to submit shortlist'
+              : '● Client is in view-only catalog mode'}
+          </div>
+        )}
+      </div>
+
+      {/* Brand Feedback Notes banner if provided */}
+      {brandShortlist?.brand_feedback_notes && (
+        <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-200 flex items-start gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-emerald-300">Client Feedback Note:</strong>{' '}
+            <span className="italic">&ldquo;{brandShortlist.brand_feedback_notes}&rdquo;</span>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 4. TABLE CONTROLS (TABS & SEARCH) ─── */}
+      <div className="p-3 rounded-2xl bg-slate-900 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-white text-slate-950 border-white'
-                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-white'
+                ? 'bg-white text-slate-950 shadow-sm'
+                : 'bg-slate-950 text-slate-400 hover:text-white border border-white/10'
             }`}
           >
             All Creators ({items.length})
@@ -809,115 +906,97 @@ export default function SampleListStudioPage({
           <button
             type="button"
             onClick={() => setStatusFilter('approved')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
               statusFilter === 'approved'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-emerald-300'
+                ? 'bg-emerald-500 text-slate-950 border-emerald-500 shadow-sm'
+                : 'bg-slate-950 text-slate-400 hover:text-emerald-300 border-white/10'
             }`}
           >
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
             <span>Approved by Brand ({shortlistedIdsSet.size})</span>
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('pending')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
               statusFilter === 'pending'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-amber-300'
+                ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-sm'
+                : 'bg-slate-950 text-slate-400 hover:text-amber-300 border-white/10'
             }`}
           >
             Pending / Unselected ({Math.max(0, items.length - shortlistedIdsSet.size)})
           </button>
         </div>
-      </div>
 
-      {/* Brand Submitted Feedback Banner (if brand submitted shortlist notes) */}
-      {brandShortlist && (
-        <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <div>
-              <span className="font-bold text-emerald-300">
-                Brand Response Received: {shortlistedIdsSet.size} of {items.length} creators approved/shortlisted
-              </span>
-              {brandShortlist.brand_poc_name && (
-                <span className="text-slate-400 ml-2">
-                  by <strong className="text-slate-200">{brandShortlist.brand_poc_name}</strong>
-                </span>
-              )}
-              {brandShortlist.brand_feedback_notes && (
-                <p className="text-[11px] text-emerald-200/90 mt-0.5 italic">
-                  &ldquo;{brandShortlist.brand_feedback_notes}&rdquo;
-                </p>
-              )}
-            </div>
-          </div>
-          {brandShortlist.submitted_at && (
-            <span className="text-[11px] text-slate-400 shrink-0">
-              Submitted {new Date(brandShortlist.submitted_at).toLocaleString()}
-            </span>
+        {/* Search Input with Clear Button */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="h-3.5 w-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${items.length} creators by name, handle, city...`}
+            className="w-full bg-slate-950 border border-white/10 rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-400"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
           )}
         </div>
-      )}
-
-      {/* Search Input */}
-      <div className="relative">
-        <Search className="h-4 w-4 text-slate-500 absolute left-3.5 top-3" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search ${items.length} creators by name, handle, city, or niche...`}
-          className="w-full bg-slate-900/90 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-400"
-        />
       </div>
 
-      {/* Creators Table */}
+      {/* ─── 5. CREATORS TABLE ─── */}
       <div className="rounded-2xl bg-slate-900 border border-white/10 overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-[11px]">
             <thead>
-              <tr className="border-b border-white/10 bg-slate-950/60 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <th className="py-2 px-3">Creator & Instagram</th>
-                <th className="py-2 px-2 text-center">Followers</th>
-                <th className="py-2 px-2 text-center">Avg Reels Views</th>
-                <th className="py-2 px-2 text-center">Eng. Rate</th>
-                <th className="py-2 px-2">Location & Niche</th>
-                <th className="py-2 px-2">Sample Reel</th>
-                <th className="py-2 px-2 text-right">Commercial (₹)</th>
-                <th className="py-2 px-2 text-right">
-                  <span className="inline-flex items-center gap-1 text-amber-400" title="Internal Cost (Hidden from client)">
+              <tr className="border-b border-white/10 bg-slate-950/70 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <th className="py-2.5 px-3">Creator & Instagram</th>
+                <th className="py-2.5 px-2 text-center">Followers</th>
+                <th className="py-2.5 px-2 text-center">Avg Reels Views</th>
+                <th className="py-2.5 px-2 text-center">Eng. Rate</th>
+                <th className="py-2.5 px-2">Location & Niche</th>
+                <th className="py-2.5 px-2 text-center">Sample Reel</th>
+                <th className="py-2.5 px-2 text-right">Commercial Quote (₹)</th>
+                <th className="py-2.5 px-2 text-right">
+                  <span className="inline-flex items-center gap-1 text-amber-400" title="Internal Agency Cost (Secret)">
                     <Lock className="h-2.5 w-2.5" /> Cost (₹)
                   </span>
                 </th>
-                <th className="py-2 px-2 text-center">Brand Status</th>
-                <th className="py-2 px-3 text-right">Actions</th>
+                <th className="py-2.5 px-2 text-center">Brand Status</th>
+                <th className="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-500 text-xs">
-                    No creators in this sample roster matching your search.
+                  <td colSpan={10} className="py-12 text-center text-slate-400 text-xs">
+                    No creators in this sample roster matching your filter.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
+                filteredItems.map((item, idx) => (
                   <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
                     {/* Name & Handle */}
-                    <td className="py-1.5 px-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 text-[10px] shrink-0">
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600/30 to-indigo-600/30 text-purple-300 font-black flex items-center justify-center border border-purple-500/30 text-[10px] shrink-0">
                           {item.creator_name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-white text-[11px] truncate max-w-[140px]" title={item.creator_name}>{item.creator_name}</p>
+                          <p className="font-bold text-white text-[11px] truncate max-w-[150px]" title={item.creator_name}>
+                            {item.creator_name}
+                          </p>
                           <a
                             href={`https://instagram.com/${item.instagram_username}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[10px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-0.5 truncate max-w-[120px]"
+                            className="text-[10px] text-pink-400 hover:text-pink-300 font-semibold inline-flex items-center gap-0.5 truncate max-w-[130px]"
                             title={`@${item.instagram_username}`}
                           >
                             <Instagram className="h-2.5 w-2.5 shrink-0" />
@@ -928,65 +1007,67 @@ export default function SampleListStudioPage({
                     </td>
 
                     {/* Followers */}
-                    <td className="py-1.5 px-2 text-center font-bold text-slate-200 text-[11px]">
-                      {item.followers > 0 ? item.followers.toLocaleString() : '—'}
+                    <td className="py-2 px-2 text-center font-extrabold text-slate-200 text-[11px]">
+                      {item.followers > 0 ? item.followers.toLocaleString('en-IN') : '—'}
                     </td>
 
                     {/* Avg Views */}
-                    <td className="py-1.5 px-2 text-center font-semibold text-slate-300 text-[11px]">
-                      {item.avg_reels_views > 0 ? item.avg_reels_views.toLocaleString() : '—'}
+                    <td className="py-2 px-2 text-center font-semibold text-slate-300 text-[11px]">
+                      {item.avg_reels_views > 0 ? item.avg_reels_views.toLocaleString('en-IN') : '—'}
                     </td>
 
                     {/* Engagement */}
-                    <td className="py-1.5 px-2 text-center">
-                      <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                    <td className="py-2 px-2 text-center">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
                         {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
                       </span>
                     </td>
 
                     {/* Location & Niche */}
-                    <td className="py-1.5 px-2 text-slate-300">
-                      <p className="truncate text-[10px] max-w-[100px]">{item.city || 'Pan India'}</p>
+                    <td className="py-2 px-2 text-slate-300">
+                      <p className="truncate text-[10px] max-w-[110px]">{item.city || 'Pan India'}</p>
                       {item.niche && (
-                        <span className="text-[9px] text-pink-400/90 font-medium truncate block max-w-[100px]">{item.niche}</span>
+                        <span className="text-[9px] text-purple-400 font-medium truncate block max-w-[110px]">
+                          {item.niche}
+                        </span>
                       )}
                     </td>
 
                     {/* Sample Reel */}
-                    <td className="py-1.5 px-2">
+                    <td className="py-2 px-2 text-center">
                       {item.sample_reel_url ? (
                         <a
                           href={item.sample_reel_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-purple-300 hover:text-purple-200 inline-flex items-center gap-1 text-[10px] font-semibold transition-colors"
+                          className="h-6 px-2 rounded-md bg-white/5 hover:bg-white/10 text-pink-300 hover:text-pink-200 inline-flex items-center gap-1 text-[10px] font-semibold transition-colors"
                         >
-                          <Video className="h-2.5 w-2.5" />
+                          <Video className="h-2.5 w-2.5 text-pink-400" />
                           <span>Watch</span>
                         </a>
                       ) : (
-                        <span className="text-slate-500 italic text-[10px]">No sample</span>
+                        <span className="text-slate-500 italic text-[10px]">—</span>
                       )}
                     </td>
 
                     {/* Brand Commercial */}
-                    <td className="py-1.5 px-2 text-right font-bold text-slate-200 text-[11px]">
-                      {item.brand_commercial ? `₹${item.brand_commercial.toLocaleString()}` : '—'}
+                    <td className="py-2 px-2 text-right font-bold text-slate-200 text-[11px]">
+                      {item.brand_commercial ? `₹${item.brand_commercial.toLocaleString('en-IN')}` : '—'}
                     </td>
 
                     {/* Internal Cost (Secret) */}
-                    <td className="py-1.5 px-2 text-right font-mono text-amber-300/90 text-[11px]">
-                      {item.internal_cost ? `₹${item.internal_cost.toLocaleString()}` : '—'}
+                    <td className="py-2 px-2 text-right font-mono text-amber-300/90 text-[11px]">
+                      {item.internal_cost ? `₹${item.internal_cost.toLocaleString('en-IN')}` : '—'}
                     </td>
 
                     {/* Brand Decision Status */}
-                    <td className="py-1.5 px-2 text-center">
+                    <td className="py-2 px-2 text-center">
                       {!allowBrandShortlisting ? (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400 border border-white/10">
                           👁️ Show Only
                         </span>
                       ) : shortlistedIdsSet.has(String(item.id)) ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           <span>Approved</span>
                         </span>
@@ -995,14 +1076,14 @@ export default function SampleListStudioPage({
                           Not Selected
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25">
                           Pending
                         </span>
                       )}
                     </td>
 
                     {/* Actions */}
-                    <td className="py-1.5 px-3 text-right">
+                    <td className="py-2 px-3 text-right">
                       <button
                         type="button"
                         onClick={() => handleDeleteItem(item.id, item.creator_name)}
@@ -1020,7 +1101,8 @@ export default function SampleListStudioPage({
         </div>
       </div>
 
-      {/* Modal 1: Add Creators from 1to7 DB */}
+
+            {/* Modal 1: Add Creators from 1to7 DB */}
       <AnimatePresence>
         {showAddFromDbModal && (
           <div
