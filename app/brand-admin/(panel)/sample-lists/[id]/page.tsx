@@ -156,7 +156,7 @@ export default function SampleListStudioPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          brand_id: selectedBrandId || undefined,
+          brand_id: selectedBrandId && selectedBrandId !== 'custom' ? selectedBrandId : undefined,
           brand_name: selectedBrandName.trim(),
           pitch_note_to_brand: pitchNote.trim() || undefined,
           visible_columns: selectedColumns,
@@ -1594,214 +1594,252 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
             onClick={() => {
               if (!publishing) setShowPublishModal(false)
             }}
-            className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+            className="fixed inset-0 z-[115] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm cursor-pointer overflow-y-auto"
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
+              exit={{ scale: 0.96, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg bg-slate-900 border border-amber-400/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white cursor-default"
+              className="w-full max-w-lg max-h-[90vh] flex flex-col bg-[#121620] border border-amber-400/35 rounded-2xl shadow-2xl text-white cursor-default overflow-hidden my-auto"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              {/* Fixed Modal Header */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0 bg-[#0c1017]/60">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                    <Send className="h-5 w-5" />
+                  <div className="p-2 rounded-xl bg-amber-400/15 text-amber-400 border border-amber-400/30">
+                    <Send className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-white">Send to Brand Client Portal</h3>
-                    <p className="text-xs text-slate-400">
-                      Dispatches this sample roster into the brand's authenticated portal table
+                    <h3 className="text-sm sm:text-base font-black text-white">Send to Brand Client Portal</h3>
+                    <p className="text-[11px] text-slate-400">
+                      Dispatch or clone this sample roster to a Client Brand workspace
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowPublishModal(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <form onSubmit={handlePublishToBrand} className="space-y-4 text-xs">
-                {/* Delivery Mode: Assign vs Clone */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
-                    <Send className="h-3.5 w-3.5 text-amber-400" />
-                    <span>1. Delivery Mode</span>
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPublishMode('assign')
-                        if (list?.brand_id) setSelectedBrandId(list.brand_id)
-                        if (list?.brand_name) setSelectedBrandName(list.brand_name)
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        publishMode === 'assign'
-                          ? 'bg-amber-500/15 border-amber-400 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <div className="font-bold text-xs text-amber-300">Send / Update This Roster</div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Publishes this exact roster to the selected brand portal.
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPublishMode('clone')
-                        setSelectedBrandId('')
-                        setSelectedBrandName('')
-                      }}
-                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                        publishMode === 'clone'
-                          ? 'bg-purple-500/15 border-purple-400 text-white'
-                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <div className="font-bold text-xs text-purple-300">Clone for Another Brand</div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        Creates &amp; sends a separate copy for another brand while keeping {list?.brand_name}&apos;s copy intact.
-                      </p>
-                    </button>
+              {/* Scrollable Form Body */}
+              <form onSubmit={handlePublishToBrand} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+                <div className="p-5 space-y-3.5 overflow-y-auto flex-1">
+                  {/* 1. Delivery Mode: Assign vs Clone */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Send className="h-3 w-3 text-amber-400" />
+                      <span>1. Delivery Mode</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPublishMode('assign')
+                          if (list?.brand_id) setSelectedBrandId(list.brand_id)
+                          if (list?.brand_name) setSelectedBrandName(list.brand_name)
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          publishMode === 'assign'
+                            ? 'bg-amber-500/15 border-amber-400 text-white'
+                            : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="font-bold text-xs text-amber-300">Send / Update This Roster</div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                          Publishes this exact roster to the selected brand portal.
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPublishMode('clone')
+                          setSelectedBrandId('')
+                          setSelectedBrandName('')
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          publishMode === 'clone'
+                            ? 'bg-purple-500/15 border-purple-400 text-white'
+                            : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="font-bold text-xs text-purple-300">Clone for Another Brand</div>
+                        <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                          Sends a separate copy to another brand without changing {list?.brand_name}.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. Brand Selector (Clean Single Dropdown, Custom Input only if selected) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="h-3 w-3 text-amber-400" />
+                        <span>2. Select Target Client Brand *</span>
+                      </label>
+                      {availableBrands.length > 0 && (
+                        <span className="text-[10px] text-amber-400 font-semibold">
+                          {availableBrands.length} Client Brands
+                        </span>
+                      )}
+                    </div>
+
+                    {availableBrands.length > 0 ? (
+                      <>
+                        <select
+                          value={
+                            selectedBrandId ||
+                            (availableBrands.some(
+                              (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                            )
+                              ? availableBrands.find(
+                                  (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                                )?.id
+                              : selectedBrandName
+                              ? 'custom'
+                              : '')
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value
+                            if (val === 'custom') {
+                              setSelectedBrandId('custom')
+                              setSelectedBrandName('')
+                            } else if (!val) {
+                              setSelectedBrandId('')
+                              setSelectedBrandName('')
+                            } else {
+                              const match = availableBrands.find((b) => b.id === val)
+                              if (match) {
+                                setSelectedBrandId(match.id)
+                                setSelectedBrandName(match.name)
+                              }
+                            }
+                          }}
+                          className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                        >
+                          <option value="" className="bg-[#121620] text-slate-400">
+                            -- Select Client Brand ({availableBrands.length}) --
+                          </option>
+                          {availableBrands.map((b) => (
+                            <option key={b.id} value={b.id} className="bg-[#121620] text-white">
+                              {b.name} {b.industry ? `(${b.industry})` : ''}
+                            </option>
+                          ))}
+                          <option value="custom" className="bg-[#121620] text-amber-300 font-bold">
+                            + Type Custom / Other Brand Name
+                          </option>
+                        </select>
+
+                        {(selectedBrandId === 'custom' ||
+                          (selectedBrandName &&
+                            !availableBrands.some(
+                              (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                            ))) && (
+                          <input
+                            type="text"
+                            value={selectedBrandName}
+                            onChange={(e) => setSelectedBrandName(e.target.value)}
+                            placeholder="Type custom brand name..."
+                            className="w-full bg-[#0c1017] border border-amber-400/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 mt-1.5"
+                            required
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <input
+                        type="text"
+                        value={selectedBrandName}
+                        onChange={(e) => setSelectedBrandName(e.target.value)}
+                        placeholder="Enter target brand name..."
+                        className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                        required
+                      />
+                    )}
+                  </div>
+
+                  {/* 3. Brand Interaction Mode Toggle: YES vs NO */}
+                  <div className="p-3 rounded-xl bg-[#0c1017] border border-white/10 space-y-2">
+                    <label className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3 text-amber-400" />
+                      <span>3. Give Brand Power to Approve / Shortlist Creators?</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAllowBrandShortlisting(true)}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          allowBrandShortlisting
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                            : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>YES (Can Approve)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAllowBrandShortlisting(false)}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          !allowBrandShortlisting
+                            ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                            : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        <span>NO (Show Only)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Optional Pitch Note (Compact 2-row) */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                      <span>4. Note to Brand Client (Optional)</span>
+                      <span className="text-[10px] text-emerald-400 font-medium normal-case flex items-center gap-1">
+                        <Shield className="h-3 w-3" /> {selectedColumns.length} columns • Margin Protected
+                      </span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={pitchNote}
+                      onChange={(e) => setPitchNote(e.target.value)}
+                      placeholder="e.g. Hi Team, curated these top creators for your upcoming launch."
+                      className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                    />
                   </div>
                 </div>
 
-                {/* Brand Selector */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-amber-400" />
-                    <span>2. Select Target Client Brand</span>
-                  </label>
-
-                  {availableBrands.length > 0 && (
-                    <select
-                      value={selectedBrandId}
-                      onChange={(e) => {
-                        const bId = e.target.value
-                        setSelectedBrandId(bId)
-                        const match = availableBrands.find((b) => b.id === bId)
-                        if (match) setSelectedBrandName(match.name)
-                      }}
-                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                    >
-                      <option value="">-- Choose Existing Client Brand --</option>
-                      {availableBrands.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name} ({b.industry || 'Client Brand'})
-                        </option>
-                      ))}
-                    </select>
-                  )}
-
-                  <input
-                    type="text"
-                    value={selectedBrandName}
-                    onChange={(e) => setSelectedBrandName(e.target.value)}
-                    placeholder="Or enter brand name (e.g. Mamaearth, boAt Lifestyle)..."
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 mt-1"
-                    required
-                  />
-                  <p className="text-[11px] text-slate-500">
-                    The roster will appear directly under the brand's "Sample Pitch Decks" tab.
-                  </p>
-                </div>
-
-                {/* Pitch Note to Brand POC */}
-                <div className="space-y-1.5">
-                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                    <span>KAM Pitch Note to Brand</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={pitchNote}
-                    onChange={(e) => setPitchNote(e.target.value)}
-                    placeholder="e.g. Hi Team, curated these top creators for your upcoming launch. High reel engagement and verified Pan-India delivery."
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                {/* Brand Interaction Mode Toggle: YES (Approve/Shortlist Power) vs NO (Show Only) */}
-                <div className="p-3.5 rounded-2xl bg-slate-950 border border-white/10 space-y-2.5">
-                  <label className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Give Brand Power to Approve / Shortlist Creators?</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAllowBrandShortlisting(true)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        allowBrandShortlisting
-                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm'
-                          : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>YES (Approve / Shortlist)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAllowBrandShortlisting(false)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        !allowBrandShortlisting
-                          ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-sm'
-                          : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      <span>NO (Show Only)</span>
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-snug">
-                    {allowBrandShortlisting
-                      ? '✓ YES: Brand gets checkboxes & Approve/Shortlist button. Their decisions appear directly in this roster table.'
-                      : '👁️ NO: Brand can only view creator profiles & reels. No approve/shortlist buttons will be shown.'}
-                  </p>
-                </div>
-
-                {/* Column Shield Confirmation Card */}
-                <div className="p-3 rounded-2xl bg-slate-950/80 border border-purple-500/20 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-purple-300 flex items-center gap-1">
-                      <Shield className="h-3.5 w-3.5" />
-                      <span>Security & Margin Protection</span>
-                    </span>
-                    <span className="text-emerald-400 text-[11px]">Active</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Sharing with <strong className="text-white">{selectedColumns.length} revealed columns</strong>.
-                    Internal cost (₹) and admin notes are permanently stripped from the brand view.
-                  </p>
-                </div>
-
-                {/* Submit Actions */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                {/* Fixed Modal Footer */}
+                <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-white/10 bg-[#0c1017]/80 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowPublishModal(false)}
-                    className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white border border-white/10 cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white border border-white/10 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={publishing || !selectedBrandName.trim()}
-                    className="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 flex items-center gap-2 shadow-lg shadow-amber-400/25 disabled:opacity-50 cursor-pointer transition-all"
+                    className="px-5 py-2 rounded-xl text-xs font-black bg-[#febd1c] hover:bg-amber-300 text-slate-950 flex items-center gap-1.5 shadow-md shadow-amber-400/20 disabled:opacity-50 cursor-pointer transition-all"
                   >
                     {publishing ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Sending to Brand...</span>
+                        <span>Sending...</span>
                       </>
                     ) : (
                       <>
                         <Send className="h-3.5 w-3.5" />
-                        <span>Publish & Send to Brand Portal</span>
+                        <span>
+                          {publishMode === 'clone'
+                            ? `Clone & Send to ${selectedBrandName || 'Brand'}`
+                            : `Publish & Send to ${selectedBrandName || 'Brand'}`}
+                        </span>
                       </>
                     )}
                   </button>
