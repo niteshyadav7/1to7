@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -23,6 +23,9 @@ import {
   ThumbsDown,
   RotateCcw,
   Sliders,
+  Search,
+  ArrowRight,
+  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -34,6 +37,9 @@ interface VirtualBrandOption {
   name: string
   slug: string
   industry?: string
+  logo_url?: string | null
+  active_campaigns?: number
+  pending_reviews?: number
 }
 
 export default function BrandAdminVirtualBrandDetailPage() {
@@ -47,6 +53,18 @@ export default function BrandAdminVirtualBrandDetailPage() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
   const [rejectModalCreator, setRejectModalCreator] = useState<any | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [brandSearch, setBrandSearch] = useState('')
+
+  const filteredBrands = useMemo(() => {
+    if (!brandSearch.trim()) return brands
+    const q = brandSearch.toLowerCase().trim()
+    return brands.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        b.slug.toLowerCase().includes(q) ||
+        (b.industry && b.industry.toLowerCase().includes(q))
+    )
+  }, [brands, brandSearch])
 
   useEffect(() => {
     async function fetchBrands() {
@@ -240,35 +258,117 @@ export default function BrandAdminVirtualBrandDetailPage() {
         </div>
       </div>
 
-      {/* Brand Switcher Bar */}
-      <div className="p-3 rounded-2xl bg-[#121620] border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-neutral-400">
-          <Building2 className="w-4 h-4 text-amber-400" />
-          <span>Switch Client Brand:</span>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {brands.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => router.push(`/brand-admin/virtual-brand/${b.id}`)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                  b.id === currentBrand.id
-                    ? 'bg-[#febd1c] text-neutral-950 font-bold'
-                    : 'bg-[#0c1017] text-neutral-300 hover:text-white border border-white/5'
-                }`}
-              >
-                {b.name}
-              </button>
-            ))}
+      {/* ─── MASTER-DETAIL WORKSPACE: VERTICAL BRAND EXPLORER (LEFT) + CREATOR REVIEW CANVAS (RIGHT) ─── */}
+      <div className="flex flex-col lg:flex-row items-start gap-6">
+        {/* ─── LEFT: VERTICAL BRAND EXPLORER (Searchable & Scalable for 100+ Brands) ─── */}
+        <aside className="w-full lg:w-72 xl:w-80 shrink-0 bg-[#121622] border border-white/10 rounded-3xl p-4 shadow-xl flex flex-col gap-3">
+          {/* Header with Title & Total Count */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-amber-400" />
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Client Brands</h3>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+              {brands.length} Total
+            </span>
           </div>
-        </div>
 
-        <div className="text-neutral-400 text-[11px]">
-          Workspace: <strong className="text-white">{currentBrand.name}</strong>
-        </div>
-      </div>
+          {/* Live Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={brandSearch}
+              onChange={(e) => setBrandSearch(e.target.value)}
+              placeholder="Search brands by name..."
+              className="w-full bg-[#0a0d14] border border-white/10 rounded-xl pl-8 pr-7 py-2 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#febd1c]/50 transition-colors"
+            />
+            {brandSearch && (
+              <button
+                onClick={() => setBrandSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white text-xs cursor-pointer"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
-      {/* Dynamic Data Table for Creator Shortlists */}
-      <DynamicDataTable
+          {/* Vertical Scrollable Brand List */}
+          <div className="max-h-[580px] overflow-y-auto space-y-1.5 pr-1 no-scrollbar scrollbar-thin scrollbar-thumb-white/10">
+            {filteredBrands.length === 0 ? (
+              <div className="text-center py-8 text-neutral-500 text-xs">
+                No brands matching &quot;{brandSearch}&quot;
+                <button
+                  onClick={() => setBrandSearch('')}
+                  className="block mx-auto mt-2 text-[10px] text-amber-400 hover:underline cursor-pointer"
+                >
+                  Clear search
+                </button>
+              </div>
+            ) : (
+              filteredBrands.map((b) => {
+                const isSelected = b.id === currentBrand.id
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => router.push(`/brand-admin/virtual-brand/${b.id}`)}
+                    className={`w-full text-left p-2.5 rounded-2xl transition-all flex items-center justify-between gap-2.5 group cursor-pointer border ${
+                      isSelected
+                        ? 'bg-[#febd1c]/15 border-[#febd1c] text-white shadow-md'
+                        : 'bg-[#0a0d14]/70 hover:bg-[#0a0d14] border-white/5 text-neutral-300 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl font-bold flex items-center justify-center shrink-0 text-xs border ${
+                        isSelected
+                          ? 'bg-[#febd1c] text-neutral-950 border-[#febd1c]'
+                          : 'bg-white/5 text-neutral-400 border-white/10 group-hover:text-white'
+                      }`}>
+                        {b.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-xs font-semibold truncate ${isSelected ? 'text-[#febd1c]' : 'text-neutral-200'}`}>
+                          {b.name}
+                        </p>
+                        <p className="text-[10px] text-neutral-500 truncate">
+                          {b.industry || 'Client Workspace'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end shrink-0 gap-1">
+                      {Number(b.pending_reviews) > 0 ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          {b.pending_reviews} pending
+                        </span>
+                      ) : null}
+                      {isSelected && (
+                        <span className="w-2 h-2 rounded-full bg-[#febd1c] animate-pulse" />
+                      )}
+                    </div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+
+          {/* Navigator Footer */}
+          <div className="pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-neutral-400">
+            <span>Active: <strong className="text-white">{currentBrand.name}</strong></span>
+            <Link
+              href="/brand-admin/brands"
+              className="text-amber-400 hover:text-amber-300 font-semibold inline-flex items-center gap-1 cursor-pointer"
+            >
+              <span>Manage</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </aside>
+
+        {/* ─── RIGHT CANVAS: CREATOR SHORTLIST FOR SELECTED BRAND ─── */}
+        <div className="flex-1 min-w-0 w-full space-y-4">
+          <DynamicDataTable
         loading={loading}
         emptyMessage="No creators currently awaiting review for this brand workspace."
         data={filtered}
@@ -441,6 +541,8 @@ export default function BrandAdminVirtualBrandDetailPage() {
           },
         ]}
       />
+        </div>
+      </div>
 
       {/* Reject Modal */}
       <AnimatePresence>
