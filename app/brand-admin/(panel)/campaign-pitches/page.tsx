@@ -617,17 +617,17 @@ export default function CampaignPitchesCurationPage() {
         header: 'Creator',
         sortable: true,
         wrap: true,
-        width: '17%',
-        minWidth: '180px',
+        width: '16%',
+        minWidth: '130px',
         accessor: (row) => row.creator_name,
         render: (item) => (
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
             <div
               onClick={(e) => {
                 e.stopPropagation()
                 setInspectItem(item)
               }}
-              className="h-7 w-7 rounded-lg bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-[10px] font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner hover:border-amber-400/40 transition-colors cursor-pointer"
+              className="h-6 w-6 rounded-md bg-gradient-to-tr from-amber-500/20 via-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center text-[9px] font-bold text-amber-300 overflow-hidden shrink-0 shadow-inner hover:border-amber-400/40 transition-colors cursor-pointer"
             >
               {item.profile_photo ? (
                 <img
@@ -641,15 +641,15 @@ export default function CampaignPitchesCurationPage() {
             </div>
             <div className="min-w-0 flex-1">
               <div
-                className="font-bold text-white text-[11px] hover:text-amber-300 cursor-pointer flex items-center gap-1.5 transition-colors"
+                className="font-bold text-white text-[10px] hover:text-amber-300 cursor-pointer flex items-center gap-1 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation()
                   setInspectItem(item)
                 }}
                 title={item.creator_name}
               >
-                <span className="truncate max-w-[120px]">{item.creator_name}</span>
-                <span className="text-[9px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
+                <span className="truncate max-w-[100px]">{item.creator_name}</span>
+                <span className="text-[8px] font-mono text-neutral-400 bg-white/5 border border-white/10 px-1 py-0.2 rounded shrink-0">
                   {item.influencer_id}
                 </span>
               </div>
@@ -659,25 +659,24 @@ export default function CampaignPitchesCurationPage() {
                   target="_blank"
                   rel="noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="text-neutral-400 hover:text-pink-400 flex items-center gap-1 text-[10px] transition-colors truncate max-w-[130px]"
+                  className="text-neutral-400 hover:text-pink-400 flex items-center gap-0.5 text-[9px] transition-colors truncate max-w-[110px]"
                   title={`@${item.instagram_username}`}
                 >
-                  <Instagram className="h-2.5 w-2.5 text-pink-400 shrink-0" />
+                  <Instagram className="h-2 w-2 text-pink-400 shrink-0" />
                   <span className="truncate">@{item.instagram_username}</span>
                 </a>
               </div>
-              {/* Small View Icon Button below Insta ID */}
-              <div className="mt-1">
+              <div className="mt-0.5">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     setInspectItem(item)
                   }}
-                  className="inline-flex items-center gap-1 text-[9px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/25 transition-all cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-0.5 text-[8px] font-semibold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1 py-0.2 rounded border border-amber-500/25 transition-all cursor-pointer shadow-xs"
                   title="View creator application details"
                 >
-                  <Eye className="h-2.5 w-2.5 shrink-0" />
+                  <Eye className="h-2 w-2 shrink-0" />
                   <span>View</span>
                 </button>
               </div>
@@ -691,40 +690,40 @@ export default function CampaignPitchesCurationPage() {
         sortable: true,
         wrap: true,
         width: '15%',
-        minWidth: '160px',
+        minWidth: '120px',
         accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
         render: (item) => (
           <div className="min-w-0">
-            <div className="font-bold text-white text-[11px] truncate max-w-[150px]" title={item.brand_name}>
+            <div className="font-bold text-white text-[10px] truncate max-w-[125px]" title={item.brand_name}>
               {item.brand_name}
             </div>
             <div
-              className="text-[10px] text-amber-300 font-semibold flex items-center gap-1 mt-0.5"
+              className="text-[9px] text-amber-300 font-semibold flex items-center gap-0.5 mt-0.5"
               title={item.campaign_title || 'Campaign'}
             >
-              <Target className="h-2.5 w-2.5 text-amber-400 shrink-0" />
-              <span className="truncate max-w-[145px]">{item.campaign_title || 'Campaign'}</span>
+              <Target className="h-2 w-2 text-amber-400 shrink-0" />
+              <span className="truncate max-w-[120px]">{item.campaign_title || 'Campaign'}</span>
             </div>
             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
               <span
-                className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[130px]"
+                className="inline-flex items-center gap-0.5 text-[8px] font-medium px-1 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 max-w-[110px]"
                 title={item.brand_pitch_batch_name || 'Batch'}
               >
                 <Layers className="h-2 w-2 text-amber-400 shrink-0" />
                 <span className="truncate">{item.brand_pitch_batch_name || 'Batch'}</span>
               </span>
               {item.campaign_code && item.campaign_code !== item.campaign_title && (
-                <span className="text-[9px] font-mono text-neutral-500 truncate max-w-[90px]" title={item.campaign_code}>
+                <span className="text-[8px] font-mono text-neutral-500 truncate max-w-[80px]" title={item.campaign_code}>
                   {item.campaign_code}
                 </span>
               )}
             </div>
             {item.brand_pitched_by && (
               <div
-                className="text-[9px] text-neutral-400 flex items-center gap-1 mt-1 truncate max-w-[150px]"
+                className="text-[8px] text-neutral-400 flex items-center gap-0.5 mt-0.5 truncate max-w-[125px]"
                 title={`Forwarded by ${item.brand_pitched_by}${item.brand_pitched_at ? ` on ${new Date(item.brand_pitched_at).toLocaleString('en-IN')}` : ''}`}
               >
-                <UserCheck className="h-2.5 w-2.5 text-amber-400/80 shrink-0" />
+                <UserCheck className="h-2 w-2 text-amber-400/80 shrink-0" />
                 <span className="truncate">
                   Fwd: <span className="text-neutral-200 font-semibold">{formatAdminSender(item.brand_pitched_by)}</span>
                   {item.brand_pitched_at && (
@@ -741,23 +740,23 @@ export default function CampaignPitchesCurationPage() {
         header: 'Audience & Reach',
         sortable: true,
         wrap: true,
-        width: '10%',
-        minWidth: '110px',
+        width: '9%',
+        minWidth: '80px',
         accessor: (row) => row.followers || 0,
         render: (item) => (
           <div className="min-w-0">
-            <div className="font-black text-white text-[11px] tracking-tight flex items-baseline gap-1">
+            <div className="font-black text-white text-[10px] tracking-tight flex items-baseline gap-0.5">
               <span>{formatFollowerCount(item.followers)}</span>
-              <span className="text-[9px] font-normal text-neutral-400 font-mono">
+              <span className="text-[8px] font-normal text-neutral-400 font-mono">
                 ({(item.followers || 0).toLocaleString('en-IN')})
               </span>
             </div>
             <div
-              className="text-[10px] text-neutral-400 flex items-center gap-1 mt-0.5"
+              className="text-[9px] text-neutral-400 flex items-center gap-0.5 mt-0.5"
               title={[item.city, item.state].filter(Boolean).join(', ') || 'India'}
             >
-              <MapPin className="h-2.5 w-2.5 text-neutral-500 shrink-0" />
-              <span className="truncate max-w-[110px]">
+              <MapPin className="h-2 w-2 text-neutral-500 shrink-0" />
+              <span className="truncate max-w-[90px]">
                 {[item.city, item.state].filter(Boolean).join(', ') || 'India'}
               </span>
             </div>
@@ -769,13 +768,13 @@ export default function CampaignPitchesCurationPage() {
         header: 'Variant / SKU',
         sortable: true,
         wrap: true,
-        width: '9%',
-        minWidth: '95px',
+        width: '8%',
+        minWidth: '70px',
         accessor: (row) => row.selected_variant || 'Standard',
         render: (item) => (
           <div className="min-w-0">
             <span
-              className="inline-block px-1.5 py-0.5 rounded bg-slate-950 border border-white/10 text-neutral-200 text-[10px] font-semibold truncate max-w-[95px]"
+              className="inline-block px-1 py-0.2 rounded bg-slate-950 border border-white/10 text-neutral-200 text-[9px] font-semibold truncate max-w-[80px]"
               title={item.selected_variant || 'Standard'}
             >
               {item.selected_variant || 'Standard'}
@@ -786,7 +785,7 @@ export default function CampaignPitchesCurationPage() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-[9px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 mt-0.5 hover:underline truncate max-w-[95px]"
+                className="text-[8.5px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-0.5 mt-0.5 hover:underline truncate max-w-[80px]"
                 title="Sample Reel"
               >
                 <ExternalLink className="h-2 w-2 shrink-0" />
@@ -801,24 +800,24 @@ export default function CampaignPitchesCurationPage() {
         header: 'Delivery Address',
         sortable: true,
         wrap: true,
-        width: '13%',
-        minWidth: '135px',
+        width: '12%',
+        minWidth: '100px',
         accessor: (row) => row.address_verification_status || 'None',
         render: (item) => (
           <div className="min-w-0">
             {item.address_verification_status === 'Verified' ? (
               <div className="space-y-0.5">
-                <span className="inline-flex items-center gap-1 text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                <span className="inline-flex items-center gap-0.5 text-[8px] font-extrabold uppercase tracking-wider px-1 py-0.2 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   <span className="h-1 w-1 rounded-full bg-emerald-400 animate-pulse" />
-                  Address: Verified
+                  Verified
                 </span>
                 <div
-                  className="text-[10px] text-neutral-200 font-medium truncate max-w-[140px]"
+                  className="text-[9px] text-neutral-200 font-medium truncate max-w-[115px]"
                   title={[item.verified_address_details?.street, item.verified_address_details?.city, item.verified_address_details?.state].filter(Boolean).join(', ')}
                 >
                   {item.verified_address_details?.city}, {item.verified_address_details?.state}
                 </div>
-                <div className="text-[9px] font-mono text-emerald-400 font-semibold">
+                <div className="text-[8px] font-mono text-emerald-400 font-semibold">
                   PIN: {item.verified_address_details?.pincode}
                 </div>
                 <button
@@ -827,35 +826,35 @@ export default function CampaignPitchesCurationPage() {
                     e.stopPropagation()
                     setViewAddressItem(item)
                   }}
-                  className="inline-flex items-center gap-1 text-[9px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-1.5 py-0.5 rounded transition-all cursor-pointer shadow-sm mt-0.5"
+                  className="inline-flex items-center gap-0.5 text-[8px] font-bold text-neutral-950 hover:text-black bg-[#febd1c] hover:bg-amber-300 px-1 py-0.2 rounded transition-all cursor-pointer shadow-xs mt-0.5"
                 >
-                  <Eye className="h-2.5 w-2.5" />
-                  <span>View & Copy</span>
+                  <Eye className="h-2 w-2" />
+                  <span>View</span>
                 </button>
               </div>
             ) : item.address_verification_status === 'Pending' ? (
               <div className="space-y-0.5">
-                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  <Clock className="h-2.5 w-2.5 text-amber-400" />
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <Clock className="h-2 w-2 text-amber-400" />
                   Pending
                 </span>
-                <div className="text-[9px] text-neutral-400">
+                <div className="text-[8px] text-neutral-400">
                   Awaiting Desk
                 </div>
               </div>
             ) : item.address_verification_status === 'Rejected' ? (
               <div className="space-y-0.5">
-                <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                  <XCircle className="h-2.5 w-2.5 text-rose-400" />
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                  <XCircle className="h-2 w-2 text-rose-400" />
                   Rejected
                 </span>
-                <div className="text-[9px] text-neutral-400">
-                  Update Requested
+                <div className="text-[8px] text-neutral-400">
+                  Update Req.
                 </div>
               </div>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
-                <AlertCircle className="h-2.5 w-2.5 text-neutral-500" />
+              <span className="inline-flex items-center gap-0.5 text-[8.5px] font-medium px-1.5 py-0.2 rounded-full bg-slate-950/80 text-neutral-400 border border-white/5">
+                <AlertCircle className="h-2 w-2 text-neutral-500" />
                 Not Submitted
               </span>
             )}
@@ -867,8 +866,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Costing / Commercial',
         sortable: true,
         wrap: true,
-        width: '11%',
-        minWidth: '120px',
+        width: '10%',
+        minWidth: '85px',
         accessor: (row) => row.client_commercial || 0,
         render: (item) => {
           const hasCommercial = item.client_commercial && item.client_commercial > 0
@@ -877,53 +876,53 @@ export default function CampaignPitchesCurationPage() {
           const marginPercent = margin !== null && item.client_commercial ? Math.round((margin / item.client_commercial) * 100) : null
 
           return (
-            <div className="min-w-0 space-y-1" onClick={(e) => e.stopPropagation()}>
+            <div className="min-w-0 space-y-0.5" onClick={(e) => e.stopPropagation()}>
               {hasCommercial ? (
                 <div>
-                  <div className="flex items-center gap-1">
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-black tracking-tight text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded shadow-xs">
-                      <IndianRupee className="h-2.5 w-2.5 stroke-[2.5]" />
+                  <div className="flex items-center gap-0.5">
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-black tracking-tight text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1 py-0.2 rounded shadow-xs">
+                      <IndianRupee className="h-2 w-2 stroke-[2.5]" />
                       <span>{Number(item.client_commercial).toLocaleString('en-IN')}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => handleOpenCostingModal(item)}
-                      className="p-1 rounded bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-amber-300 transition cursor-pointer"
+                      className="p-0.5 rounded bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-amber-300 transition cursor-pointer"
                       title="Edit commercial quote"
                     >
-                      <Edit3 className="h-2.5 w-2.5" />
+                      <Edit3 className="h-2 w-2" />
                     </button>
                   </div>
                   {hasInternal && (
-                    <div className="text-[9px] text-neutral-400 flex items-center gap-1 font-mono mt-0.5" title={`Internal Payout: ₹${Number(item.internal_cost).toLocaleString('en-IN')} | Margin: ${marginPercent}%`}>
+                    <div className="text-[8px] text-neutral-400 flex items-center gap-0.5 font-mono mt-0.5" title={`Internal Payout: ₹${Number(item.internal_cost).toLocaleString('en-IN')} | Margin: ${marginPercent}%`}>
                       <span className="text-neutral-500">Net:</span>
                       <span>₹{Number(item.internal_cost).toLocaleString('en-IN')}</span>
                       {marginPercent !== null && (
-                        <span className={`text-[8px] font-bold px-1 rounded ${marginPercent >= 20 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`}>
+                        <span className={`text-[7.5px] font-bold px-0.5 rounded ${marginPercent >= 20 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`}>
                           {marginPercent}%
                         </span>
                       )}
                     </div>
                   )}
                   {item.is_commercial_pitch && (
-                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold text-amber-300/80 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
-                      Paid Pitch
+                    <span className="inline-flex items-center gap-0.5 text-[7.5px] font-bold text-amber-300/80 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
+                      Paid
                     </span>
                   )}
                 </div>
               ) : (
                 <div>
-                  <span className="inline-flex items-center gap-1 text-[9px] font-medium text-neutral-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                  <span className="inline-flex items-center gap-0.5 text-[8.5px] font-medium text-neutral-500 bg-white/5 px-1 py-0.2 rounded border border-white/5">
                     Barter (₹0)
                   </span>
-                  <div className="mt-1">
+                  <div className="mt-0.5">
                     <button
                       type="button"
                       onClick={() => handleOpenCostingModal(item)}
-                      className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30 transition cursor-pointer"
+                      className="inline-flex items-center gap-0.5 text-[8px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1 py-0.2 rounded border border-amber-500/30 transition cursor-pointer"
                       title="Set commercial quote for client pitch"
                     >
-                      <Plus className="h-2.5 w-2.5" />
+                      <Plus className="h-2 w-2" />
                       <span>+ Costing</span>
                     </button>
                   </div>
@@ -938,8 +937,8 @@ export default function CampaignPitchesCurationPage() {
         header: 'Status & Decision',
         sortable: true,
         wrap: true,
-        width: '13%',
-        minWidth: '140px',
+        width: '14%',
+        minWidth: '115px',
         accessor: (row) => row.brand_review_status,
         render: (item) => {
           const isApproved = item.brand_review_status === 'brand_approved'
@@ -949,13 +948,13 @@ export default function CampaignPitchesCurationPage() {
 
           if (isApproved) {
             return (
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 truncate max-w-[110px]">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+              <div className="min-w-0 pr-1">
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 truncate max-w-[115px]">
+                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
                   <span className="truncate">Shortlisted</span>
                 </span>
                 {item.brand_reviewed_by && (
-                  <div className="text-[9px] text-emerald-400/80 mt-0.5 truncate max-w-[110px]" title={`By ${item.brand_reviewed_by}`}>
+                  <div className="text-[8px] text-emerald-400/80 mt-0.5 truncate max-w-[115px]" title={`By ${item.brand_reviewed_by}`}>
                     By {item.brand_reviewed_by}
                   </div>
                 )}
@@ -965,14 +964,14 @@ export default function CampaignPitchesCurationPage() {
 
           if (isRejected) {
             return (
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 truncate max-w-[110px]">
-                  <XCircle className="h-3 w-3 text-rose-400 shrink-0" />
+              <div className="min-w-0 pr-1">
+                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 truncate max-w-[115px]">
+                  <XCircle className="h-2.5 w-2.5 text-rose-400 shrink-0" />
                   <span className="truncate">Rejected</span>
                 </span>
                 {item.brand_rejection_reason && (
                   <div
-                    className="text-[9px] text-rose-400/80 mt-0.5 truncate max-w-[110px]"
+                    className="text-[8px] text-rose-400/80 mt-0.5 truncate max-w-[115px]"
                     title={item.brand_rejection_reason}
                   >
                     {item.brand_rejection_reason}
@@ -984,8 +983,8 @@ export default function CampaignPitchesCurationPage() {
 
           if (isInternalDropped) {
             return (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 truncate max-w-[110px]">
-                <X className="h-3 w-3 text-neutral-500 shrink-0" />
+              <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 truncate max-w-[115px]">
+                <X className="h-2.5 w-2.5 text-neutral-500 shrink-0" />
                 <span className="truncate">Dropped</span>
               </span>
             )
@@ -993,14 +992,14 @@ export default function CampaignPitchesCurationPage() {
 
           if (isQueued) {
             return (
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[135px]">
-                  <Clock className="h-3 w-3 text-blue-400 animate-pulse shrink-0" />
+              <div className="min-w-0 pr-1">
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[115px]">
+                  <Clock className="h-2.5 w-2.5 text-blue-400 animate-pulse shrink-0" />
                   <span className="truncate">Queued for KAM</span>
                 </span>
                 {item.brand_pitched_by && (
                   <div
-                    className="text-[9px] text-blue-300/80 mt-0.5 truncate max-w-[135px]"
+                    className="text-[8px] text-blue-300/80 mt-0.5 truncate max-w-[115px]"
                     title={`Forwarded by ${item.brand_pitched_by}${item.brand_pitched_at ? ` on ${new Date(item.brand_pitched_at).toLocaleString('en-IN')}` : ''}`}
                   >
                     Fwd: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
@@ -1011,14 +1010,14 @@ export default function CampaignPitchesCurationPage() {
           }
 
           return (
-            <div className="min-w-0">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[135px]">
-                <Send className="h-3 w-3 text-purple-400 shrink-0" />
+            <div className="min-w-0 pr-1">
+              <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[115px]">
+                <Send className="h-2.5 w-2.5 text-purple-400 shrink-0" />
                 <span className="truncate">With Brand</span>
               </span>
               {item.brand_pitched_by && (
                 <div
-                  className="text-[9px] text-purple-300/80 mt-0.5 truncate max-w-[135px]"
+                  className="text-[8px] text-purple-300/80 mt-0.5 truncate max-w-[115px]"
                   title={`Dispatched / Forwarded by ${item.brand_pitched_by}`}
                 >
                   By: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
@@ -1034,20 +1033,20 @@ export default function CampaignPitchesCurationPage() {
         sortable: false,
         hideable: false,
         align: 'right',
-        width: '10%',
-        minWidth: '110px',
+        width: '13%',
+        minWidth: '85px',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
           return (
-            <div className="flex items-center justify-end gap-1.5 shrink-0 whitespace-nowrap min-w-[85px]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-1 shrink-0 whitespace-nowrap min-w-[70px]" onClick={(e) => e.stopPropagation()}>
               {!isQueued && (
                 <button
                   type="button"
                   onClick={() => setInspectItem(item)}
-                  className="h-6 px-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[10px] font-medium flex items-center gap-0.5 transition-all cursor-pointer"
+                  className="h-5.5 px-1.5 rounded bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[9px] font-medium flex items-center gap-0.5 transition-all cursor-pointer shrink-0"
                   title="Inspect details"
                 >
-                  <Eye className="h-2.5 w-2.5" />
+                  <Eye className="h-2 w-2" />
                   <span>View</span>
                 </button>
               )}
@@ -1057,10 +1056,10 @@ export default function CampaignPitchesCurationPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenDispatchModal(item.application_id)}
-                    className="h-6 px-2.5 rounded-md text-[10px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="h-5.5 px-2 rounded text-[9px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                     title="Send to Brand Client Portal"
                   >
-                    <Send className="h-2.5 w-2.5" />
+                    <Send className="h-2 w-2" />
                     <span>Send</span>
                   </button>
 
@@ -1070,10 +1069,10 @@ export default function CampaignPitchesCurationPage() {
                       setSelectedIds([item.application_id])
                       setShowInternalDropModal(true)
                     }}
-                    className="h-6 w-6 rounded-md bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                    className="h-5.5 w-5.5 rounded bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0"
                     title="Drop creator"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5" />
                   </button>
                 </>
               )}
@@ -1406,7 +1405,7 @@ export default function CampaignPitchesCurationPage() {
         keyField="application_id"
         loading={loading}
         tableLayout="fixed"
-        minTableWidth="min-w-[1260px]"
+        minTableWidth="w-full min-w-[960px]"
         defaultCompact={true}
         selectedRowIds={selectedIds}
         onSelectionChange={setSelectedIds}

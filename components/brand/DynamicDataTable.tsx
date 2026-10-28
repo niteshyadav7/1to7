@@ -561,7 +561,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               <tr>
                 {/* Master Selection Checkbox */}
                 {bulkActions.length > 0 && (
-                  <th className={`${isCompact ? 'p-2 w-9' : 'p-3 sm:p-3.5 w-10'} text-center`}>
+                  <th className={`${isCompact ? 'p-1.5 w-7' : 'p-3 sm:p-3.5 w-10'} text-center`}>
                     <button
                       type="button"
                       onClick={handleSelectAllPage}
@@ -588,7 +588,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       key={col.key}
                       onClick={() => canSort && handleSort(col.key)}
                       style={{ width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.maxWidth }}
-                      className={`${isCompact ? 'py-2 px-2' : 'py-2.5 px-2.5 sm:px-3'} transition-colors ${
+                      className={`${isCompact ? 'py-1.5 px-1.5 text-[9.5px]' : 'py-2.5 px-2.5 sm:px-3'} transition-colors ${
                         col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden truncate' : 'whitespace-nowrap'
                       } ${
                         col.align === 'center'
@@ -697,7 +697,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     >
                       {/* Checkbox */}
                       {bulkActions.length > 0 && (
-                        <td className={`${isCompact ? 'p-2 w-9' : 'p-3 sm:p-3.5 w-10'} text-center`}>
+                        <td className={`${isCompact ? 'p-1.5 w-7' : 'p-3 sm:p-3.5 w-10'} text-center`}>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -730,7 +730,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                             className={`${
                               col.wrap ? 'whitespace-normal' : tableLayout === 'fixed' ? 'overflow-hidden' : 'whitespace-nowrap'
                             } ${
-                              isCompact ? 'py-1.5 px-2 text-[11px]' : 'py-2.5 px-2.5 sm:px-3 text-xs'
+                              isCompact ? 'py-1 px-1.5 text-[10px]' : 'py-2.5 px-2.5 sm:px-3 text-xs'
                             } ${
                               col.align === 'center'
                                 ? 'text-center'

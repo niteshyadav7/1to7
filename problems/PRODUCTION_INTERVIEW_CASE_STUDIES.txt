@@ -3484,8 +3484,10 @@ In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`)
      - `brand_review_status`: Expanded from 10% to 13% (`minWidth: '140px'`). Expanded status badge containers to `max-w-[135px]` so "Queued for KAM" renders completely without truncation.
      - `actions`: Expanded from 7% to 10% (`minWidth: '110px'`), providing 126px of clean space.
    - Actions container updated to `<div className="flex items-center justify-end gap-1.5 shrink-0 whitespace-nowrap min-w-[85px]">` with generous button padding (`px-2.5`).
-3. Viewport Safety Buffer:
-   - Upgraded table floor from `min-w-[1140px]` to `min-w-[1260px]`, guaranteeing zero column compression on laptops while utilizing modern 1080p/1440p displays cleanly.
+3. Viewport Safety Buffer & High-Density 1-Screen Viewport Fit (`min-w-[960px]`):
+   - Eliminated horizontal scrollbar displacement on laptop screens by setting `minTableWidth="w-full min-w-[960px]"`.
+   - Scaled down typography across all table columns: primary names/quotes to `text-[10px]`, secondary handles/locations to `text-[8.5px]` - `text-[9px]`, and status badges to `text-[8.5px]` with compact `py-0.2` - `py-0.5` paddings.
+   - Reduced compact table cell padding in `DynamicDataTable.tsx` to `py-1 px-1.5 text-[10px]` and header to `py-1.5 px-1.5 text-[9.5px]`, enabling all 9 columns (Creator through Actions) to fit comfortably on 1 screen without truncation or clipped buttons.
 
 [INTERVIEW STAR TAKEAWAY]
 "In fixed-layout tables (`table-layout: fixed`), flex containers aligned with `justify-end` will overflow to the left into adjacent columns if the cell's allocated percentage produces a pixel width smaller than the intrinsic width of its child buttons. Always calculate the minimum pixel sum of interactive controls, enforce `minWidth` on both `<th>` and `<td>`, and rebalance percentage distributions so action columns never starve."
