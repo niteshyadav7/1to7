@@ -913,40 +913,53 @@ export default function SampleListsDashboardPage() {
                   />
                 </div>
 
-                {/* Registered Client Brands Quick Selector */}
+                {/* Registered Client Brands Dropdown */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>Target Client Brand *</span>
-                    <span className="text-[10px] text-amber-400 font-semibold normal-case">
-                      Pick from Client Brands or type custom
-                    </span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Target Client Brand *</span>
+                    </label>
+                    {availableBrands.length > 0 && (
+                      <span className="text-[10px] text-amber-400 font-semibold">
+                        {availableBrands.length} Client Brand{availableBrands.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
 
                   {availableBrands.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap pb-1">
-                      {availableBrands.map((b) => {
-                        const isSelected = createBrandId === b.id || brandName === b.name
-                        return (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => {
-                              setCreateBrandId(b.id)
-                              setBrandName(b.name)
-                            }}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                              isSelected
-                                ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-xs'
-                                : 'bg-[#0c1017] text-neutral-300 border-white/10 hover:border-white/25 hover:text-white'
-                            }`}
-                          >
-                            <Building2 className="w-3 h-3 text-amber-400" />
-                            <span>{b.name}</span>
-                            {isSelected && <Check className="w-3 h-3 text-amber-400" />}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <select
+                      value={createBrandId || (availableBrands.some(b => b.name.toLowerCase() === brandName.toLowerCase()) ? availableBrands.find(b => b.name.toLowerCase() === brandName.toLowerCase())?.id : (brandName ? 'custom' : ''))}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === 'custom') {
+                          setCreateBrandId('')
+                          setBrandName('')
+                        } else if (!val) {
+                          setCreateBrandId('')
+                          setBrandName('')
+                        } else {
+                          const match = availableBrands.find((b) => b.id === val)
+                          if (match) {
+                            setCreateBrandId(match.id)
+                            setBrandName(match.name)
+                          }
+                        }
+                      }}
+                      className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                    >
+                      <option value="" className="bg-[#121620] text-neutral-400">
+                        -- Select from Client Brands ({availableBrands.length}) --
+                      </option>
+                      {availableBrands.map((b) => (
+                        <option key={b.id} value={b.id} className="bg-[#121620] text-white">
+                          {b.name} {b.industry ? `(${b.industry})` : ''}
+                        </option>
+                      ))}
+                      <option value="custom" className="bg-[#121620] text-amber-300 font-bold">
+                        ✏️ + Type Custom / Unregistered Brand Name
+                      </option>
+                    </select>
                   )}
 
                   <input
@@ -960,9 +973,12 @@ export default function SampleListsDashboardPage() {
                       )
                       setCreateBrandId(match ? match.id : '')
                     }}
-                    placeholder="Selected brand or type custom brand name..."
+                    placeholder="Selected client brand or type custom brand name..."
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
+                  <p className="text-[10px] text-neutral-500">
+                    Pick a registered client brand from the dropdown above, or type any custom brand name.
+                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -1174,35 +1190,51 @@ export default function SampleListsDashboardPage() {
 
                   {/* Step 2: Select Target Client Brand */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                      2. Select Client Brand Workspace *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                        <span>2. Select Client Brand Workspace *</span>
+                      </label>
+                      {availableBrands.length > 0 && (
+                        <span className="text-[10px] text-amber-400 font-semibold">
+                          {availableBrands.length} Client Brand{availableBrands.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
 
                     {availableBrands.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap pb-1">
-                        {availableBrands.map((b) => {
-                          const isSelected = targetBrandId === b.id || targetBrandName === b.name
-                          return (
-                            <button
-                              key={b.id}
-                              type="button"
-                              onClick={() => {
-                                setTargetBrandId(b.id)
-                                setTargetBrandName(b.name)
-                              }}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                isSelected
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-sm'
-                                  : 'bg-[#0c1017] text-neutral-300 border-white/10 hover:border-white/25 hover:text-white'
-                              }`}
-                            >
-                              <Building2 className="w-3.5 h-3.5 text-amber-400" />
-                              <span>{b.name}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      <select
+                        value={targetBrandId || (availableBrands.some(b => b.name.toLowerCase() === targetBrandName.toLowerCase()) ? availableBrands.find(b => b.name.toLowerCase() === targetBrandName.toLowerCase())?.id : (targetBrandName ? 'custom' : ''))}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          if (val === 'custom') {
+                            setTargetBrandId('')
+                            setTargetBrandName('')
+                          } else if (!val) {
+                            setTargetBrandId('')
+                            setTargetBrandName('')
+                          } else {
+                            const match = availableBrands.find((b) => b.id === val)
+                            if (match) {
+                              setTargetBrandId(match.id)
+                              setTargetBrandName(match.name)
+                            }
+                          }
+                        }}
+                        className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500/50 cursor-pointer"
+                      >
+                        <option value="" className="bg-[#121620] text-neutral-400">
+                          -- Select Client Brand ({availableBrands.length}) --
+                        </option>
+                        {availableBrands.map((b) => (
+                          <option key={b.id} value={b.id} className="bg-[#121620] text-white">
+                            {b.name} {b.industry ? `(${b.industry})` : ''}
+                          </option>
+                        ))}
+                        <option value="custom" className="bg-[#121620] text-amber-300 font-bold">
+                          ✏️ + Type Custom / Unregistered Brand Name
+                        </option>
+                      </select>
                     )}
 
                     <input
@@ -1219,6 +1251,9 @@ export default function SampleListsDashboardPage() {
                       placeholder="Selected Client Brand or type brand name..."
                       className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
                     />
+                    <p className="text-[10px] text-neutral-500">
+                      Select an existing client brand from the dropdown above, or type any brand name.
+                    </p>
                   </div>
 
                   {/* Step 3: YES / NO Approval Power */}
