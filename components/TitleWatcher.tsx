@@ -16,7 +16,13 @@ export default function TitleWatcher() {
     }
 
     // Dynamic Favicon Switcher: Brand Portal (TheHype) vs Main Portal (1to7)
-    const isBrandPortal = pathname.startsWith('/brand') || pathname.startsWith('/view')
+    const host = typeof window !== 'undefined' ? window.location.hostname : ''
+    const isBrandPortal =
+      pathname.startsWith('/brand') ||
+      pathname.startsWith('/view') ||
+      host.includes('thehype.in') ||
+      host.startsWith('brand.') ||
+      host.startsWith('brands.')
     const targetIcon = isBrandPortal ? '/thehype-logo.png' : '/logo-icon.svg'
 
     const existingIcons = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']")

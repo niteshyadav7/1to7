@@ -9,21 +9,35 @@ export async function proxy(request: NextRequest) {
   // ─── 0. TheHype Brand Portal Subdomain Isolation ───
   const isBrandHost =
     host.startsWith('brand.') ||
+    host.startsWith('brands.') ||
     host.includes('thehype.in') ||
     (process.env.BRAND_PORTAL_HOST && host === process.env.BRAND_PORTAL_HOST)
 
   if (isBrandHost) {
-    // Root route on brand domain: Check if brand_token cookie exists
-    if (pathname === '/') {
-      const brandToken = request.cookies.get('brand_token')?.value
+    // 0a. Rewrite clean "/login" to "/brand/login" so URL bar stays cleanly as "/login"
+    if (pathname === '/login') {
       const url = request.nextUrl.clone()
-      url.pathname = brandToken ? '/brand/campaigns' : '/brand/login'
+      url.pathname = '/brand/login'
+      return NextResponse.rewrite(url)
+    }
+
+    // 0b. If client explicitly visits "/brand/login", redirect to clean "/login"
+    if (pathname === '/brand/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
       return NextResponse.redirect(url)
     }
 
-    // Prevent brand clients from hitting 1to7 creator auth / dashboard routes on brand.thehype.in
+    // 0c. Root route on brand domain: Check brand session
+    if (pathname === '/') {
+      const brandToken = request.cookies.get('brand_token')?.value
+      const url = request.nextUrl.clone()
+      url.pathname = brandToken ? '/brand/campaigns' : '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // 0d. Prevent brand clients from hitting 1to7 creator auth / dashboard routes on brand.thehype.in
     if (
-      pathname === '/login' ||
       pathname === '/signup' ||
       pathname === '/forgot-password' ||
       pathname === '/verify-mobile' ||
@@ -31,7 +45,7 @@ export async function proxy(request: NextRequest) {
       pathname.startsWith('/admin')
     ) {
       const url = request.nextUrl.clone()
-      url.pathname = '/brand/login'
+      url.pathname = '/login'
       return NextResponse.redirect(url)
     }
   }
