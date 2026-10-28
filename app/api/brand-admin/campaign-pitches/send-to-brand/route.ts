@@ -59,6 +59,14 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+      if (!matched.is_active) {
+        return NextResponse.json(
+          {
+            error: `Brand workspace '${matched.name}' is currently PAUSED. Creators cannot be dispatched to a paused brand. Please activate this brand workspace in Brand Admin first.`,
+          },
+          { status: 400 }
+        )
+      }
       verifiedBrandName = matched.name
       matchedBrandId = String(matched.id)
     } catch (dbErr: any) {

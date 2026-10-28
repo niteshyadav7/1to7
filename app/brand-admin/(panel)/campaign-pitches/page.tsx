@@ -78,6 +78,12 @@ export default function CampaignPitchesCurationPage() {
   })
   const [loading, setLoading] = useState(true)
 
+  // Memoized active brand workspaces (excluding paused brands)
+  const activeRegisteredBrands = useMemo(
+    () => registeredBrands.filter(b => b.isActive !== false),
+    [registeredBrands]
+  )
+
   // Filters
   const [selectedBrand, setSelectedBrand] = useState<string>('all')
   const [selectedCampaign, setSelectedCampaign] = useState<string>('all')
@@ -132,7 +138,7 @@ export default function CampaignPitchesCurationPage() {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
 
   const handleOpenShareModal = (targetBrand?: string, targetBatch?: string) => {
-    const brandToUse = targetBrand || (registeredBrands[0]?.name || '')
+    const brandToUse = targetBrand || (activeRegisteredBrands[0]?.name || '')
     const batchToUse = targetBatch || (selectedBatch !== 'all' ? selectedBatch : (batches[0] || ''))
     
     setShareBrand(brandToUse)
@@ -323,10 +329,10 @@ export default function CampaignPitchesCurationPage() {
     }
     const targetApps = applications.filter(a => targetIds.includes(a.application_id))
     const appBrandName = targetApps[0]?.brand_name?.toLowerCase().trim()
-    const match = registeredBrands.find(
+    const match = activeRegisteredBrands.find(
       b => b.name.toLowerCase().trim() === appBrandName || b.slug.toLowerCase().trim() === appBrandName
     )
-    const detected = match ? match.name : (registeredBrands[0]?.name || '')
+    const detected = match ? match.name : (activeRegisteredBrands[0]?.name || '')
     setDispatchTargetBrand(detected)
     setShowDispatchModal(true)
   }
@@ -338,13 +344,17 @@ export default function CampaignPitchesCurationPage() {
       return
     }
 
-    if (registeredBrands.length === 0) {
-      toast.error('No registered Brand Client Workspaces found in database. Please onboard a brand workspace first.')
+    if (activeRegisteredBrands.length === 0) {
+      toast.error(
+        registeredBrands.length === 0
+          ? 'No registered Brand Client Workspaces found in database. Please onboard a brand workspace first.'
+          : 'All registered Brand Client Workspaces are currently paused. Please activate a workspace in Client Brands first.'
+      )
       return
     }
 
     if (!dispatchTargetBrand) {
-      toast.error('Please choose a registered Brand Client Workspace')
+      toast.error('Please choose an active Brand Client Workspace')
       return
     }
 
@@ -1319,14 +1329,16 @@ export default function CampaignPitchesCurationPage() {
                       </span>
                     )}
                   </div>
-                  {registeredBrands.length === 0 ? (
+                  {activeRegisteredBrands.length === 0 ? (
                     <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-2">
                       <div className="flex items-center gap-2 font-bold text-amber-300 text-xs">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                        No Client Brand Workspaces Found
+                        {registeredBrands.length === 0 ? 'No Client Brand Workspaces Found' : 'All Brand Workspaces Are Paused'}
                       </div>
                       <p className="text-[11px] text-neutral-300 leading-relaxed">
-                        Creators can only be dispatched to registered Brand Workspaces created in Brand Admin. No client brand accounts exist in the database right now.
+                        {registeredBrands.length === 0
+                          ? 'Creators can only be dispatched to registered Brand Workspaces created in Brand Admin. No client brand accounts exist in the database right now.'
+                          : 'Creators can only be dispatched to Active Brand Workspaces. All registered brand accounts are currently paused. Please activate a brand in Client Brands management.'}
                       </p>
                       <Link href="/brand-admin/brands">
                         <Button
@@ -1335,7 +1347,7 @@ export default function CampaignPitchesCurationPage() {
                           className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-[11px] h-7 px-3 rounded-lg shadow-sm"
                         >
                           <Building2 className="h-3 w-3 mr-1.5" />
-                          Onboard Brand Workspace
+                          {registeredBrands.length === 0 ? 'Onboard Brand Workspace' : 'Manage & Activate Brands'}
                         </Button>
                       </Link>
                     </div>
@@ -1347,10 +1359,10 @@ export default function CampaignPitchesCurationPage() {
                           onChange={(e) => setDispatchTargetBrand(e.target.value)}
                           className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
                         >
-                          <option value="">-- Choose Registered Brand Workspace --</option>
-                          {registeredBrands.map(b => (
+                          <option value="">-- Choose Active Brand Workspace --</option>
+                          {activeRegisteredBrands.map(b => (
                             <option key={b.id} value={b.name}>
-                              ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} (Assigned KAM: {b.assignedKam || 'Ops'})
+                              ⭐ {b.name} (Assigned KAM: {b.assignedKam || 'Ops'})
                             </option>
                           ))}
                         </select>
@@ -1449,7 +1461,7 @@ export default function CampaignPitchesCurationPage() {
                 </Button>
                 <Button
                   onClick={handleDispatchToBrand}
-                  disabled={isDispatching || registeredBrands.length === 0 || !dispatchTargetBrand}
+                  disabled={isDispatching || activeRegisteredBrands.length === 0 || !dispatchTargetBrand}
                   className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-950/20"
                 >
                   {isDispatching ? (
@@ -1901,9 +1913,11 @@ export default function CampaignPitchesCurationPage() {
                     <label className="text-[11px] font-bold text-neutral-300 uppercase tracking-wider block mb-1">
                       Client Brand Workspace *
                     </label>
-                    {registeredBrands.length === 0 ? (
+                    {activeRegisteredBrands.length === 0 ? (
                       <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300">
-                        No registered brand workspaces in database. Create one in Client Brands first.
+                        {registeredBrands.length === 0
+                          ? 'No registered brand workspaces in database. Create one in Client Brands first.'
+                          : 'All registered brand workspaces are paused. Please activate one in Client Brands first.'}
                       </div>
                     ) : (
                       <select
@@ -1911,7 +1925,7 @@ export default function CampaignPitchesCurationPage() {
                         onChange={(e) => {
                           const val = e.target.value
                           setShareBrand(val)
-                          const regB = registeredBrands.find(b => b.name === val)
+                          const regB = activeRegisteredBrands.find(b => b.name === val)
                           const cName = regB ? `${regB.name} Lead` : 'Brand Marketing Lead'
                           const cEmail = 'marketing@brand.com'
                           setShareContactName(cName)
@@ -1920,10 +1934,10 @@ export default function CampaignPitchesCurationPage() {
                         }}
                         className="w-full px-3 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-white/10 text-white focus:outline-none focus:border-emerald-400 transition cursor-pointer"
                       >
-                        <option value="">-- Choose Registered Workspace --</option>
-                        {registeredBrands.map(b => (
+                        <option value="">-- Choose Active Workspace --</option>
+                        {activeRegisteredBrands.map(b => (
                           <option key={b.id} value={b.name}>
-                            ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} ({b.assignedKam || 'Ops'})
+                            ⭐ {b.name} ({b.assignedKam || 'Ops'})
                           </option>
                         ))}
                       </select>

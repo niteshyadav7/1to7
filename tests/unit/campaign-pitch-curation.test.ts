@@ -403,6 +403,37 @@ describe('Campaign Pitch Curation & Two-Gatekeeper Pipeline Tests', () => {
       expect(optgroups[1].items).toHaveLength(3)
       expect(optgroups[1].items[2].value).toBe('Koel Bags')
     })
+
+    it('excludes paused brand workspaces from dispatch target list and blocks dispatch', () => {
+      const allRegisteredBrands = [
+        { id: 'b1', name: 'Invergy', is_active: true },
+        { id: 'b2', name: '1to7 Brand', is_active: false }, // PAUSED
+      ]
+
+      // Filter only active brand workspaces for dispatch modal
+      const activeDispatchTargets = allRegisteredBrands.filter((b) => b.is_active)
+      expect(activeDispatchTargets).toHaveLength(1)
+      expect(activeDispatchTargets[0].name).toBe('Invergy')
+
+      // Paused brand must not be in active dispatch targets
+      const canSelectPausedInDispatch = activeDispatchTargets.some((b) => b.name === '1to7 Brand')
+      expect(canSelectPausedInDispatch).toBe(false)
+
+      // Backend dispatch guard logic:
+      const validateDispatchTarget = (targetName: string) => {
+        const matched = allRegisteredBrands.find((b) => b.name === targetName)
+        if (!matched) return { ok: false, error: 'Not registered' }
+        if (!matched.is_active) return { ok: false, error: 'Brand workspace is currently PAUSED' }
+        return { ok: true, brandId: matched.id }
+      }
+
+      const activeResult = validateDispatchTarget('Invergy')
+      expect(activeResult.ok).toBe(true)
+
+      const pausedResult = validateDispatchTarget('1to7 Brand')
+      expect(pausedResult.ok).toBe(false)
+      expect(pausedResult.error).toContain('PAUSED')
+    })
   })
 })
 
