@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useDeferredValue } from 'react'
 import Link from 'next/link'
 import {
   Users,
@@ -17,6 +17,7 @@ import {
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 import { toast } from 'sonner'
+import { brandCache } from '@/lib/brand-cache'
 
 interface CampaignItem {
   id: string
@@ -34,9 +35,11 @@ interface CampaignItem {
 }
 
 export default function BrandCampaignsPage() {
-  const [campaigns, setCampaigns] = useState<CampaignItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const cachedCampaigns = brandCache.get<CampaignItem[]>('brand_campaigns') || []
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>(cachedCampaigns)
+  const [loading, setLoading] = useState(cachedCampaigns.length === 0)
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
   const fetchCampaigns = useCallback(async (silent = false) => {
@@ -46,6 +49,7 @@ export default function BrandCampaignsPage() {
       const data = await res.json()
       if (res.ok && Array.isArray(data.campaigns)) {
         setCampaigns(data.campaigns)
+        brandCache.set('brand_campaigns', data.campaigns)
       } else {
         setCampaigns([])
       }
@@ -57,7 +61,7 @@ export default function BrandCampaignsPage() {
   }, [])
 
   useEffect(() => {
-    fetchCampaigns(false)
+    fetchCampaigns(cachedCampaigns.length > 0)
 
     const handleFocus = () => {
       if (document.visibilityState === 'visible') {
@@ -70,11 +74,11 @@ export default function BrandCampaignsPage() {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleFocus)
     }
-  }, [fetchCampaigns])
+  }, [fetchCampaigns, cachedCampaigns.length])
 
   const filteredCampaigns = useMemo(() => {
-    if (!search.trim()) return campaigns
-    const q = search.toLowerCase()
+    if (!deferredSearch.trim()) return campaigns
+    const q = deferredSearch.toLowerCase()
     return campaigns.filter(
       (c) =>
         c.title?.toLowerCase().includes(q) ||
@@ -82,7 +86,7 @@ export default function BrandCampaignsPage() {
         c.category?.toLowerCase().includes(q) ||
         c.platform?.toLowerCase().includes(q)
     )
-  }, [campaigns, search])
+  }, [campaigns, deferredSearch])
 
   const totals = useMemo(() => {
     return campaigns.reduce(
@@ -194,9 +198,10 @@ export default function BrandCampaignsPage() {
 
       {/* ─── 2. CAMPAIGNS CONTENT (MOBILE-FIRST CARDS OR TABLE) ─── */}
       {loading ? (
-        <div className="py-16 text-center space-y-2.5 bg-white rounded-3xl border border-slate-200 shadow-xs">
-          <Loader2 className="h-7 w-7 animate-spin text-[#F95738] mx-auto" />
-          <p className="text-xs text-slate-500 font-semibold">Loading active campaigns...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 animate-pulse">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-60 rounded-3xl bg-slate-200/60" />
+          ))}
         </div>
       ) : filteredCampaigns.length === 0 ? (
         <div className="py-16 text-center space-y-3 rounded-3xl bg-white border border-dashed border-slate-300 p-8">
@@ -218,7 +223,8 @@ export default function BrandCampaignsPage() {
               <Link
                 key={camp.id}
                 href={`/brand/campaigns/${camp.id}/creators`}
-                className="group rounded-3xl bg-white border border-slate-200/90 hover:border-[#F95738] hover:shadow-lg transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-xs"
+                prefetch={true}
+                className="group rounded-3xl bg-white border border-slate-200/90 hover:border-[#F95738] hover:shadow-lg transform-gpu active:scale-[0.985] transition-all duration-150 flex flex-col justify-between overflow-hidden shadow-xs cursor-pointer"
               >
                 <div
                   className={`h-1.5 w-full bg-gradient-to-r ${

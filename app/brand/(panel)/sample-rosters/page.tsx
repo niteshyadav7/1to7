@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   BookmarkPlus,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SampleList, SampleListItem } from '@/types/sample-roster'
+import { brandCache } from '@/lib/brand-cache'
 
 function formatCompactNumber(num: number): string {
   const n = Number(num) || 0
@@ -42,9 +43,12 @@ const AVATAR_GRADIENTS = [
 ]
 
 export default function BrandSampleRostersPage() {
-  const [rosters, setRosters] = useState<SampleList[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
+  const cachedRosters = brandCache.get<SampleList[]>('brand_sample_rosters') || []
+  const [rosters, setRosters] = useState<SampleList[]>(cachedRosters)
+  const [loading, setLoading] = useState(cachedRosters.length === 0)
+  const [selectedRosterId, setSelectedRosterId] = useState<string | null>(
+    cachedRosters.length > 0 ? cachedRosters[0].id : null
+  )
   const [activeRoster, setActiveRoster] = useState<SampleList | null>(null)
   const [creators, setCreators] = useState<SampleListItem[]>([])
   const [creatorsLoading, setCreatorsLoading] = useState(false)
@@ -53,6 +57,7 @@ export default function BrandSampleRostersPage() {
   // Selection, Search & View Mode
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [filterTab, setFilterTab] = useState<'all' | 'selected'>('all')
   const [showShortlistModal, setShowShortlistModal] = useState(false)
@@ -63,7 +68,8 @@ export default function BrandSampleRostersPage() {
   const [pocPhone, setPocPhone] = useState('')
 
   useEffect(() => {
-    fetchRosters(false)
+    // If cached, revalidate silently
+    fetchRosters(cachedRosters.length > 0)
 
     const handleFocus = () => {
       if (document.visibilityState === 'visible') {
@@ -86,6 +92,7 @@ export default function BrandSampleRostersPage() {
       if (res.ok && data.rosters) {
         const fetchedRosters: SampleList[] = data.rosters
         setRosters(fetchedRosters)
+        brandCache.set('brand_sample_rosters', fetchedRosters)
 
         const urlRosterId =
           typeof window !== 'undefined'
@@ -118,24 +125,37 @@ export default function BrandSampleRostersPage() {
   }, [selectedRosterId])
 
   const fetchRosterDetail = async (id: string) => {
-    setCreatorsLoading(true)
-    setSelectedIds(new Set())
+    const cachedDetail = brandCache.get<any>(`brand_roster_${id}`)
+    if (cachedDetail) {
+      // Instant 0ms render from SWR cache
+      setActiveRoster(cachedDetail.roster)
+      setCreators(cachedDetail.items || [])
+      setExistingShortlist(cachedDetail.existing_shortlist || null)
+      if (cachedDetail.existing_shortlist?.shortlisted_item_ids) {
+        setSelectedIds(new Set<string>(cachedDetail.existing_shortlist.shortlisted_item_ids))
+      }
+    } else {
+      setCreatorsLoading(true)
+      setSelectedIds(new Set())
+    }
+
     try {
-      const res = await fetch(`/api/brand/sample-rosters/${id}`)
+      const res = await fetch(`/api/brand/sample-rosters/${id}`, { cache: 'no-store' })
       const data = await res.json()
       if (res.ok) {
         setActiveRoster(data.roster)
         setCreators(data.items || [])
         setExistingShortlist(data.existing_shortlist || null)
+        brandCache.set(`brand_roster_${id}`, data)
         if (data.existing_shortlist?.shortlisted_item_ids) {
           const preSelected = new Set<string>(data.existing_shortlist.shortlisted_item_ids)
           setSelectedIds(preSelected)
         }
-      } else {
+      } else if (!cachedDetail) {
         toast.error(data.error || 'Failed to load creator list')
       }
     } catch {
-      toast.error('Failed to load roster creators')
+      if (!cachedDetail) toast.error('Failed to load roster creators')
     } finally {
       setCreatorsLoading(false)
     }
@@ -163,8 +183,8 @@ export default function BrandSampleRostersPage() {
   const filteredCreators = useMemo(() => {
     return creators.filter((c) => {
       if (filterTab === 'selected' && !selectedIds.has(c.id)) return false
-      if (!search.trim()) return true
-      const q = search.toLowerCase()
+      if (!deferredSearch.trim()) return true
+      const q = deferredSearch.toLowerCase()
       return (
         c.creator_name.toLowerCase().includes(q) ||
         c.instagram_username.toLowerCase().includes(q) ||
@@ -172,7 +192,7 @@ export default function BrandSampleRostersPage() {
         (c.niche && c.niche.toLowerCase().includes(q))
       )
     })
-  }, [creators, search, filterTab, selectedIds])
+  }, [creators, deferredSearch, filterTab, selectedIds])
 
   const handleSubmitShortlist = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,13 +200,26 @@ export default function BrandSampleRostersPage() {
       return toast.error('Please select at least 1 creator to shortlist')
     }
 
+    const previousShortlist = existingShortlist
+    const submittedIds = Array.from(selectedIds)
+
+    // ⚡ Optimistic UI: Immediately update local state & close modal with zero delay
+    setExistingShortlist({
+      id: 'optimistic-' + Date.now(),
+      shortlisted_item_ids: submittedIds,
+      shortlisted_creators_count: submittedIds.length,
+      status: 'new',
+    })
+    setShowShortlistModal(false)
+    toast.success(`Shortlist (${submittedIds.length} creators) submitted to TheHype!`)
+
     setSubmittingShortlist(true)
     try {
       const res = await fetch(`/api/brand/sample-rosters/${selectedRosterId}/shortlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selected_item_ids: Array.from(selectedIds),
+          selected_item_ids: submittedIds,
           brand_feedback_notes: notes.trim() || undefined,
           brand_poc_name: pocName.trim() || undefined,
           brand_poc_email: pocEmail.trim() || undefined,
@@ -197,12 +230,13 @@ export default function BrandSampleRostersPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to submit shortlist')
 
-      toast.success(data.message || `Shortlist submitted to TheHype!`)
-      setShowShortlistModal(false)
+      // Update cache
+      brandCache.invalidate(`brand_roster_${selectedRosterId}`)
       setNotes('')
-      fetchRosterDetail(selectedRosterId)
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit shortlist')
+      // Rollback on failure
+      setExistingShortlist(previousShortlist)
+      toast.error(err.message || 'Failed to submit shortlist. Please try again.')
     } finally {
       setSubmittingShortlist(false)
     }
@@ -225,9 +259,13 @@ export default function BrandSampleRostersPage() {
   return (
     <div className="space-y-4 pb-28 font-sans text-slate-900">
       {loading ? (
-        <div className="py-20 text-center space-y-3 bg-white rounded-3xl border border-slate-200 shadow-xs">
-          <Loader2 className="h-7 w-7 animate-spin text-[#F95738] mx-auto" />
-          <p className="text-xs text-slate-500 font-semibold">Loading pitch rosters...</p>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-44 rounded-3xl bg-slate-200/70" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="h-56 rounded-3xl bg-slate-200/60" />
+            <div className="h-56 rounded-3xl bg-slate-200/60" />
+            <div className="h-56 rounded-3xl bg-slate-200/60" />
+          </div>
         </div>
       ) : rosters.length === 0 ? (
         <div className="py-16 text-center space-y-3 rounded-3xl bg-white border border-dashed border-slate-300 p-8">
@@ -465,9 +503,10 @@ export default function BrandSampleRostersPage() {
 
               {/* Creators Grid or Table */}
               {creatorsLoading ? (
-                <div className="py-16 text-center space-y-2 bg-white rounded-2xl border border-slate-200">
-                  <Loader2 className="h-6 w-6 animate-spin text-[#F95738] mx-auto" />
-                  <p className="text-xs text-slate-500 font-semibold">Loading creator profiles...</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 animate-pulse">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-64 rounded-3xl bg-slate-200/60" />
+                  ))}
                 </div>
               ) : filteredCreators.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-500 bg-white rounded-2xl border border-slate-200">
@@ -484,7 +523,7 @@ export default function BrandSampleRostersPage() {
                       <div
                         key={creator.id}
                         onClick={() => toggleSelect(creator.id)}
-                        className={`group rounded-3xl bg-white border transition-all duration-200 flex flex-col justify-between overflow-hidden relative ${
+                        className={`group rounded-3xl bg-white border transform-gpu transition-all duration-150 active:scale-[0.985] flex flex-col justify-between overflow-hidden relative ${
                           canShortlist ? 'cursor-pointer' : ''
                         } ${
                           isSelected

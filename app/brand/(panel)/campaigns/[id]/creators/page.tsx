@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -28,6 +28,7 @@ import type { BrandCreatorItem } from '@/types/brand'
 import { formatFollowerCount } from '@/lib/utils/brand-privacy-utils'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
+import { brandCache } from '@/lib/brand-cache'
 
 const rejectionReasons = [
   'Aesthetic does not match brand style',
@@ -49,11 +50,14 @@ const AVATAR_GRADIENTS = [
 
 export default function CreatorReviewStudioPage() {
   const { id: campaignId } = useParams<{ id: string }>()
-  const [creators, setCreators] = useState<BrandCreatorItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const cacheKey = `brand_creators_${campaignId}`
+  const cachedCreators = brandCache.get<BrandCreatorItem[]>(cacheKey) || []
+  const [creators, setCreators] = useState<BrandCreatorItem[]>(cachedCreators)
+  const [loading, setLoading] = useState(cachedCreators.length === 0)
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [actionInProgress, setActionInProgress] = useState<string | null>(null)
 
@@ -71,6 +75,7 @@ export default function CreatorReviewStudioPage() {
         const data = await res.json()
         if (res.ok && data.creators) {
           setCreators(data.creators)
+          brandCache.set(cacheKey, data.creators)
         } else if (!silent) {
           toast.error(data.error || 'Failed to fetch creators')
         }
@@ -80,11 +85,11 @@ export default function CreatorReviewStudioPage() {
         if (!silent) setLoading(false)
       }
     },
-    [campaignId]
+    [campaignId, cacheKey]
   )
 
   useEffect(() => {
-    fetchCreators(false)
+    fetchCreators(cachedCreators.length > 0)
 
     const handleFocus = () => {
       if (document.visibilityState === 'visible') {
@@ -97,7 +102,7 @@ export default function CreatorReviewStudioPage() {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleFocus)
     }
-  }, [fetchCreators])
+  }, [fetchCreators, cachedCreators.length])
 
   // Tab counts
   const counts = useMemo(() => {
@@ -128,8 +133,8 @@ export default function CreatorReviewStudioPage() {
       if (activeTab === 'rejected' && creator.brand_review_status !== 'brand_rejected') {
         return false
       }
-      if (search.trim()) {
-        const q = search.toLowerCase()
+      if (deferredSearch.trim()) {
+        const q = deferredSearch.toLowerCase()
         return (
           creator.creator_name?.toLowerCase().includes(q) ||
           creator.instagram_username?.toLowerCase().includes(q) ||
@@ -139,7 +144,7 @@ export default function CreatorReviewStudioPage() {
       }
       return true
     })
-  }, [creators, activeTab, search])
+  }, [creators, activeTab, deferredSearch])
 
   const toggleSelectApp = (appId: string) => {
     const next = new Set(selectedAppIds)
@@ -156,8 +161,28 @@ export default function CreatorReviewStudioPage() {
     }
   }
 
-  // 1-Click Approve Action
+  // ⚡ 1-Click Instant Optimistic Approve Action
   const handleApprove = async (applicationId: string, creatorName: string) => {
+    // 1. Optimistically update local state immediately
+    const previousCreators = creators
+    setCreators((prev) =>
+      prev.map((c) =>
+        c.application_id === applicationId
+          ? {
+              ...c,
+              brand_review_status: 'brand_approved',
+              brand_reviewed_at: new Date().toISOString(),
+            }
+          : c
+      )
+    )
+    setSelectedAppIds((prev) => {
+      const next = new Set(prev)
+      next.delete(applicationId)
+      return next
+    })
+    toast.success(`Approved ${creatorName}! Sample dispatch queued.`)
+
     try {
       setActionInProgress(applicationId)
       const res = await fetch(`/api/brand/campaigns/${campaignId}/creators`, {
@@ -172,43 +197,48 @@ export default function CreatorReviewStudioPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to approve creator')
 
-      toast.success(`Approved ${creatorName}! Product sample dispatch is queued.`)
-
-      setCreators((prev) =>
-        prev.map((c) =>
-          c.application_id === applicationId
-            ? {
-                ...c,
-                brand_review_status: 'brand_approved',
-                brand_reviewed_at: new Date().toISOString(),
-              }
-            : c
-        )
-      )
-      setSelectedAppIds((prev) => {
-        const next = new Set(prev)
-        next.delete(applicationId)
-        return next
-      })
+      brandCache.invalidate(cacheKey)
     } catch (err: any) {
-      toast.error(err.message || 'Approval failed')
+      // Rollback on error
+      setCreators(previousCreators)
+      toast.error(err.message || 'Approval failed. Reverted state.')
     } finally {
       setActionInProgress(null)
     }
   }
 
-  // Submit Rejection
+  // ⚡ Instant Optimistic Rejection
   const handleRejectSubmit = async () => {
     if (!rejectModalItem) return
 
+    const targetItem = rejectModalItem
+    const previousCreators = creators
+
+    // 1. Optimistically update local state & close modal
+    setCreators((prev) =>
+      prev.map((c) =>
+        c.application_id === targetItem.application_id
+          ? {
+              ...c,
+              brand_review_status: 'brand_rejected',
+              brand_rejection_reason: selectedReason,
+              brand_reviewed_at: new Date().toISOString(),
+            }
+          : c
+      )
+    )
+    setRejectModalItem(null)
+    setCustomNote('')
+    toast.info(`Marked ${targetItem.creator_name} as rejected`)
+
     try {
-      setActionInProgress(rejectModalItem.application_id)
+      setActionInProgress(targetItem.application_id)
       const res = await fetch(`/api/brand/campaigns/${campaignId}/creators`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'reject',
-          application_ids: [rejectModalItem.application_id],
+          application_ids: [targetItem.application_id],
           reason: selectedReason,
           notes: customNote.trim() || undefined,
         }),
@@ -217,34 +247,40 @@ export default function CreatorReviewStudioPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to reject creator')
 
-      toast.info(`Marked ${rejectModalItem.creator_name} as rejected`)
-
-      setCreators((prev) =>
-        prev.map((c) =>
-          c.application_id === rejectModalItem.application_id
-            ? {
-                ...c,
-                brand_review_status: 'brand_rejected',
-                brand_rejection_reason: selectedReason,
-                brand_reviewed_at: new Date().toISOString(),
-              }
-            : c
-        )
-      )
-
-      setRejectModalItem(null)
-      setCustomNote('')
+      brandCache.invalidate(cacheKey)
     } catch (err: any) {
-      toast.error(err.message || 'Rejection failed')
+      setCreators(previousCreators)
+      toast.error(err.message || 'Rejection failed. Reverted state.')
     } finally {
       setActionInProgress(null)
     }
   }
 
-  // Bulk Actions
+  // ⚡ Instant Optimistic Bulk Actions
   const handleBulkAction = async (selected: BrandCreatorItem[], isApprove: boolean) => {
     const ids = selected.map((s) => s.application_id)
     if (ids.length === 0) return
+
+    const previousCreators = creators
+
+    // 1. Optimistic update
+    setCreators((prev) =>
+      prev.map((c) =>
+        ids.includes(c.application_id)
+          ? {
+              ...c,
+              brand_review_status: isApprove ? 'brand_approved' : 'brand_rejected',
+              brand_reviewed_at: new Date().toISOString(),
+            }
+          : c
+      )
+    )
+    setSelectedAppIds(new Set())
+    toast.success(
+      isApprove
+        ? `Approved ${ids.length} creators! Auto-dispatch queued.`
+        : `Rejected ${ids.length} creators.`
+    )
 
     try {
       setActionInProgress('bulk')
@@ -261,26 +297,10 @@ export default function CreatorReviewStudioPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to process bulk decision')
 
-      toast.success(
-        isApprove
-          ? `Approved ${ids.length} creators! Auto-dispatch queued.`
-          : `Rejected ${ids.length} creators.`
-      )
-
-      setCreators((prev) =>
-        prev.map((c) =>
-          ids.includes(c.application_id)
-            ? {
-                ...c,
-                brand_review_status: isApprove ? 'brand_approved' : 'brand_rejected',
-                brand_reviewed_at: new Date().toISOString(),
-              }
-            : c
-        )
-      )
-      setSelectedAppIds(new Set())
+      brandCache.invalidate(cacheKey)
     } catch (err: any) {
-      toast.error(err.message || 'Bulk action failed')
+      setCreators(previousCreators)
+      toast.error(err.message || 'Bulk action failed. Reverted.')
     } finally {
       setActionInProgress(null)
     }
@@ -406,9 +426,10 @@ export default function CreatorReviewStudioPage() {
 
       {/* ─── 2. CREATOR CARDS OR TABLE ─── */}
       {loading ? (
-        <div className="py-16 text-center space-y-2 bg-white rounded-3xl border border-slate-200">
-          <Loader2 className="h-6 w-6 animate-spin text-[#F95738] mx-auto" />
-          <p className="text-xs text-slate-500 font-semibold">Loading creator applications...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 animate-pulse">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-64 rounded-3xl bg-slate-200/60" />
+          ))}
         </div>
       ) : viewMode === 'cards' ? (
         filteredCreators.length === 0 ? (
@@ -428,7 +449,7 @@ export default function CreatorReviewStudioPage() {
               return (
                 <div
                   key={c.application_id}
-                  className={`rounded-3xl bg-white border transition-all duration-200 flex flex-col justify-between overflow-hidden shadow-xs ${
+                  className={`rounded-3xl bg-white border transform-gpu transition-all duration-150 active:scale-[0.985] flex flex-col justify-between overflow-hidden shadow-xs ${
                     isApproved
                       ? 'border-emerald-500/70 bg-gradient-to-b from-emerald-50/20 via-white to-white'
                       : isRejected

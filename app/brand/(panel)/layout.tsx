@@ -12,17 +12,20 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandPayload } from '@/types/brand'
+import { brandCache } from '@/lib/brand-cache'
 
 export default function BrandPanelLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [brandUser, setBrandUser] = useState<BrandPayload | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [counts, setCounts] = useState<{ rosters: number; campaigns: number; pendingApps: number }>({
-    rosters: 0,
-    campaigns: 0,
-    pendingApps: 0,
-  })
+
+  const cachedUser = brandCache.get<BrandPayload>('brand_user')
+  const cachedCounts = brandCache.get<{ rosters: number; campaigns: number; pendingApps: number }>('brand_counts')
+
+  const [brandUser, setBrandUser] = useState<BrandPayload | null>(cachedUser)
+  const [loading, setLoading] = useState(!cachedUser)
+  const [counts, setCounts] = useState<{ rosters: number; campaigns: number; pendingApps: number }>(
+    cachedCounts || { rosters: 0, campaigns: 0, pendingApps: 0 }
+  )
 
   const fetchBrandSessionAndCounts = useCallback(
     async (silent = false) => {
@@ -31,7 +34,9 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         const data = await res.json()
         if (data.authenticated && data.user) {
           setBrandUser(data.user)
+          brandCache.set('brand_user', data.user)
         } else if (!silent) {
+          brandCache.invalidate()
           router.replace('/brand/login')
           return
         }
@@ -42,13 +47,16 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
           fetch('/api/brand/campaigns', { cache: 'no-store' }),
         ])
 
-        let rostersCount = 0
-        let campaignsCount = 0
-        let pendingAppsCount = 0
+        let rostersCount = counts.rosters
+        let campaignsCount = counts.campaigns
+        let pendingAppsCount = counts.pendingApps
 
         if (rostersRes.status === 'fulfilled' && rostersRes.value.ok) {
           const rData = await rostersRes.value.json()
-          rostersCount = Array.isArray(rData.rosters) ? rData.rosters.length : 0
+          if (Array.isArray(rData.rosters)) {
+            rostersCount = rData.rosters.length
+            brandCache.set('brand_sample_rosters', rData.rosters)
+          }
         }
         if (campaignsRes.status === 'fulfilled' && campaignsRes.value.ok) {
           const cData = await campaignsRes.value.json()
@@ -58,25 +66,29 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               (acc: number, c: any) => acc + (Number(c.pending_review) || 0),
               0
             )
+            brandCache.set('brand_campaigns', cData.campaigns)
           }
         }
 
-        setCounts({
+        const newCounts = {
           rosters: rostersCount,
           campaigns: campaignsCount,
           pendingApps: pendingAppsCount,
-        })
+        }
+        setCounts(newCounts)
+        brandCache.set('brand_counts', newCounts)
       } catch {
         if (!silent) router.replace('/brand/login')
       } finally {
         if (!silent) setLoading(false)
       }
     },
-    [router]
+    [router, counts.rosters, counts.campaigns, counts.pendingApps]
   )
 
   useEffect(() => {
-    fetchBrandSessionAndCounts(false)
+    // If we have cached user, run in silent background revalidation mode
+    fetchBrandSessionAndCounts(Boolean(cachedUser))
 
     const handleFocus = () => {
       if (document.visibilityState === 'visible') {
@@ -89,10 +101,11 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleFocus)
     }
-  }, [fetchBrandSessionAndCounts])
+  }, [fetchBrandSessionAndCounts, cachedUser])
 
   const handleLogout = async () => {
     try {
+      brandCache.invalidate()
       await fetch('/api/brand/auth/logout', { method: 'POST' })
       toast.success('Signed out of Brand Workspace')
       router.push('/brand/login')
@@ -107,11 +120,11 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
     pathname === '/brand' ||
     pathname === '/brand/dashboard'
 
-  if (loading) {
+  if (loading && !brandUser) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-[#F95738] border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-300 font-semibold">Loading TheHype Brand Hub...</p>
+        <p className="text-xs text-slate-300 font-semibold tracking-wide">Connecting to TheHype...</p>
       </div>
     )
   }
@@ -132,7 +145,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
           </div>
           <a
             href="/brand-admin/sample-lists"
-            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] border border-white/15 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-[10px] border border-white/15 transition-all flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
           >
             <span>Back to Admin</span>
             <ArrowUpRight className="w-3 h-3" />
@@ -175,7 +188,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
             >
               <Link
                 href="/brand/sample-rosters"
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                prefetch={true}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
                   isSampleRostersActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -196,7 +210,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
 
               <Link
                 href="/brand/campaigns"
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                prefetch={true}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
                   isCampaignsActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
@@ -237,7 +252,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               <button
                 onClick={handleLogout}
                 title="Sign Out"
-                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/15 text-slate-300 hover:text-red-300 border border-white/10 hover:border-red-500/30 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/15 text-slate-300 hover:text-red-300 border border-white/10 hover:border-red-500/30 transition-all duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -253,7 +268,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
             >
               <Link
                 href="/brand/sample-rosters"
-                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+                prefetch={true}
+                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1.5 ${
                   isSampleRostersActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white'
@@ -274,7 +290,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
 
               <Link
                 href="/brand/campaigns"
-                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
+                prefetch={true}
+                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1.5 ${
                   isCampaignsActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white'
