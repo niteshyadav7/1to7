@@ -10,7 +10,6 @@ import {
   Building2,
   Users,
   Eye,
-  Share2,
   Copy,
   Check,
   ChevronRight,
@@ -23,33 +22,42 @@ import {
   Download,
   LayoutGrid,
   List,
-  SlidersHorizontal,
   ArrowUpDown,
   CheckSquare,
-  AlertCircle,
-  Tag,
-  ShieldCheck,
+  Send,
+  CopyPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { SampleList } from '@/types/sample-roster'
 
 export default function SampleListsDashboardPage() {
   const [lists, setLists] = useState<SampleList[]>([])
+  const [availableBrands, setAvailableBrands] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('all')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'creators' | 'views' | 'title'>('newest')
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // Create Modal
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [title, setTitle] = useState('')
+  const [createBrandId, setCreateBrandId] = useState('')
   const [brandName, setBrandName] = useState('')
   const [categoryNiche, setCategoryNiche] = useState('')
   const [description, setDescription] = useState('')
   const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
   const [creating, setCreating] = useState(false)
+
+  // Send / Clone to Client Brand Modal
+  const [rosterToSend, setRosterToSend] = useState<SampleList | null>(null)
+  const [sendMode, setSendMode] = useState<'assign' | 'clone'>('assign')
+  const [targetBrandId, setTargetBrandId] = useState('')
+  const [targetBrandName, setTargetBrandName] = useState('')
+  const [targetPitchNote, setTargetPitchNote] = useState('')
+  const [targetAllowShortlist, setTargetAllowShortlist] = useState(true)
+  const [sendingToBrand, setSendingToBrand] = useState(false)
 
   // Delete Modal
   const [rosterToDelete, setRosterToDelete] = useState<SampleList | null>(null)
@@ -74,7 +82,20 @@ export default function SampleListsDashboardPage() {
 
   useEffect(() => {
     fetchLists()
+    fetchAvailableBrands()
   }, [])
+
+  const fetchAvailableBrands = async () => {
+    try {
+      const res = await fetch('/api/brand-admin/brands-list')
+      const data = await res.json()
+      if (res.ok && data.brands) {
+        setAvailableBrands(data.brands)
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
 
   const fetchLists = async () => {
     setLoading(true)
@@ -93,10 +114,54 @@ export default function SampleListsDashboardPage() {
     }
   }
 
+  const handleOpenSendModal = (list: SampleList) => {
+    setRosterToSend(list)
+    // If already published to a brand, default to 'assign' unless user wants to clone to another brand
+    setSendMode('assign')
+    setTargetBrandId(list.brand_id || '')
+    setTargetBrandName(list.brand_name || '')
+    setTargetPitchNote(list.pitch_note_to_brand || '')
+    setTargetAllowShortlist(list.allow_brand_shortlisting ?? true)
+  }
+
+  const handleSendToBrandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rosterToSend) return
+    if (!targetBrandName.trim()) {
+      return toast.error('Please select or enter a Target Client Brand')
+    }
+
+    setSendingToBrand(true)
+    try {
+      const res = await fetch(`/api/brand-admin/sample-lists/${rosterToSend.id}/publish-to-brand`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brand_id: targetBrandId || undefined,
+          brand_name: targetBrandName.trim(),
+          pitch_note_to_brand: targetPitchNote.trim() || undefined,
+          allow_brand_shortlisting: targetAllowShortlist,
+          mode: sendMode,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send roster to brand')
+
+      toast.success(data.message || `Sent to ${targetBrandName}!`)
+      setRosterToSend(null)
+      fetchLists()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send roster to brand')
+    } finally {
+      setSendingToBrand(false)
+    }
+  }
+
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !brandName.trim()) {
-      return toast.error('Please enter a title and brand name')
+      return toast.error('Please enter a title and select or type a brand name')
     }
 
     setCreating(true)
@@ -106,6 +171,7 @@ export default function SampleListsDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
+          brand_id: createBrandId || undefined,
           brand_name: brandName.trim(),
           category_niche: categoryNiche.trim() || undefined,
           description: description.trim() || undefined,
@@ -116,9 +182,10 @@ export default function SampleListsDashboardPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create roster')
 
-      toast.success(`Created "${data.list.title}"!`)
+      toast.success(`Created "${data.list.title}" for ${data.list.brand_name}! Now add creators to send to brand.`)
       setShowCreateModal(false)
       setTitle('')
+      setCreateBrandId('')
       setBrandName('')
       setCategoryNiche('')
       setDescription('')
@@ -171,7 +238,7 @@ export default function SampleListsDashboardPage() {
 
   // Filter & Sort
   const processedLists = useMemo(() => {
-    let result = lists.filter((l) => {
+    const result = lists.filter((l) => {
       const matchesSearch =
         l.title.toLowerCase().includes(search.toLowerCase()) ||
         l.brand_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -182,7 +249,6 @@ export default function SampleListsDashboardPage() {
       return matchesSearch && matchesBrand
     })
 
-    // Sort
     result.sort((a, b) => {
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       if (sortBy === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -203,7 +269,10 @@ export default function SampleListsDashboardPage() {
     return lists.reduce((acc, l) => acc + (l.view_count || 0), 0)
   }, [lists])
 
-  // Helper to split comma-separated categories cleanly
+  const totalApprovedByBrands = useMemo(() => {
+    return lists.reduce((acc, l) => acc + (Number(l.shortlisted_creators_count) || 0), 0)
+  }, [lists])
+
   const parseCategories = (cat?: string | null): string[] => {
     if (!cat) return []
     return cat
@@ -231,7 +300,7 @@ export default function SampleListsDashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mt-0.5">
-                Curate creator pitch decks, preview client presentations, and dispatch interactive rosters to brands.
+                Curate creator pitch decks, send directly to Client Brand Portals, or clone &amp; share interactive links.
               </p>
             </div>
           </div>
@@ -266,7 +335,7 @@ export default function SampleListsDashboardPage() {
             <BookmarkPlus className="h-4 w-4 text-amber-400" />
           </div>
           <div className="text-2xl font-black text-white">{lists.length}</div>
-          <p className="text-[10px] text-neutral-500">Live & pitchable decks</p>
+          <p className="text-[10px] text-neutral-500">Live &amp; pitchable decks</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-[#121620] border border-white/10 space-y-1 relative overflow-hidden group hover:border-purple-500/30 transition-colors shadow-lg">
@@ -287,21 +356,13 @@ export default function SampleListsDashboardPage() {
           <p className="text-[10px] text-neutral-500">Interactive presentations viewed</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#121620] border border-white/10 space-y-1 relative overflow-hidden group hover:border-sky-500/30 transition-colors shadow-lg flex flex-col justify-between">
+        <div className="p-4 rounded-2xl bg-[#121620] border border-white/10 space-y-1 relative overflow-hidden group hover:border-sky-500/30 transition-colors shadow-lg">
           <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Inbound Shortlists</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Brand Approved Creators</span>
             <CheckSquare className="h-4 w-4 text-sky-400" />
           </div>
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs font-semibold text-neutral-300">Brand Feedback</span>
-            <Link
-              href="/brand-admin/brand-shortlists"
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 px-2 py-1 rounded-lg border border-sky-500/20 transition-all"
-            >
-              <span>View Inbound</span>
-              <ChevronRight className="h-3 w-3" />
-            </Link>
-          </div>
+          <div className="text-2xl font-black text-sky-400">{totalApprovedByBrands.toLocaleString()}</div>
+          <p className="text-[10px] text-neutral-500">Shortlisted directly inside rosters</p>
         </div>
       </div>
 
@@ -437,11 +498,10 @@ export default function SampleListsDashboardPage() {
                 transition={{ duration: 0.2 }}
                 className="rounded-2xl bg-[#121620] hover:bg-[#151a26] border border-white/10 hover:border-amber-500/35 p-5 shadow-xl flex flex-col justify-between transition-all group relative overflow-hidden"
               >
-                {/* Subtle Top Glow Accent Line */}
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/70 via-purple-500/60 to-transparent group-hover:from-amber-400 group-hover:via-purple-400 transition-all" />
 
                 <div className="space-y-3.5">
-                  {/* Top Bar: Brand Pill + Live Status & Date */}
+                  {/* Top Bar: Brand Pill + Portal Status & Date */}
                   <div className="flex items-center justify-between gap-2">
                     <div
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] font-bold truncate max-w-[170px]"
@@ -452,10 +512,16 @@ export default function SampleListsDashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>Live Link</span>
-                      </span>
+                      {list.is_published_to_brand ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>Live on Portal</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 text-neutral-400 border border-white/10">
+                          <span>Link Ready</span>
+                        </span>
+                      )}
                       <span className="text-[10px] text-neutral-400 flex items-center gap-1" title="Created date">
                         <Calendar className="h-3 w-3 text-neutral-500" />
                         {new Date(list.created_at).toLocaleDateString('en-IN', {
@@ -482,12 +548,12 @@ export default function SampleListsDashboardPage() {
                       </p>
                     ) : (
                       <p className="text-[11px] text-neutral-500 italic mt-1">
-                        Curated talent roster for client review & shortlisting
+                        Curated talent roster for client review &amp; shortlisting
                       </p>
                     )}
                   </div>
 
-                  {/* Clean Category Micro-Chips (No awkward wrapping) */}
+                  {/* Clean Category Micro-Chips */}
                   {categories.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {categories.slice(0, 2).map((cat, idx) => (
@@ -530,12 +596,12 @@ export default function SampleListsDashboardPage() {
                       {Number(list.shortlisted_creators_count || 0) > 0 ? (
                         <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
                           <Check className="w-3 h-3 shrink-0" />
-                          {list.shortlisted_creators_count} Approved by Brand
+                          {list.shortlisted_creators_count} Approved
                         </span>
                       ) : list.allow_brand_shortlisting ? (
                         <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1">
                           <CheckSquare className="w-3 h-3 shrink-0" />
-                          YES: Can Approve
+                          YES: Approve
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-md bg-white/5 text-neutral-400 border border-white/10 font-semibold flex items-center gap-1">
@@ -549,8 +615,18 @@ export default function SampleListsDashboardPage() {
 
                 {/* Card Action Footer */}
                 <div className="pt-3.5 mt-3.5 border-t border-white/5 flex items-center justify-between gap-2">
-                  {/* Left: Quick Actions (Copy Link, Preview, Delete) */}
+                  {/* Left: Quick Actions (Send to Brand, Copy Link, Preview, Delete) */}
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSendModal(list)}
+                      className="h-7 px-2.5 rounded-lg text-[10px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 flex items-center gap-1 transition-all cursor-pointer"
+                      title="Send or clone this roster to a Client Brand Portal"
+                    >
+                      <Send className="h-3 w-3" />
+                      <span>Send to Brand</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={(e) => handleCopyLink(list, e)}
@@ -569,7 +645,7 @@ export default function SampleListsDashboardPage() {
                       ) : (
                         <>
                           <Copy className="h-3 w-3 text-neutral-400" />
-                          <span>Copy Link</span>
+                          <span>Link</span>
                         </>
                       )}
                     </button>
@@ -599,7 +675,7 @@ export default function SampleListsDashboardPage() {
                     href={`/brand-admin/sample-lists/${list.id}`}
                     className="h-7.5 px-3 rounded-lg bg-[#febd1c] hover:bg-amber-300 text-neutral-950 font-bold text-xs flex items-center gap-1 shadow-sm shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer shrink-0"
                   >
-                    <span>Open Studio</span>
+                    <span>Open</span>
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
@@ -614,14 +690,14 @@ export default function SampleListsDashboardPage() {
             <table className="w-full text-left border-collapse text-[11px]">
               <thead className="bg-[#0c1017] text-neutral-400 font-bold uppercase tracking-wider border-b border-white/10 text-[10px] select-none">
                 <tr>
-                  <th className="py-2 px-3">Roster Title & Target Brand</th>
-                  <th className="py-2 px-2.5">Category / Niche</th>
-                  <th className="py-2 px-2.5 text-center">Creators</th>
-                  <th className="py-2 px-2.5 text-center">Brand Power & Approvals</th>
-                  <th className="py-2 px-2.5 text-center">Client Views</th>
-                  <th className="py-2 px-2.5">Created Date</th>
-                  <th className="py-2 px-2.5">Client Link</th>
-                  <th className="py-2 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3">Roster Title &amp; Target Brand</th>
+                  <th className="py-2.5 px-2.5">Category / Niche</th>
+                  <th className="py-2.5 px-2.5 text-center">Creators</th>
+                  <th className="py-2.5 px-2.5 text-center">Brand Power &amp; Approvals</th>
+                  <th className="py-2.5 px-2.5 text-center">Client Views</th>
+                  <th className="py-2.5 px-2.5">Created Date</th>
+                  <th className="py-2.5 px-2.5">Dispatch &amp; Link</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -632,30 +708,38 @@ export default function SampleListsDashboardPage() {
                   return (
                     <tr key={list.id} className="hover:bg-white/[0.03] transition-colors">
                       {/* Title & Brand */}
-                      <td className="py-2 px-3">
+                      <td className="py-2.5 px-3">
                         <div className="min-w-0">
                           <Link
                             href={`/brand-admin/sample-lists/${list.id}`}
-                            className="font-bold text-white text-[11px] hover:text-amber-300 truncate max-w-[200px] block transition-colors"
+                            className="font-bold text-white text-xs hover:text-amber-300 truncate max-w-[220px] block transition-colors"
                             title={list.title}
                           >
                             {list.title}
                           </Link>
-                          <div className="flex items-center gap-1 text-[10px] text-amber-400 mt-0.5">
-                            <Building2 className="w-2.5 h-2.5 shrink-0" />
-                            <span className="truncate max-w-[150px]">{list.brand_name}</span>
+                          <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                            <span className="inline-flex items-center gap-1 text-amber-400 font-semibold">
+                              <Building2 className="w-2.5 h-2.5 shrink-0" />
+                              <span className="truncate max-w-[140px]">{list.brand_name}</span>
+                            </span>
+                            {list.is_published_to_brand && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold">
+                                <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                                Portal Live
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
 
                       {/* Categories */}
-                      <td className="py-2 px-2.5">
+                      <td className="py-2.5 px-2.5">
                         {categories.length > 0 ? (
                           <div className="flex items-center gap-1 flex-wrap max-w-[180px]">
                             {categories.slice(0, 2).map((c, idx) => (
                               <span
                                 key={idx}
-                                className="px-1.5 py-0.2 rounded text-[9px] bg-white/5 border border-white/10 text-neutral-300 truncate max-w-[110px]"
+                                className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 border border-white/10 text-neutral-300 truncate max-w-[110px]"
                                 title={c}
                               >
                                 {c}
@@ -671,14 +755,14 @@ export default function SampleListsDashboardPage() {
                       </td>
 
                       {/* Creators Count */}
-                      <td className="py-2 px-2.5 text-center">
+                      <td className="py-2.5 px-2.5 text-center">
                         <span className="font-bold text-white text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10">
                           {list.items_count || 0}
                         </span>
                       </td>
 
                       {/* Brand Power & Approvals */}
-                      <td className="py-2 px-2.5 text-center">
+                      <td className="py-2.5 px-2.5 text-center">
                         <div className="flex flex-col items-center gap-1">
                           {Number(list.shortlisted_creators_count || 0) > 0 ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-[10px]">
@@ -698,12 +782,12 @@ export default function SampleListsDashboardPage() {
                       </td>
 
                       {/* Client Views */}
-                      <td className="py-2 px-2.5 text-center font-bold text-emerald-400 text-[11px]">
+                      <td className="py-2.5 px-2.5 text-center font-bold text-emerald-400 text-[11px]">
                         {list.view_count || 0}
                       </td>
 
                       {/* Created Date */}
-                      <td className="py-2 px-2.5 text-neutral-400 text-[10px]">
+                      <td className="py-2.5 px-2.5 text-neutral-400 text-[10px]">
                         {new Date(list.created_at).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'short',
@@ -711,30 +795,43 @@ export default function SampleListsDashboardPage() {
                         })}
                       </td>
 
-                      {/* Share Link */}
-                      <td className="py-2 px-2.5">
-                        <button
-                          type="button"
-                          onClick={(e) => handleCopyLink(list, e)}
-                          className={`h-6 px-2 rounded-md text-[10px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                            isCopied
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/5'
-                          }`}
-                        >
-                          {isCopied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
-                          <span>{isCopied ? 'Copied' : 'Copy Link'}</span>
-                        </button>
+                      {/* Dispatch to Brand & Share Link */}
+                      <td className="py-2.5 px-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSendModal(list)}
+                            className="h-6.5 px-2.5 rounded-md text-[10px] font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 flex items-center gap-1 transition-all cursor-pointer"
+                            title="Send to Client Brand Portal or Clone for Another Brand"
+                          >
+                            <Send className="h-2.5 w-2.5" />
+                            <span>Send to Brand</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleCopyLink(list, e)}
+                            className={`h-6.5 px-2 rounded-md text-[10px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                              isCopied
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : 'bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/5'
+                            }`}
+                            title="Copy public pitch link (WhatsApp/Email)"
+                          >
+                            {isCopied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
+                            <span>{isCopied ? 'Copied' : 'Copy Link'}</span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Actions */}
-                      <td className="py-2 px-3 text-right">
+                      <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <a
                             href={`/view/roster/${list.share_token}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="h-6 w-6 rounded-md bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/5 flex items-center justify-center transition-colors cursor-pointer"
+                            className="h-6.5 w-6.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/5 flex items-center justify-center transition-colors cursor-pointer"
                             title="Preview client view in new tab"
                           >
                             <ExternalLink className="h-2.5 w-2.5" />
@@ -742,7 +839,7 @@ export default function SampleListsDashboardPage() {
 
                           <Link
                             href={`/brand-admin/sample-lists/${list.id}`}
-                            className="h-6 px-2.5 rounded-md bg-[#febd1c] hover:bg-amber-300 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-all shadow-xs"
+                            className="h-6.5 px-2.5 rounded-md bg-[#febd1c] hover:bg-amber-300 text-neutral-950 font-bold text-[10px] flex items-center gap-1 transition-all shadow-xs"
                           >
                             <span>Open</span>
                             <ChevronRight className="h-3 w-3" />
@@ -751,7 +848,7 @@ export default function SampleListsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => setRosterToDelete(list)}
-                            className="h-6 w-6 rounded-md bg-white/5 hover:bg-red-500/15 text-neutral-400 hover:text-red-400 border border-white/5 flex items-center justify-center transition-colors cursor-pointer"
+                            className="h-6.5 w-6.5 rounded-md bg-white/5 hover:bg-red-500/15 text-neutral-400 hover:text-red-400 border border-white/5 flex items-center justify-center transition-colors cursor-pointer"
                             title="Delete sample roster"
                           >
                             <Trash2 className="h-2.5 w-2.5" />
@@ -767,7 +864,7 @@ export default function SampleListsDashboardPage() {
         </div>
       )}
 
-      {/* ─── 5. CREATE NEW ROSTER MODAL ─── */}
+      {/* ─── 5. CREATE NEW ROSTER MODAL (WITH REGISTERED CLIENT BRAND SELECTOR) ─── */}
       <AnimatePresence>
         {showCreateModal && (
           <div
@@ -790,7 +887,7 @@ export default function SampleListsDashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">Create Sample Roster</h3>
-                    <p className="text-xs text-neutral-400">Curate influencers for brand client pitches</p>
+                    <p className="text-xs text-neutral-400">Curate influencers for your Client Brands</p>
                   </div>
                 </div>
                 <button
@@ -811,21 +908,59 @@ export default function SampleListsDashboardPage() {
                     required
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Festive Season Beauty Pitch - Mamaearth"
+                    placeholder="e.g. Doctors Pitch, Festive Beauty Creators"
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
-                    Target Brand Name *
+                {/* Registered Client Brands Quick Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Target Client Brand *</span>
+                    <span className="text-[10px] text-amber-400 font-semibold normal-case">
+                      Pick from Client Brands or type custom
+                    </span>
                   </label>
+
+                  {availableBrands.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap pb-1">
+                      {availableBrands.map((b) => {
+                        const isSelected = createBrandId === b.id || brandName === b.name
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => {
+                              setCreateBrandId(b.id)
+                              setBrandName(b.name)
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-xs'
+                                : 'bg-[#0c1017] text-neutral-300 border-white/10 hover:border-white/25 hover:text-white'
+                            }`}
+                          >
+                            <Building2 className="w-3 h-3 text-amber-400" />
+                            <span>{b.name}</span>
+                            {isSelected && <Check className="w-3 h-3 text-amber-400" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     required
                     value={brandName}
-                    onChange={(e) => setBrandName(e.target.value)}
-                    placeholder="e.g. Mamaearth, Nykaa, BoAt"
+                    onChange={(e) => {
+                      setBrandName(e.target.value)
+                      const match = availableBrands.find(
+                        (b) => b.name.toLowerCase() === e.target.value.trim().toLowerCase()
+                      )
+                      setCreateBrandId(match ? match.id : '')
+                    }}
+                    placeholder="Selected brand or type custom brand name..."
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
@@ -838,7 +973,7 @@ export default function SampleListsDashboardPage() {
                     type="text"
                     value={categoryNiche}
                     onChange={(e) => setCategoryNiche(e.target.value)}
-                    placeholder="e.g. Beauty & Skincare, Tech & Gadgets, Fashion"
+                    placeholder="e.g. Healthcare, Beauty & Skincare, Tech"
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
                   />
                 </div>
@@ -851,7 +986,7 @@ export default function SampleListsDashboardPage() {
                     rows={2}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="e.g. Curated for Q4 Diwali Hamper Campaign with >50k followers"
+                    placeholder="e.g. Curated creators with high reel engagement"
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50 resize-none"
                   />
                 </div>
@@ -924,7 +1059,253 @@ export default function SampleListsDashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── 6. DELETE CONFIRMATION MODAL ─── */}
+      {/* ─── 6. SEND / CLONE ROSTER TO CLIENT BRAND MODAL ─── */}
+      <AnimatePresence>
+        {rosterToSend && (
+          <div
+            onClick={() => {
+              if (!sendingToBrand) setRosterToSend(null)
+            }}
+            className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[#121620] border border-amber-500/35 rounded-2xl p-5 shadow-2xl space-y-4 text-white cursor-default"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <Send className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      Send &ldquo;{rosterToSend.title}&rdquo; to Client Brand
+                    </h3>
+                    <p className="text-xs text-neutral-400">
+                      Publish directly into a Client Brand Portal or clone for another client
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRosterToSend(null)}
+                  className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {(rosterToSend.items_count || 0) === 0 ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3 text-xs">
+                  <p className="font-bold text-amber-300">
+                    This roster currently has 0 creators!
+                  </p>
+                  <p className="text-neutral-300 leading-relaxed">
+                    Before sending &ldquo;{rosterToSend.title}&rdquo; to a Client Brand Portal, please open the roster and add creators (from 1to7 Database or CSV/Sheet).
+                  </p>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setRosterToSend(null)}
+                      className="px-3 py-1.5 rounded-lg border border-white/10 text-neutral-400 hover:text-white cursor-pointer"
+                    >
+                      Close
+                    </button>
+                    <Link
+                      href={`/brand-admin/sample-lists/${rosterToSend.id}`}
+                      className="px-4 py-1.5 rounded-lg bg-[#febd1c] text-neutral-950 font-bold flex items-center gap-1.5"
+                    >
+                      <span>Open Roster &amp; Add Creators</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSendToBrandSubmit} className="space-y-4 text-xs">
+                  {/* Step 1: Choose Action Mode (Send This Roster vs Clone for Another Brand) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      1. How do you want to send this roster?
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSendMode('assign')}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          sendMode === 'assign'
+                            ? 'bg-amber-500/15 border-amber-400 text-white'
+                            : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-amber-300">
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Send / Assign This Roster</span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-1 leading-snug">
+                          Publishes this exact roster ({rosterToSend.items_count} creators) to the selected brand&apos;s portal.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSendMode('clone')
+                          setTargetBrandId('')
+                          setTargetBrandName('')
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          sendMode === 'clone'
+                            ? 'bg-purple-500/15 border-purple-400 text-white'
+                            : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 font-bold text-xs text-purple-300">
+                          <CopyPlus className="w-3.5 h-3.5" />
+                          <span>Clone for Another Brand</span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-1 leading-snug">
+                          Creates a separate copy for another brand while keeping {rosterToSend.brand_name}&apos;s roster intact.
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Select Target Client Brand */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      2. Select Client Brand Workspace *
+                    </label>
+
+                    {availableBrands.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap pb-1">
+                        {availableBrands.map((b) => {
+                          const isSelected = targetBrandId === b.id || targetBrandName === b.name
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                setTargetBrandId(b.id)
+                                setTargetBrandName(b.name)
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-400 shadow-sm'
+                                  : 'bg-[#0c1017] text-neutral-300 border-white/10 hover:border-white/25 hover:text-white'
+                              }`}
+                            >
+                              <Building2 className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{b.name}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <input
+                      type="text"
+                      required
+                      value={targetBrandName}
+                      onChange={(e) => {
+                        setTargetBrandName(e.target.value)
+                        const match = availableBrands.find(
+                          (b) => b.name.toLowerCase() === e.target.value.trim().toLowerCase()
+                        )
+                        setTargetBrandId(match ? match.id : '')
+                      }}
+                      placeholder="Selected Client Brand or type brand name..."
+                      className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+
+                  {/* Step 3: YES / NO Approval Power */}
+                  <div className="p-3 rounded-xl bg-[#0c1017] border border-white/10 space-y-2">
+                    <p className="text-xs font-bold text-white">
+                      3. Can {targetBrandName || 'this Brand'} Approve / Shortlist Creators?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTargetAllowShortlist(true)}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          targetAllowShortlist
+                            ? 'bg-emerald-500 text-neutral-950 border-emerald-400 shadow-sm'
+                            : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        YES (Can Approve)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTargetAllowShortlist(false)}
+                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          !targetAllowShortlist
+                            ? 'bg-amber-400 text-neutral-950 border-amber-300 shadow-sm'
+                            : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        NO (Show Only)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Optional Pitch Note */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                      Note to Brand Client (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={targetPitchNote}
+                      onChange={(e) => setTargetPitchNote(e.target.value)}
+                      placeholder="e.g. Curated top 5 creators for your upcoming campaign launch"
+                      className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setRosterToSend(null)}
+                      className="px-3.5 py-1.5 rounded-xl text-xs text-neutral-400 hover:text-white border border-white/10 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={sendingToBrand || !targetBrandName.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1.5 shadow-md shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                    >
+                      {sendingToBrand ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-3.5 w-3.5" />
+                          <span>
+                            {sendMode === 'clone'
+                              ? `Clone & Send to ${targetBrandName || 'Brand'}`
+                              : `Send to ${targetBrandName || 'Brand'} Portal`}
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── 7. DELETE CONFIRMATION MODAL ─── */}
       <AnimatePresence>
         {rosterToDelete && (
           <div

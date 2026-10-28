@@ -85,6 +85,7 @@ CASE 74: Complete Multi-Tenant White-Labeling, Brand Domain Isolation & Zero-Lea
 CASE 75: 1-Click Virtual Brand Session Bridging & Removal of Redundant Intermediate Impersonation Screens
 CASE 76: Multi-Tenant Curation Gatekeeper: Dual-Mode Pitching & Verified Address Exposure
 CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
+CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
 
 
 
@@ -3226,6 +3227,7 @@ In an influencer marketing platform connecting agency operations with external e
 
 ====================================================================================================
 CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
+CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
 ----------------------------------------------------------------------------------------------------
 Category: Database Query Optimization (LATERAL JOIN) / Enterprise Workflow Consolidation / State-Driven UI
 Interview Question:
@@ -3268,6 +3270,48 @@ The split UI mirrored the underlying relational schema (`public.sample_lists` fo
 
 [INTERVIEW STAR TAKEAWAY]
 "Never force users to context-switch across multiple tabs just because your database normalizes outbound proposals and inbound responses into two tables. Using a `LEFT JOIN LATERAL` to project the latest client response directly onto the parent entity enables a single unified workspace where permissions (YES/NO approval power) and outcomes (Approved vs. Pending) live side by side."
+
+====================================================================================================
+CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
+----------------------------------------------------------------------------------------------------
+Category: PostgreSQL Parameterized Queries / Multi-Tenant Data Cloning / Enterprise Dispatch UX
+Interview Question:
+"How do you design an agency pitch system where operators can reuse a curated talent roster across multiple enterprise brand clients without overwriting existing client shortlists, and how do you prevent SQL bind parameter mismatches when evolving update queries?"
+
+[SITUATION]
+Operators in `/brand-admin/sample-lists` wanted to send newly created or existing curated Sample Rosters (such as `Doctors`) to registered Client Brands from `/brand-admin/brands` (`1to7 Brand`, `Invergy`, etc.). However:
+1. The `+ Create New Sample Roster` modal only had a free-text input (`brandName`) without a registered Client Brand selector, leading operators to type arbitrary strings (`fsd`) that did not link to any `brand_id`.
+2. Re-sending an existing roster (e.g., `Doctors` created for `Invergy`) to another client (`1to7 Brand`) overwrote `brand_id` and `brand_name` on the single `sample_lists` record, destroying `Invergy`'s dedicated portal view.
+3. In `POST /api/brand-admin/sample-lists/[id]/publish-to-brand`, adding `allow_brand_shortlisting` to the parameter array supplied 7 parameters to a prepared statement that only referenced `$1` through `$6`, causing PostgreSQL to throw a bind parameter count mismatch error (`WHERE id = $6` received a boolean instead of the UUID).
+
+[ROOT CAUSE]
+1. Parameterized Query Drift: `updateQuery` in `publish-to-brand/route.ts` had 6 positional placeholders (`$1..$6`), while the values array passed 7 elements (`allow_brand_shortlisting` at index 5 and `id` at index 6).
+2. Missing Relational Clone Pipeline: There was no server-side mechanism to deep-copy a `sample_lists` header and its child `sample_list_items` rows for a second client brand.
+
+[SOLUTION & ARCHITECTURE]
+1. Fixed Positional Bind Parameters:
+   - Updated `publish-to-brand/route.ts` to explicitly set `allow_brand_shortlisting = COALESCE($6, allow_brand_shortlisting)` and `WHERE id = $7`, aligning the 7 positional parameters with the SQL statement.
+2. Dual-Mode Dispatch (`assign` vs `clone`) via Atomic `INSERT ... SELECT`:
+   - Enhanced `POST /api/brand-admin/sample-lists/[id]/publish-to-brand` with `mode: 'assign' | 'clone'`.
+   - In `clone` mode, the endpoint generates a fresh `share_token`, inserts a new `public.sample_lists` row linked to the target `brand_id` / `brand_name` with `is_published_to_brand = true`, and copies all creator rows in a single SQL statement:
+     ```sql
+     INSERT INTO public.sample_list_items (
+       sample_list_id, user_id, creator_name, instagram_username, followers,
+       avg_reels_views, engagement_rate, city, niche, sample_reel_url,
+       brand_commercial, internal_cost, admin_notes, sort_order
+     )
+     SELECT
+       $1, user_id, creator_name, instagram_username, followers,
+       avg_reels_views, engagement_rate, city, niche, sample_reel_url,
+       brand_commercial, internal_cost, admin_notes, sort_order
+     FROM public.sample_list_items
+     WHERE sample_list_id = $2;
+     ```
+3. 1-Click Client Brand Pills & Direct `Send to Brand` Action:
+   - Added interactive Client Brand selector pills (`1to7 Brand`, `Invergy`, etc.) inside `+ Create New Sample Roster` and added a direct `Send to Brand` button on every row/card in `/brand-admin/sample-lists`.
+
+[INTERVIEW STAR TAKEAWAY]
+"When agencies pitch the same curated creator cohort to multiple enterprise brands, mutating the foreign key (`brand_id`) in-place corrupts historical client views and shortlists. Implementing an atomic `INSERT ... SELECT` clone mode lets operators dispatch isolated, brand-specific copies with independent share tokens and shortlist tracking in one click."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

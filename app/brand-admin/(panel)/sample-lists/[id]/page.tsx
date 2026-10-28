@@ -90,6 +90,7 @@ export default function SampleListStudioPage({
   const [selectedBrandId, setSelectedBrandId] = useState<string>('')
   const [selectedBrandName, setSelectedBrandName] = useState<string>('')
   const [pitchNote, setPitchNote] = useState<string>('')
+  const [publishMode, setPublishMode] = useState<'assign' | 'clone'>('assign')
   const [publishing, setPublishing] = useState(false)
   const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
   const [brandShortlist, setBrandShortlist] = useState<any>(null)
@@ -160,6 +161,7 @@ export default function SampleListStudioPage({
           pitch_note_to_brand: pitchNote.trim() || undefined,
           visible_columns: selectedColumns,
           allow_brand_shortlisting: allowBrandShortlisting,
+          mode: publishMode,
         }),
       })
 
@@ -167,7 +169,9 @@ export default function SampleListStudioPage({
       if (!res.ok) throw new Error(data.error || 'Failed to send to brand portal')
 
       toast.success(data.message || `Sample roster sent to ${selectedBrandName}'s Brand Portal!`)
-      setList(data.roster)
+      if (publishMode === 'assign') {
+        setList(data.roster)
+      }
       setShowPublishModal(false)
     } catch (err: any) {
       toast.error(err.message || 'Failed to send to brand portal')
@@ -1620,11 +1624,57 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
               </div>
 
               <form onSubmit={handlePublishToBrand} className="space-y-4 text-xs">
+                {/* Delivery Mode: Assign vs Clone */}
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Send className="h-3.5 w-3.5 text-amber-400" />
+                    <span>1. Delivery Mode</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPublishMode('assign')
+                        if (list?.brand_id) setSelectedBrandId(list.brand_id)
+                        if (list?.brand_name) setSelectedBrandName(list.brand_name)
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        publishMode === 'assign'
+                          ? 'bg-amber-500/15 border-amber-400 text-white'
+                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-amber-300">Send / Update This Roster</div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Publishes this exact roster to the selected brand portal.
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPublishMode('clone')
+                        setSelectedBrandId('')
+                        setSelectedBrandName('')
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        publishMode === 'clone'
+                          ? 'bg-purple-500/15 border-purple-400 text-white'
+                          : 'bg-slate-950 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="font-bold text-xs text-purple-300">Clone for Another Brand</div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Creates &amp; sends a separate copy for another brand while keeping {list?.brand_name}&apos;s copy intact.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Brand Selector */}
                 <div className="space-y-1.5">
                   <label className="text-slate-300 font-semibold flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Target Client Brand</span>
+                    <span>2. Select Target Client Brand</span>
                   </label>
 
                   {availableBrands.length > 0 && (

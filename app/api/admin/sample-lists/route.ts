@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, brand_name, category_niche, description, visible_columns, allow_brand_shortlisting } = body
+    const { title, brand_id, brand_name, category_niche, description, visible_columns, allow_brand_shortlisting } = body
 
     if (!title?.trim() || !brand_name?.trim()) {
       return NextResponse.json({ error: 'Title and Brand Name are required' }, { status: 400 })
@@ -85,6 +85,7 @@ export async function POST(request: Request) {
     const queryText = `
       INSERT INTO public.sample_lists (
         title,
+        brand_id,
         brand_name,
         category_niche,
         description,
@@ -92,12 +93,13 @@ export async function POST(request: Request) {
         visible_columns,
         allow_brand_shortlisting,
         created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `
 
     const result = await pool.query(queryText, [
       title.trim(),
+      brand_id || null,
       brand_name.trim(),
       category_niche?.trim() || null,
       description?.trim() || null,
