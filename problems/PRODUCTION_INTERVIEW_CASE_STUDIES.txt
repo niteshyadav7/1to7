@@ -2578,28 +2578,30 @@ Operators dispatched creators to these names. However, because those names were 
 1. Domain Entity Conflation: The prototype system treated the free-text attribute `campaigns.brand_name` (entered arbitrarily during internal influencer campaign setup) as equivalent to a real multi-tenant client brand workspace (`public.brands`).
 2. Missing Foreign Relationship: While `public.brands` houses actual enterprise tenants (with dedicated `brand_users`, bcrypt credentials, review studios, and assigned KAM routing), the curation desk query populated the `brands` filter and dispatch modal strictly from:
    `SELECT DISTINCT c.brand_name FROM public.campaigns c`.
-3. Lack of Pre-Dispatch Registration Validation: The backend endpoint `POST /api/brand-admin/campaign-pitches/send-to-brand` accepted any `targetBrand` string without verifying whether a matching active record existed in `public.brands`. Even if 0 client accounts existed in the database, dispatches succeeded blindly.
+3. Schema Column Drift (`is_active` vs `status`): In `public.brands`, tenant lifecycle is represented by `is_active BOOLEAN DEFAULT true` (not `status = 'active'`). When `GET /api/brand-admin/campaign-pitches` ran `WHERE b.status = 'active'`, PostgreSQL threw `column b.status does not exist`. The silent error handler defaulted `registeredBrands = []`, causing the UI modal to falsely display "No Client Brand Workspaces Found" even when brand accounts (`Invergy`, `1to7 Brand`) existed in the database.
+4. Audit Log Schema Inversion: In `public.brand_audit_logs`, the columns are `(brand_id, user_id, user_email, action, target_id, metadata)` where `brand_id` is a UUID foreign key. The prototype `POST /api/brand-admin/campaign-pitches/send-to-brand` attempted to insert `(brand_id, user_id, user_name, event_type, entity_id, details)`, throwing `column user_name does not exist`.
 
 [SOLUTION & ARCHITECTURE]
 1. Backend Relational Discovery (`GET /api/brand-admin/campaign-pitches`):
-   - Added a query to fetch active registered workspaces from `public.brands` joined with `public.admins` for assigned Key Account Managers:
-     `SELECT b.id, b.name, b.slug, COALESCE(adm.name, 'Unassigned') as assigned_kam FROM public.brands b LEFT JOIN public.admins adm ON b.assigned_1to7_kam_id = adm.id WHERE b.status = 'active' ORDER BY b.name ASC;`
-   - Returned `registeredBrands` alongside legacy campaign tags (`brands`).
+   - Corrected query to use `COALESCE(b.is_active, true) as is_active` without referencing nonexistent `b.status`:
+     `SELECT b.id, b.name, b.slug, COALESCE(b.is_active, true) as is_active, COALESCE(adm.name, 'Unassigned') as assigned_kam FROM public.brands b LEFT JOIN public.admins adm ON b.assigned_1to7_kam_id = adm.id ORDER BY b.name ASC;`
+   - Returned `registeredBrands` with `isActive` status alongside legacy campaign tags (`brands`).
 2. Clear Segmented UI Filtering (`app/brand-admin/(panel)/campaign-pitches/page.tsx`):
    - Updated the top `CLIENT BRAND` filter dropdown to clearly distinguish registered client tenants from raw influencer campaign tags using `<optgroup>` segmentation:
-     - `⭐ Registered Client Workspaces (Brand Admin)`
+     - `⭐ Registered Client Workspaces (Brand Admin)` (with `(Paused)` indicators if inactive)
      - `🏷️ Influencer Campaign Brands (Source Tags)`
 3. Strict Dispatch Modal Gatekeeper:
    - In the "Send to Brand Client Portal" and "1-Click WhatsApp Share" modals, restricted selection exclusively to `registeredBrands`.
-   - When `registeredBrands.length === 0`, rendered a prominent empty-state card warning:
-     "No Client Brand Workspaces Found. Creators can only be dispatched to registered Brand Workspaces created in Brand Admin. No client brand accounts exist in the database right now." with a direct 1-click CTA button to `/brand-admin/brands` and disabled the "Confirm & Publish" button.
-4. Backend Dispatch Verification Guard (`POST /api/brand-admin/campaign-pitches/send-to-brand`):
-   - In the API route, verified `targetBrand` against active records in `public.brands`.
-   - If 0 active brands exist, or the target does not match an active brand workspace, returned HTTP 400 with an explicit error preventing orphaned dispatches.
-   - Recorded the verified `brand_id` and normalized brand name in `public.brand_audit_logs`.
+   - Populated dropdown with real registered brands (`Invergy`, `1to7 Brand`), pre-selecting auto-detected or first registered workspace.
+   - When 0 brand workspaces exist, renders an informative empty-state card with a direct 1-click CTA button to `/brand-admin/brands` and disables the "Confirm & Publish" button.
+4. Schema-Compliant Audit Log & Verification Guard (`POST /api/brand-admin/campaign-pitches/send-to-brand`):
+   - In the API route, verified `targetBrand` against `public.brands` using `COALESCE(is_active, true) as is_active`.
+   - Verified that `matchedBrandId` is a valid UUID and mapped fields to authoritative `public.brand_audit_logs` schema:
+     `(brand_id, user_id, user_email, action, target_id, metadata) VALUES ($1, $2, $3, $4, $5, $6);`
+   - Guaranteed audit events are recorded without column mismatch crashes.
 
 [INTERVIEW STAR TAKEAWAY]
-"Never confuse a source descriptive tag (such as an influencer campaign's brand label) with a multi-tenant client entity (a registered brand workspace with authentication, permissions, and review studios). Dispatch pipelines must validate target tenants against authoritative workspace tables, segment source tags from target workspaces in administrative filters, and provide graceful empty states with direct onboarding CTAs when no client workspaces exist."
+"Never confuse a source descriptive tag (such as an influencer campaign's brand label) with a multi-tenant client entity (a registered brand workspace with authentication, permissions, and review studios). Furthermore, always verify PostgreSQL column schemas (`is_active BOOLEAN` vs `status TEXT`) rather than assuming enum conventions; silent catch blocks that swallow schema errors can deceptively render empty states when valid records exist."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

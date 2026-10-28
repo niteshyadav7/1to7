@@ -65,7 +65,7 @@ function formatFollowerCount(num: number | null | undefined): string {
 export default function CampaignPitchesCurationPage() {
   const [applications, setApplications] = useState<CampaignPitchItem[]>([])
   const [brands, setBrands] = useState<string[]>([])
-  const [registeredBrands, setRegisteredBrands] = useState<Array<{ id: string; name: string; slug: string; assignedKam?: string }>>([])
+  const [registeredBrands, setRegisteredBrands] = useState<Array<{ id: string; name: string; slug: string; isActive?: boolean; assignedKam?: string }>>([])
   const [campaigns, setCampaigns] = useState<Array<{ id: string; campaign_code: string; title: string; brand_name: string }>>([])
   const [batches, setBatches] = useState<string[]>([])
   const [counts, setCounts] = useState({
@@ -1034,7 +1034,7 @@ export default function CampaignPitchesCurationPage() {
                     <optgroup label="⭐ Registered Client Workspaces (Brand Admin)">
                       {registeredBrands.map(b => (
                         <option key={`reg-${b.id}`} value={b.name}>
-                          ⭐ {b.name} (Client Workspace)
+                          ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} (Client Workspace)
                         </option>
                       ))}
                     </optgroup>
@@ -1350,7 +1350,7 @@ export default function CampaignPitchesCurationPage() {
                           <option value="">-- Choose Registered Brand Workspace --</option>
                           {registeredBrands.map(b => (
                             <option key={b.id} value={b.name}>
-                              ⭐ {b.name} (Assigned KAM: {b.assignedKam || 'Ops'})
+                              ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} (Assigned KAM: {b.assignedKam || 'Ops'})
                             </option>
                           ))}
                         </select>
@@ -1923,7 +1923,7 @@ export default function CampaignPitchesCurationPage() {
                         <option value="">-- Choose Registered Workspace --</option>
                         {registeredBrands.map(b => (
                           <option key={b.id} value={b.name}>
-                            ⭐ {b.name} ({b.assignedKam || 'Ops'})
+                            ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} ({b.assignedKam || 'Ops'})
                           </option>
                         ))}
                       </select>

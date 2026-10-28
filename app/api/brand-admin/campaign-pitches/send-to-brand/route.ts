@@ -27,10 +27,10 @@ export async function POST(request: Request) {
     let verifiedBrandName = targetBrand ? String(targetBrand).trim() : null
     let matchedBrandId: string | null = null
     try {
-      const activeBrandsRes = await pool.query(
-        `SELECT id, name, slug FROM public.brands WHERE status = 'active';`
+      const brandsRes = await pool.query(
+        `SELECT id, name, slug, COALESCE(is_active, true) as is_active FROM public.brands;`
       )
-      if (activeBrandsRes.rows.length === 0) {
+      if (brandsRes.rows.length === 0) {
         return NextResponse.json(
           {
             error:
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
-      const matched = activeBrandsRes.rows.find(
+      const matched = brandsRes.rows.find(
         (b: any) =>
           b.name.toLowerCase() === verifiedBrandName!.toLowerCase() ||
           b.slug.toLowerCase() === verifiedBrandName!.toLowerCase() ||
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       if (!matched) {
         return NextResponse.json(
           {
-            error: `Brand '${verifiedBrandName}' is not an active registered Brand Workspace in Brand Admin. Please select from registered brand workspaces.`,
+            error: `Brand '${verifiedBrandName}' is not a registered Brand Workspace in Brand Admin. Please select from registered brand workspaces.`,
           },
           { status: 400 }
         )
@@ -102,28 +102,38 @@ export async function POST(request: Request) {
     }
 
     // 3. Write audit log event
-    try {
-      await pool.query(
-        `INSERT INTO public.brand_audit_logs (
-          brand_id, user_id, user_name, event_type, entity_id, details
-        ) VALUES ($1, $2, $3, $4, $5, $6);`,
-        [
-          matchedBrandId || verifiedBrandName?.toLowerCase() || 'unassigned',
-          (admin as any).id || null,
-          reviewerName,
-          'campaign_creators_dispatched_to_brand',
-          String(campaignId || 'campaign_batch'),
-          JSON.stringify({
-            target_brand: verifiedBrandName || targetBrand || 'Unspecified',
-            brand_id: matchedBrandId || null,
-            count: updatedCount,
-            application_ids: applicationIds,
-            kam_notes: kamNotes || null,
-          }),
-        ]
-      )
-    } catch {
-      // Non-fatal if audit logging encounters a schema variant
+    if (matchedBrandId) {
+      try {
+        const isValidUuid = (val: any): boolean =>
+          typeof val === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+
+        const adminUserId = isValidUuid((admin as any).id) ? (admin as any).id : null
+        const targetCampaignUuid = isValidUuid(campaignId) ? String(campaignId) : null
+        const userEmail = (admin as any).email || (admin as any).name || reviewerName
+
+        await pool.query(
+          `INSERT INTO public.brand_audit_logs (
+            brand_id, user_id, user_email, action, target_id, metadata
+          ) VALUES ($1, $2, $3, $4, $5, $6);`,
+          [
+            matchedBrandId,
+            adminUserId,
+            userEmail,
+            'campaign_creators_dispatched_to_brand',
+            targetCampaignUuid,
+            JSON.stringify({
+              target_brand: verifiedBrandName || targetBrand || 'Unspecified',
+              brand_id: matchedBrandId,
+              count: updatedCount,
+              application_ids: applicationIds,
+              kam_notes: kamNotes || null,
+            }),
+          ]
+        )
+      } catch (auditErr: any) {
+        console.warn('brand_audit_logs insert warning:', auditErr?.message)
+      }
     }
 
     const brandDisplay = verifiedBrandName ? `${verifiedBrandName} ` : targetBrand ? `${targetBrand} ` : ''
