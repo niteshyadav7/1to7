@@ -47,6 +47,34 @@ export async function GET(
       [roster.id]
     )
 
+    // Fetch latest brand shortlist submission so selections persist across page refreshes
+    let existingShortlist: any = null
+    try {
+      const shortlistRes = await pool.query(
+        `SELECT id, shortlisted_item_ids, shortlisted_creators_count, brand_poc_name, brand_poc_email, brand_poc_phone, brand_feedback_notes, status, submitted_at
+         FROM public.brand_shortlists
+         WHERE sample_list_id = $1
+         ORDER BY submitted_at DESC
+         LIMIT 1;`,
+        [roster.id]
+      )
+      if (shortlistRes.rows.length > 0) {
+        const row = shortlistRes.rows[0]
+        const rawIds = row.shortlisted_item_ids
+        const parsedIds = Array.isArray(rawIds)
+          ? rawIds
+          : typeof rawIds === 'string'
+          ? JSON.parse(rawIds || '[]')
+          : []
+        existingShortlist = {
+          ...row,
+          shortlisted_item_ids: parsedIds,
+        }
+      }
+    } catch {
+      // Non-fatal
+    }
+
     // Strictly enforce visible columns (Privacy & Margin Shield)
     const visibleCols: string[] = Array.isArray(roster.visible_columns) ? roster.visible_columns : [
       'creator_name', 'instagram_username', 'followers', 'avg_reels_views', 'engagement_rate', 'city', 'sample_reel_url'
@@ -79,6 +107,7 @@ export async function GET(
         created_at: roster.created_at,
       },
       items: sanitizedItems,
+      existing_shortlist: existingShortlist,
     })
   } catch (error: any) {
     console.error('Error fetching public roster presentation:', error)

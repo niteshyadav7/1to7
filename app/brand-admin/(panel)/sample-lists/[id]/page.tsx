@@ -127,6 +127,10 @@ export default function SampleListStudioPage({
       if (res.ok) {
         setList(data.list)
         setItems(data.items || [])
+        setBrandShortlist(data.shortlist || null)
+        if (data.list?.allow_brand_shortlisting !== undefined) {
+          setAllowBrandShortlisting(Boolean(data.list.allow_brand_shortlisting))
+        }
         if (data.list?.visible_columns && Array.isArray(data.list.visible_columns)) {
           setSelectedColumns(data.list.visible_columns)
         }
@@ -559,11 +563,19 @@ export default function SampleListStudioPage({
     }
   }
 
-  const shortlistedIdsSet = new Set<string>(
-    Array.isArray(brandShortlist?.shortlisted_item_ids)
-      ? brandShortlist.shortlisted_item_ids.map(String)
-      : []
-  )
+  const shortlistedIdsSet = useMemo(() => {
+    const raw = brandShortlist?.shortlisted_item_ids
+    if (Array.isArray(raw)) return new Set<string>(raw.map(String))
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) return new Set<string>(parsed.map(String))
+      } catch {
+        // ignore
+      }
+    }
+    return new Set<string>()
+  }, [brandShortlist])
 
   const filteredItems = items.filter((i) => {
     const matchesSearch =

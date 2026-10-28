@@ -79,6 +79,16 @@ export default function PublicRosterViewerPage({
       if (res.ok) {
         setRoster(data.roster)
         setItems(data.items || [])
+        if (data.existing_shortlist) {
+          const rawIds = data.existing_shortlist.shortlisted_item_ids
+          const savedIds = Array.isArray(rawIds) ? rawIds.map(String) : []
+          setSelectedIds(savedIds)
+          setSubmittedSuccess(true)
+          if (data.existing_shortlist.brand_poc_name) setPocName(data.existing_shortlist.brand_poc_name)
+          if (data.existing_shortlist.brand_poc_email) setPocEmail(data.existing_shortlist.brand_poc_email)
+          if (data.existing_shortlist.brand_poc_phone) setPocPhone(data.existing_shortlist.brand_poc_phone)
+          if (data.existing_shortlist.brand_feedback_notes) setNotes(data.existing_shortlist.brand_feedback_notes)
+        }
         if (typeof document !== 'undefined' && data.roster) {
           document.title = `${data.roster.title} • ${data.roster.brand_name} | TheHype`
         }
@@ -93,7 +103,7 @@ export default function PublicRosterViewerPage({
   }
 
   const toggleSelect = (id: string) => {
-    if (!roster?.allow_brand_shortlisting || submittedSuccess) return
+    if (!roster?.allow_brand_shortlisting) return
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     )
@@ -257,7 +267,7 @@ export default function PublicRosterViewerPage({
               </button>
             </div>
 
-            {canShortlist && !submittedSuccess && (
+            {canShortlist && (
               <button
                 type="button"
                 onClick={() => setShowSubmitModal(true)}
@@ -265,7 +275,7 @@ export default function PublicRosterViewerPage({
                 className="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white transition-all items-center gap-1.5 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed shadow-md shadow-[#F95738]/20"
               >
                 <Send className="h-3 w-3" />
-                <span>Submit Shortlist ({selectedIds.length})</span>
+                <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Submit Shortlist (${selectedIds.length})`}</span>
               </button>
             )}
           </div>
@@ -467,10 +477,10 @@ export default function PublicRosterViewerPage({
                 <div
                   key={item.id}
                   onClick={() => {
-                    if (canShortlist && !submittedSuccess) toggleSelect(item.id)
+                    if (canShortlist) toggleSelect(item.id)
                   }}
                   className={`group rounded-3xl bg-white border transition-all duration-200 flex flex-col justify-between overflow-hidden relative ${
-                    canShortlist && !submittedSuccess ? 'cursor-pointer' : ''
+                    canShortlist ? 'cursor-pointer' : ''
                   } ${
                     isSelected
                       ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg shadow-emerald-500/10 bg-gradient-to-b from-emerald-50/30 via-white to-white'
@@ -521,7 +531,7 @@ export default function PublicRosterViewerPage({
                       </div>
 
                       {/* Top-Right Selection Button */}
-                      {canShortlist && !submittedSuccess && (
+                      {canShortlist && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -636,7 +646,7 @@ export default function PublicRosterViewerPage({
                       </a>
                     )}
 
-                    {canShortlist && !submittedSuccess && (
+                    {canShortlist && (
                       <button
                         type="button"
                         onClick={() => toggleSelect(item.id)}
@@ -661,7 +671,7 @@ export default function PublicRosterViewerPage({
             {/* List Header Strip */}
             <div className="bg-slate-50/90 border-b border-slate-200 px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
               <div className="flex items-center gap-2.5">
-                {canShortlist && !submittedSuccess && (
+                {canShortlist && (
                   <input
                     type="checkbox"
                     checked={selectedIds.length === items.length && items.length > 0}
@@ -684,10 +694,10 @@ export default function PublicRosterViewerPage({
                   <div
                     key={item.id}
                     onClick={() => {
-                      if (canShortlist && !submittedSuccess) toggleSelect(item.id)
+                      if (canShortlist) toggleSelect(item.id)
                     }}
                     className={`p-3 sm:px-5 sm:py-3.5 transition-colors ${
-                      canShortlist && !submittedSuccess ? 'cursor-pointer' : ''
+                      canShortlist ? 'cursor-pointer' : ''
                     } ${
                       isSelected
                         ? 'bg-gradient-to-r from-emerald-50/60 via-emerald-50/20 to-white'
@@ -697,7 +707,7 @@ export default function PublicRosterViewerPage({
                     {/* Top Line: Identity on Left + Action Buttons on Right */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        {canShortlist && !submittedSuccess && (
+                        {canShortlist && (
                           <div
                             onClick={(e) => e.stopPropagation()}
                             className="shrink-0 flex items-center"
@@ -756,7 +766,7 @@ export default function PublicRosterViewerPage({
                           </a>
                         )}
 
-                        {canShortlist && !submittedSuccess && (
+                        {canShortlist && (
                           <button
                             type="button"
                             onClick={() => toggleSelect(item.id)}
@@ -776,7 +786,7 @@ export default function PublicRosterViewerPage({
                     {/* Second Line: Compact Colorful Metrics Strip (Fits 100% on Mobile) */}
                     <div
                       className={`mt-2 flex items-center gap-1.5 flex-wrap ${
-                        canShortlist && !submittedSuccess ? 'pl-6 sm:pl-16' : 'pl-11'
+                        canShortlist ? 'pl-6 sm:pl-16' : 'pl-11'
                       }`}
                     >
                       {visibleCols.includes('followers') && (
@@ -827,7 +837,7 @@ export default function PublicRosterViewerPage({
       </main>
 
       {/* ─── 5. THUMB-FRIENDLY STICKY BOTTOM DOCK (MOBILE & DESKTOP) ─── */}
-      {canShortlist && !submittedSuccess && (
+      {canShortlist && (
         <div className="fixed bottom-0 inset-x-0 sm:bottom-5 sm:inset-x-4 max-w-xl mx-auto z-40">
           <div className="bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#0F172A] text-white border-t sm:border border-white/15 sm:rounded-2xl px-4 py-3 shadow-2xl flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -857,7 +867,7 @@ export default function PublicRosterViewerPage({
               className="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed shrink-0 shadow-lg shadow-[#F95738]/30"
             >
               <Send className="h-3.5 w-3.5" />
-              <span>Confirm Shortlist ({selectedIds.length})</span>
+              <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Confirm Shortlist (${selectedIds.length})`}</span>
             </button>
           </div>
         </div>
@@ -979,7 +989,7 @@ export default function PublicRosterViewerPage({
                     ) : (
                       <>
                         <Send className="h-3.5 w-3.5" />
-                        <span>Submit Shortlist ({selectedIds.length})</span>
+                        <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Submit Shortlist (${selectedIds.length})`}</span>
                       </>
                     )}
                   </button>

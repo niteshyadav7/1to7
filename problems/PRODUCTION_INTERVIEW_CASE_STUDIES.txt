@@ -86,6 +86,7 @@ CASE 75: 1-Click Virtual Brand Session Bridging & Removal of Redundant Intermedi
 CASE 76: Multi-Tenant Curation Gatekeeper: Dual-Mode Pitching & Verified Address Exposure
 CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
 CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
+CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
 
 
 
@@ -3228,6 +3229,7 @@ In an influencer marketing platform connecting agency operations with external e
 ====================================================================================================
 CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
 CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
+CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
 ----------------------------------------------------------------------------------------------------
 Category: Database Query Optimization (LATERAL JOIN) / Enterprise Workflow Consolidation / State-Driven UI
 Interview Question:
@@ -3273,6 +3275,7 @@ The split UI mirrored the underlying relational schema (`public.sample_lists` fo
 
 ====================================================================================================
 CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
+CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
 ----------------------------------------------------------------------------------------------------
 Category: PostgreSQL Parameterized Queries / Multi-Tenant Data Cloning / Enterprise Dispatch UX
 Interview Question:
@@ -3312,6 +3315,40 @@ Operators in `/brand-admin/sample-lists` wanted to send newly created or existin
 
 [INTERVIEW STAR TAKEAWAY]
 "When agencies pitch the same curated creator cohort to multiple enterprise brands, mutating the foreign key (`brand_id`) in-place corrupts historical client views and shortlists. Implementing an atomic `INSERT ... SELECT` clone mode lets operators dispatch isolated, brand-specific copies with independent share tokens and shortlist tracking in one click."
+
+====================================================================================================
+CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
+----------------------------------------------------------------------------------------------------
+Category: Full-Stack State Hydration / React State Synchronization / Public-to-Admin Bidirectional Sync
+Interview Question:
+"Tell me about a time when a database write succeeded 100%, yet both the client-facing page (upon refresh) and the admin dashboard continued to show zero selected items. How did you trace and fix the full-stack hydration gap?"
+
+[SITUATION]
+When a brand reviewer opened a public Sample Roster pitch link (`/view/roster/[token]`), selected 5 out of 5 creators (`Doctors`), filled in the `Confirm Creator Shortlist` modal, and submitted:
+1. Immediately after submission, the green `✓ Shortlisted` buttons and top-right checkmark badges disappeared from the creator cards.
+2. Refreshing `/view/roster/[token]` reset `Shortlisted` back to `0 / 5` and cleared all green card selections.
+3. Opening the Brand Admin studio (`/brand-admin/sample-lists/[id]`) and refreshing still showed `Approved by Brand (0)`, `Pending / Unselected (5)`, and `Waiting for client to submit shortlist`, even though `public.brand_shortlists` in PostgreSQL contained the row with all 5 creator UUIDs.
+
+[ROOT CAUSE]
+1. Admin Studio Hydration Omission (`app/brand-admin/(panel)/sample-lists/[id]/page.tsx`):
+   - Although `GET /api/admin/sample-lists/[id]` queried `public.brand_shortlists` and returned `{ list, items, shortlist }`, the frontend `fetchRosterDetails()` function only called `setList(data.list)` and `setItems(data.items || [])` — it never called `setBrandShortlist(data.shortlist || null)`! Consequently, `brandShortlist` remained `null` on every render.
+2. Public Share Endpoint Missing Shortlist Projection (`app/api/public/roster/[token]/route.ts`):
+   - Unlike the authenticated portal endpoint (`GET /api/brand/sample-rosters/[id]`), the public token endpoint only queried `sample_lists` and `sample_list_items` without querying `public.brand_shortlists`, so refreshing `/view/roster/[token]` had no `existing_shortlist` payload to hydrate `selectedIds`.
+3. Over-Aggressive Post-Submit Conditional Guard (`!submittedSuccess`):
+   - In `app/view/roster/[token]/page.tsx`, the card checkmark button and footer `Shortlisted` button were wrapped in `{canShortlist && !submittedSuccess && (...)}`. Setting `submittedSuccess = true` after submission immediately unmounted the `✓ Shortlisted` badges from every card.
+
+[SOLUTION & ARCHITECTURE]
+1. Hydrated `brandShortlist` in Brand Admin Studio:
+   - Updated `fetchRosterDetails()` in `app/brand-admin/(panel)/sample-lists/[id]/page.tsx` to call `setBrandShortlist(data.shortlist || null)` and `setAllowBrandShortlisting(Boolean(data.list.allow_brand_shortlisting))`.
+   - Hardened `shortlistedIdsSet` memoization to handle both native JSONB arrays and serialized JSON strings.
+2. Added `existing_shortlist` Projection to Public Token API:
+   - Updated `GET /api/public/roster/[token]` to fetch the latest `public.brand_shortlists` submission for `sample_list_id = roster.id` and return `existing_shortlist`.
+3. Persistent Selection & Live Update Mode on Public Viewer:
+   - Updated `fetchRoster()` in `app/view/roster/[token]/page.tsx` to hydrate `selectedIds`, `submittedSuccess`, and POC fields from `data.existing_shortlist`.
+   - Removed the `!submittedSuccess` unmount guard from card badges/buttons so shortlisted cards stay visibly marked (`✓ Shortlisted`) after submission and across refreshes, while allowing the client to update their shortlist (`Update Shortlist (X)`).
+
+[INTERVIEW STAR TAKEAWAY]
+"When a user reports 'data isn't saving after refresh,' always verify the database row first before debugging the write path. Often the write transaction (`POST`) is 100% healthy, and the bug lies in an asymmetric read/hydration pipeline (`GET` omitting the child relation or the React `fetch` handler dropping a response key before calling `setState`)."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
