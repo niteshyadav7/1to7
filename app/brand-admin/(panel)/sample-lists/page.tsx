@@ -82,8 +82,20 @@ export default function SampleListsDashboardPage() {
   }
 
   useEffect(() => {
-    fetchLists()
+    fetchLists(false)
     fetchAvailableBrands()
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLists(true)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleFocus)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
   }, [])
 
   const fetchAvailableBrands = async () => {
@@ -98,20 +110,20 @@ export default function SampleListsDashboardPage() {
     }
   }
 
-  const fetchLists = async () => {
-    setLoading(true)
+  const fetchLists = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      const res = await fetch('/api/admin/sample-lists?status=active')
+      const res = await fetch('/api/admin/sample-lists?status=active', { cache: 'no-store' })
       const data = await res.json()
       if (res.ok) {
         setLists(data.lists || [])
-      } else {
+      } else if (!silent) {
         toast.error(data.error || 'Failed to load sample rosters')
       }
     } catch {
-      toast.error('Failed to load sample rosters')
+      if (!silent) toast.error('Failed to load sample rosters')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 

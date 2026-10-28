@@ -63,26 +63,51 @@ export default function BrandSampleRostersPage() {
   const [pocPhone, setPocPhone] = useState('')
 
   useEffect(() => {
-    fetchRosters()
+    fetchRosters(false)
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRosters(true)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleFocus)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
   }, [])
 
-  const fetchRosters = async () => {
-    setLoading(true)
+  const fetchRosters = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      const res = await fetch('/api/brand/sample-rosters')
+      const res = await fetch('/api/brand/sample-rosters', { cache: 'no-store' })
       const data = await res.json()
       if (res.ok && data.rosters) {
-        setRosters(data.rosters)
-        if (data.rosters.length > 0) {
-          setSelectedRosterId(data.rosters[0].id)
-        }
-      } else {
+        const fetchedRosters: SampleList[] = data.rosters
+        setRosters(fetchedRosters)
+
+        const urlRosterId =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('rosterId')
+            : null
+
+        setSelectedRosterId((prevId) => {
+          if (urlRosterId && fetchedRosters.some((r) => r.id === urlRosterId)) {
+            return urlRosterId
+          }
+          if (prevId && fetchedRosters.some((r) => r.id === prevId)) {
+            return prevId
+          }
+          return fetchedRosters.length > 0 ? fetchedRosters[0].id : null
+        })
+      } else if (!silent) {
         toast.error(data.error || 'Failed to load pitch decks')
       }
     } catch {
-      toast.error('Failed to connect to brand portal service')
+      if (!silent) toast.error('Failed to connect to brand portal service')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -254,6 +279,11 @@ export default function BrandSampleRostersPage() {
                           <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
                             {r.title}
                           </h3>
+                          {r.brand_name && (
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80">
+                              {r.brand_name}
+                            </span>
+                          )}
                           <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/70">
                             {r.category_niche || 'General'}
                           </span>

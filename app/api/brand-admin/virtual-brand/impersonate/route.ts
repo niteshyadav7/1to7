@@ -23,11 +23,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'brandId parameter is required' }, { status: 400 })
     }
 
-    // 1. Find the target brand from public.brands (by ID or slug)
+    // 1. Find the target brand from public.brands (by ID, slug, or name)
     const brandRes = await pool.query(
       `SELECT id, name, slug, logo_url, primary_contact_email, primary_contact_name, organization_id 
        FROM public.brands 
-       WHERE id::text = $1 OR slug = $1 
+       WHERE id::text = $1 OR slug = $1 OR LOWER(TRIM(name)) = LOWER(TRIM($1))
        LIMIT 1`,
       [brandId]
     )
@@ -37,18 +37,34 @@ export async function GET(request: Request) {
     if (brandRes.rows.length > 0) {
       targetBrand = brandRes.rows[0]
     } else {
-      // Fallback: check if brand exists in campaigns table
-      const campRes = await pool.query(
-        `SELECT DISTINCT brand_name FROM public.campaigns WHERE brand_name ILIKE $1 LIMIT 1`,
-        [`%${brandId}%`]
+      // Fallback 1: check if brand exists in sample_lists
+      const rosterBrandRes = await pool.query(
+        `SELECT brand_id, brand_name FROM public.sample_lists WHERE brand_id = $1 OR LOWER(TRIM(brand_name)) = LOWER(TRIM($1)) LIMIT 1`,
+        [brandId]
       )
-      if (campRes.rows.length > 0) {
+      if (rosterBrandRes.rows.length > 0) {
+        const bName = rosterBrandRes.rows[0].brand_name
         targetBrand = {
-          id: `virtual-${Date.now()}`,
-          name: campRes.rows[0].brand_name,
-          slug: campRes.rows[0].brand_name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          primary_contact_email: `reviewer@${campRes.rows[0].brand_name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
-          primary_contact_name: `${campRes.rows[0].brand_name} Brand Lead`,
+          id: rosterBrandRes.rows[0].brand_id || `virtual-${Date.now()}`,
+          name: bName,
+          slug: bName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          primary_contact_email: `reviewer@${bName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+          primary_contact_name: `${bName} Brand Lead`,
+        }
+      } else {
+        // Fallback 2: check if brand exists in campaigns table
+        const campRes = await pool.query(
+          `SELECT DISTINCT brand_name FROM public.campaigns WHERE brand_name ILIKE $1 LIMIT 1`,
+          [`%${brandId}%`]
+        )
+        if (campRes.rows.length > 0) {
+          targetBrand = {
+            id: `virtual-${Date.now()}`,
+            name: campRes.rows[0].brand_name,
+            slug: campRes.rows[0].brand_name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            primary_contact_email: `reviewer@${campRes.rows[0].brand_name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
+            primary_contact_name: `${campRes.rows[0].brand_name} Brand Lead`,
+          }
         }
       }
     }

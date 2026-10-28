@@ -25,7 +25,7 @@ export async function POST(
 
     // Verify roster exists
     const rosterRes = await pool.query(
-      `SELECT id, title, brand_name, allow_brand_shortlisting FROM public.sample_lists WHERE id = $1;`,
+      `SELECT id, title, brand_id, brand_name, allow_brand_shortlisting FROM public.sample_lists WHERE id = $1;`,
       [id]
     )
 
@@ -38,8 +38,13 @@ export async function POST(
       return NextResponse.json({ error: 'Shortlisting is currently closed for this roster' }, { status: 403 })
     }
 
-    const effectiveBrandName = brandUser?.brand_name || roster.brand_name || 'Brand Partner'
-    const pocName = brand_poc_name?.trim() || brandUser?.full_name || 'Brand Reviewer'
+    // Prefer the roster's dedicated target brand if set (prevents multi-tab cookie collisions)
+    const rosterTargetBrand =
+      roster.brand_name && roster.brand_name.trim().toLowerCase() !== 'general pitch'
+        ? roster.brand_name.trim()
+        : null
+    const effectiveBrandName = rosterTargetBrand || brandUser?.brand_name || 'Brand Partner'
+    const pocName = brand_poc_name?.trim() || brandUser?.full_name || `${effectiveBrandName} Reviewer`
     const pocEmail = brand_poc_email?.trim() || brandUser?.email || null
     const pocPhone = brand_poc_phone?.trim() || null
 
@@ -83,7 +88,7 @@ export async function POST(
           metadata
         ) VALUES ($1, $2, $3, $4, $5, $6);`,
         [
-          brandUser?.brand_id || 'brand_direct',
+          roster.brand_id || brandUser?.brand_id || 'brand_direct',
           brandUser?.id || null,
           pocEmail,
           'sample_roster_shortlist_submitted',
@@ -91,6 +96,7 @@ export async function POST(
           JSON.stringify({
             sample_list_id: id,
             roster_title: roster.title,
+            brand_name: effectiveBrandName,
             count: selected_item_ids.length,
             notes: brand_feedback_notes || null,
           }),

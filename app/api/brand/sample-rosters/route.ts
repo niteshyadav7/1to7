@@ -5,8 +5,7 @@ import { getBrandFromRequest } from '@/lib/brand-auth'
 export async function GET() {
   try {
     const brandUser = await getBrandFromRequest()
-    
-    // In dev / virtual mode, if brandUser is not logged in, fallback to active brand or allow viewing
+
     const brandId = brandUser?.brand_id || null
     const brandName = brandUser?.brand_name || ''
 
@@ -50,11 +49,14 @@ export async function GET() {
     const params: any[] = []
 
     if (brandId && brandName) {
-      params.push(brandId, `%${brandName}%`)
-      queryText += ` AND (sl.brand_id = $1 OR sl.brand_name ILIKE $2 OR sl.brand_id IS NULL OR sl.brand_name = 'General Pitch')`
+      params.push(brandId, brandName.trim())
+      queryText += ` AND (sl.brand_id = $1 OR LOWER(TRIM(sl.brand_name)) = LOWER(TRIM($2)) OR LOWER(TRIM(sl.brand_name)) = 'general pitch')`
     } else if (brandName) {
-      params.push(`%${brandName}%`)
-      queryText += ` AND (sl.brand_name ILIKE $1 OR sl.brand_id IS NULL OR sl.brand_name = 'General Pitch')`
+      params.push(brandName.trim())
+      queryText += ` AND (LOWER(TRIM(sl.brand_name)) = LOWER(TRIM($1)) OR LOWER(TRIM(sl.brand_name)) = 'general pitch')`
+    } else if (brandId) {
+      params.push(brandId)
+      queryText += ` AND (sl.brand_id = $1 OR LOWER(TRIM(sl.brand_name)) = 'general pitch')`
     }
 
     queryText += `
@@ -63,7 +65,18 @@ export async function GET() {
     `
 
     const result = await pool.query(queryText, params)
-    return NextResponse.json({ success: true, rosters: result.rows })
+    return NextResponse.json({
+      success: true,
+      brand_session: brandUser
+        ? {
+            brand_id: brandUser.brand_id,
+            brand_name: brandUser.brand_name,
+            full_name: brandUser.full_name,
+            email: brandUser.email,
+          }
+        : null,
+      rosters: result.rows,
+    })
   } catch (error: any) {
     console.error('Error fetching brand sample rosters:', error)
     return NextResponse.json({ error: error.message || 'Failed to fetch sample rosters' }, { status: 500 })

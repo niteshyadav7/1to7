@@ -87,6 +87,7 @@ CASE 76: Multi-Tenant Curation Gatekeeper: Dual-Mode Pitching & Verified Address
 CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
 CASE 78: Multi-Tenant Sample Roster Cloning (`INSERT ... SELECT`) & PostgreSQL Parameterized Bind Mismatch Fix (`$6` vs `$7`)
 CASE 79: Bidirectional Shortlist Hydration Failure Across Public Share Links & Brand Admin Studio (`setBrandShortlist` Omission & Refresh State Loss)
+CASE 80: Multi-Tab Cookie Collision, Cross-Tenant `brand_id IS NULL` SQL Leakage & Stale Tab Roster Submission (`1to7 Brand` vs `Invergy`)
 
 
 
@@ -3349,6 +3350,38 @@ When a brand reviewer opened a public Sample Roster pitch link (`/view/roster/[t
 
 [INTERVIEW STAR TAKEAWAY]
 "When a user reports 'data isn't saving after refresh,' always verify the database row first before debugging the write path. Often the write transaction (`POST`) is 100% healthy, and the bug lies in an asymmetric read/hydration pipeline (`GET` omitting the child relation or the React `fetch` handler dropping a response key before calling `setState`)."
+
+====================================================================================================
+CASE 80: Multi-Tab Cookie Collision, Cross-Tenant `brand_id IS NULL` SQL Leakage & Stale Tab Roster Submission (`1to7 Brand` vs `Invergy`)
+----------------------------------------------------------------------------------------------------
+Category: Multi-Tenant Session Isolation / SQL Query Predicates / Cross-Tab State Synchronization
+Interview Question:
+"In a multi-tenant portal where an admin frequently tests multiple client brand workspaces across concurrent browser tabs, how do you prevent a shortlist submission in one tab from being attributed to the wrong brand or submitted against an older roster ID?"
+
+[SITUATION]
+An admin cloned the `Doctors` sample roster (originally created on `28 Oct` for `Invergy` with ID `1eaa750d-...`) for a second client brand, `1to7 Brand` (creating new roster ID `9c6dd098-...` on `29 Oct`). The admin then switched to an already-open `/brand/sample-rosters` tab showing `1TO7 BRAND` in the sidebar, selected 5 creators, and clicked `Confirm Shortlist (5)`. However, when inspecting `/brand-admin/sample-lists/9c6dd098-...` (`1to7 Brand`'s cloned roster), `Approved by Brand` still showed `0`!
+
+[ROOT CAUSE]
+1. Cross-Tenant `OR sl.brand_id IS NULL` Leakage in `GET /api/brand/sample-rosters`:
+   - The query predicate `AND (sl.brand_id = $1 OR sl.brand_name ILIKE $2 OR sl.brand_id IS NULL)` allowed rosters created before `brand_id` was linked (such as `Invergy`'s `28 Oct` `Doctors` roster `1eaa750d-...`) to leak into `1to7 Brand`'s portal tab.
+2. Stale Unrefreshed Tab + Shared `brand_token` Cookie Collision:
+   - The `/brand/sample-rosters` tab had been opened before the `29 Oct` clone (`9c6dd098-...`) existed, so its React state still held `selectedRosterId = '1eaa750d-...'` (`28 Oct`).
+   - Meanwhile, launching `Invergy`'s virtual session in another tab had overwritten the shared `brand_token` cookie to `Invergy`.
+   - When the user clicked `Confirm Shortlist (5)` in the unrefreshed tab, it posted to `/api/brand/sample-rosters/1eaa750d-.../shortlist` with the `Invergy` cookie, recording the submission against `Invergy`'s `1eaa750d-...` roster instead of `1to7 Brand`'s `9c6dd098-...` roster.
+3. Plain `/brand/sample-rosters` Link on `Open Portal ↗`:
+   - Clicking `Open Portal ↗` on `/brand-admin/sample-lists/[id]` opened `/brand/sample-rosters` without switching the virtual brand session to `list.brand_id` and without deep-linking `?rosterId=${list.id}`.
+
+[SOLUTION & ARCHITECTURE]
+1. Strict Brand Isolation in `GET /api/brand/sample-rosters`:
+   - Removed `OR sl.brand_id IS NULL` and enforced strict matching on `(sl.brand_id = $1 OR LOWER(TRIM(sl.brand_name)) = LOWER(TRIM($2)) OR LOWER(TRIM(sl.brand_name)) = 'general pitch')`.
+2. Roster-Authoritative Brand Attribution in `POST /api/brand/sample-rosters/[id]/shortlist`:
+   - Prioritized the roster's own dedicated `brand_name` (`rosterTargetBrand || brandUser?.brand_name`) when recording `public.brand_shortlists`, preventing cross-tab cookie collisions from misattributing a brand-specific roster submission.
+3. Authenticated Deep-Linking on `Open Portal ↗` & Cross-Tab Focus Auto-Sync:
+   - Updated `Open Portal ↗` in `/brand-admin/sample-lists/[id]` to route through `/api/brand-admin/virtual-brand/impersonate?brandId=...&redirect=/brand/sample-rosters?rosterId=...`.
+   - Added `window` `focus` / `visibilitychange` auto-revalidation across both `/brand/sample-rosters` and `/brand-admin/sample-lists` so switching tabs automatically syncs the active brand, roster ID, and inbound approvals without requiring a manual page reload.
+
+[INTERVIEW STAR TAKEAWAY]
+"When admins impersonate multiple tenants in the same browser, HTTP-only cookies are shared across all tabs. Never rely solely on the ambient cookie when mutating a tenant-scoped resource, never include `OR tenant_id IS NULL` in tenant portal queries, and always bind `focus`/`visibilitychange` revalidation plus explicit `?rosterId=` deep-linking so stale tabs self-heal the moment a user switches back to them."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

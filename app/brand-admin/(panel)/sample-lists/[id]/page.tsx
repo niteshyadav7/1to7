@@ -99,8 +99,20 @@ export default function SampleListStudioPage({
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending'>('all')
 
   useEffect(() => {
-    fetchRosterDetails()
+    fetchRosterDetails(false)
     fetchAvailableBrands()
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRosterDetails(true)
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleFocus)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
   }, [id])
 
   useEffect(() => {
@@ -121,10 +133,10 @@ export default function SampleListStudioPage({
     }
   }
 
-  const fetchRosterDetails = async () => {
-    setLoading(true)
+  const fetchRosterDetails = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      const res = await fetch(`/api/admin/sample-lists/${id}`)
+      const res = await fetch(`/api/admin/sample-lists/${id}`, { cache: 'no-store' })
       const data = await res.json()
       if (res.ok) {
         setList(data.list)
@@ -140,13 +152,13 @@ export default function SampleListStudioPage({
         if (data.list?.brand_id) setSelectedBrandId(data.list.brand_id)
         if (data.list?.brand_name) setSelectedBrandName(data.list.brand_name)
         if (data.list?.pitch_note_to_brand) setPitchNote(data.list.pitch_note_to_brand)
-      } else {
+      } else if (!silent) {
         toast.error(data.error || 'Failed to load roster')
       }
     } catch {
-      toast.error('Failed to load roster details')
+      if (!silent) toast.error('Failed to load roster details')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -818,7 +830,7 @@ export default function SampleListStudioPage({
 
             {list.is_published_to_brand && (
               <a
-                href="/brand/sample-rosters"
+                href={`/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(list.brand_id || list.brand_name)}&redirect=${encodeURIComponent(`/brand/sample-rosters?rosterId=${list.id}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-bold text-xs flex items-center gap-1 border border-amber-400/30 transition-all cursor-pointer shrink-0"
