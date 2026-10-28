@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, CreditCard, AlertCircle, FileCheck, Sparkles, Ph
 import Link from 'next/link'
 import ApprovedCampaignModal from '@/components/campaigns/ApprovedCampaignModal'
 import AddressConfirmationModal from '@/components/campaigns/AddressConfirmationModal'
+import OrderVerificationModal from '@/components/campaigns/OrderVerificationModal'
 import { useRealtime } from '@/hooks/useRealtime'
 import BrandLoader from '@/components/ui/BrandLoader'
 import { getApplicationCommercialAmount, isPaidCollaboration } from '@/lib/utils/commercial-utils'
@@ -51,6 +52,7 @@ export default function ApprovedCampaignsPage() {
   const [loading, setLoading] = useState<boolean>(true)
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
   const [addressApp, setAddressApp] = useState<Application | null>(null)
+  const [orderApp, setOrderApp] = useState<Application | null>(null)
 
   const fetchApproved = useCallback(async (isBackground = false) => {
     if (!isBackground && applications.length === 0) {
@@ -66,7 +68,7 @@ export default function ApprovedCampaignsPage() {
       const missingDetails = allApps.filter((app: Application) => {
         if (app.status !== 'Approved') return false
         const needsOrder = Boolean(app.campaigns?.order_form && !app.form_data?.order_details_approved)
-        const needsAddr = Boolean((app.campaigns?.address_required || app.campaigns?.order_form) && !app.form_data?.address_confirmed)
+        const needsAddr = Boolean(app.campaigns?.address_required && !app.form_data?.address_confirmed)
         return needsOrder || needsAddr
       })
       setPendingDetailsApps(missingDetails)
@@ -151,8 +153,9 @@ export default function ApprovedCampaignsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
             {pendingDetailsApps.map((pApp) => {
-              const needsAddress = Boolean((pApp.campaigns?.address_required || pApp.campaigns?.order_form) && !pApp.form_data?.address_confirmed)
+              const needsAddress = Boolean(pApp.campaigns?.address_required && !pApp.form_data?.address_confirmed)
               const needsOrder = Boolean(pApp.campaigns?.order_form && !pApp.form_data?.order_details_approved)
+              const hasOrderSubmitted = Boolean(pApp.form_data?.order_details)
 
               return (
                 <div
@@ -173,7 +176,11 @@ export default function ApprovedCampaignsPage() {
                     </p>
                     <div className="mt-2 text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200 rounded-lg p-2 font-medium flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                      {needsAddress ? 'Delivery address required' : 'Order details verification required'}
+                      {needsAddress
+                        ? 'Delivery address required'
+                        : hasOrderSubmitted
+                        ? 'Order details submitted (Verification pending)'
+                        : 'Order details verification required'}
                     </div>
                   </div>
 
@@ -188,13 +195,18 @@ export default function ApprovedCampaignsPage() {
                         Confirm Delivery Address
                       </button>
                     ) : (
-                      <Link
-                        href="/dashboard/campaigns"
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-2xs transition-all"
+                      <button
+                        type="button"
+                        onClick={() => setOrderApp(pApp)}
+                        className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-white text-xs font-bold shadow-2xs transition-all cursor-pointer ${
+                          hasOrderSubmitted
+                            ? 'bg-amber-600 hover:bg-amber-700'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
                       >
                         <FileCheck className="h-3.5 w-3.5" />
-                        Submit Order Form →
-                      </Link>
+                        {hasOrderSubmitted ? 'Update Order Details' : 'Submit Order Details'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -444,6 +456,17 @@ export default function ApprovedCampaignsPage() {
         onClose={() => setAddressApp(null)}
         application={addressApp}
         onSuccess={fetchApproved}
+      />
+
+      {/* In-Place Order Verification Modal (Zero Redirect) */}
+      <OrderVerificationModal
+        isOpen={!!orderApp}
+        onClose={() => setOrderApp(null)}
+        application={orderApp}
+        onSuccess={() => {
+          fetchApproved()
+          setOrderApp(null)
+        }}
       />
     </div>
   )

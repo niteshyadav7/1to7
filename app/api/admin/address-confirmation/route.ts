@@ -59,7 +59,6 @@ export async function GET(request: Request) {
       JOIN public.users u ON a.user_id = u.id
       WHERE (
         c.address_required = true 
-        OR c.order_form = true 
         OR a.address_status IS NOT NULL 
         OR (a.form_data->>'address_confirmed')::boolean = true
         OR (a.form_data->'shipping_address') IS NOT NULL

@@ -292,12 +292,12 @@ function AddressConfirmationContent() {
   if (!appId) {
     const pendingApps = hubApplications.filter((a: any) => {
       if (a.status === 'Rejected') return false
-      const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+      const needsAddress = Boolean(a.campaigns?.address_required)
       return needsAddress && !a.form_data?.address_confirmed
     })
 
     const confirmedApps = hubApplications.filter((a: any) => {
-      const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+      const needsAddress = Boolean(a.campaigns?.address_required)
       return needsAddress && Boolean(a.form_data?.address_confirmed)
     })
 

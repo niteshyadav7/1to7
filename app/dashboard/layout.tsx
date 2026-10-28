@@ -64,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const apps = data.applications || []
         const pending = apps.filter((a: any) => {
           if (a.status === 'Rejected') return false
-          const needsAddress = Boolean(a.campaigns?.address_required || a.campaigns?.order_form)
+          const needsAddress = Boolean(a.campaigns?.address_required)
           return needsAddress && !a.form_data?.address_confirmed
         }).length
         setPendingAddressCount(pending)
