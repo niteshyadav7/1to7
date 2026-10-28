@@ -116,4 +116,5 @@ export interface BrandCreatorItem {
   awb_tracking_number?: string | null
   live_content_url?: string | null
   brand_content_status?: BrandContentStatus | null
+  client_commercial?: number | null
 }

@@ -349,6 +349,34 @@ export async function ensurePocMigration(): Promise<void> {
         END IF;
 
         CREATE INDEX IF NOT EXISTS idx_sample_lists_brand_portal ON public.sample_lists(brand_id, is_published_to_brand);
+
+        -- 11. Application Costing & Commercials for Brand Pitching
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'client_commercial'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN client_commercial NUMERIC(12, 2);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'internal_cost'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN internal_cost NUMERIC(12, 2);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'applications' 
+            AND column_name = 'is_commercial_pitch'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN is_commercial_pitch BOOLEAN DEFAULT false;
+        END IF;
       END $$;
     `)
     global._pocMigrationDone = true

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { applicationIds, campaignId, visibleColumns, kamNotes, targetBrand } = body
+    const { applicationIds, campaignId, visibleColumns, kamNotes, targetBrand, includeCommercials } = body
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return NextResponse.json(
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
 
     const reviewerName = admin.name || admin.email || 'Brand Operations'
 
-    // 1. Update applications status to pending_brand_review
+    // 1. Update applications status to pending_brand_review and sync commercial flag
     const updateRes = await pool.query(
       `
       UPDATE public.applications
@@ -88,11 +88,12 @@ export async function POST(request: Request) {
         brand_pitched_at = NOW(),
         brand_pitched_by = $1,
         brand_pitch_notes = COALESCE($2, brand_pitch_notes),
+        is_commercial_pitch = CASE WHEN $3 = true THEN true ELSE is_commercial_pitch END,
         updated_at = NOW()
-      WHERE id::text = ANY($3::text[])
+      WHERE id::text = ANY($4::text[])
       RETURNING id;
       `,
-      [reviewerName, kamNotes || null, applicationIds.map(String)]
+      [reviewerName, kamNotes || null, Boolean(includeCommercials), applicationIds.map(String)]
     )
 
     const updatedCount = updateRes.rowCount || updateRes.rows.length

@@ -103,6 +103,9 @@ export async function GET(request: Request) {
         a.brand_reviewed_by,
         a.brand_rejection_reason,
         a.brand_feedback_notes,
+        a.client_commercial,
+        a.internal_cost,
+        a.is_commercial_pitch,
         a.created_at as applied_at,
         a.form_data
       FROM public.applications a
@@ -124,8 +127,13 @@ export async function GET(request: Request) {
 
       const variant = r.form_data?.sample_variant || r.form_data?.order_details?.size || r.form_data?.shade || null
       const reelLink = r.form_data?.sample_reel_link || r.form_data?.sample_reel_url || r.form_data?.past_work_link || null
-      const clientComm = r.form_data?.client_commercial ? Number(r.form_data.client_commercial) : null
-      const internalCost = r.form_data?.internal_payout_cost || r.form_data?.internal_cost || r.partial_payment || null
+      const clientComm = r.client_commercial != null && r.client_commercial !== ''
+        ? Number(r.client_commercial)
+        : (r.form_data?.client_commercial ? Number(r.form_data.client_commercial) : null)
+      const internalCost = r.internal_cost != null && r.internal_cost !== ''
+        ? Number(r.internal_cost)
+        : (r.form_data?.internal_cost ? Number(r.form_data.internal_cost) : (r.form_data?.internal_payout_cost ? Number(r.form_data.internal_payout_cost) : (r.partial_payment ? Number(r.partial_payment) : null)))
+      const isCommercialPitch = Boolean(r.is_commercial_pitch || (clientComm && clientComm > 0))
 
       // Address verification resolution (Strict gatekeeper: Verified ONLY if approved at address desk)
       const formData = r.form_data || {}
@@ -212,6 +220,8 @@ export async function GET(request: Request) {
         sample_reel_link: reelLink,
         client_commercial: clientComm,
         internal_payout_cost: internalCost ? Number(internalCost) : null,
+        internal_cost: internalCost ? Number(internalCost) : null,
+        is_commercial_pitch: isCommercialPitch,
         applied_at: r.applied_at,
         custom_form_data: r.form_data || {},
         address_verification_status: addressVerificationStatus,
@@ -229,6 +239,8 @@ export async function GET(request: Request) {
       brand_approved: allItems.filter((i) => i.brand_review_status === 'brand_approved').length,
       brand_rejected: allItems.filter((i) => i.brand_review_status === 'brand_rejected').length,
       internal_rejected: allItems.filter((i) => i.brand_review_status === 'internal_rejected').length,
+      costing: allItems.filter((i) => Boolean(i.client_commercial && i.client_commercial > 0) || i.is_commercial_pitch).length,
+      total_commercial_value: allItems.reduce((acc, i) => acc + (Number(i.client_commercial) || 0), 0),
     }
 
     // Apply filters
@@ -242,7 +254,11 @@ export async function GET(request: Request) {
       if (batchFilter !== 'all' && item.brand_pitch_batch_name !== batchFilter) {
         return false
       }
-      if (statusFilter !== 'all' && item.brand_review_status !== statusFilter) {
+      if (statusFilter === 'costing') {
+        if (!(item.client_commercial && item.client_commercial > 0) && !item.is_commercial_pitch) {
+          return false
+        }
+      } else if (statusFilter !== 'all' && item.brand_review_status !== statusFilter) {
         return false
       }
       if (search) {

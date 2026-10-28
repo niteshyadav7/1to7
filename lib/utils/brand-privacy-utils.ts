@@ -71,6 +71,12 @@ export function sanitizeCreatorForBrand(raw: any): BrandCreatorItem {
     awb_tracking_number: raw.awb_tracking_number || null,
     live_content_url: raw.live_content_url || null,
     brand_content_status: raw.brand_content_status || 'pending',
+    client_commercial:
+      raw.is_commercial_pitch && raw.client_commercial
+        ? Number(raw.client_commercial)
+        : raw.is_commercial_pitch && raw.form_data?.client_commercial
+          ? Number(raw.form_data.client_commercial)
+          : null,
   }
 }
 

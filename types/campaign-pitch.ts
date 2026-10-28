@@ -29,6 +29,8 @@ export interface CampaignPitchItem {
   sample_reel_link?: string | null
   client_commercial?: number | null
   internal_payout_cost?: number | null
+  internal_cost?: number | null
+  is_commercial_pitch?: boolean
   applied_at: string
   custom_form_data?: Record<string, any>
   address_verification_status?: 'Verified' | 'Pending' | 'Rejected' | 'Not Submitted'
@@ -65,6 +67,8 @@ export interface PitchFilterCounts {
   brand_approved: number
   brand_rejected: number
   internal_rejected: number
+  costing: number
+  total_commercial_value: number
 }
 
 export interface ColumnShieldOption {
@@ -84,7 +88,7 @@ export const CAMPAIGN_PITCH_COLUMNS: ColumnShieldOption[] = [
   { key: 'gender', label: 'Gender', category: 'core', defaultVisible: false },
   { key: 'selected_variant', label: 'Product Variant / Shade', category: 'content', defaultVisible: true },
   { key: 'sample_reel_link', label: 'Sample Reel URL', category: 'content', defaultVisible: true },
-  { key: 'client_commercial', label: 'Client Commercial Quote (₹)', category: 'commercials', defaultVisible: false },
+  { key: 'client_commercial', label: 'Client Commercial Quote (₹)', category: 'commercials', defaultVisible: true },
   { key: 'custom_answers', label: 'Campaign Question Answers', category: 'content', defaultVisible: false },
 ]
 

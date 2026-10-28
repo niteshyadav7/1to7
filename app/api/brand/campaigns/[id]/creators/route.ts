@@ -35,6 +35,8 @@ export async function GET(
           a.brand_rejection_reason,
           a.brand_feedback_notes,
           a.brand_content_status,
+          a.client_commercial,
+          a.is_commercial_pitch,
           a.form_data,
           a.created_at as applied_at,
           u.id as user_id,

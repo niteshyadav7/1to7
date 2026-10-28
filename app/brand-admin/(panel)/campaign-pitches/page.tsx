@@ -41,6 +41,11 @@ import {
   Link2,
   AlertTriangle,
   UserCheck,
+  IndianRupee,
+  Coins,
+  Edit3,
+  Plus,
+  DollarSign,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -98,6 +103,8 @@ export default function CampaignPitchesCurationPage() {
     brand_approved: 0,
     brand_rejected: 0,
     internal_rejected: 0,
+    costing: 0,
+    total_commercial_value: 0,
   })
   const [loading, setLoading] = useState(true)
 
@@ -137,6 +144,18 @@ export default function CampaignPitchesCurationPage() {
   const [internalDropReason, setInternalDropReason] = useState('Aesthetic mismatch with brand style')
   const [internalDropNotes, setInternalDropNotes] = useState('')
   const [isDropping, setIsDropping] = useState(false)
+
+  // Commercial Costing Modal State (Single or Bulk)
+  const [showCostingModal, setShowCostingModal] = useState(false)
+  const [costingTargetItems, setCostingTargetItems] = useState<CampaignPitchItem[]>([])
+  const [costingClientCommercial, setCostingClientCommercial] = useState<string>('')
+  const [costingInternalCost, setCostingInternalCost] = useState<string>('')
+  const [costingIsCommercial, setCostingIsCommercial] = useState<boolean>(true)
+  const [costingNotes, setCostingNotes] = useState<string>('')
+  const [isSavingCosting, setIsSavingCosting] = useState(false)
+
+  // Commercials toggle for Brand Portal Dispatch
+  const [dispatchIncludeCommercials, setDispatchIncludeCommercials] = useState(false)
 
   // Details Drawer
   const [inspectItem, setInspectItem] = useState<CampaignPitchItem | null>(null)
@@ -260,6 +279,75 @@ export default function CampaignPitchesCurationPage() {
     }
     navigator.clipboard.writeText(text)
     toast.success(`Copied courier manifest for ${item.creator_name}!`)
+  }
+
+  // Commercial Costing Handlers
+  const handleOpenCostingModal = (items: CampaignPitchItem | CampaignPitchItem[]) => {
+    const list = Array.isArray(items) ? items : [items]
+    if (list.length === 0) {
+      toast.error('Please select at least one application to set costing')
+      return
+    }
+    setCostingTargetItems(list)
+    if (list.length === 1) {
+      setCostingClientCommercial(list[0].client_commercial ? String(list[0].client_commercial) : '')
+      setCostingInternalCost(list[0].internal_cost ? String(list[0].internal_cost) : '')
+      setCostingIsCommercial(list[0].is_commercial_pitch !== false)
+      setCostingNotes('')
+    } else {
+      setCostingClientCommercial('')
+      setCostingInternalCost('')
+      setCostingIsCommercial(true)
+      setCostingNotes('')
+    }
+    setShowCostingModal(true)
+  }
+
+  const handleSaveCosting = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (costingTargetItems.length === 0) return
+
+    const clientNum = costingClientCommercial.trim() ? parseFloat(costingClientCommercial) : null
+    const internalNum = costingInternalCost.trim() ? parseFloat(costingInternalCost) : null
+
+    if (costingClientCommercial.trim() && isNaN(Number(costingClientCommercial))) {
+      toast.error('Please enter a valid Client Commercial Quote (₹)')
+      return
+    }
+    if (costingInternalCost.trim() && isNaN(Number(costingInternalCost))) {
+      toast.error('Please enter a valid Internal Creator Cost (₹)')
+      return
+    }
+
+    try {
+      setIsSavingCosting(true)
+      const res = await fetch('/api/brand-admin/campaign-pitches/costing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: costingTargetItems.map(i => i.application_id),
+          client_commercial: clientNum,
+          internal_cost: internalNum,
+          is_commercial_pitch: costingIsCommercial,
+          commercial_notes: costingNotes.trim() || undefined,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(
+          data.message || `Updated commercial costing for ${costingTargetItems.length} profile${costingTargetItems.length > 1 ? 's' : ''}`
+        )
+        setShowCostingModal(false)
+        fetchData()
+      } else {
+        toast.error(data.error || 'Failed to update costing')
+      }
+    } catch {
+      toast.error('Network error saving costing quote')
+    } finally {
+      setIsSavingCosting(false)
+    }
   }
 
   // Load Data
@@ -401,8 +489,11 @@ export default function CampaignPitchesCurationPage() {
           applicationIds: selectedIds,
           campaignId: selectedCampaign !== 'all' ? selectedCampaign : undefined,
           targetBrand: targetToDispatch,
-          visibleColumns,
+          visibleColumns: dispatchIncludeCommercials && !visibleColumns.includes('client_commercial')
+            ? [...visibleColumns, 'client_commercial']
+            : visibleColumns,
           kamNotes: dispatchKamNotes.trim() || undefined,
+          includeCommercials: dispatchIncludeCommercials,
         }),
       })
 
@@ -526,7 +617,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Creator',
         sortable: true,
         wrap: true,
-        width: '21%',
+        width: '19%',
         accessor: (row) => row.creator_name,
         render: (item) => (
           <div className="flex items-center gap-2 min-w-0">
@@ -598,7 +689,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Brand & Campaign',
         sortable: true,
         wrap: true,
-        width: '18%',
+        width: '16%',
         accessor: (row) => `${row.brand_name} ${row.campaign_title || ''}`,
         render: (item) => (
           <div className="min-w-0">
@@ -648,7 +739,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Audience & Reach',
         sortable: true,
         wrap: true,
-        width: '13%',
+        width: '12%',
         accessor: (row) => row.followers || 0,
         render: (item) => (
           <div className="min-w-0">
@@ -675,7 +766,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Variant / SKU',
         sortable: true,
         wrap: true,
-        width: '11%',
+        width: '10%',
         accessor: (row) => row.selected_variant || 'Standard',
         render: (item) => (
           <div className="min-w-0">
@@ -706,7 +797,7 @@ export default function CampaignPitchesCurationPage() {
         header: 'Delivery Address',
         sortable: true,
         wrap: true,
-        width: '16%',
+        width: '14%',
         accessor: (row) => row.address_verification_status || 'None',
         render: (item) => (
           <div className="min-w-0">
@@ -767,11 +858,81 @@ export default function CampaignPitchesCurationPage() {
         ),
       },
       {
+        key: 'client_commercial',
+        header: 'Costing / Commercial',
+        sortable: true,
+        wrap: true,
+        width: '12%',
+        accessor: (row) => row.client_commercial || 0,
+        render: (item) => {
+          const hasCommercial = item.client_commercial && item.client_commercial > 0
+          const hasInternal = item.internal_cost && item.internal_cost > 0
+          const margin = hasCommercial && hasInternal ? (item.client_commercial! - item.internal_cost!) : null
+          const marginPercent = margin !== null && item.client_commercial ? Math.round((margin / item.client_commercial) * 100) : null
+
+          return (
+            <div className="min-w-0 space-y-1" onClick={(e) => e.stopPropagation()}>
+              {hasCommercial ? (
+                <div>
+                  <div className="flex items-center gap-1">
+                    <span className="inline-flex items-center gap-0.5 text-[11px] font-black tracking-tight text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded shadow-xs">
+                      <IndianRupee className="h-2.5 w-2.5 stroke-[2.5]" />
+                      <span>{Number(item.client_commercial).toLocaleString('en-IN')}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCostingModal(item)}
+                      className="p-1 rounded bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-amber-300 transition cursor-pointer"
+                      title="Edit commercial quote"
+                    >
+                      <Edit3 className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                  {hasInternal && (
+                    <div className="text-[9px] text-neutral-400 flex items-center gap-1 font-mono mt-0.5" title={`Internal Payout: ₹${Number(item.internal_cost).toLocaleString('en-IN')} | Margin: ${marginPercent}%`}>
+                      <span className="text-neutral-500">Net:</span>
+                      <span>₹{Number(item.internal_cost).toLocaleString('en-IN')}</span>
+                      {marginPercent !== null && (
+                        <span className={`text-[8px] font-bold px-1 rounded ${marginPercent >= 20 ? 'text-emerald-400 bg-emerald-500/10' : 'text-amber-400 bg-amber-500/10'}`}>
+                          {marginPercent}%
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {item.is_commercial_pitch && (
+                    <span className="inline-flex items-center gap-0.5 text-[8px] font-bold text-amber-300/80 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
+                      Paid Pitch
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <span className="inline-flex items-center gap-1 text-[9px] font-medium text-neutral-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                    Barter (₹0)
+                  </span>
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCostingModal(item)}
+                      className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30 transition cursor-pointer"
+                      title="Set commercial quote for client pitch"
+                    >
+                      <Plus className="h-2.5 w-2.5" />
+                      <span>+ Costing</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        },
+      },
+      {
         key: 'brand_review_status',
         header: 'Status & Decision',
         sortable: true,
         wrap: true,
-        width: '11%',
+        width: '10%',
         accessor: (row) => row.brand_review_status,
         render: (item) => {
           const isApproved = item.brand_review_status === 'brand_approved'
@@ -866,7 +1027,7 @@ export default function CampaignPitchesCurationPage() {
         sortable: false,
         hideable: false,
         align: 'right',
-        width: '10%',
+        width: '7%',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
           return (
@@ -978,7 +1139,7 @@ export default function CampaignPitchesCurationPage() {
       </div>
 
       {/* 2. Metric KPI Cards (Interactive Command Deck) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {[
           {
             id: 'all',
@@ -990,6 +1151,19 @@ export default function CampaignPitchesCurationPage() {
             activeClass: 'bg-gradient-to-b from-amber-500/15 via-slate-900/90 to-slate-900 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/50',
             iconBg: 'bg-amber-500/10 text-amber-400',
             topLine: 'via-amber-400'
+          },
+          {
+            id: 'costing',
+            label: 'Costing (Paid)',
+            count: counts.costing || 0,
+            subtext: counts.total_commercial_value > 0
+              ? `₹${Number(counts.total_commercial_value).toLocaleString('en-IN')} quote`
+              : 'Commercial quotes',
+            icon: IndianRupee,
+            accentText: 'text-emerald-400',
+            activeClass: 'bg-gradient-to-b from-emerald-500/20 via-slate-900/90 to-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/15 ring-1 ring-emerald-400/50',
+            iconBg: 'bg-emerald-500/10 text-emerald-400',
+            topLine: 'via-emerald-400',
           },
           {
             id: 'queued_for_brand_admin',
@@ -1206,7 +1380,7 @@ export default function CampaignPitchesCurationPage() {
         keyField="application_id"
         loading={loading}
         tableLayout="fixed"
-        minTableWidth="min-w-[1060px]"
+        minTableWidth="min-w-[1140px]"
         defaultCompact={true}
         selectedRowIds={selectedIds}
         onSelectionChange={setSelectedIds}
@@ -1216,6 +1390,7 @@ export default function CampaignPitchesCurationPage() {
           onChange: (val) => setSelectedStatus(val),
           options: [
             { label: 'All', value: 'all', count: counts.all },
+            { label: 'Costing / Paid', value: 'costing', count: counts.costing || 0 },
             { label: 'Queued', value: 'queued_for_brand_admin', count: counts.queued_for_brand_admin },
             { label: 'Sent to Brand', value: 'pending_brand_review', count: counts.pending_brand_review },
             { label: 'Shortlisted', value: 'brand_approved', count: counts.brand_approved },
@@ -1243,6 +1418,14 @@ export default function CampaignPitchesCurationPage() {
             variant: 'default',
             onClick: (rows) => {
               handleOpenDispatchModal(rows.map((r) => r.application_id))
+            },
+          },
+          {
+            label: 'Set Commercial Costing (₹)',
+            icon: IndianRupee,
+            variant: 'outline',
+            onClick: (rows) => {
+              handleOpenCostingModal(rows)
             },
           },
           {
@@ -1514,6 +1697,29 @@ export default function CampaignPitchesCurationPage() {
                   )}
                 </div>
 
+                {/* 3.6 Commercial Costing for Brand Portal Toggle */}
+                <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 flex items-start justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <label
+                      htmlFor="dispatch-commercials-toggle"
+                      className="text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <IndianRupee className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Include Commercial Costing in Brand Portal</span>
+                    </label>
+                    <p className="text-[10px] text-neutral-400 leading-relaxed">
+                      Show client commercial quote (₹) to brand reviewers. Creator internal costs remain strictly hidden.
+                    </p>
+                  </div>
+                  <input
+                    id="dispatch-commercials-toggle"
+                    type="checkbox"
+                    checked={dispatchIncludeCommercials}
+                    onChange={(e) => setDispatchIncludeCommercials(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
+                  />
+                </div>
+
                 {/* 4. Curation Pitch Note */}
                 <div>
                   <label className="text-xs font-semibold text-neutral-300 block mb-1.5">
@@ -1750,6 +1956,60 @@ export default function CampaignPitchesCurationPage() {
                         <span className="font-bold text-emerald-400">₹{inspectItem.internal_payout_cost.toLocaleString('en-IN')}</span>
                       </div>
                     )}
+                  </div>
+
+                  {/* Commercial Costing Section */}
+                  <div className="p-3 bg-slate-950/80 border border-emerald-500/30 rounded-xl space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-neutral-300 flex items-center gap-1.5">
+                        <IndianRupee className="h-3.5 w-3.5 text-emerald-400" />
+                        Commercial Costing Quote
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenCostingModal(inspectItem)}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 transition cursor-pointer"
+                      >
+                        <Edit3 className="h-2.5 w-2.5" />
+                        <span>Edit Quote</span>
+                      </button>
+                    </div>
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Client Quote:</span>
+                        {inspectItem.client_commercial ? (
+                          <span className="font-bold text-emerald-400 font-mono text-sm">
+                            ₹{Number(inspectItem.client_commercial).toLocaleString('en-IN')}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-500 italic">Barter (₹0)</span>
+                        )}
+                      </div>
+                      {inspectItem.internal_cost && (
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-neutral-400">Confidential Internal Payout:</span>
+                          <span className="font-mono text-amber-300 font-semibold">
+                            ₹{Number(inspectItem.internal_cost).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      )}
+                      {inspectItem.client_commercial && inspectItem.internal_cost && (
+                        <div className="flex justify-between items-center pt-1 border-t border-white/5 text-[11px]">
+                          <span className="text-neutral-400">Agency Gross Margin:</span>
+                          <span className="font-bold text-emerald-300 font-mono">
+                            ₹{(Number(inspectItem.client_commercial) - Number(inspectItem.internal_cost)).toLocaleString('en-IN')}{' '}
+                            ({Math.round(((Number(inspectItem.client_commercial) - Number(inspectItem.internal_cost)) / Number(inspectItem.client_commercial)) * 100)}%)
+                          </span>
+                        </div>
+                      )}
+                      {inspectItem.is_commercial_pitch && (
+                        <div className="pt-1">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            ★ Marked as Paid Commercial Pitch
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Verified Delivery Address Section */}
@@ -2202,6 +2462,204 @@ export default function CampaignPitchesCurationPage() {
                   Done
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 9. Commercial Costing Quote Modal (Single & Bulk) */}
+      <AnimatePresence>
+        {showCostingModal && (
+          <div
+            onClick={() => {
+              if (!isSavingCosting) setShowCostingModal(false)
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+            >
+              <form onSubmit={handleSaveCosting}>
+                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      <IndianRupee className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">
+                        {costingTargetItems.length > 1
+                          ? `Bulk Commercial Costing (${costingTargetItems.length} Creators)`
+                          : `Creator Commercial Costing`}
+                      </h3>
+                      <p className="text-xs text-neutral-400">
+                        Set client quote & confidential creator payout
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCostingModal(false)}
+                    disabled={isSavingCosting}
+                    className="text-neutral-400 hover:text-white p-1 cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  {/* Selected Creators preview */}
+                  <div>
+                    <div className="text-[10px] uppercase font-bold text-neutral-400 mb-1">
+                      Target Creator{costingTargetItems.length > 1 ? 's' : ''} ({costingTargetItems.length})
+                    </div>
+                    <div className="max-h-24 overflow-y-auto p-2 rounded-xl bg-slate-950 border border-white/5 space-y-1">
+                      {costingTargetItems.map((app) => (
+                        <div key={app.application_id} className="flex items-center justify-between text-xs py-0.5">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-semibold text-white truncate">{app.creator_name}</span>
+                            <span className="text-[10px] text-neutral-500">(@{app.instagram_username})</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-mono text-neutral-400">
+                              {formatFollowerCount(app.followers)} reach
+                            </span>
+                            {app.client_commercial ? (
+                              <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                                Current: ₹{Number(app.client_commercial).toLocaleString('en-IN')}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-neutral-500">Barter</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Commercial Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-emerald-400 flex items-center gap-1 mb-1.5">
+                        <IndianRupee className="h-3.5 w-3.5" />
+                        <span>Client Commercial Quote (₹) *</span>
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="100"
+                        placeholder="e.g. 15000"
+                        value={costingClientCommercial}
+                        onChange={(e) => setCostingClientCommercial(e.target.value)}
+                        className="bg-slate-950 border-emerald-500/30 focus:border-emerald-400 text-white font-mono font-bold"
+                      />
+                      <p className="text-[10px] text-neutral-400 mt-1">
+                        Amount quoted to the brand client
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-amber-300 flex items-center gap-1 mb-1.5">
+                        <Lock className="h-3.5 w-3.5 text-amber-400" />
+                        <span>Internal Creator Cost (₹)</span>
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="100"
+                        placeholder="e.g. 10000"
+                        value={costingInternalCost}
+                        onChange={(e) => setCostingInternalCost(e.target.value)}
+                        className="bg-slate-950 border-white/10 focus:border-amber-400 text-white font-mono"
+                      />
+                      <p className="text-[10px] text-neutral-400 mt-1">
+                        Agency payout to creator (strictly confidential)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Margin Calculator Badge */}
+                  {Boolean(costingClientCommercial && !isNaN(Number(costingClientCommercial))) && (
+                    <div className="p-3 rounded-xl bg-slate-950 border border-white/10 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-neutral-400">Agency Gross Margin:</span>{' '}
+                        {costingInternalCost && !isNaN(Number(costingInternalCost)) ? (
+                          <span className="font-bold text-white">
+                            ₹{(Number(costingClientCommercial) - Number(costingInternalCost)).toLocaleString('en-IN')}
+                          </span>
+                        ) : (
+                          <span className="text-neutral-500 font-mono">Set internal cost to calculate</span>
+                        )}
+                      </div>
+                      {costingInternalCost && !isNaN(Number(costingInternalCost)) && Number(costingClientCommercial) > 0 && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          Number(costingClientCommercial) >= Number(costingInternalCost)
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        }`}>
+                          {Math.round(((Number(costingClientCommercial) - Number(costingInternalCost)) / Number(costingClientCommercial)) * 100)}% Margin
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mark as Commercial Pitch Checkbox */}
+                  <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-950 border border-white/10 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={costingIsCommercial}
+                      onChange={(e) => setCostingIsCommercial(e.target.checked)}
+                      className="rounded border-neutral-700 bg-slate-900 text-amber-500 focus:ring-amber-400 h-4 w-4"
+                    />
+                    <div>
+                      <div className="text-xs font-semibold text-white">Mark as Paid / Commercial Pitch</div>
+                      <div className="text-[10px] text-neutral-400">
+                        Highlights this creator as a paid collaboration rather than barter
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Internal Commercial Note */}
+                  <div>
+                    <label className="text-xs font-semibold text-neutral-300 block mb-1">
+                      Internal Commercial Note (Optional)
+                    </label>
+                    <textarea
+                      value={costingNotes}
+                      onChange={(e) => setCostingNotes(e.target.value)}
+                      placeholder="e.g. Includes 1 Reel + 2 Stories, creator agreed to 3-day revision turnaround"
+                      className="w-full text-xs p-2.5 border border-white/10 rounded-xl bg-slate-950 text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-400 h-16"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCostingModal(false)}
+                    disabled={isSavingCosting}
+                    className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSavingCosting}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-950"
+                  >
+                    {isSavingCosting ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    <span>{isSavingCosting ? 'Saving...' : 'Save Commercial Quote'}</span>
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
