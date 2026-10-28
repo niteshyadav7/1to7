@@ -97,6 +97,12 @@ export default function SampleListStudioPage({
     fetchAvailableBrands()
   }, [id])
 
+  useEffect(() => {
+    if (showAddFromDbModal && dbResults.length === 0) {
+      handleDbSearch('')
+    }
+  }, [showAddFromDbModal])
+
   const fetchAvailableBrands = async () => {
     try {
       const res = await fetch('/api/brand-admin/brands-list')
@@ -167,17 +173,22 @@ export default function SampleListStudioPage({
   }
 
   // Search DB creators
-  const handleDbSearch = async () => {
-    if (!dbSearch.trim()) return
+  const handleDbSearch = async (queryOverride?: string) => {
+    const q = (typeof queryOverride === 'string' ? queryOverride : dbSearch).trim()
     setDbLoading(true)
     try {
-      const res = await fetch(`/api/admin/influencers/search?q=${encodeURIComponent(dbSearch.trim())}`)
+      const url = q
+        ? `/api/admin/influencers/search?q=${encodeURIComponent(q)}`
+        : `/api/admin/influencers/search`
+      const res = await fetch(url)
       const data = await res.json()
       if (res.ok) {
         setDbResults(data.influencers || data.creators || [])
+      } else {
+        toast.error(data.error || 'Failed to search creators')
       }
     } catch {
-      // Fallback
+      toast.error('Network error searching creators')
     } finally {
       setDbLoading(false)
     }
@@ -190,12 +201,12 @@ export default function SampleListStudioPage({
     try {
       const formattedItems = selectedDbCreators.map((c) => ({
         user_id: c.id,
-        creator_name: c.full_name,
-        instagram_username: c.instagram_username || c.full_name,
+        creator_name: c.full_name || c.name || 'Creator',
+        instagram_username: c.instagram_username || c.full_name || c.name,
         followers: c.followers || 0,
         city: c.city || c.state || null,
-        niche: c.category || null,
-        sample_reel_url: c.instagram_profiles?.[0]?.sample_reel || null,
+        niche: c.category || c.niche || null,
+        sample_reel_url: c.sample_reel_url || c.instagram_profiles?.[0]?.sample_reel || null,
       }))
 
       const res = await fetch(`/api/admin/sample-lists/${id}/items`, {
@@ -881,16 +892,16 @@ export default function SampleListStudioPage({
                     type="text"
                     value={dbSearch}
                     onChange={(e) => setDbSearch(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleDbSearch()}
-                    placeholder="Search by creator name, Instagram handle, or category..."
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400"
+                    onKeyDown={(e) => e.key === 'Enter' && handleDbSearch(dbSearch)}
+                    placeholder="Search by creator name, Instagram handle, category, or city..."
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400 placeholder:text-slate-500"
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={handleDbSearch}
+                  onClick={() => handleDbSearch(dbSearch)}
                   disabled={dbLoading}
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
                 >
                   {dbLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Search'}
                 </button>
@@ -898,10 +909,20 @@ export default function SampleListStudioPage({
 
               {/* DB Results */}
               <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-                {dbResults.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-8 text-center">
-                    Enter a keyword and click Search to find verified 1to7 creators.
-                  </p>
+                {dbLoading ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
+                    <span className="text-xs">Loading verified creators from 1to7 DB...</span>
+                  </div>
+                ) : dbResults.length === 0 ? (
+                  <div className="py-10 text-center space-y-1.5 text-slate-500">
+                    <p className="text-xs font-semibold text-slate-400">
+                      {dbSearch.trim() ? `No creators found matching "${dbSearch.trim()}"` : 'No verified creators found'}
+                    </p>
+                    <p className="text-[11px] text-slate-600">
+                      Try searching with another name, handle, category (e.g. Fashion, Food), or city.
+                    </p>
+                  </div>
                 ) : (
                   dbResults.map((creator) => {
                     const isSelected = selectedDbCreators.some((c) => c.id === creator.id)
@@ -917,7 +938,7 @@ export default function SampleListStudioPage({
                         }}
                         className={`p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-purple-950/40 border-purple-500 text-white'
+                            ? 'bg-purple-950/40 border-purple-500 text-white shadow-sm shadow-purple-500/20'
                             : 'bg-slate-950/60 border-white/5 hover:border-white/20 text-slate-300'
                         }`}
                       >
@@ -926,13 +947,20 @@ export default function SampleListStudioPage({
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => {}}
-                            className="rounded border-white/20 bg-slate-900 text-purple-600"
+                            className="rounded border-white/20 bg-slate-900 text-purple-600 focus:ring-0 focus:ring-offset-0"
                           />
                           <div className="min-w-0">
-                            <p className="text-xs font-bold truncate">{creator.full_name}</p>
-                            <p className="text-[11px] text-pink-400 truncate">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-bold text-white truncate">{creator.full_name || creator.name}</p>
+                              {creator.category && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/20 truncate max-w-[140px]">
+                                  {creator.category}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-pink-400 truncate mt-0.5">
                               @{creator.instagram_username || 'n/a'} • {(creator.followers || 0).toLocaleString()} followers
-                              {creator.city && ` • ${creator.city}`}
+                              {(creator.city || creator.state) && ` • ${creator.city || creator.state}`}
                             </p>
                           </div>
                         </div>
