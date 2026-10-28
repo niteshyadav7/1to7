@@ -59,6 +59,7 @@ export default function PublicRosterViewerPage({
   // Shortlisting state
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [submitBrandName, setSubmitBrandName] = useState('')
   const [pocName, setPocName] = useState('')
   const [pocEmail, setPocEmail] = useState('')
   const [pocPhone, setPocPhone] = useState('')
@@ -79,11 +80,15 @@ export default function PublicRosterViewerPage({
       if (res.ok) {
         setRoster(data.roster)
         setItems(data.items || [])
+        if (data.roster?.brand_name && data.roster.brand_name !== 'General Pitch') {
+          setSubmitBrandName(data.roster.brand_name)
+        }
         if (data.existing_shortlist) {
           const rawIds = data.existing_shortlist.shortlisted_item_ids
           const savedIds = Array.isArray(rawIds) ? rawIds.map(String) : []
           setSelectedIds(savedIds)
           setSubmittedSuccess(true)
+          if (data.existing_shortlist.brand_name) setSubmitBrandName(data.existing_shortlist.brand_name)
           if (data.existing_shortlist.brand_poc_name) setPocName(data.existing_shortlist.brand_poc_name)
           if (data.existing_shortlist.brand_poc_email) setPocEmail(data.existing_shortlist.brand_poc_email)
           if (data.existing_shortlist.brand_poc_phone) setPocPhone(data.existing_shortlist.brand_poc_phone)
@@ -157,6 +162,7 @@ export default function PublicRosterViewerPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shortlisted_item_ids: selectedIds,
+          brand_name: submitBrandName.trim() || roster?.brand_name || undefined,
           brand_poc_name: pocName.trim() || undefined,
           brand_poc_email: pocEmail.trim() || undefined,
           brand_poc_phone: pocPhone.trim() || undefined,
@@ -913,18 +919,33 @@ export default function PublicRosterViewerPage({
               </div>
 
               <form onSubmit={handleSubmitShortlist} className="space-y-3.5 text-xs">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                    Your Name / Reviewer POC *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={pocName}
-                    onChange={(e) => setPocName(e.target.value)}
-                    placeholder="e.g. Rajesh Sharma"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      Brand / Company Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={submitBrandName}
+                      onChange={(e) => setSubmitBrandName(e.target.value)}
+                      placeholder="e.g. Invergy, Mamaearth"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      Your Name / Reviewer POC *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={pocName}
+                      onChange={(e) => setPocName(e.target.value)}
+                      placeholder="e.g. Nitesh Yadav"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

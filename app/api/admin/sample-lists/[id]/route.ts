@@ -24,15 +24,28 @@ export async function GET(
       [id]
     )
 
-    // Fetch latest brand shortlist / approval response for this roster
+    // Fetch all brand shortlist / approval responses for this roster so admin can filter by brand/reviewer
     let latestShortlist: any = null
+    let allShortlists: any[] = []
     try {
       const shortlistRes = await pool.query(
-        `SELECT * FROM public.brand_shortlists WHERE sample_list_id = $1 ORDER BY submitted_at DESC LIMIT 1;`,
+        `SELECT * FROM public.brand_shortlists WHERE sample_list_id = $1 ORDER BY submitted_at DESC;`,
         [id]
       )
       if (shortlistRes.rows.length > 0) {
-        latestShortlist = shortlistRes.rows[0]
+        allShortlists = shortlistRes.rows.map((row: any) => {
+          const rawIds = row.shortlisted_item_ids
+          const parsedIds = Array.isArray(rawIds)
+            ? rawIds.map(String)
+            : typeof rawIds === 'string'
+            ? JSON.parse(rawIds || '[]').map(String)
+            : []
+          return {
+            ...row,
+            shortlisted_item_ids: parsedIds,
+          }
+        })
+        latestShortlist = allShortlists[0]
       }
     } catch {
       // Non-fatal if table doesn't exist yet
@@ -43,6 +56,7 @@ export async function GET(
       list: listRes.rows[0],
       items: itemsRes.rows,
       shortlist: latestShortlist,
+      shortlists: allShortlists,
     })
   } catch (error: any) {
     console.error('Error fetching sample roster details:', error)

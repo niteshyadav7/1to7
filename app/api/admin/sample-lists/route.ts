@@ -23,16 +23,24 @@ export async function GET(request: Request) {
         bs.shortlisted_item_ids as shortlisted_item_ids,
         bs.brand_feedback_notes as brand_feedback_notes,
         bs.submitted_at as latest_shortlist_at,
-        bs.status as shortlist_status
+        bs.status as shortlist_status,
+        bs.brand_name as latest_shortlist_brand,
+        bs.brand_poc_name as latest_shortlist_poc,
+        COALESCE(bs_brands.shortlisted_brands, '[]'::jsonb) as shortlisted_brands
       FROM public.sample_lists sl
       LEFT JOIN public.sample_list_items sli ON sli.sample_list_id = sl.id
       LEFT JOIN LATERAL (
-        SELECT shortlisted_creators_count, shortlisted_item_ids, brand_feedback_notes, submitted_at, status
+        SELECT shortlisted_creators_count, shortlisted_item_ids, brand_feedback_notes, submitted_at, status, brand_name, brand_poc_name
         FROM public.brand_shortlists
         WHERE sample_list_id = sl.id
         ORDER BY submitted_at DESC
         LIMIT 1
       ) bs ON true
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(DISTINCT brand_name) as shortlisted_brands
+        FROM public.brand_shortlists
+        WHERE sample_list_id = sl.id AND brand_name IS NOT NULL
+      ) bs_brands ON true
       WHERE sl.status = $1
     `
     const params: any[] = [status]
@@ -43,7 +51,7 @@ export async function GET(request: Request) {
     }
 
     queryText += `
-      GROUP BY sl.id, bs.shortlisted_creators_count, bs.shortlisted_item_ids, bs.brand_feedback_notes, bs.submitted_at, bs.status
+      GROUP BY sl.id, bs.shortlisted_creators_count, bs.shortlisted_item_ids, bs.brand_feedback_notes, bs.submitted_at, bs.status, bs.brand_name, bs.brand_poc_name, bs_brands.shortlisted_brands
       ORDER BY sl.created_at DESC
     `
 

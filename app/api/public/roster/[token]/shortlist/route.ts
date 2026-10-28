@@ -10,6 +10,7 @@ export async function POST(
     const body = await request.json()
     const {
       shortlisted_item_ids,
+      brand_name,
       brand_poc_name,
       brand_poc_email,
       brand_poc_phone,
@@ -36,6 +37,8 @@ export async function POST(
       return NextResponse.json({ error: 'Online shortlisting is disabled for this presentation' }, { status: 403 })
     }
 
+    const resolvedBrandName = brand_name?.trim() || roster.brand_name || 'Brand Client'
+
     // Insert inbound shortlist record
     const insertQuery = `
       INSERT INTO public.brand_shortlists (
@@ -54,7 +57,7 @@ export async function POST(
 
     const result = await pool.query(insertQuery, [
       roster.id,
-      roster.brand_name,
+      resolvedBrandName,
       brand_poc_name?.trim() || null,
       brand_poc_email?.trim() || null,
       brand_poc_phone?.trim() || null,

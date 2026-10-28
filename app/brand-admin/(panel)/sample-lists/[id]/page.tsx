@@ -94,6 +94,8 @@ export default function SampleListStudioPage({
   const [publishing, setPublishing] = useState(false)
   const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
   const [brandShortlist, setBrandShortlist] = useState<any>(null)
+  const [allShortlists, setAllShortlists] = useState<any[]>([])
+  const [selectedShortlistId, setSelectedShortlistId] = useState<string>('latest')
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending'>('all')
 
   useEffect(() => {
@@ -128,6 +130,7 @@ export default function SampleListStudioPage({
         setList(data.list)
         setItems(data.items || [])
         setBrandShortlist(data.shortlist || null)
+        setAllShortlists(data.shortlists || (data.shortlist ? [data.shortlist] : []))
         if (data.list?.allow_brand_shortlisting !== undefined) {
           setAllowBrandShortlisting(Boolean(data.list.allow_brand_shortlisting))
         }
@@ -563,19 +566,60 @@ export default function SampleListStudioPage({
     }
   }
 
-  const shortlistedIdsSet = useMemo(() => {
-    const raw = brandShortlist?.shortlisted_item_ids
-    if (Array.isArray(raw)) return new Set<string>(raw.map(String))
+  // Active shortlist object based on filter dropdown
+  const activeShortlist = useMemo(() => {
+    if (selectedShortlistId === 'latest' || selectedShortlistId === 'all_combined') {
+      return brandShortlist
+    }
+    return allShortlists.find((s) => s.id === selectedShortlistId) || brandShortlist
+  }, [selectedShortlistId, allShortlists, brandShortlist])
+
+  const parseIds = (raw: any): string[] => {
+    if (Array.isArray(raw)) return raw.map(String)
     if (typeof raw === 'string') {
       try {
         const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) return new Set<string>(parsed.map(String))
+        if (Array.isArray(parsed)) return parsed.map(String)
       } catch {
         // ignore
       }
     }
-    return new Set<string>()
-  }, [brandShortlist])
+    return []
+  }
+
+  const shortlistedIdsSet = useMemo(() => {
+    if (selectedShortlistId === 'all_combined') {
+      const combined = new Set<string>()
+      allShortlists.forEach((s) => {
+        parseIds(s.shortlisted_item_ids).forEach((id) => combined.add(id))
+      })
+      return combined
+    }
+    const target = activeShortlist
+    return new Set<string>(parseIds(target?.shortlisted_item_ids))
+  }, [selectedShortlistId, allShortlists, activeShortlist])
+
+  // Map each creator item ID -> array of brand/reviewer labels that approved it
+  const itemApprovedByBrandsMap = useMemo(() => {
+    const map = new Map<string, string[]>()
+    const sourceList =
+      selectedShortlistId === 'all_combined'
+        ? allShortlists
+        : activeShortlist
+        ? [activeShortlist]
+        : []
+    sourceList.forEach((s) => {
+      const label = `${s.brand_name || list?.brand_name || 'Brand'}${s.brand_poc_name ? ` (${s.brand_poc_name})` : ''}`
+      parseIds(s.shortlisted_item_ids).forEach((itemId) => {
+        const existing = map.get(itemId) || []
+        if (!existing.includes(label)) {
+          existing.push(label)
+          map.set(itemId, existing)
+        }
+      })
+    })
+    return map
+  }, [selectedShortlistId, allShortlists, activeShortlist, list])
 
   const filteredItems = items.filter((i) => {
     const matchesSearch =
@@ -876,12 +920,13 @@ export default function SampleListStudioPage({
         </div>
 
         {/* Client Decision Alert Pill if brand responded */}
-        {brandShortlist ? (
+        {activeShortlist ? (
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
             <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
             <span>
-              Shortlist Received: <strong>{shortlistedIdsSet.size}</strong> creators approved
-              {brandShortlist.brand_poc_name && ` by ${brandShortlist.brand_poc_name}`}
+              Shortlist Received: <strong>{shortlistedIdsSet.size}</strong> creators approved by{' '}
+              <strong className="text-white">{activeShortlist.brand_name || list.brand_name}</strong>
+              {activeShortlist.brand_poc_name && ` (${activeShortlist.brand_poc_name})`}
             </span>
           </div>
         ) : (
@@ -894,20 +939,31 @@ export default function SampleListStudioPage({
       </div>
 
       {/* Brand Feedback Notes banner if provided */}
-      {brandShortlist?.brand_feedback_notes && (
-        <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-200 flex items-start gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
-          <div>
-            <strong className="text-emerald-300">Client Feedback Note:</strong>{' '}
-            <span className="italic">&ldquo;{brandShortlist.brand_feedback_notes}&rdquo;</span>
+      {activeShortlist?.brand_feedback_notes && (
+        <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-xs text-emerald-200 flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex items-start gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-emerald-300">
+                {activeShortlist.brand_name || list.brand_name}
+                {activeShortlist.brand_poc_name ? ` (${activeShortlist.brand_poc_name})` : ''} Feedback:
+              </strong>{' '}
+              <span className="italic">&ldquo;{activeShortlist.brand_feedback_notes}&rdquo;</span>
+            </div>
           </div>
+          {activeShortlist.brand_poc_email && (
+            <span className="text-[11px] text-emerald-300/80 font-mono">
+              {activeShortlist.brand_poc_email}
+              {activeShortlist.brand_poc_phone ? ` • ${activeShortlist.brand_poc_phone}` : ''}
+            </span>
+          )}
         </div>
       )}
 
-      {/* ─── 4. TABLE CONTROLS (TABS & SEARCH) ─── */}
-      <div className="p-3 rounded-2xl bg-slate-900 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+      {/* ─── 4. TABLE CONTROLS (TABS, BRAND SUBMISSION FILTER & SEARCH) ─── */}
+      <div className="p-3 rounded-2xl bg-slate-900 border border-white/10 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Status Filter Tabs + Brand Submission Selector */}
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
@@ -942,6 +998,46 @@ export default function SampleListStudioPage({
           >
             Pending / Unselected ({Math.max(0, items.length - shortlistedIdsSet.size)})
           </button>
+
+          {/* Filter by Which Brand / Reviewer Submitted Shortlist */}
+          {allShortlists.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-slate-950 border border-emerald-500/30 rounded-xl px-2.5 py-1 text-xs">
+              <Building2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                Approved By:
+              </span>
+              <select
+                value={selectedShortlistId}
+                onChange={(e) => {
+                  setSelectedShortlistId(e.target.value)
+                  setStatusFilter('approved')
+                }}
+                className="bg-transparent text-white text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+              >
+                <option value="latest" className="bg-slate-900 text-white">
+                  Latest: {allShortlists[0].brand_name || list.brand_name}
+                  {allShortlists[0].brand_poc_name ? ` • ${allShortlists[0].brand_poc_name}` : ''} (
+                  {parseIds(allShortlists[0].shortlisted_item_ids).length} Approved)
+                </option>
+                {allShortlists.length > 1 && (
+                  <option value="all_combined" className="bg-slate-900 text-emerald-300 font-bold">
+                    All Brand Submissions Combined ({allShortlists.length} submissions)
+                  </option>
+                )}
+                {allShortlists.map((s, i) => (
+                  <option key={s.id} value={s.id} className="bg-slate-900 text-white">
+                    #{allShortlists.length - i}: {s.brand_name || list.brand_name}
+                    {s.brand_poc_name ? ` (${s.brand_poc_name})` : ''} —{' '}
+                    {parseIds(s.shortlisted_item_ids).length} Approved •{' '}
+                    {new Date(s.submitted_at).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Search Input with Clear Button */}
@@ -1083,10 +1179,21 @@ export default function SampleListStudioPage({
                           👁️ Show Only
                         </span>
                       ) : shortlistedIdsSet.has(String(item.id)) ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
-                          <CheckCircle2 className="h-2.5 w-2.5" />
-                          <span>Approved</span>
-                        </span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            <span>Approved</span>
+                          </span>
+                          {(itemApprovedByBrandsMap.get(String(item.id)) || []).map((bLabel, bIdx) => (
+                            <span
+                              key={bIdx}
+                              className="text-[9px] text-emerald-400/90 font-semibold truncate max-w-[140px]"
+                              title={`Approved by ${bLabel}`}
+                            >
+                              by {bLabel}
+                            </span>
+                          ))}
+                        </div>
                       ) : shortlistedIdsSet.size > 0 ? (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/80 text-slate-400 border border-white/5">
                           Not Selected

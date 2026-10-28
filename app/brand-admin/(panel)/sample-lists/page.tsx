@@ -36,6 +36,7 @@ export default function SampleListsDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('all')
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending' | 'show_only'>('all')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'creators' | 'views' | 'title'>('newest')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table')
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -227,26 +228,46 @@ export default function SampleListsDashboardPage() {
     setTimeout(() => setCopiedId(null), 2500)
   }
 
-  // Extract unique brands for dropdown filter
+  // Extract unique brands for dropdown filter (including registered Client Brands and brands that submitted shortlists)
   const uniqueBrands = useMemo(() => {
     const brands = new Set<string>()
-    lists.forEach((l) => {
+    availableBrands.forEach((b) => {
+      if (b.name) brands.add(b.name)
+    })
+    lists.forEach((l: any) => {
       if (l.brand_name) brands.add(l.brand_name)
+      if (Array.isArray(l.shortlisted_brands)) {
+        l.shortlisted_brands.forEach((sb: string) => {
+          if (sb) brands.add(sb)
+        })
+      }
     })
     return Array.from(brands).sort()
-  }, [lists])
+  }, [lists, availableBrands])
 
   // Filter & Sort
   const processedLists = useMemo(() => {
-    const result = lists.filter((l) => {
+    const result = lists.filter((l: any) => {
       const matchesSearch =
         l.title.toLowerCase().includes(search.toLowerCase()) ||
         l.brand_name.toLowerCase().includes(search.toLowerCase()) ||
+        (l.latest_shortlist_poc && l.latest_shortlist_poc.toLowerCase().includes(search.toLowerCase())) ||
         (l.category_niche && l.category_niche.toLowerCase().includes(search.toLowerCase()))
 
-      const matchesBrand = selectedBrand === 'all' || l.brand_name.toLowerCase() === selectedBrand.toLowerCase()
+      const matchesBrand =
+        selectedBrand === 'all' ||
+        l.brand_name.toLowerCase() === selectedBrand.toLowerCase() ||
+        (Array.isArray(l.shortlisted_brands) &&
+          l.shortlisted_brands.some((sb: string) => sb?.toLowerCase() === selectedBrand.toLowerCase()))
 
-      return matchesSearch && matchesBrand
+      const approvedCount = Number(l.shortlisted_creators_count || 0)
+      const matchesApproval =
+        approvalFilter === 'all' ||
+        (approvalFilter === 'approved' && approvedCount > 0) ||
+        (approvalFilter === 'pending' && l.allow_brand_shortlisting && approvedCount === 0) ||
+        (approvalFilter === 'show_only' && !l.allow_brand_shortlisting)
+
+      return matchesSearch && matchesBrand && matchesApproval
     })
 
     result.sort((a, b) => {
@@ -259,7 +280,7 @@ export default function SampleListsDashboardPage() {
     })
 
     return result
-  }, [lists, search, selectedBrand, sortBy])
+  }, [lists, search, selectedBrand, approvalFilter, sortBy])
 
   const totalCreatorsCurated = useMemo(() => {
     return lists.reduce((acc, l) => acc + (l.items_count || 0), 0)
@@ -404,6 +425,21 @@ export default function SampleListsDashboardPage() {
                   {b}
                 </option>
               ))}
+            </select>
+          </div>
+
+          {/* Approval Status Filter */}
+          <div className="flex items-center gap-1.5 bg-[#0c1017] border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-neutral-300">
+            <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <select
+              value={approvalFilter}
+              onChange={(e) => setApprovalFilter(e.target.value as any)}
+              className="bg-transparent text-white text-xs focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="all" className="bg-[#121620] text-white">All Status</option>
+              <option value="approved" className="bg-[#121620] text-emerald-300">✓ Brand Approved</option>
+              <option value="pending" className="bg-[#121620] text-amber-300">⏳ Pending Approval</option>
+              <option value="show_only" className="bg-[#121620] text-neutral-400">👁️ Show Only</option>
             </select>
           </div>
 
@@ -763,12 +799,18 @@ export default function SampleListsDashboardPage() {
 
                       {/* Brand Power & Approvals */}
                       <td className="py-2.5 px-2.5 text-center">
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-center gap-0.5">
                           {Number(list.shortlisted_creators_count || 0) > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-[10px]">
-                              <Check className="w-2.5 h-2.5" />
-                              {list.shortlisted_creators_count} Approved
-                            </span>
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-[10px]">
+                                <Check className="w-2.5 h-2.5" />
+                                {list.shortlisted_creators_count} Approved
+                              </span>
+                              <span className="text-[9px] text-emerald-300/90 font-semibold truncate max-w-[150px]">
+                                by {(list as any).latest_shortlist_brand || list.brand_name}
+                                {(list as any).latest_shortlist_poc ? ` (${(list as any).latest_shortlist_poc})` : ''}
+                              </span>
+                            </>
                           ) : list.allow_brand_shortlisting ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/25 font-bold text-[10px]">
                               YES • Can Approve
