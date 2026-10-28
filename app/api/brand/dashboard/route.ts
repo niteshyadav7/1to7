@@ -5,8 +5,12 @@ import { getBrandFromRequest } from '@/lib/brand-auth'
 export async function GET() {
   try {
     const brandUser = await getBrandFromRequest()
-    const brandId = brandUser?.brand_id || null
-    const brandName = brandUser?.brand_name || ''
+    if (!brandUser) {
+      return NextResponse.json({ error: 'Unauthorized: Brand session required' }, { status: 401 })
+    }
+
+    const brandId = brandUser.brand_id || null
+    const brandName = brandUser.brand_name || ''
 
     if (!pool) {
       return NextResponse.json({

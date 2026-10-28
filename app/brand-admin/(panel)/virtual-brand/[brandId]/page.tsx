@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -76,34 +76,91 @@ export default function BrandAdminVirtualBrandDetailPage() {
       slug: '',
     }
 
+  // Fetch real creators shortlisted for this brand
+  const fetchCreators = useCallback(async (bId: string, bName: string) => {
+    if (!bId && !bName) return
+    try {
+      const res = await fetch(
+        `/api/brand-admin/virtual-brand/creators?brandId=${encodeURIComponent(bId)}&brandName=${encodeURIComponent(bName)}`
+      )
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.creators)) {
+        setCreators(data.creators)
+      } else {
+        setCreators([])
+      }
+    } catch {
+      setCreators([])
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentBrand.id || currentBrand.name) {
+      fetchCreators(currentBrand.id, currentBrand.name)
+    }
+  }, [currentBrand.id, currentBrand.name, fetchCreators])
+
   // Proxy Approve on behalf of the client brand
-  const handleProxyApprove = (id: string, name: string) => {
-    setCreators((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: 'approved' } : c))
-    )
-    toast.success(`[Proxy Action] Approved ${name} on behalf of ${currentBrand.name}! Logged in audit trail.`)
+  const handleProxyApprove = async (id: string, name: string) => {
+    try {
+      const res = await fetch('/api/brand-admin/virtual-brand/creators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve',
+          application_ids: [id],
+          brand_name: currentBrand.name,
+          brand_id: currentBrand.id,
+        }),
+      })
+      if (!res.ok) throw new Error('Proxy approval failed')
+
+      setCreators((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: 'approved' } : c))
+      )
+      toast.success(`[Proxy Action] Approved ${name} on behalf of ${currentBrand.name}! Logged in audit trail.`)
+    } catch (err: any) {
+      toast.error(err.message || 'Approval failed')
+    }
   }
 
   // Proxy Reject with reason
-  const handleProxyReject = () => {
+  const handleProxyReject = async () => {
     if (!rejectModalCreator) return
     const id = rejectModalCreator.id
     const name = rejectModalCreator.name
 
-    setCreators((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              status: 'rejected',
-              rejectionReason: rejectionReason || 'Declined during KAM review',
-            }
-          : c
+    try {
+      const res = await fetch('/api/brand-admin/virtual-brand/creators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject',
+          application_ids: [id],
+          reason: rejectionReason || 'Declined during KAM review',
+          brand_name: currentBrand.name,
+          brand_id: currentBrand.id,
+        }),
+      })
+      if (!res.ok) throw new Error('Proxy rejection failed')
+
+      setCreators((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                status: 'rejected',
+                rejectionReason: rejectionReason || 'Declined during KAM review',
+              }
+            : c
+        )
       )
-    )
-    toast.error(`[Proxy Action] Rejected ${name} with feedback on behalf of ${currentBrand.name}.`)
-    setRejectModalCreator(null)
-    setRejectionReason('')
+      toast.error(`[Proxy Action] Rejected ${name} with feedback on behalf of ${currentBrand.name}.`)
+      setRejectModalCreator(null)
+      setRejectionReason('')
+    } catch (err: any) {
+      toast.error(err.message || 'Rejection failed')
+    }
   }
 
   const filtered = creators.filter((c) => {
@@ -164,14 +221,15 @@ export default function BrandAdminVirtualBrandDetailPage() {
         </div>
 
         <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
-          <Link
-            href="/brand/campaigns"
+          <a
+            href={`/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(currentBrand.id)}`}
             target="_blank"
-            className="px-3.5 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 text-xs font-semibold border border-purple-500/30 flex items-center gap-1.5 transition-colors"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 text-xs font-semibold border border-purple-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <span>Real Brand View</span>
             <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
+          </a>
           <Link
             href="/brand-admin/brands"
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5"
@@ -353,17 +411,32 @@ export default function BrandAdminVirtualBrandDetailPage() {
             label: 'Bulk Proxy Approve Selected',
             icon: Check,
             variant: 'purple',
-            onClick: (rows) => {
+            onClick: async (rows) => {
               const pendingRows = rows.filter((r) => r.status === 'pending')
               if (pendingRows.length === 0) {
                 toast.info('All selected creators are already approved or resolved.')
                 return
               }
-              const approvedIds = new Set(pendingRows.map((r) => r.id))
-              setCreators((prev) =>
-                prev.map((c) => (approvedIds.has(c.id) ? { ...c, status: 'approved' } : c))
-              )
-              toast.success(`[Proxy Action] Bulk approved ${pendingRows.length} creators for ${currentBrand.name}!`)
+              const approvedIds = pendingRows.map((r) => r.id)
+              try {
+                await fetch('/api/brand-admin/virtual-brand/creators', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'batch_approve',
+                    application_ids: approvedIds,
+                    brand_name: currentBrand.name,
+                    brand_id: currentBrand.id,
+                  }),
+                })
+                const approvedIdSet = new Set(approvedIds)
+                setCreators((prev) =>
+                  prev.map((c) => (approvedIdSet.has(c.id) ? { ...c, status: 'approved' } : c))
+                )
+                toast.success(`[Proxy Action] Bulk approved ${pendingRows.length} creators for ${currentBrand.name}!`)
+              } catch {
+                toast.error('Bulk proxy approval failed')
+              }
             },
           },
         ]}

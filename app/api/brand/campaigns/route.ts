@@ -5,8 +5,12 @@ import { getBrandFromRequest } from '@/lib/brand-auth'
 export async function GET() {
   try {
     const brandUser = await getBrandFromRequest()
-    const brandId = brandUser?.brand_id || null
-    const brandName = brandUser?.brand_name || ''
+    if (!brandUser) {
+      return NextResponse.json({ error: 'Unauthorized: Brand session required' }, { status: 401 })
+    }
+
+    const brandId = brandUser.brand_id || null
+    const brandName = brandUser.brand_name || ''
 
     if (!pool) {
       return NextResponse.json({ campaigns: [] })
@@ -33,20 +37,9 @@ export async function GET() {
         )::int as live_reels
       FROM public.campaigns c
       LEFT JOIN public.applications a ON a.campaign_id = c.id
-      WHERE 1=1
+      WHERE (c.brand_id::text = $1 OR c.brand_name ILIKE $2)
     `
-    const params: any[] = []
-
-    if (brandId && brandName) {
-      params.push(brandId, `%${brandName}%`)
-      queryText += ` AND (c.brand_id::text = $1 OR c.brand_name ILIKE $2)`
-    } else if (brandId) {
-      params.push(brandId)
-      queryText += ` AND c.brand_id::text = $1`
-    } else if (brandName) {
-      params.push(`%${brandName}%`)
-      queryText += ` AND c.brand_name ILIKE $1`
-    }
+    const params: any[] = [brandId || '', `%${brandName || brandId || ''}%`]
 
     queryText += `
       GROUP BY c.id

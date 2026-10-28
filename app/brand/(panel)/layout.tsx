@@ -61,31 +61,14 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         if (data.authenticated && data.user) {
           setBrandUser(data.user)
         } else {
-          // Fallback demo user if running locally without active session
-          setBrandUser({
-            id: 'brand-demo-1',
-            brand_id: 'brand-101',
-            email: 'marketing@brand.com',
-            full_name: 'Brand Marketing Lead',
-            role: 'owner',
-            brand_name: 'Mamaearth',
-            brand_slug: 'mamaearth',
-          })
+          router.replace('/brand/login')
         }
       })
       .catch(() => {
-        setBrandUser({
-          id: 'brand-demo-1',
-          brand_id: 'brand-101',
-          email: 'marketing@brand.com',
-          full_name: 'Brand Marketing Lead',
-          role: 'owner',
-          brand_name: 'Mamaearth',
-          brand_slug: 'mamaearth',
-        })
+        router.replace('/brand/login')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [router])
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -107,6 +90,15 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
       return pathname.startsWith('/brand/campaigns') || pathname === '/brand' || pathname === '/brand/dashboard'
     }
     return pathname.startsWith(href)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#2d3132] flex flex-col items-center justify-center gap-3">
+        <div className="w-7 h-7 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs text-slate-300 font-medium">Loading Brand Workspace...</p>
+      </div>
+    )
   }
 
   return (
