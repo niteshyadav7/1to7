@@ -3,9 +3,39 @@ import type { NextRequest } from 'next/server'
 import { decrypt } from '@/lib/auth'
 
 export async function proxy(request: NextRequest) {
+  const host = request.headers.get('host') || ''
   const { pathname } = request.nextUrl
 
-  // 1. Dashboard User Protection
+  // ─── 0. TheHype Brand Portal Subdomain Isolation ───
+  const isBrandHost =
+    host.startsWith('brand.') ||
+    host.includes('thehype.in') ||
+    (process.env.BRAND_PORTAL_HOST && host === process.env.BRAND_PORTAL_HOST)
+
+  if (isBrandHost) {
+    // Root route on brand domain directs to Brand Workspace
+    if (pathname === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/brand/campaigns'
+      return NextResponse.redirect(url)
+    }
+
+    // Prevent brand clients from hitting 1to7 creator auth / dashboard routes on brand.thehype.in
+    if (
+      pathname === '/login' ||
+      pathname === '/signup' ||
+      pathname === '/forgot-password' ||
+      pathname === '/verify-mobile' ||
+      pathname.startsWith('/dashboard') ||
+      pathname.startsWith('/admin')
+    ) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/brand/login'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // ─── 1. Dashboard User Protection ───
   if (pathname.startsWith('/dashboard')) {
     const token = request.cookies.get('auth_token')?.value
 
@@ -26,14 +56,14 @@ export async function proxy(request: NextRequest) {
       const payload = await decrypt(token)
       if (!payload) throw new Error('Invalid token')
     } catch (error) {
-      console.error('Middleware Auth Error:', error)
+      console.error('Proxy Auth Error:', error)
       const response = NextResponse.redirect(buildLoginRedirect())
       response.cookies.delete('auth_token')
       return response
     }
   }
 
-  // 2. Admin Protection (supports all dynamic admin and staff roles)
+  // ─── 2. Admin Protection (supports all dynamic admin and staff roles) ───
   if (pathname.startsWith('/admin') && pathname !== '/admin') {
     const adminToken = request.cookies.get('admin_token')?.value
     if (!adminToken) {
@@ -49,7 +79,7 @@ export async function proxy(request: NextRequest) {
         throw new Error('Deactivated admin token')
       }
     } catch (error) {
-      console.error('Admin Middleware Auth Error:', error)
+      console.error('Admin Proxy Auth Error:', error)
       const response = NextResponse.redirect(new URL('/admin', request.url))
       response.cookies.delete('admin_token')
       return response
@@ -60,5 +90,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - metadata/asset files (favicon.ico, thehype-logo.png, etc.)
+     */
+    '/((?!_next/static|_next/image|thehype-logo.png|logo-icon.svg|favicon.ico).*)',
+  ],
 }

@@ -229,7 +229,7 @@ export default function CreatorReviewStudioPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             Creator Review Studio
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -247,7 +247,7 @@ export default function CreatorReviewStudioPage() {
         title="Campaign Creator Shortlists"
         subtitle="1-click approve creators or bulk select candidates for automated courier dispatch"
         data={filteredCreators}
-        exportFilename={`campaign_${campaignId}_creators.csv`}
+        exportFilename={`thehype_campaign_${campaignId}_creators.csv`}
         searchPlaceholder="Search creator handle, name, city, or sample..."
         filterTabs={{
           key: 'status',
@@ -286,7 +286,7 @@ export default function CreatorReviewStudioPage() {
             width: '26%',
             render: (c) => (
               <div className="flex items-center gap-2 min-w-0 max-w-full">
-                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-slate-900 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                <div className="w-7 h-7 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] font-black flex items-center justify-center shrink-0 text-[10px]">
                   {c.creator_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -310,7 +310,7 @@ export default function CreatorReviewStudioPage() {
                     </a>
                     {c.brand_pitch_batch_name && (
                       <span
-                        className="text-[9px] font-semibold text-purple-700 bg-purple-50 px-1 py-0.2 rounded border border-purple-200 truncate max-w-[100px]"
+                        className="text-[9px] font-semibold text-[#D83B1C] bg-[#FFF2EF] px-1 py-0.2 rounded border border-[#F95738]/20 truncate max-w-[100px]"
                         title={`Shortlist: ${c.brand_pitch_batch_name}`}
                       >
                         {c.brand_pitch_batch_name}
@@ -355,8 +355,8 @@ export default function CreatorReviewStudioPage() {
               <div className="flex flex-col gap-1 max-w-full">
                 {c.selected_variant ? (
                   <EllipsisTooltip text={c.selected_variant} subtext="Product Sample Choice">
-                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
-                      <Package className="w-3 h-3 shrink-0 text-amber-600" />
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] text-[10px] max-w-full min-w-0 overflow-hidden cursor-default">
+                      <Package className="w-3 h-3 shrink-0 text-[#F95738]" />
                       <span className="truncate block min-w-0">{c.selected_variant}</span>
                     </div>
                   </EllipsisTooltip>
@@ -389,7 +389,7 @@ export default function CreatorReviewStudioPage() {
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
                         ? 'bg-red-50 text-red-700 border-red-200'
-                        : 'bg-amber-50 text-amber-800 border-amber-200'
+                        : 'bg-[#FFF2EF] text-[#D83B1C] border-[#F95738]/30'
                     }`}
                   >
                     {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
@@ -417,7 +417,7 @@ export default function CreatorReviewStudioPage() {
                       type="button"
                       onClick={() => handleApprove(c.application_id, c.creator_name)}
                       disabled={actionInProgress === c.application_id}
-                      className="h-6 px-2 rounded-md bg-[#febd1c] hover:bg-[#e5a812] text-black font-bold text-[10px] shadow-xs transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm shadow-[#F95738]/20 transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
                     >
                       {actionInProgress === c.application_id ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -499,70 +499,89 @@ export default function CreatorReviewStudioPage() {
                 </div>
                 <button
                   onClick={() => setRejectModalItem(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-black transition cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs sm:text-sm text-slate-600 mb-4">
-                Please select a reason for rejecting{' '}
-                <strong>{rejectModalItem.creator_name}</strong> (@{rejectModalItem.instagram_username}).
-              </p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 mb-4 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#FFF2EF] border border-[#F95738]/20 text-[#D83B1C] font-black flex items-center justify-center text-xs shrink-0">
+                  {rejectModalItem.creator_name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="overflow-hidden">
+                  <h4 className="font-bold text-xs text-slate-900 truncate">
+                    {rejectModalItem.creator_name}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    @{rejectModalItem.instagram_username}
+                  </p>
+                </div>
+              </div>
 
-              {/* Reasons Radio List */}
-              <div className="space-y-2 mb-4">
-                {rejectionReasons.map((reason) => (
-                  <label
-                    key={reason}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition ${
-                      selectedReason === reason
-                        ? 'border-[#febd1c] bg-amber-50/50 text-slate-900 font-medium'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="rejectionReason"
-                      checked={selectedReason === reason}
-                      onChange={() => setSelectedReason(reason)}
-                      className="mt-0.5 text-[#febd1c] focus:ring-[#febd1c]"
-                    />
-                    <span>{reason}</span>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Select Rejection Reason
                   </label>
-                ))}
-              </div>
+                  <div className="space-y-1.5">
+                    {rejectionReasons.map((reason) => (
+                      <label
+                        key={reason}
+                        className={`flex items-center gap-2.5 p-2 rounded-xl text-xs transition border cursor-pointer ${
+                          selectedReason === reason
+                            ? 'bg-[#FFF2EF] border-[#F95738]/40 text-[#D83B1C] font-semibold'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="rejectionReason"
+                          checked={selectedReason === reason}
+                          onChange={() => setSelectedReason(reason)}
+                          className="accent-[#F95738]"
+                        />
+                        <span>{reason}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-              {/* Optional Custom Note */}
-              <div className="mb-5">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Internal Notes (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={customNote}
-                  onChange={(e) => setCustomNote(e.target.value)}
-                  placeholder="e.g. Try them next month for haircare"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#febd1c]"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Additional Feedback (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={customNote}
+                    onChange={(e) => setCustomNote(e.target.value)}
+                    placeholder="Specific comments for the curation team..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-[#F95738] resize-none"
+                  />
+                </div>
 
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRejectModalItem(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRejectSubmit}
-                  disabled={actionInProgress === rejectModalItem.application_id}
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-                >
-                  Confirm Rejection
-                </button>
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRejectModalItem(null)}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRejectSubmit}
+                    disabled={actionInProgress === rejectModalItem.application_id}
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+                  >
+                    {actionInProgress === rejectModalItem.application_id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5" />
+                    )}
+                    <span>Confirm Rejection</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

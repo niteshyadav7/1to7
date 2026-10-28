@@ -148,7 +148,7 @@ export default function BrandSampleRostersPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to submit shortlist')
 
-      toast.success(data.message || `Shortlist submitted to 1to7 Media!`)
+      toast.success(data.message || `Shortlist submitted to TheHype!`)
       setShowShortlistModal(false)
       setNotes('')
       fetchRosterDetail(selectedRosterId)
@@ -170,11 +170,11 @@ export default function BrandSampleRostersPage() {
       {/* ─── 1. PAGE HEADER (Clean Luxury White Banner) ─── */}
       <div className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm relative overflow-hidden">
         <div className="relative z-10 max-w-3xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-semibold">
-            <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-            <span>Curated by 1to7 Media Agency Ops</span>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FFF2EF] border border-[#F95738]/30 text-[#D83B1C] text-[11px] font-bold">
+            <Sparkles className="h-3.5 w-3.5 text-[#F95738]" />
+            <span>Curated by TheHype Agency Ops</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             Curated Creator Pitch Decks
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 font-normal leading-relaxed">
@@ -184,13 +184,13 @@ export default function BrandSampleRostersPage() {
         </div>
 
         {/* Ambient Subtle Accent Glow */}
-        <div className="absolute right-0 top-0 w-64 h-64 bg-amber-100/40 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute right-0 top-0 w-64 h-64 bg-[#F95738]/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
       {loading ? (
         <div className="py-20 text-center space-y-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <Loader2 className="h-7 w-7 animate-spin text-amber-500 mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">Loading pitch rosters from 1to7 Ops...</p>
+          <Loader2 className="h-7 w-7 animate-spin text-[#F95738] mx-auto" />
+          <p className="text-xs text-slate-500 font-medium">Loading pitch rosters from TheHype Ops...</p>
         </div>
       ) : rosters.length === 0 ? (
         /* ─── 2. EMPTY STATE (Clean, Modern Dashed Card) ─── */
@@ -201,7 +201,7 @@ export default function BrandSampleRostersPage() {
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-slate-800">No Sample Pitch Decks Yet</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              Your 1to7 Key Account Manager will pitch curated creator rosters here for your upcoming campaigns. Check back soon!
+              Your TheHype Key Account Manager will pitch curated creator rosters here for your upcoming campaigns. Check back soon!
             </p>
           </div>
         </div>
@@ -210,10 +210,10 @@ export default function BrandSampleRostersPage() {
           {/* ─── 3. PITCHED ROSTERS HORIZONTAL CAROUSEL ─── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Pitched Rosters ({rosters.length})
               </span>
-              <span className="text-[11px] text-amber-600 font-medium">Select a roster to review creators</span>
+              <span className="text-[11px] text-[#D83B1C] font-semibold">Select a roster to review creators</span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -225,14 +225,14 @@ export default function BrandSampleRostersPage() {
                     onClick={() => setSelectedRosterId(r.id)}
                     className={`p-4 rounded-2xl text-left transition-all cursor-pointer border relative overflow-hidden ${
                       isSelected
-                        ? 'bg-amber-50/50 border-amber-400/90 shadow-sm ring-1 ring-amber-400/30'
+                        ? 'bg-[#FFF2EF]/60 border-[#F95738] shadow-sm ring-1 ring-[#F95738]/30'
                         : 'bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-sm'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-xs sm:text-sm text-slate-900 truncate">{r.title}</h3>
+                          <h3 className="font-bold text-xs sm:text-sm text-slate-900 truncate">{r.title}</h3>
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                             {r.category_niche || 'General'}
                           </span>
@@ -245,7 +245,7 @@ export default function BrandSampleRostersPage() {
                       </div>
 
                       {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-amber-400 text-neutral-950 flex items-center justify-center shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-[#F95738] text-white flex items-center justify-center shrink-0">
                           <Check className="h-3 w-3 stroke-[3]" />
                         </div>
                       )}
@@ -280,15 +280,15 @@ export default function BrandSampleRostersPage() {
                       {creators.length} Creators in Deck
                     </span>
                     {existingShortlist && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-amber-600" />
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#FFF2EF] text-[#D83B1C] border border-[#F95738]/30 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-[#F95738]" />
                         <span>Shortlist Submitted ({existingShortlist.shortlisted_creators_count})</span>
                       </span>
                     )}
                   </div>
                   {activeRoster.pitch_note_to_brand && (
-                    <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-slate-700 mt-2">
-                      <strong className="text-amber-800">Note from 1to7 KAM:</strong> {activeRoster.pitch_note_to_brand}
+                    <div className="p-2.5 rounded-xl bg-[#FFF2EF] border border-[#F95738]/25 text-xs text-slate-800 mt-2">
+                      <strong className="text-[#D83B1C]">Note from TheHype KAM:</strong> {activeRoster.pitch_note_to_brand}
                     </div>
                   )}
                 </div>
@@ -298,7 +298,7 @@ export default function BrandSampleRostersPage() {
                   <button
                     disabled={selectedIds.size === 0}
                     onClick={() => setShowShortlistModal(true)}
-                    className="px-4 py-2 rounded-xl bg-[#febd1c] hover:bg-amber-300 text-neutral-950 font-bold text-xs flex items-center gap-2 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-xs flex items-center gap-2 shadow-sm shadow-[#F95738]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
                   >
                     <Send className="h-3.5 w-3.5" />
                     <span>
@@ -319,7 +319,7 @@ export default function BrandSampleRostersPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search creator name, handle, city, niche..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white transition-colors"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white transition-colors"
                   />
                 </div>
 
@@ -334,7 +334,7 @@ export default function BrandSampleRostersPage() {
                   </button>
                   <span className="text-slate-300">|</span>
                   <span className="text-slate-500">
-                    <strong className="text-amber-600 font-semibold">{selectedIds.size}</strong> selected
+                    <strong className="text-[#D83B1C] font-semibold">{selectedIds.size}</strong> selected
                   </span>
                 </div>
               </div>
@@ -342,7 +342,7 @@ export default function BrandSampleRostersPage() {
               {/* Creators Table */}
               {creatorsLoading ? (
                 <div className="py-16 text-center space-y-2">
-                  <Loader2 className="h-6 w-6 animate-spin text-amber-500 mx-auto" />
+                  <Loader2 className="h-6 w-6 animate-spin text-[#F95738] mx-auto" />
                   <p className="text-xs text-slate-500">Loading creator profiles...</p>
                 </div>
               ) : filteredCreators.length === 0 ? (
@@ -353,13 +353,13 @@ export default function BrandSampleRostersPage() {
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="w-full text-left border-collapse text-[11px]">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-[10px] font-semibold uppercase tracking-wider border-b border-slate-200">
+                      <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
                         <th className="p-2 w-9 text-center">
                           <input
                             type="checkbox"
                             checked={selectedIds.size === filteredCreators.length && filteredCreators.length > 0}
                             onChange={toggleSelectAll}
-                            className="rounded border-slate-300 text-amber-500 focus:ring-0 cursor-pointer"
+                            className="rounded border-slate-300 text-[#F95738] focus:ring-0 cursor-pointer accent-[#F95738]"
                           />
                         </th>
                         <th className="py-2.5 px-3">Creator & Instagram</th>
@@ -380,7 +380,7 @@ export default function BrandSampleRostersPage() {
                             onClick={() => toggleSelect(creator.id)}
                             className={`transition-colors cursor-pointer ${
                               isSelected
-                                ? 'bg-amber-50/60 hover:bg-amber-50'
+                                ? 'bg-[#FFF2EF]/60 hover:bg-[#FFF2EF]'
                                 : 'hover:bg-slate-50/80'
                             }`}
                           >
@@ -389,13 +389,13 @@ export default function BrandSampleRostersPage() {
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => toggleSelect(creator.id)}
-                                className="rounded border-slate-300 text-amber-500 focus:ring-0 cursor-pointer"
+                                className="rounded border-slate-300 text-[#F95738] focus:ring-0 cursor-pointer accent-[#F95738]"
                               />
                             </td>
 
                             <td className="py-2 px-3">
                               <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 font-bold flex items-center justify-center border border-amber-200 shrink-0 text-[10px]">
+                                <div className="w-7 h-7 rounded-lg bg-[#FFF2EF] text-[#D83B1C] font-black flex items-center justify-center border border-[#F95738]/25 shrink-0 text-[10px]">
                                   {creator.creator_name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -511,12 +511,12 @@ export default function BrandSampleRostersPage() {
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                  <div className="p-2 rounded-xl bg-[#FFF2EF] text-[#D83B1C] border border-[#F95738]/25">
                     <Send className="h-5 w-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-900">Submit Creator Shortlist</h3>
-                    <p className="text-xs text-slate-500">Sends directly to your 1to7 Key Account Manager</p>
+                    <p className="text-xs text-slate-500">Sends directly to your TheHype Key Account Manager</p>
                   </div>
                 </div>
                 <button
@@ -534,7 +534,7 @@ export default function BrandSampleRostersPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Creators Selected:</span>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-[#FFF2EF] text-[#D83B1C] font-bold border border-[#F95738]/20">
                     {selectedIds.size} Creators
                   </span>
                 </div>
@@ -548,7 +548,7 @@ export default function BrandSampleRostersPage() {
                     value={pocName}
                     onChange={(e) => setPocName(e.target.value)}
                     placeholder="e.g. Vikram Mehta (Brand Manager)"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
                   />
                 </div>
 
@@ -560,7 +560,7 @@ export default function BrandSampleRostersPage() {
                       value={pocEmail}
                       onChange={(e) => setPocEmail(e.target.value)}
                       placeholder="vikram@brand.in"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
                     />
                   </div>
                   <div className="space-y-1">
@@ -570,7 +570,7 @@ export default function BrandSampleRostersPage() {
                       value={pocPhone}
                       onChange={(e) => setPocPhone(e.target.value)}
                       placeholder="+91 98765 43210"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
                     />
                   </div>
                 </div>
@@ -582,7 +582,7 @@ export default function BrandSampleRostersPage() {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="e.g. We love these creators for our Diwali drop. Need 1 dedicated Reel + 1 Story. Commercials look acceptable."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-amber-400 focus:bg-white resize-none"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white resize-none"
                   />
                 </div>
 
@@ -597,12 +597,12 @@ export default function BrandSampleRostersPage() {
                   <button
                     type="submit"
                     disabled={submittingShortlist || selectedIds.size === 0}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer transition-all"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#F95738] hover:bg-[#E04728] text-white flex items-center gap-1.5 shadow-md shadow-[#F95738]/20 disabled:opacity-50 cursor-pointer transition-all"
                   >
                     {submittingShortlist ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Submitting to 1to7...</span>
+                        <span>Submitting to TheHype...</span>
                       </>
                     ) : (
                       <>

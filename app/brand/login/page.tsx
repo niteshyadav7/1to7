@@ -171,11 +171,11 @@ export default function BrandLoginPage() {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#141718] text-white flex flex-col justify-center items-center selection:bg-[#febd1c] selection:text-black font-sans relative p-4 sm:p-6 lg:p-10">
+    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#101315] text-white flex flex-col justify-center items-center selection:bg-[#F95738]/30 selection:text-[#FF7659] font-sans relative p-4 sm:p-6 lg:p-10">
       {/* ─── AMBIENT BACKGROUND GLOWS ─── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 left-1/4 w-96 sm:w-[500px] h-72 sm:h-[350px] bg-[#febd1c]/12 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-24 right-1/4 w-80 sm:w-[450px] h-80 sm:h-[400px] bg-purple-600/12 rounded-full blur-[130px]" />
+        <div className="absolute -top-24 left-1/4 w-96 sm:w-[500px] h-72 sm:h-[350px] bg-[#F95738]/12 rounded-full blur-[140px]" />
+        <div className="absolute -bottom-24 right-1/4 w-80 sm:w-[450px] h-80 sm:h-[400px] bg-orange-600/10 rounded-full blur-[140px]" />
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
 
@@ -184,26 +184,26 @@ export default function BrandLoginPage() {
         
         {/* LEFT COLUMN: BRAND VALUE PROPOSITION (Desktop Only) */}
         <div className="hidden lg:flex lg:col-span-6 flex-col space-y-5 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-amber-300 w-fit backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-[#febd1c]" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-[#FF8C73] w-fit backdrop-blur-md">
+            <Sparkles className="w-3.5 h-3.5 text-[#F95738]" />
             <span>Zero Spreadsheets • 100% Real-Time Connected</span>
           </div>
 
           <h1 className="text-3xl lg:text-4xl xl:text-[46px] font-black text-white leading-[1.16] tracking-tight">
             Review, Approve & Track <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#febd1c] via-[#ffd269] to-amber-200">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F95738] via-[#FF7659] to-orange-200">
               Creators in Seconds.
             </span>
           </h1>
 
           <p className="text-slate-300 text-sm leading-relaxed max-w-md">
-            Eliminate the delay of emailing Excel sheets back and forth. 1to7’s automated Brand Portal connects your shortlist directly to courier dispatches and live Reel approvals.
+            Eliminate the delay of emailing Excel sheets back and forth. TheHype’s automated Brand Portal connects your shortlist directly to courier dispatches and live Reel approvals.
           </p>
 
           {/* 3 Value Pillars */}
           <div className="space-y-3 pt-2 max-w-md">
             <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition backdrop-blur-xs">
-              <div className="w-9 h-9 rounded-xl bg-[#febd1c]/20 text-[#febd1c] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+              <div className="w-9 h-9 rounded-xl bg-[#F95738]/20 text-[#F95738] flex items-center justify-center shrink-0 mt-0.5 font-bold">
                 <Zap className="w-4 h-4" />
               </div>
               <div>
@@ -246,27 +246,27 @@ export default function BrandLoginPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="w-full max-w-[460px] bg-[#1e2224]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative"
+            className="w-full max-w-[460px] bg-[#14171A]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative"
           >
             {/* Card Header */}
             <div className="flex flex-col items-center justify-center text-center mb-5">
               <div className="relative mb-3">
-                <div className="absolute inset-0 bg-[#febd1c]/25 blur-2xl rounded-full scale-125 pointer-events-none" />
-                <div className="relative w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden shadow-2xl border-2 border-white/25 flex items-center justify-center hover:scale-105 transition-transform bg-gradient-to-br from-[#FFB800] via-[#FF5E36] to-[#F50057]">
+                <div className="absolute inset-0 bg-[#F95738]/25 blur-2xl rounded-full scale-125 pointer-events-none" />
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex items-center justify-center hover:scale-105 transition-transform bg-[#0E1012] p-2">
                   <img
-                    src="/logo-icon.svg"
-                    alt="1to7 Media"
-                    className="w-full h-full object-cover"
+                    src="/thehype-logo.png"
+                    alt="TheHype"
+                    className="w-full h-full object-contain"
                   />
                 </div>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#febd1c]/10 text-[#febd1c] border border-[#febd1c]/25 text-[11px] font-bold uppercase tracking-wider mb-2 shadow-xs">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F95738]/10 text-[#FF8C73] border border-[#F95738]/25 text-[11px] font-bold uppercase tracking-wider mb-2 shadow-xs">
                 <Building2 className="w-3.5 h-3.5" />
-                <span>Enterprise Brand Portal</span>
+                <span>TheHype • Enterprise Brand Portal</span>
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                 Brand Workspace Login
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xs leading-relaxed">
@@ -275,7 +275,7 @@ export default function BrandLoginPage() {
             </div>
 
             {/* DUAL-MODE TAB SWITCHER */}
-            <div className="grid grid-cols-2 p-1 bg-[#141718] border border-white/10 rounded-2xl mb-5 text-xs font-bold">
+            <div className="grid grid-cols-2 p-1 bg-[#0E1012] border border-white/10 rounded-2xl mb-5 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => {
@@ -284,7 +284,7 @@ export default function BrandLoginPage() {
                 }}
                 className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   authMode === 'otp'
-                    ? 'bg-[#febd1c] text-black shadow-md shadow-amber-500/20 font-extrabold'
+                    ? 'bg-[#F95738] text-white shadow-md shadow-[#F95738]/25 font-black'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -300,7 +300,7 @@ export default function BrandLoginPage() {
                 }}
                 className={`py-2 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   authMode === 'password'
-                    ? 'bg-[#febd1c] text-black shadow-md shadow-amber-500/20 font-extrabold'
+                    ? 'bg-[#F95738] text-white shadow-md shadow-[#F95738]/25 font-black'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -321,10 +321,11 @@ export default function BrandLoginPage() {
             <div className="mb-4 p-2.5 rounded-2xl bg-white/[0.03] border border-white/8 text-[11px] space-y-1.5">
               <div className="text-slate-400 font-semibold flex items-center justify-between">
                 <span>Quick Test Brands:</span>
-                <span className="text-[10px] text-amber-400/80">1-Tap Fill</span>
+                <span className="text-[10px] text-[#FF8C73]">1-Tap Fill</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {[
+                  { name: 'TheHype Demo', email: 'brand@thehype.in' },
                   { name: 'Mamaearth', email: 'ananya@mamaearth.in' },
                   { name: 'Plum Goodness', email: 'rahul@plumgoodness.com' },
                   { name: 'Sugar Cosmetics', email: 'kavita@sugarcosmetics.com' },
@@ -333,7 +334,7 @@ export default function BrandLoginPage() {
                     key={item.email}
                     type="button"
                     onClick={() => handleSelectDemoAccount(item.email)}
-                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/15 border border-white/10 hover:border-amber-500/30 text-slate-300 hover:text-amber-300 text-[11px] font-medium transition cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#F95738]/20 border border-white/10 hover:border-[#F95738]/40 text-slate-300 hover:text-[#FF8C73] text-[11px] font-medium transition cursor-pointer"
                   >
                     {item.name}
                   </button>
@@ -358,9 +359,9 @@ export default function BrandLoginPage() {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="e.g. ananya@mamaearth.in"
+                          placeholder="e.g. director@brand.com"
                           required
-                          className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-[#141718] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
+                          className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-[#0E1012] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#F95738] focus:ring-1 focus:ring-[#F95738] transition"
                         />
                       </div>
                     </div>
@@ -368,7 +369,7 @@ export default function BrandLoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#febd1c] via-[#ffc634] to-[#f5aa00] hover:from-[#f5aa00] hover:to-[#e59b00] text-black font-extrabold text-sm sm:text-base shadow-lg shadow-amber-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                      className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#F95738] via-[#FF6F52] to-[#E04728] hover:from-[#E04728] hover:to-[#C83E22] text-white font-black text-sm sm:text-base shadow-lg shadow-[#F95738]/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                     >
                       {loading ? (
                         <>
@@ -396,7 +397,7 @@ export default function BrandLoginPage() {
                             setOtpStep('email')
                             setErrorMsg('')
                           }}
-                          className="text-[11px] text-[#febd1c] hover:underline cursor-pointer"
+                          className="text-[11px] text-[#FF8C73] hover:underline cursor-pointer"
                         >
                           Change Email ({email})
                         </button>
@@ -411,13 +412,13 @@ export default function BrandLoginPage() {
                           onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                           placeholder="123456"
                           required
-                          className="w-full tracking-[0.5em] text-center font-mono font-black text-xl sm:text-2xl py-3 rounded-2xl bg-[#141718] border border-emerald-500/40 text-emerald-300 placeholder:text-slate-600 focus:outline-none focus:border-emerald-400 transition"
+                          className="w-full tracking-[0.5em] text-center font-mono font-black text-xl sm:text-2xl py-3 rounded-2xl bg-[#0E1012] border border-emerald-500/40 text-emerald-300 placeholder:text-slate-600 focus:outline-none focus:border-emerald-400 transition"
                         />
                       </div>
 
                       {/* Demo code helper chip */}
                       {demoCodeHelper && (
-                        <div className="mt-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between">
+                        <div className="mt-2 p-2 rounded-xl bg-[#F95738]/15 border border-[#F95738]/30 text-[#FF8C73] text-xs flex items-center justify-between">
                           <span>Testing Code: <strong className="font-mono text-white">{demoCodeHelper}</strong></span>
                           <button
                             type="button"
@@ -438,7 +439,7 @@ export default function BrandLoginPage() {
                         <button
                           type="button"
                           onClick={() => handleSendOtp()}
-                          className="text-[#febd1c] font-bold hover:underline cursor-pointer"
+                          className="text-[#FF8C73] font-bold hover:underline cursor-pointer"
                         >
                           Resend Code
                         </button>
@@ -448,7 +449,7 @@ export default function BrandLoginPage() {
                     <button
                       type="submit"
                       disabled={loading || otp.length < 6}
-                      className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm sm:text-base shadow-lg shadow-emerald-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {loading ? (
                         <>
@@ -482,9 +483,9 @@ export default function BrandLoginPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="marketing@brand.com"
+                      placeholder="director@brand.com"
                       required
-                      className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-[#141718] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
+                      className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-[#0E1012] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#F95738] focus:ring-1 focus:ring-[#F95738] transition"
                     />
                   </div>
                 </div>
@@ -508,7 +509,7 @@ export default function BrandLoginPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
                       required
-                      className="w-full pl-11 pr-11 py-3 sm:py-3.5 rounded-2xl bg-[#141718] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#febd1c] focus:ring-1 focus:ring-[#febd1c] transition"
+                      className="w-full pl-11 pr-11 py-3 sm:py-3.5 rounded-2xl bg-[#0E1012] border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-[#F95738] focus:ring-1 focus:ring-[#F95738] transition"
                     />
                     <button
                       type="button"
@@ -523,7 +524,7 @@ export default function BrandLoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#febd1c] via-[#ffc634] to-[#f5aa00] hover:from-[#f5aa00] hover:to-[#e59b00] text-black font-extrabold text-sm sm:text-base shadow-lg shadow-amber-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
+                  className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#F95738] via-[#FF6F52] to-[#E04728] hover:from-[#E04728] hover:to-[#C83E22] text-white font-black text-sm sm:text-base shadow-lg shadow-[#F95738]/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-60"
                 >
                   {loading ? (
                     <>
@@ -546,22 +547,9 @@ export default function BrandLoginPage() {
               <span>Enterprise 256-Bit SSL • Creator PII Privacy Shield Active</span>
             </div>
 
-            {/* Portal navigation links */}
-            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
-              <Link
-                href="/login"
-                className="hover:text-white transition-colors inline-flex items-center gap-1.5"
-              >
-                <span>Creator Login</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#febd1c]" />
-              </Link>
-
-              <Link
-                href="/brand-admin/login"
-                className="hover:text-white transition-colors inline-flex items-center gap-1.5 text-slate-500"
-              >
-                <span>Agency Staff</span>
-              </Link>
+            {/* Clean White-Label Footer */}
+            <div className="mt-4 pt-4 border-t border-white/5 text-center text-[11px] text-slate-500">
+              <span>TheHype (thehype.in) • Dedicated Client Workspace</span>
             </div>
           </motion.div>
         </div>

@@ -65,7 +65,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Your shortlist of ${shortlisted_item_ids.length} creators has been submitted to the 1to7 Campaign Operations team!`,
+      message: `Your shortlist of ${shortlisted_item_ids.length} creators has been submitted to TheHype Campaign Operations team!`,
       shortlist: result.rows[0],
     })
   } catch (error: any) {

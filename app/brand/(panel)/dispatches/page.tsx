@@ -13,7 +13,7 @@ export default function BrandDispatchesTrackerPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-      <Loader2 className="w-6 h-6 animate-spin text-[#febd1c]" />
+      <Loader2 className="w-6 h-6 animate-spin text-[#F95738]" />
       <p className="text-xs text-slate-500 font-medium">Redirecting to Creator Review Studio...</p>
     </div>
   )

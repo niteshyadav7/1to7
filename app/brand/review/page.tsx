@@ -30,7 +30,7 @@ function ReviewTokenHandler() {
   useEffect(() => {
     if (!token) {
       setStatus('error')
-      setErrorMsg('No review token was provided in the link. Please ask your 1to7 Account Manager for a valid link.')
+      setErrorMsg('No review token was provided in the link. Please ask your TheHype Account Manager for a valid link.')
       return
     }
 
@@ -69,15 +69,15 @@ function ReviewTokenHandler() {
   }, [token, batch, router])
 
   return (
-    <div className="w-full max-w-[480px] bg-[#1e2224]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative text-center">
+    <div className="w-full max-w-[480px] bg-[#14171A]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative text-center">
       {/* 1. Header Emblem */}
       <div className="relative mb-5 flex justify-center">
-        <div className="absolute inset-0 bg-[#febd1c]/20 blur-2xl rounded-full scale-125 pointer-events-none" />
-        <div className="relative w-20 h-20 rounded-full overflow-hidden shadow-2xl border-2 border-white/25 flex items-center justify-center bg-gradient-to-br from-[#FFB800] via-[#FF5E36] to-[#F50057]">
+        <div className="absolute inset-0 bg-[#F95738]/20 blur-2xl rounded-full scale-125 pointer-events-none" />
+        <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 flex items-center justify-center bg-[#0E1012] p-2">
           <img
-            src="/logo-icon.svg"
-            alt="1to7 Media"
-            className="w-full h-full object-cover"
+            src="/thehype-logo.png"
+            alt="TheHype"
+            className="w-full h-full object-contain"
           />
         </div>
       </div>
@@ -89,7 +89,7 @@ function ReviewTokenHandler() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-[#febd1c] border border-amber-500/25 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F95738]/15 text-[#FF8C73] border border-[#F95738]/25 text-xs font-bold uppercase tracking-wider">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             <span>Validating Secure Token</span>
           </div>
@@ -98,13 +98,13 @@ function ReviewTokenHandler() {
             Connecting to Brand Workspace...
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-sm mx-auto leading-relaxed">
-            Please wait a moment while 1to7 verifies your credentials and decrypts your curated campaign roster.
+            Please wait a moment while TheHype verifies your credentials and decrypts your curated campaign roster.
           </p>
 
           <div className="pt-2 flex justify-center">
             <div className="w-36 h-1.5 bg-white/10 rounded-full overflow-hidden">
               <motion.div
-                className="h-full bg-gradient-to-r from-amber-400 to-[#febd1c]"
+                className="h-full bg-gradient-to-r from-[#F95738] to-[#FF7659]"
                 initial={{ x: '-100%' }}
                 animate={{ x: '100%' }}
                 transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
@@ -134,8 +134,8 @@ function ReviewTokenHandler() {
           </p>
 
           <div className="pt-3">
-            <div className="inline-flex items-center gap-2 text-xs font-bold text-amber-300 bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
-              <Loader2 className="w-4 h-4 animate-spin text-[#febd1c]" />
+            <div className="inline-flex items-center gap-2 text-xs font-bold text-[#FF8C73] bg-white/5 border border-white/10 px-4 py-2 rounded-xl">
+              <Loader2 className="w-4 h-4 animate-spin text-[#F95738]" />
               <span>Redirecting to Shortlist...</span>
             </div>
           </div>
@@ -165,18 +165,18 @@ function ReviewTokenHandler() {
           <div className="pt-2 space-y-2.5">
             <Link
               href="/brand/login"
-              className="w-full py-3 px-4 rounded-xl bg-[#febd1c] hover:bg-[#febd1c]/90 text-black font-extrabold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+              className="w-full py-3 px-4 rounded-xl bg-[#F95738] hover:bg-[#E04728] text-white font-black text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-[#F95738]/25"
             >
               <span>Log in with Work Email</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </Link>
 
             <a
-              href="mailto:support@1to7.in?subject=Brand%20Review%20Link%20Expired"
+              href="mailto:support@thehype.in?subject=Brand%20Review%20Link%20Expired"
               className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-semibold text-xs transition flex items-center justify-center gap-1.5"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Contact 1to7 Account Manager</span>
+              <span>Contact TheHype Account Manager</span>
             </a>
           </div>
         </motion.div>
@@ -185,7 +185,7 @@ function ReviewTokenHandler() {
       {/* Footer Pill */}
       <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-center gap-2 text-[11px] text-slate-400">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-        <span>Enterprise 256-Bit Cryptographic Review Protocol</span>
+        <span>TheHype Cryptographic Review Protocol Active</span>
       </div>
     </div>
   )
@@ -193,19 +193,19 @@ function ReviewTokenHandler() {
 
 export default function BrandReviewPage() {
   return (
-    <div className="w-full min-h-screen bg-[#141718] text-white flex flex-col justify-center items-center selection:bg-[#febd1c] selection:text-black font-sans relative p-4 sm:p-6">
+    <div className="w-full min-h-screen bg-[#101315] text-white flex flex-col justify-center items-center selection:bg-[#F95738]/30 selection:text-[#FF7659] font-sans relative p-4 sm:p-6">
       {/* Background glow effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-24 left-1/4 w-96 sm:w-[500px] h-72 sm:h-[350px] bg-[#febd1c]/12 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-24 right-1/4 w-80 sm:w-[450px] h-80 sm:h-[400px] bg-purple-600/12 rounded-full blur-[130px]" />
+        <div className="absolute -top-24 left-1/4 w-96 sm:w-[500px] h-72 sm:h-[350px] bg-[#F95738]/12 rounded-full blur-[140px]" />
+        <div className="absolute -bottom-24 right-1/4 w-80 sm:w-[450px] h-80 sm:h-[400px] bg-orange-600/10 rounded-full blur-[140px]" />
         <div className="absolute inset-0 bg-[radial-gradient(#ffffff08_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
       </div>
 
       <div className="relative z-10">
         <Suspense
           fallback={
-            <div className="w-full max-w-[480px] bg-[#1e2224]/95 border border-white/12 rounded-3xl p-8 text-center text-slate-400 text-sm">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#febd1c]" />
+            <div className="w-full max-w-[480px] bg-[#14171A]/95 border border-white/12 rounded-3xl p-8 text-center text-slate-400 text-sm">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-[#F95738]" />
               Loading security context...
             </div>
           }

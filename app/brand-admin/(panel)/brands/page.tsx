@@ -186,7 +186,8 @@ export default function ClientBrandsDirectoryPage() {
           action: {
             label: 'Copy Login',
             onClick: () => {
-              const creds = `1to7 Brand Portal Access\nURL: ${typeof window !== 'undefined' ? window.location.origin : ''}/brand/login\nEmail: ${data.brand.email}\nPassword: ${passwordToUse}`
+              const brandOrigin = typeof window !== 'undefined' ? (window.location.origin.includes('1to7') ? 'https://brand.thehype.in' : window.location.origin) : 'https://brand.thehype.in'
+              const creds = `TheHype Brand Portal Access\nURL: ${brandOrigin}/brand/login\nEmail: ${data.brand.email}\nPassword: ${passwordToUse}`
               navigator.clipboard.writeText(creds)
               toast.success('Credentials copied to clipboard!')
             },
@@ -294,8 +295,8 @@ export default function ClientBrandsDirectoryPage() {
   }
 
   const handleCopyCredentialsMessage = (brand: BrandWorkspace) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-    const msg = `👋 Hi ${brand.primaryContact || 'Brand Partner'},\n\nHere are your official 1to7 Brand Portal credentials:\n🔗 Portal Login: ${origin}/brand/login\n📧 Login Email: ${brand.email}\n🔑 Password: ${brand.password || 'brand123'}\n\n💡 Tip: You can also use our 1-Click WhatsApp Review links or Work Email OTP for zero-friction access!`
+    const origin = typeof window !== 'undefined' ? (window.location.origin.includes('1to7') ? 'https://brand.thehype.in' : window.location.origin) : 'https://brand.thehype.in'
+    const msg = `👋 Hi ${brand.primaryContact || 'Brand Partner'},\n\nHere are your official TheHype Brand Portal credentials:\n🔗 Portal Login: ${origin}/brand/login\n📧 Login Email: ${brand.email}\n🔑 Password: ${brand.password || 'brand123'}\n\n💡 Tip: You can also use our 1-Click WhatsApp Review links or Work Email OTP for zero-friction access!`
     navigator.clipboard.writeText(msg)
     toast.success(`Copied login credentials message for ${brand.name}!`)
   }
@@ -518,15 +519,17 @@ export default function ClientBrandsDirectoryPage() {
                   <MessageCircle className="w-2.5 h-2.5" />
                 </button>
 
-                {/* Enter Virtual Brand Studio */}
-                <Link
-                  href={`/brand-admin/virtual-brand/${brand.id}`}
-                  title="Enter Virtual Brand Studio"
-                  className="inline-flex items-center gap-0.5 h-6 px-2 rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-[10px] border border-purple-500/30 transition-colors shadow-sm"
+                {/* Launch Live Virtual Brand Dashboard (opens authentic brand portal as client) */}
+                <a
+                  href={`/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(brand.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Launch Live Brand Dashboard as ${brand.name}`}
+                  className="inline-flex items-center gap-1 h-6 px-2.5 rounded-md bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-[10px] shadow-sm shadow-pink-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
                 >
-                  <Eye className="w-2.5 h-2.5" />
-                  <span>Virtual</span>
-                </Link>
+                  <Eye className="w-3 h-3 shrink-0" />
+                  <span>Launch Virtual</span>
+                </a>
 
                 {/* Setup / View Credentials & Password */}
                 <button

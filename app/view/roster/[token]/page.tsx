@@ -103,7 +103,7 @@ export default function PublicRosterViewerPage({
 
       setSubmittedSuccess(true)
       setShowSubmitModal(false)
-      toast.success('Your shortlist has been submitted to the 1to7 Campaign Team!')
+      toast.success('Your shortlist has been submitted to TheHype Campaign Team!')
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit shortlist')
     } finally {
@@ -114,7 +114,7 @@ export default function PublicRosterViewerPage({
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-white">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-400 mb-2" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#F95738] mb-2" />
         <p className="text-sm text-slate-400">Loading influencer presentation...</p>
       </div>
     )
@@ -137,16 +137,21 @@ export default function PublicRosterViewerPage({
   const visibleCols: string[] = roster.visible_columns || []
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500/30">
+    <div className="min-h-screen bg-slate-950 text-white selection:bg-[#F95738]/30">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-black text-white text-xs shadow-md shadow-purple-500/20">
-            1to7
+          <div className="flex items-center gap-2">
+            <img
+              src="/thehype-logo.png"
+              alt="TheHype"
+              className="w-8 h-8 object-contain rounded-lg bg-white/5 p-0.5"
+            />
+            <span className="font-black text-sm text-white tracking-tight">TheHype</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#FF7659]">
                 Influencer Pitch Deck
               </span>
               <span className="text-[10px] text-slate-500">•</span>
@@ -159,7 +164,7 @@ export default function PublicRosterViewerPage({
           <button
             onClick={() => setShowSubmitModal(true)}
             disabled={selectedIds.length === 0}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#febd1c] hover:bg-[#e5a812] text-black shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#F95738] hover:bg-[#E04728] text-white shadow-md shadow-[#F95738]/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="h-3.5 w-3.5" />
             <span>Submit Shortlist ({selectedIds.length})</span>
@@ -170,16 +175,16 @@ export default function PublicRosterViewerPage({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6">
         {/* Pitch Hero Card */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-purple-950/40 border border-white/10 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900/90 to-orange-950/30 border border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#F95738]/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#F95738]/20 text-[#FF8C73] border border-[#F95738]/30">
                 {roster.category_niche || 'Curated Pitch'}
               </span>
               <span className="text-xs text-slate-400">
-                Prepared by <strong>1to7 Media</strong> for <strong>{roster.brand_name}</strong>
+                Prepared by <strong>TheHype</strong> for <strong>{roster.brand_name}</strong>
               </span>
             </div>
 
@@ -195,245 +200,219 @@ export default function PublicRosterViewerPage({
 
             <div className="flex items-center gap-4 pt-2 text-xs text-slate-400">
               <span className="flex items-center gap-1.5 text-white font-semibold">
-                <Users className="h-4 w-4 text-purple-400" />
+                <Users className="h-4 w-4 text-[#F95738]" />
                 {items.length} Creators in Proposal
               </span>
+              {roster.target_reach && (
+                <>
+                  <span>•</span>
+                  <span>Target Reach: <strong className="text-white font-semibold">{roster.target_reach}</strong></span>
+                </>
+              )}
               {roster.allow_brand_shortlisting && (
-                <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-                  <CheckCircle2 className="h-4 w-4" />
-                  1-Click Shortlisting Enabled
-                </span>
+                <>
+                  <span>•</span>
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> 1-Click Shortlisting Active
+                  </span>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Shortlist Success Notification */}
-        {submittedSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-5 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 flex items-center justify-between gap-4"
-          >
+        {/* Shortlisting Progress Bar */}
+        {roster.allow_brand_shortlisting && (
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300">
-                <Check className="h-5 w-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white">Shortlist Successfully Submitted!</h4>
-                <p className="text-xs text-emerald-300/90 mt-0.5">
-                  Your selection of <strong>{selectedIds.length} creators</strong> has been routed to our Campaign Operations team. We will connect with you shortly with next steps.
-                </p>
-              </div>
+              <span className="text-xs text-slate-300">
+                Selected <strong className="text-[#FF8C73] text-sm">{selectedIds.length}</strong> of {items.length} creators
+              </span>
+              <button
+                onClick={selectAll}
+                className="text-xs text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                {selectedIds.length === items.length ? 'Deselect All' : 'Select All'}
+              </button>
             </div>
-          </motion.div>
-        )}
 
-        {/* Table Instructions / Selection Header */}
-        {roster.allow_brand_shortlisting && !submittedSuccess && (
-          <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-            <p>
-              Select the creators you want to proceed with by ticking the <strong>Shortlist</strong> box.
-            </p>
-            <button
-              onClick={selectAll}
-              className="text-purple-400 hover:text-purple-300 font-bold hover:underline cursor-pointer"
-            >
-              {selectedIds.length === items.length ? 'Deselect All' : `Select All (${items.length})`}
-            </button>
+            {submittedSuccess ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                <Check className="h-4 w-4" />
+                <span>Shortlist Confirmed & Synced with Account Manager</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSubmitModal(true)}
+                disabled={selectedIds.length === 0}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#F95738] hover:bg-[#E04728] text-white shadow-lg shadow-[#F95738]/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Send className="h-4 w-4" />
+                <span>Confirm & Submit Shortlist ({selectedIds.length})</span>
+              </button>
+            )}
           </div>
         )}
 
-        {/* Presentation Table */}
-        <div className="rounded-2xl bg-slate-900 border border-white/10 overflow-hidden shadow-2xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-white/10 bg-slate-950/70 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                  {roster.allow_brand_shortlisting && (
-                    <th className="py-3 px-4 w-12 text-center">Shortlist</th>
-                  )}
-                  {visibleCols.includes('creator_name') && (
-                    <th className="py-3 px-4">Creator & Instagram</th>
-                  )}
-                  {visibleCols.includes('followers') && (
-                    <th className="py-3 px-3 text-center">Followers</th>
-                  )}
-                  {visibleCols.includes('avg_reels_views') && (
-                    <th className="py-3 px-3 text-center">Avg Reels Views</th>
-                  )}
-                  {visibleCols.includes('engagement_rate') && (
-                    <th className="py-3 px-3 text-center">Eng. Rate</th>
-                  )}
-                  {visibleCols.includes('city') && (
-                    <th className="py-3 px-3">Location</th>
-                  )}
-                  {visibleCols.includes('niche') && (
-                    <th className="py-3 px-3">Category</th>
-                  )}
-                  {visibleCols.includes('sample_reel_url') && (
-                    <th className="py-3 px-3">Reel Showcase</th>
-                  )}
-                  {visibleCols.includes('brand_commercial') && (
-                    <th className="py-3 px-4 text-right">Commercial (₹)</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {items.map((item) => {
-                  const isSelected = selectedIds.includes(item.id)
-                  return (
-                    <tr
-                      key={item.id}
-                      onClick={() => roster.allow_brand_shortlisting && !submittedSuccess && toggleSelect(item.id)}
-                      className={`transition-colors ${
-                        isSelected
-                          ? 'bg-purple-950/30 hover:bg-purple-950/40'
-                          : 'hover:bg-white/[0.02]'
-                      } ${roster.allow_brand_shortlisting && !submittedSuccess ? 'cursor-pointer' : ''}`}
-                    >
-                      {/* Shortlist Checkbox */}
-                      {roster.allow_brand_shortlisting && (
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              !submittedSuccess && toggleSelect(item.id)
-                            }}
-                            disabled={submittedSuccess}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              isSelected
-                                ? 'bg-[#febd1c] text-black shadow-sm'
-                                : 'bg-white/5 text-slate-500 hover:text-slate-300'
-                            }`}
-                          >
-                            <Star className={`h-4 w-4 ${isSelected ? 'fill-black' : ''}`} />
-                          </button>
-                        </td>
-                      )}
+        {/* Creator Showcase Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {items.map((item) => {
+            const isSelected = selectedIds.includes(item.id)
+            return (
+              <div
+                key={item.id}
+                className={`rounded-3xl border transition-all duration-200 overflow-hidden relative flex flex-col ${
+                  isSelected
+                    ? 'bg-slate-900 border-[#F95738] shadow-lg shadow-[#F95738]/20 ring-1 ring-[#F95738]'
+                    : 'bg-slate-900/60 border-white/10 hover:border-white/20'
+                }`}
+              >
+                {/* Header card with profile image & basic info */}
+                <div className="p-5 flex-1 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-[#F95738] to-[#FF7659] flex items-center justify-center font-bold text-white text-base shadow-inner shrink-0">
+                        {item.creator_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="overflow-hidden">
+                        <h3 className="font-bold text-sm text-white truncate">{item.creator_name}</h3>
+                        <a
+                          href={`https://instagram.com/${item.instagram_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-[#FF7659] hover:underline flex items-center gap-1 font-medium"
+                        >
+                          <Instagram className="h-3 w-3" />
+                          <span>@{item.instagram_username}</span>
+                          <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                        </a>
+                      </div>
+                    </div>
 
-                      {/* Creator & Handle */}
-                      {visibleCols.includes('creator_name') && (
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center border border-purple-500/30 text-xs shrink-0">
-                              {item.creator_name ? item.creator_name.charAt(0).toUpperCase() : 'C'}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-white truncate">{item.creator_name}</p>
-                              {visibleCols.includes('instagram_username') && item.instagram_username && (
-                                <a
-                                  href={`https://instagram.com/${item.instagram_username}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-[11px] text-pink-400 hover:text-pink-300 font-medium inline-flex items-center gap-1 truncate"
-                                >
-                                  <Instagram className="h-3 w-3 shrink-0" />
-                                  <span>@{item.instagram_username}</span>
-                                  <ExternalLink className="h-2.5 w-2.5 opacity-60" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                      )}
+                    {roster.allow_brand_shortlisting && !submittedSuccess && (
+                      <button
+                        onClick={() => toggleSelect(item.id)}
+                        className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#F95738] border-[#F95738] text-white shadow-md shadow-[#F95738]/30'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                        }`}
+                        title={isSelected ? 'Remove from shortlist' : 'Add to shortlist'}
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
 
-                      {/* Followers */}
-                      {visibleCols.includes('followers') && (
-                        <td className="py-3 px-3 text-center font-bold text-slate-200">
-                          {item.followers > 0 ? item.followers.toLocaleString() : '—'}
-                        </td>
-                      )}
+                  {/* Pitch note if available */}
+                  {item.pitch_note && (
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 italic">
+                      "{item.pitch_note}"
+                    </div>
+                  )}
 
-                      {/* Avg Reels Views */}
-                      {visibleCols.includes('avg_reels_views') && (
-                        <td className="py-3 px-3 text-center font-semibold text-slate-300">
-                          {item.avg_reels_views > 0 ? item.avg_reels_views.toLocaleString() : '—'}
-                        </td>
-                      )}
-
-                      {/* Engagement Rate */}
-                      {visibleCols.includes('engagement_rate') && (
-                        <td className="py-3 px-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
-                            {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
-                          </span>
-                        </td>
-                      )}
-
-                      {/* City */}
-                      {visibleCols.includes('city') && (
-                        <td className="py-3 px-3 text-slate-300">
+                  {/* Metric Chips */}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {visibleCols.includes('followers') && (
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Followers</span>
+                        <span className="font-bold text-white text-sm">
+                          {Number(item.followers).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {visibleCols.includes('avg_reels_views') && (
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Avg Reel Views</span>
+                        <span className="font-bold text-white text-sm">
+                          {item.avg_reels_views > 0 ? Number(item.avg_reels_views).toLocaleString() : '—'}
+                        </span>
+                      </div>
+                    )}
+                    {visibleCols.includes('engagement_rate') && (
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Engagement</span>
+                        <span className="font-bold text-emerald-400 text-sm">
+                          {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
+                        </span>
+                      </div>
+                    )}
+                    {visibleCols.includes('city') && (
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Location</span>
+                        <span className="font-medium text-white text-xs truncate flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
                           <span className="truncate">{item.city || 'Pan India'}</span>
-                        </td>
-                      )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                      {/* Niche */}
-                      {visibleCols.includes('niche') && (
-                        <td className="py-3 px-3">
-                          <span className="text-[10px] font-semibold text-pink-400 bg-pink-500/10 px-2 py-0.5 rounded border border-pink-500/20">
-                            {item.niche || 'General'}
-                          </span>
-                        </td>
-                      )}
+                  {/* Commercial Quote */}
+                  {visibleCols.includes('brand_commercial') && item.brand_commercial && (
+                    <div className="p-3 rounded-2xl bg-[#FFF2EF]/10 border border-[#F95738]/30 flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-medium">Commercial Rate</span>
+                      <span className="text-sm font-black text-[#FF7659]">
+                        ₹{Number(item.brand_commercial).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
 
-                      {/* Sample Reel */}
-                      {visibleCols.includes('sample_reel_url') && (
-                        <td className="py-3 px-3">
-                          {item.sample_reel_url ? (
-                            <a
-                              href={item.sample_reel_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-purple-300 hover:text-purple-200 inline-flex items-center gap-1 text-[11px] font-semibold transition-colors"
-                            >
-                              <Video className="h-3 w-3" />
-                              <span>View Reel</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-500 italic text-[11px]">Pending</span>
-                          )}
-                        </td>
-                      )}
+                  {/* Sample Reel button */}
+                  {visibleCols.includes('sample_reel_url') && item.sample_reel_url && (
+                    <a
+                      href={item.sample_reel_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 hover:from-pink-500/30 hover:to-purple-500/30 border border-pink-500/30 text-pink-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Video className="h-3.5 w-3.5" />
+                      <span>Watch Creator Sample Reel</span>
+                      <ExternalLink className="h-3 w-3 opacity-60" />
+                    </a>
+                  )}
+                </div>
 
-                      {/* Commercial */}
-                      {visibleCols.includes('brand_commercial') && (
-                        <td className="py-3 px-4 text-right font-bold text-slate-200">
-                          {item.brand_commercial ? `₹${item.brand_commercial.toLocaleString()}` : '—'}
-                        </td>
-                      )}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                {/* Card footer select button */}
+                {roster.allow_brand_shortlisting && !submittedSuccess && (
+                  <button
+                    onClick={() => toggleSelect(item.id)}
+                    className={`w-full py-2.5 text-xs font-bold transition-all border-t cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-[#F95738] text-white border-[#F95738]'
+                        : 'bg-white/[0.02] text-slate-400 hover:text-white hover:bg-white/5 border-white/5'
+                    }`}
+                  >
+                    <Check className={`h-3.5 w-3.5 ${isSelected ? 'stroke-[3]' : 'opacity-60'}`} />
+                    <span>{isSelected ? 'Shortlisted' : 'Shortlist Creator'}</span>
+                  </button>
+                )}
+              </div>
+            )
+          })}
         </div>
       </main>
 
-      {/* Floating Bottom Bar for Shortlist Confirmation */}
-      {roster.allow_brand_shortlisting && !submittedSuccess && selectedIds.length > 0 && (
+      {/* Floating Bottom Action Bar */}
+      {roster.allow_brand_shortlisting && selectedIds.length > 0 && !submittedSuccess && (
         <motion.div
-          initial={{ y: 50, opacity: 0 }}
+          initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-40 p-3 rounded-2xl bg-slate-900 border border-purple-500/40 shadow-2xl backdrop-blur-md flex items-center justify-between gap-4"
+          className="fixed bottom-6 inset-x-4 max-w-xl mx-auto z-40 bg-slate-900/95 backdrop-blur-xl border border-[#F95738]/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between"
         >
-          <div className="flex items-center gap-2 pl-2">
-            <div className="w-8 h-8 rounded-full bg-[#febd1c] text-black font-black flex items-center justify-center text-xs">
+          <div className="flex items-center gap-3 pl-2">
+            <div className="h-7 w-7 rounded-lg bg-[#F95738] text-white flex items-center justify-center font-bold text-xs">
               {selectedIds.length}
             </div>
             <div>
               <p className="text-xs font-bold text-white">Creators Selected</p>
-              <p className="text-[10px] text-slate-400">Ready to submit to 1to7</p>
+              <p className="text-[10px] text-slate-400">Ready to submit to TheHype</p>
             </div>
           </div>
 
           <button
             onClick={() => setShowSubmitModal(true)}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#febd1c] hover:bg-[#e5a812] text-black shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs font-bold bg-[#F95738] hover:bg-[#E04728] text-white shadow-lg shadow-[#F95738]/20 transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Send className="h-3.5 w-3.5" />
             <span>Confirm & Send Shortlist</span>
@@ -449,17 +428,17 @@ export default function PublicRosterViewerPage({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              className="w-full max-w-md bg-slate-900 border border-[#F95738]/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <div className="p-2 rounded-xl bg-[#F95738]/20 text-[#FF8C73] border border-[#F95738]/30">
                     <Send className="h-5 w-5" />
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">Confirm Creator Shortlist</h3>
                     <p className="text-xs text-slate-400">
-                      Submitting <strong>{selectedIds.length} creators</strong> to 1to7 Team
+                      Submitting <strong>{selectedIds.length} creators</strong> to TheHype Team
                     </p>
                   </div>
                 </div>
@@ -482,7 +461,7 @@ export default function PublicRosterViewerPage({
                     value={pocName}
                     onChange={(e) => setPocName(e.target.value)}
                     placeholder="e.g. Rajesh Sharma"
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#F95738]"
                   />
                 </div>
 
@@ -497,7 +476,7 @@ export default function PublicRosterViewerPage({
                       value={pocEmail}
                       onChange={(e) => setPocEmail(e.target.value)}
                       placeholder="rajesh@brand.com"
-                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#F95738]"
                     />
                   </div>
                   <div className="space-y-1">
@@ -509,7 +488,7 @@ export default function PublicRosterViewerPage({
                       value={pocPhone}
                       onChange={(e) => setPocPhone(e.target.value)}
                       placeholder="+91 98765 43210"
-                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#F95738]"
                     />
                   </div>
                 </div>
@@ -523,7 +502,7 @@ export default function PublicRosterViewerPage({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="e.g. We love these creators for our Diwali campaign. Please confirm delivery dates and draft briefs."
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#F95738] resize-none"
                   />
                 </div>
 
@@ -538,17 +517,17 @@ export default function PublicRosterViewerPage({
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#febd1c] hover:bg-[#e5a812] text-black flex items-center gap-1.5 shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 rounded-xl text-xs font-bold bg-[#F95738] hover:bg-[#E04728] text-white flex items-center gap-1.5 shadow-lg shadow-[#F95738]/20 disabled:opacity-50 cursor-pointer"
                   >
                     {submitting ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Submitting Shortlist...
+                        <span>Submitting Shortlist...</span>
                       </>
                     ) : (
                       <>
                         <Send className="h-3.5 w-3.5" />
-                        Confirm & Send to 1to7
+                        <span>Confirm & Send to TheHype</span>
                       </>
                     )}
                   </button>

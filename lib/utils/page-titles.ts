@@ -115,6 +115,33 @@ export const ADMIN_ROUTE_MAP: Record<string, RouteMeta> = {
   },
 }
 
+export const BRAND_ROUTE_MAP: Record<string, RouteMeta> = {
+  '/brand/login': {
+    title: 'Brand Workspace Sign In',
+    browserTitle: 'Brand Sign In | TheHype',
+  },
+  '/brand/review': {
+    title: 'Review Pitch Deck',
+    browserTitle: 'Review Pitch Deck | TheHype',
+  },
+  '/brand/campaigns': {
+    title: 'Creator Review Studio',
+    browserTitle: 'Creator Review Studio | TheHype',
+  },
+  '/brand/sample-rosters': {
+    title: 'Sample Pitch Decks',
+    browserTitle: 'Sample Pitch Decks | TheHype',
+  },
+  '/brand': {
+    title: 'Brand Portal',
+    browserTitle: 'Brand Portal | TheHype',
+  },
+  '/brand/dashboard': {
+    title: 'Brand Dashboard',
+    browserTitle: 'Brand Workspace | TheHype',
+  },
+}
+
 export const CREATOR_ROUTE_MAP: Record<string, RouteMeta> = {
   '/dashboard': {
     title: 'Overview',
@@ -177,12 +204,45 @@ export function getRouteMeta(pathname: string): RouteMeta {
     return { title: '1to7 Media', browserTitle: '1to7 Media | Creator Portal' }
   }
 
+  // Brand exact match first
+  if (BRAND_ROUTE_MAP[pathname]) {
+    return BRAND_ROUTE_MAP[pathname]
+  }
+
   // Exact match first
   if (ADMIN_ROUTE_MAP[pathname]) {
     return ADMIN_ROUTE_MAP[pathname]
   }
   if (CREATOR_ROUTE_MAP[pathname]) {
     return CREATOR_ROUTE_MAP[pathname]
+  }
+
+  // Public pitch deck viewer
+  if (pathname.startsWith('/view/roster/')) {
+    return {
+      title: 'Influencer Pitch Deck',
+      browserTitle: 'Influencer Pitch Deck | TheHype',
+    }
+  }
+
+  // Brand dynamic sub-routes
+  if (pathname.startsWith('/brand/campaigns/')) {
+    return {
+      title: 'Creator Shortlists',
+      browserTitle: 'Creator Shortlists | TheHype',
+    }
+  }
+
+  if (pathname.startsWith('/brand/')) {
+    const segment = pathname.split('/')[2] || 'Portal'
+    const formatted = segment
+      .split('-')
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ')
+    return {
+      title: formatted,
+      browserTitle: `${formatted} | TheHype`,
+    }
   }
 
   // Admin dynamic sub-routes

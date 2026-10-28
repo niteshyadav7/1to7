@@ -60,7 +60,7 @@ export default function BrandCampaignsPage() {
     <div className="space-y-6 font-sans">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
           Creator Review Studio
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
@@ -78,7 +78,7 @@ export default function BrandCampaignsPage() {
         title="Active Campaigns Directory"
         subtitle="Select a campaign to inspect shortlisted creators and take 1-click decisions"
         data={campaigns}
-        exportFilename="brand_campaigns.csv"
+        exportFilename="thehype_brand_campaigns.csv"
         searchPlaceholder="Search campaign title, code, category..."
         searchFields={['title', 'campaign_code', 'category', 'platform']}
         columns={[
@@ -99,8 +99,10 @@ export default function BrandCampaignsPage() {
                     {camp.title}
                   </div>
                 </EllipsisTooltip>
-                <div className="text-slate-400 text-[10px] mt-0.5 truncate">
-                  {camp.category} • {camp.platform}
+                <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1.5 truncate">
+                  <span>{camp.category}</span>
+                  <span>•</span>
+                  <span>{camp.platform}</span>
                 </div>
               </div>
             ),
@@ -123,8 +125,8 @@ export default function BrandCampaignsPage() {
             width: '18%',
             render: (camp) => (
               camp.pending_review > 0 ? (
-                <span className="font-bold text-amber-800 text-[10px] px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 inline-flex items-center gap-1">
-                  <Clock className="w-2.5 h-2.5 text-amber-600" />
+                <span className="font-bold text-[#D83B1C] text-[10px] px-2 py-0.5 rounded-md bg-[#FFF2EF] border border-[#F95738]/30 inline-flex items-center gap-1">
+                  <Clock className="w-2.5 h-2.5 text-[#F95738]" />
                   {camp.pending_review} Awaiting
                 </span>
               ) : (
@@ -166,7 +168,7 @@ export default function BrandCampaignsPage() {
             render: (camp) => (
               <Link
                 href={`/brand/campaigns/${camp.id}/creators`}
-                className="h-6 px-2.5 rounded-md bg-[#febd1c] hover:bg-[#e5a812] text-black font-bold text-[10px] shadow-xs transition inline-flex items-center gap-1 cursor-pointer"
+                className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm shadow-[#F95738]/20 transition inline-flex items-center gap-1 cursor-pointer"
               >
                 <span>Review</span>
                 <ArrowRight className="w-2.5 h-2.5" />

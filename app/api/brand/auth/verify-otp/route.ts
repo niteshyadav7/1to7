@@ -23,7 +23,8 @@ const BRAND_CATALOG: Record<string, { brand_id: string; brand_name: string; bran
   'kavita@sugarcosmetics.com': { brand_id: 'b-sugar', brand_name: 'Sugar Cosmetics', brand_slug: 'sugarcosmetics', full_name: 'Kavita Roy (Digital Lead)', role: 'owner' },
   
   // Generic 1to7 Brand Partner
-  'brand@1to7.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: '1to7 Brand Partner', role: 'owner' },
+  'brand@thehype.in': { brand_id: 'b-thehype', brand_name: 'TheHype Demo', brand_slug: 'thehype', full_name: 'TheHype Brand Director', role: 'owner' },
+  'brand@1to7.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: 'TheHype Brand Partner', role: 'owner' },
 }
 
 export async function POST(request: Request) {

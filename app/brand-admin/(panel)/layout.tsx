@@ -87,13 +87,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Live Watchtower',
     items: [
       {
-        title: 'Virtual Brand Studio',
-        href: '/brand-admin/virtual-brand',
-        icon: Eye,
-        badge: 'Proxy',
-        badgeVariant: 'purple',
-      },
-      {
         title: 'Review SLA Watchtower',
         href: '/brand-admin/reviews-sla',
         icon: Clock,

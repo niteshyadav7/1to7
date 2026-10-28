@@ -1354,22 +1354,40 @@ export default function CampaignPitchesCurationPage() {
             </div>
           </div>
 
-          {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all') && (
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedBrand('all')
-                setSelectedCampaign('all')
-                setSelectedBatch('all')
-                setSelectedStatus('all')
-                setSearch('')
-              }}
-              className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 hover:underline cursor-pointer px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0 self-start md:self-end h-9"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Scope
-            </button>
-          )}
+          <div className="flex items-center gap-2 self-start md:self-end">
+            {/* 1-Click Launch Live Brand Dashboard for Selected Brand */}
+            {selectedBrand !== 'all' && (
+              <a
+                href={`/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(
+                  registeredBrands.find(b => b.name.toLowerCase() === selectedBrand.toLowerCase())?.id || selectedBrand
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Launch Live Brand Dashboard as ${selectedBrand}`}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-xs shadow-md shadow-pink-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95 shrink-0"
+              >
+                <Eye className="w-3.5 h-3.5 shrink-0 animate-pulse" />
+                <span>Launch {selectedBrand} Portal</span>
+              </a>
+            )}
+
+            {(selectedBrand !== 'all' || selectedCampaign !== 'all' || selectedBatch !== 'all' || selectedStatus !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBrand('all')
+                  setSelectedCampaign('all')
+                  setSelectedBatch('all')
+                  setSelectedStatus('all')
+                  setSearch('')
+                }}
+                className="text-xs text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 hover:underline cursor-pointer px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 shrink-0 h-9"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset Scope
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

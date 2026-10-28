@@ -8,19 +8,39 @@ export default function TitleWatcher() {
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!pathname) return
+    if (!pathname || typeof document === 'undefined') return
+
     const meta = getRouteMeta(pathname)
-    if (meta.browserTitle && typeof document !== 'undefined') {
+    if (meta.browserTitle) {
       document.title = meta.browserTitle
     }
 
+    // Dynamic Favicon Switcher: Brand Portal (TheHype) vs Main Portal (1to7)
+    const isBrandPortal = pathname.startsWith('/brand') || pathname.startsWith('/view')
+    const targetIcon = isBrandPortal ? '/thehype-logo.png' : '/logo-icon.svg'
+
+    const existingIcons = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']")
+    if (existingIcons.length > 0) {
+      existingIcons.forEach((el) => {
+        el.href = targetIcon
+      })
+    } else {
+      const link = document.createElement('link')
+      link.rel = 'icon'
+      link.href = targetIcon
+      document.head.appendChild(link)
+    }
+
     // Optional event listener for deep nested pages wishing to override tab title
-    // e.g. window.dispatchEvent(new CustomEvent('set-tab-title', { detail: 'Custom Brand Name' }))
     const handleCustomTitle = (e: Event) => {
       const customDetail = (e as CustomEvent)?.detail
       if (customDetail && typeof customDetail === 'string') {
-        const isAdmin = pathname.startsWith('/admin')
-        document.title = `${customDetail} | 1to7 ${isAdmin ? 'Admin' : 'Media'}`
+        if (isBrandPortal) {
+          document.title = `${customDetail} | TheHype`
+        } else {
+          const isAdmin = pathname.startsWith('/admin')
+          document.title = `${customDetail} | 1to7 ${isAdmin ? 'Admin' : 'Media'}`
+        }
       }
     }
 

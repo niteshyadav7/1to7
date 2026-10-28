@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const tokenPayload = await verifyBrandReviewToken(token)
     if (!tokenPayload || !tokenPayload.brand_id) {
       return NextResponse.json(
-        { error: 'This review link is invalid or has expired. Please contact your 1to7 Account Manager for a fresh link.' },
+        { error: 'This review link is invalid or has expired. Please contact your TheHype Account Manager for a fresh link.' },
         { status: 401 }
       )
     }

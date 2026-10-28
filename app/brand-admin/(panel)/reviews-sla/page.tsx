@@ -60,7 +60,7 @@ export default function ReviewSlaWatchtowerPage() {
 
   const handleSendWhatsAppNudge = (batch: SlaBatch) => {
     const text = encodeURIComponent(
-      `Hi ${batch.brandContactName}! Pooja here from 1to7 Media.\n\nQuick heads-up: We submitted ${batch.shortlistedCount} shortlisted creators for ${batch.campaignName} ${batch.hoursElapsed} hours ago.\n\nPlease review and approve them so our logistics team can dispatch sample kits today: https://1to7.media/brand/login\n\nThank you!`
+      `Hi ${batch.brandContactName}! Your Account Team at TheHype.\n\nQuick heads-up: We submitted ${batch.shortlistedCount} shortlisted creators for ${batch.campaignName} ${batch.hoursElapsed} hours ago.\n\nPlease review and approve them so our logistics team can dispatch sample kits today: https://brand.thehype.in/brand/login\n\nThank you!`
     )
     window.open(`https://wa.me/${batch.brandPhone.replace('+', '')}?text=${text}`, '_blank')
     toast.success(`WhatsApp nudge prepared for ${batch.brandContactName}`)
@@ -70,7 +70,7 @@ export default function ReviewSlaWatchtowerPage() {
     selected.forEach((b) => {
       window.open(
         `https://wa.me/${b.brandPhone.replace('+', '')}?text=${encodeURIComponent(
-          `Hi ${b.brandContactName}, reminder from 1to7 Media for ${b.campaignName} (${b.hoursElapsed}h elapsed)!`
+          `Hi ${b.brandContactName}, reminder from TheHype Team for ${b.campaignName} (${b.hoursElapsed}h elapsed)!`
         )}`,
         '_blank'
       )
@@ -252,8 +252,8 @@ export default function ReviewSlaWatchtowerPage() {
             sortable: false,
             render: (batch) => {
               const targetUrl = batch.brandId
-                ? `/brand-admin/virtual-brand/${batch.brandId}`
-                : '/brand-admin/virtual-brand'
+                ? `/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(batch.brandId)}`
+                : '/brand-admin/brands'
 
               return (
                 <div className="flex items-center justify-end gap-1">

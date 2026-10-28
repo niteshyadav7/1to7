@@ -102,7 +102,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Successfully submitted ${selected_item_ids.length} creators to the 1to7 Media team!`,
+      message: `Successfully submitted ${selected_item_ids.length} creators to TheHype team!`,
       shortlist,
     })
   } catch (error: any) {

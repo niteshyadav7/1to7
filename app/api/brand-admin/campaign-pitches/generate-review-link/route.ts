@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     // 3. Resolve Host & Protocol
     const host = request.headers.get('host') || 'localhost:3000'
     const protocol = host.includes('localhost') ? 'http' : 'https'
-    const baseUrl = `${protocol}://${host}`
+    const baseUrl = process.env.NEXT_PUBLIC_BRAND_PORTAL_URL || (host.includes('1to7') ? 'https://brand.thehype.in' : `${protocol}://${host}`)
 
     const queryParams = new URLSearchParams()
     queryParams.set('token', token)
@@ -97,10 +97,10 @@ export async function POST(request: Request) {
     const countText = creator_count ? `${creator_count} shortlisted creators` : 'curated creator roster'
     const campaignText = campaign_title || batch_name || 'Diwali Campaign'
 
-    const whatsappMessage = `Hi ${resolvedContactName}! 👋\n\n1to7 Media has prepared your *${countText}* for the *${resolvedBrandName} (${campaignText})*.\n\n⚡ *1-Tap Direct Review Link:*\n${reviewUrl}\n\n• Zero password required\n• Review profile analytics & commercial quotations\n• Instant 1-tap creator approval & dispatch\n\n_Valid for 14 days._`
+    const whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nTheHype has prepared your *${countText}* for the *${resolvedBrandName} (${campaignText})*.\n\n⚡ *1-Tap Direct Review Link:*\n${reviewUrl}\n\n• Zero password required\n• Review profile analytics & commercial quotations\n• Instant 1-tap creator approval & dispatch\n\n_Valid for 14 days._`
 
-    const emailSubject = `[1to7 Roster] Review & Approve Creators for ${resolvedBrandName} - ${campaignText}`
-    const emailBody = `Hi ${resolvedContactName},\n\nOur curation team at 1to7 Media has shortlisted ${countText} for ${resolvedBrandName}.\n\nYou can review full Instagram metrics, commercial quotations, and approve creators directly using this secure link:\n${reviewUrl}\n\nBest regards,\n1to7 Campaign Operations`
+    const emailSubject = `[TheHype Roster] Review & Approve Creators for ${resolvedBrandName} - ${campaignText}`
+    const emailBody = `Hi ${resolvedContactName},\n\nOur curation team at TheHype has shortlisted ${countText} for ${resolvedBrandName}.\n\nYou can review full Instagram metrics, commercial quotations, and approve creators directly using this secure link:\n${reviewUrl}\n\nBest regards,\nTheHype Campaign Operations`
 
     return NextResponse.json({
       success: true,

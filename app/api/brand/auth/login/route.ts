@@ -65,7 +65,8 @@ export async function POST(request: Request) {
         'demo@sugar.in': { brand_id: 'b-sugar', brand_name: 'Sugar Cosmetics', brand_slug: 'sugarcosmetics', full_name: 'Sugar Cosmetics Partner', role: 'owner' },
         
         // Generic 1to7 Brand Partner
-        'brand@1to7.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: '1to7 Brand Partner', role: 'owner' },
+        'brand@thehype.in': { brand_id: 'b-thehype', brand_name: 'TheHype Demo', brand_slug: 'thehype', full_name: 'TheHype Brand Director', role: 'owner' },
+        'brand@1to7.in': { brand_id: 'b-mamaearth', brand_name: 'Mamaearth', brand_slug: 'mamaearth', full_name: 'TheHype Brand Partner', role: 'owner' },
       }
 
       const matchedBrand = BRAND_CATALOG[cleanEmail]
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     }
 
     if (!userRow.is_active) {
-      return NextResponse.json({ error: 'Brand account is suspended or inactive. Contact 1to7 support.' }, { status: 403 })
+      return NextResponse.json({ error: 'Brand account is suspended or inactive. Contact TheHype support.' }, { status: 403 })
     }
 
     // 4. Update last_login timestamp and log audit (non-blocking)

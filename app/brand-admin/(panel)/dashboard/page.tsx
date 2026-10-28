@@ -244,13 +244,16 @@ export default function BrandAdminDashboardPage() {
             align: 'right',
             sortable: false,
             render: (brand) => (
-              <Link
-                href={`/brand-admin/virtual-brand/${brand.id}`}
-                className="inline-flex items-center gap-1 h-6 px-2 rounded-md bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 font-bold text-[10px] border border-purple-500/30 transition-colors shadow-sm"
+              <a
+                href={`/api/brand-admin/virtual-brand/impersonate?brandId=${encodeURIComponent(brand.id)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Launch Live Brand Dashboard as ${brand.name}`}
+                className="inline-flex items-center gap-1 h-6 px-2.5 rounded-md bg-gradient-to-r from-pink-600 via-rose-600 to-purple-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-[10px] shadow-sm shadow-pink-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
-                <Eye className="w-2.5 h-2.5" />
-                <span>Virtual Brand</span>
-              </Link>
+                <Eye className="w-3 h-3 shrink-0" />
+                <span>Launch Virtual</span>
+              </a>
             ),
           },
         ]}
