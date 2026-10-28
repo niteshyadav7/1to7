@@ -3478,13 +3478,14 @@ In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`)
 1. DynamicDataTable Generic MinWidth Support (`components/brand/DynamicDataTable.tsx`):
    - Extended `ColumnDef<T>` to support `minWidth?: string` and `maxWidth?: string`.
    - Updated both `<th>` and `<td>` elements to enforce `style={{ width: col.width, minWidth: col.minWidth || col.width, maxWidth: col.maxWidth }}`.
-2. Rebalanced Column Geometry (Totaling 100%):
-   - Reduced low-density columns: `creator_name` (19% -> 17%), `brand_name` (16% -> 15%), `followers` (12% -> 10%), `selected_variant` (10% -> 9%), `address_verification_status` (14% -> 13%), `client_commercial` (12% -> 11%).
-   - Increased starved columns:
-     - `brand_review_status`: Expanded from 10% to 13% (`minWidth: '140px'`). Expanded status badge containers to `max-w-[135px]` so "Queued for KAM" renders completely without truncation.
-     - `actions`: Expanded from 7% to 10% (`minWidth: '110px'`), providing 126px of clean space.
-   - Actions container updated to `<div className="flex items-center justify-end gap-1.5 shrink-0 whitespace-nowrap min-w-[85px]">` with generous button padding (`px-2.5`).
-3. Viewport Safety Buffer & High-Density 1-Screen Viewport Fit (`min-w-[960px]`):
+2. Content-Proportional Column Width Rebalancing (Totaling 100%):
+   - Re-divided column geometry based on true content length:
+     - Reduced low-content columns: `selected_variant` reduced from 10% to 7% (as it only contains a short "Standard" tag), and `actions` right-sized to 9% (eliminating dead space on wide desktop displays).
+     - Expanded content-heavy columns: `brand_name` expanded to 18% (`minWidth: '140px'`) to prevent truncated forward attribution; `followers` expanded to 11% (`minWidth: '85px'`) so city and state strings fit comfortably; `creator_name` set to 16% (`minWidth: '120px'`); `status` set to 14% (`minWidth: '115px'`).
+3. Dynamic Ellipsis & Single-Row Compact Typography (`wrap: false`):
+   - Replaced rigid hardcoded pixel constraints (`max-w-[100px]`, `max-w-[110px]`) with dynamic flexbox ellipsis: `truncate block flex-1 w-full min-w-0` paired with native browser `title={...}` tooltips.
+   - Set `wrap: false` across data columns so rows maintain uniform, sleek heights instead of jagged multi-line wrapping, gracefully appending `...` when columns narrow (sidebar expanded) and revealing full text when space allows (sidebar collapsed).
+4. Viewport Safety Buffer & High-Density 1-Screen Viewport Fit (`min-w-[960px]`):
    - Eliminated horizontal scrollbar displacement on laptop screens by setting `minTableWidth="w-full min-w-[960px]"`.
    - Scaled down typography across all table columns: primary names/quotes to `text-[10px]`, secondary handles/locations to `text-[8.5px]` - `text-[9px]`, and status badges to `text-[8.5px]` with compact `py-0.2` - `py-0.5` paddings.
    - Reduced compact table cell padding in `DynamicDataTable.tsx` to `py-1 px-1.5 text-[10px]` and header to `py-1.5 px-1.5 text-[9.5px]`, enabling all 9 columns (Creator through Actions) to fit comfortably on 1 screen without truncation or clipped buttons.
