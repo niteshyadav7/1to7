@@ -34,9 +34,21 @@ export default function InAppAlertPopup() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Fetch active alerts for this creator
+  // Fetch active alerts for this creator (strictly skip Admin, Brand Admin, Brand Portal, and Public Pitch Views)
   const fetchAlerts = useCallback(async () => {
-    if (pathname?.startsWith('/admin')) return
+    if (
+      pathname?.startsWith('/admin') ||
+      pathname?.startsWith('/brand') ||
+      pathname?.startsWith('/view')
+    ) {
+      return
+    }
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname || ''
+      if (host.includes('thehype.in') || host.startsWith('brand.') || host.startsWith('brands.')) {
+        return
+      }
+    }
 
     try {
       const res = await fetch('/api/dashboard/alerts')

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import Image from 'next/image'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, X, Share2, PlusSquare, Smartphone, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ const PwaContext = createContext<PwaContextType>({
 export const usePwa = () => useContext(PwaContext)
 
 export function PwaProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstallable, setIsInstallable] = useState(false)
   const [isInstalled, setIsInstalled] = useState(false)
@@ -39,6 +41,24 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
   const [showIosGuide, setShowIosGuide] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [mounted, setMounted] = useState(false)
+
+  // Never show 1to7 Creator PWA install prompt on Brand Portal, Public Roster Pitch Links, or Admin Portals
+  const isExcludedPortal = (() => {
+    if (
+      pathname?.startsWith('/brand') ||
+      pathname?.startsWith('/view') ||
+      pathname?.startsWith('/admin')
+    ) {
+      return true
+    }
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname || ''
+      if (host.includes('thehype.in') || host.startsWith('brand.') || host.startsWith('brands.')) {
+        return true
+      }
+    }
+    return false
+  })()
 
   useEffect(() => {
     setMounted(true)
@@ -156,7 +176,8 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.setItem('pwa_banner_dismissed', 'true')
   }
 
-  const shouldShowBanner = mounted && !isInstalled && isInstallable && !bannerDismissed
+  const shouldShowBanner =
+    mounted && !isExcludedPortal && !isInstalled && isInstallable && !bannerDismissed
 
   return (
     <PwaContext.Provider
