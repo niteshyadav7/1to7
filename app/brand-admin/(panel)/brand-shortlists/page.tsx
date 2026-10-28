@@ -399,12 +399,16 @@ export default function BrandShortlistsDeskPage() {
       {/* Detail Modal / Drawer */}
       <AnimatePresence>
         {selectedShortlist && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div
+            onClick={() => setSelectedShortlist(null)}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-4xl bg-slate-900 border border-purple-500/30 rounded-2xl p-6 shadow-2xl space-y-5 text-white max-h-[90vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-4xl bg-slate-900 border border-purple-500/30 rounded-2xl p-6 shadow-2xl space-y-5 text-white max-h-[90vh] flex flex-col cursor-default"
             >
               {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-white/10">

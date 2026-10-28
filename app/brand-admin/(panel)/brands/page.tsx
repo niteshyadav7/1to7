@@ -580,12 +580,18 @@ export default function ClientBrandsDirectoryPage() {
       {/* Add Brand Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            onClick={() => {
+              if (!isSubmitting) setIsAddModalOpen(false)
+            }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-[#121620] border border-white/10 rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[#121620] border border-white/10 rounded-2xl p-6 shadow-2xl cursor-default"
             >
               <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-2">
@@ -762,12 +768,16 @@ export default function ClientBrandsDirectoryPage() {
       {/* Brand Credentials & Password Setup Modal */}
       <AnimatePresence>
         {selectedBrandForCreds && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            onClick={() => setSelectedBrandForCreds(null)}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#121620] border border-white/10 rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#121620] border border-white/10 rounded-2xl p-6 shadow-2xl cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-2">
@@ -870,12 +880,16 @@ export default function ClientBrandsDirectoryPage() {
       {/* Delete Single Brand Modal */}
       <AnimatePresence>
         {brandToDelete && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            onClick={() => setBrandToDelete(null)}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#141013] border border-rose-500/20 rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#141013] border border-rose-500/20 rounded-2xl p-6 shadow-2xl cursor-default"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0">
@@ -918,12 +932,16 @@ export default function ClientBrandsDirectoryPage() {
       {/* Bulk Delete Confirmation Modal */}
       <AnimatePresence>
         {bulkDeleteRows && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            onClick={() => setBulkDeleteRows(null)}
+            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#141013] border border-rose-500/20 rounded-2xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#141013] border border-rose-500/20 rounded-2xl p-6 shadow-2xl cursor-default"
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0">

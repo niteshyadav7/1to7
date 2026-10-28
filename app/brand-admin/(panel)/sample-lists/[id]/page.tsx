@@ -848,12 +848,18 @@ export default function SampleListStudioPage({
       {/* Modal 1: Add Creators from 1to7 DB */}
       <AnimatePresence>
         {showAddFromDbModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!addingFromDb) setShowAddFromDbModal(false)
+            }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
@@ -966,12 +972,18 @@ export default function SampleListStudioPage({
       {/* Modal 2: Import from Google Sheet / CSV */}
       <AnimatePresence>
         {showImportSheetModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!importing) setShowImportSheetModal(false)
+            }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white max-h-[92vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl bg-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white max-h-[92vh] overflow-y-auto cursor-default"
             >
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -1149,12 +1161,18 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
       {/* Modal 3: Column Visibility Shield & Share Configurator */}
       <AnimatePresence>
         {showShareModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!savingSettings) setShowShareModal(false)
+            }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-xl bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xl bg-slate-900 border border-purple-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
@@ -1294,12 +1312,18 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
       {/* Modal 4: Send / Publish to Brand Portal */}
       <AnimatePresence>
         {showPublishModal && (
-          <div className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!publishing) setShowPublishModal(false)
+            }}
+            className="fixed inset-0 z-[115] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-lg bg-slate-900 border border-amber-400/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-slate-900 border border-amber-400/40 rounded-3xl p-6 shadow-2xl space-y-4 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2.5">

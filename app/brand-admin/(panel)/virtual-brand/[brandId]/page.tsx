@@ -372,12 +372,16 @@ export default function BrandAdminVirtualBrandDetailPage() {
       {/* Reject Modal */}
       <AnimatePresence>
         {rejectModalCreator && (
-          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div
+            onClick={() => setRejectModalCreator(null)}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#121622] border border-white/10 rounded-3xl p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#121622] border border-white/10 rounded-3xl p-6 shadow-2xl cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-2">

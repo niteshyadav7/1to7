@@ -472,12 +472,16 @@ export default function CreatorReviewStudioPage() {
       {/* ─── REJECTION REASON MODAL ─── */}
       <AnimatePresence>
         {rejectModalItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div
+            onClick={() => setRejectModalItem(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 cursor-default"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-red-600">

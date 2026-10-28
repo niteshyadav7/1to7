@@ -733,12 +733,18 @@ export default function SampleListsDashboardPage() {
       {/* ─── 5. CREATE NEW ROSTER MODAL ─── */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!creating) setShowCreateModal(false)
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-[#121620] border border-amber-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-[#121620] border border-amber-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
@@ -848,12 +854,18 @@ export default function SampleListsDashboardPage() {
       {/* ─── 6. DELETE CONFIRMATION MODAL ─── */}
       <AnimatePresence>
         {rosterToDelete && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!isDeleting) setRosterToDelete(null)
+            }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm bg-[#121620] border border-red-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-[#121620] border border-red-500/30 rounded-2xl p-5 shadow-2xl space-y-4 text-white cursor-default"
             >
               <div className="flex items-center gap-3 text-red-400">
                 <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/30">

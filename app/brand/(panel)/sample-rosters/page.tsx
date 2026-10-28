@@ -496,12 +496,18 @@ export default function BrandSampleRostersPage() {
       {/* ─── 5. SHORTLIST SUBMISSION MODAL (Clean Light Dialog) ─── */}
       <AnimatePresence>
         {showShortlistModal && activeRoster && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            onClick={() => {
+              if (!submittingShortlist) setShowShortlistModal(false)
+            }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 text-slate-900"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl space-y-4 text-slate-900 cursor-default"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">

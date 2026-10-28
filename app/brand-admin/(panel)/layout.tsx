@@ -448,8 +448,14 @@ export default function BrandAdminPanelLayout({
 
         {/* Mobile Drawer */}
         {mobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex">
-            <div className="w-72 bg-[#121620] border-r border-white/10 h-full p-4 flex flex-col">
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="lg:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-72 bg-[#121620] border-r border-white/10 h-full p-4 flex flex-col cursor-default"
+            >
               <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
                 <div className="flex items-center gap-2">
                   <Image src="/logo-icon.svg" alt="1to7" width={26} height={26} />

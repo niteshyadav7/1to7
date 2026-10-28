@@ -1206,12 +1206,16 @@ export default function CampaignPitchesCurationPage() {
       {/* 6. Column Visibility Shield Modal */}
       <AnimatePresence>
         {showColumnShieldModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            onClick={() => setShowColumnShieldModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
@@ -1297,12 +1301,18 @@ export default function CampaignPitchesCurationPage() {
       {/* 7. Dispatch Confirmation Modal */}
       <AnimatePresence>
         {showDispatchModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            onClick={() => {
+              if (!isDispatching) setShowDispatchModal(false)
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
             >
               <div className="flex items-center gap-3 pb-3 border-b border-white/10">
                 <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -1480,12 +1490,18 @@ export default function CampaignPitchesCurationPage() {
       {/* 8. Internal Drop Modal */}
       <AnimatePresence>
         {showInternalDropModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            onClick={() => {
+              if (!isDropping) setShowInternalDropModal(false)
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
             >
               <div className="flex items-center gap-3 pb-3 border-b border-white/10">
                 <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
@@ -1562,13 +1578,17 @@ export default function CampaignPitchesCurationPage() {
       {/* 9. Creator Detail Drawer */}
       <AnimatePresence>
         {inspectItem && (
-          <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
+          <div
+            onClick={() => setInspectItem(null)}
+            className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm cursor-pointer"
+          >
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="bg-slate-900 border-l border-white/10 w-full max-w-md h-full shadow-2xl flex flex-col justify-between overflow-y-auto p-6 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border-l border-white/10 w-full max-w-md h-full shadow-2xl flex flex-col justify-between overflow-y-auto p-6 text-white cursor-default"
             >
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-white/10">
@@ -1730,12 +1750,16 @@ export default function CampaignPitchesCurationPage() {
       {/* 10. Verified Address & Courier Manifest Modal */}
       <AnimatePresence>
         {viewAddressItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            onClick={() => setViewAddressItem(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
             >
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2.5">
@@ -1869,12 +1893,16 @@ export default function CampaignPitchesCurationPage() {
       {/* 11. 1-Click WhatsApp Review Link Share Modal */}
       <AnimatePresence>
         {showShareModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div
+            onClick={() => setShowShareModal(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-white/12 text-white relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-white/12 text-white relative overflow-hidden cursor-default"
             >
               {/* Subtle ambient glow */}
               <div className="absolute -top-16 -right-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
