@@ -155,44 +155,44 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
 
       {/* ─── UNIFIED STICKY TOP NAVIGATION HUB (Zero Sidebar • Mobile-First 2-Tab Switcher) ─── */}
       <header className="sticky top-0 z-40 bg-[#0F172A]/95 backdrop-blur-xl border-b border-white/10 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
-          {/* Top Row: Brand Identity + Desktop Segmented Switcher + Profile/Logout */}
-          <div className="h-14 sm:h-16 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 relative">
+          {/* Top Row: Brand Identity + Geometrically Centered Desktop Segmented Switcher + Profile/Logout */}
+          <div className="h-16 flex items-center justify-between gap-4">
             {/* Left: TheHype Logo & Active Brand Identity */}
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <img
-                src="/thehype-logo.png"
-                alt="TheHype"
-                className="w-8 h-8 sm:w-9 sm:h-9 object-contain shrink-0 rounded-xl bg-white/10 p-1 border border-white/10"
-              />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-black text-sm sm:text-base tracking-tight text-white leading-none">
-                    TheHype
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F95738]/20 border border-[#F95738]/40 text-[#FF8A70] text-[10px] font-extrabold uppercase tracking-wider truncate max-w-[140px] sm:max-w-[200px]">
-                    <Sparkles className="w-2.5 h-2.5 text-[#F95738] shrink-0" />
-                    <span className="truncate">{brandUser?.brand_name || 'Brand Hub'}</span>
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 font-medium hidden sm:block mt-0.5">
-                  Client Creator Curation & Approval Studio
-                </p>
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+              <Link href="/brand/sample-rosters" className="flex items-center gap-2.5 group">
+                <img
+                  src="/thehype-logo.png"
+                  alt="TheHype"
+                  className="w-9 h-9 object-contain shrink-0 rounded-xl bg-white/10 p-1 border border-white/10 group-hover:border-[#F95738]/50 transition-colors"
+                />
+                <span className="font-black text-base tracking-tight text-white leading-none">
+                  TheHype
+                </span>
+              </Link>
+
+              <div className="h-5 w-px bg-white/15 hidden sm:block" />
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500/15 via-[#F95738]/15 to-orange-500/10 border border-amber-500/30 text-amber-300 text-xs font-black uppercase tracking-wider shadow-xs">
+                <Sparkles className="w-3 h-3 text-[#F95738] shrink-0" />
+                <span className="truncate max-w-[140px] sm:max-w-[200px]">
+                  {brandUser?.brand_name || 'Brand Hub'}
+                </span>
               </div>
             </div>
 
-            {/* Center (Desktop & Tablet): 2-Tab Segmented Switcher */}
+            {/* Center (Desktop & Tablet): Geometrically Centered 2-Tab Segmented Switcher */}
             <nav
               aria-label="Brand Workspace Tabs"
-              className="hidden md:flex items-center p-1 rounded-2xl bg-slate-900/90 border border-white/10 shadow-inner"
+              className="hidden md:flex items-center p-1 rounded-2xl bg-slate-900/90 border border-white/10 shadow-lg backdrop-blur-md md:absolute md:left-1/2 md:-translate-x-1/2"
             >
               <Link
                 href="/brand/sample-rosters"
                 prefetch={true}
                 className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
                   isSampleRostersActive
-                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25 font-black'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
                 }`}
               >
                 <BookmarkPlus className="w-3.5 h-3.5 shrink-0" />
@@ -213,8 +213,8 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
                 prefetch={true}
                 className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
                   isCampaignsActive
-                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25 font-black'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
                 }`}
               >
                 <Users className="w-3.5 h-3.5 shrink-0" />
@@ -233,29 +233,35 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               </Link>
             </nav>
 
-            {/* Right: Live Sync Status + Reviewer Identity + Logout */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Right: Live Sync Status + Reviewer Profile Capsule + Logout */}
+            <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
               <div className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-[11px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Live Sync</span>
               </div>
 
-              <div className="hidden sm:flex flex-col items-end text-right max-w-[150px]">
-                <span className="text-xs font-bold text-white truncate w-full">
-                  {brandUser?.full_name || 'Brand Reviewer'}
-                </span>
-                <span className="text-[10px] text-slate-400 truncate w-full">
-                  {brandUser?.email || 'Brand Partner'}
-                </span>
+              {/* Reviewer Profile Capsule */}
+              <div className="hidden sm:flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-xl bg-white/5 border border-white/10">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                  {(brandUser?.full_name || brandUser?.brand_name || 'B').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex flex-col text-left max-w-[130px]">
+                  <span className="text-xs font-bold text-white truncate leading-tight">
+                    {brandUser?.full_name || 'Brand Reviewer'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate leading-tight">
+                    {brandUser?.email || 'Brand Partner'}
+                  </span>
+                </div>
               </div>
 
               <button
                 onClick={handleLogout}
                 title="Sign Out"
-                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/15 text-slate-300 hover:text-red-300 border border-white/10 hover:border-red-500/30 transition-all duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-red-500/15 text-slate-300 hover:text-red-300 border border-white/10 hover:border-red-500/30 transition-all duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold shrink-0"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <span className="hidden md:inline">Sign Out</span>
               </button>
             </div>
           </div>
