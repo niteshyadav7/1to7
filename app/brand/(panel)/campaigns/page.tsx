@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { 
   Users, 
@@ -11,10 +11,12 @@ import {
   Video, 
   Layers,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
+import { toast } from 'sonner'
 
 interface CampaignItem {
   id: string
@@ -32,50 +34,29 @@ interface CampaignItem {
 }
 
 export default function BrandCampaignsPage() {
-  const [campaigns] = useState<CampaignItem[]>([
-    {
-      id: 'camp-1',
-      campaign_code: 'ME-GLOW-2026',
-      title: 'Vitamin C Glow Serum Launch',
-      platform: 'Instagram Reels',
-      budget_type: 'Barter + Commercial',
-      category: 'Skincare / Beauty',
-      total_applied: 48,
-      pending_review: 12,
-      approved: 28,
-      dispatched: 22,
-      live_reels: 16,
-      status: 'Active',
-    },
-    {
-      id: 'camp-2',
-      campaign_code: 'ME-ONION-REV',
-      title: 'Onion Hair Oil Festive Campaign',
-      platform: 'Instagram Reels',
-      budget_type: 'Barter',
-      category: 'Haircare',
-      total_applied: 34,
-      pending_review: 6,
-      approved: 20,
-      dispatched: 18,
-      live_reels: 10,
-      status: 'Active',
-    },
-    {
-      id: 'camp-3',
-      campaign_code: 'ME-SUN-SPF50',
-      title: 'Ultra Light Sunscreen Matte SPF 50',
-      platform: 'Instagram Reels & Stories',
-      budget_type: 'Commercial Paid',
-      category: 'Sun Care',
-      total_applied: 62,
-      pending_review: 0,
-      approved: 40,
-      dispatched: 38,
-      live_reels: 35,
-      status: 'Active',
-    },
-  ])
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/brand/campaigns')
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.campaigns)) {
+        setCampaigns(data.campaigns)
+      } else {
+        setCampaigns([])
+      }
+    } catch {
+      toast.error('Network error loading brand campaigns')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCampaigns()
+  }, [fetchCampaigns])
 
   return (
     <div className="space-y-6 font-sans">
@@ -94,6 +75,8 @@ export default function BrandCampaignsPage() {
         theme="light"
         keyField="id"
         tableLayout="fixed"
+        loading={loading}
+        emptyMessage="No campaigns found for this brand workspace. Pitch rosters and approved campaigns will appear here."
         title="Active Campaigns Directory"
         subtitle="Sort by pending reviews to prioritize campaign approvals"
         data={campaigns}

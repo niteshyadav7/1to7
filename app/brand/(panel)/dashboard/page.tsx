@@ -43,35 +43,26 @@ interface CampaignSummary {
 
 export default function BrandDashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
-    pendingReview: 18,
-    approvedCreators: 42,
-    dispatchedSamples: 35,
-    liveDeliverables: 24,
-    totalCampaigns: 3,
+    pendingReview: 0,
+    approvedCreators: 0,
+    dispatchedSamples: 0,
+    liveDeliverables: 0,
+    totalCampaigns: 0,
   })
 
-  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([
-    {
-      id: 'camp-1',
-      campaign_code: 'ME-GLOW-2026',
-      title: 'Vitamin C Glow Serum Launch',
-      platform: 'Instagram',
-      budget_type: 'Barter + Paid',
-      pending_count: 12,
-      approved_count: 28,
-      status: 'Active',
-    },
-    {
-      id: 'camp-2',
-      campaign_code: 'ME-ONION-REV',
-      title: 'Onion Hair Oil Festive Campaign',
-      platform: 'Instagram',
-      budget_type: 'Barter',
-      pending_count: 6,
-      approved_count: 14,
-      status: 'Active',
-    },
-  ])
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/brand/dashboard')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.stats) setStats(data.stats)
+        if (Array.isArray(data.campaigns)) setCampaigns(data.campaigns)
+      })
+      .catch((err) => console.error('Error loading dashboard data:', err))
+      .finally(() => setLoading(false))
+  }, [])
 
   return (
     <div className="space-y-6 font-sans">
@@ -186,6 +177,8 @@ export default function BrandDashboardPage() {
         theme="light"
         keyField="id"
         tableLayout="fixed"
+        loading={loading}
+        emptyMessage="No campaigns active for this brand workspace yet. Pitch rosters and approved campaigns will appear here."
         title="Active Campaign Pipelines"
         subtitle="Review shortlisted creator profiles and dispatch status across active brand campaigns"
         data={campaigns}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Video,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   Eye,
   AlertCircle,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
@@ -30,55 +31,93 @@ interface DeliverableItem {
 }
 
 export default function BrandDeliverablesPage() {
-  const [items, setItems] = useState<DeliverableItem[]>([
-    {
-      id: 'deliv-1',
-      creator_name: 'Pooja Verma',
-      handle: 'pooja.lifestyle',
-      followers: '125K',
-      campaign: 'Vitamin C Glow Serum Launch',
-      reel_url: 'https://www.instagram.com/reel/C8qL2kXp9/',
-      submitted_at: '2 hours ago',
-      status: 'pending_brand_review',
-      views_estimate: '45.2K Views',
-    },
-    {
-      id: 'deliv-2',
-      creator_name: 'Simran Kaur',
-      handle: 'simran.beautyvlogs',
-      followers: '210K',
-      campaign: 'Vitamin C Glow Serum Launch',
-      reel_url: 'https://www.instagram.com/reel/C9aP9xL12/',
-      submitted_at: '1 day ago',
-      status: 'approved',
-      views_estimate: '112.5K Views',
-    },
-  ])
-
+  const [items, setItems] = useState<DeliverableItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending_brand_review' | 'approved' | 'revision_requested'>('all')
 
-  const handleApproveContent = (id: string, name: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: 'approved' } : item))
-    )
-    toast.success(`Content approved for ${name}! Payment queue unlocked automatically.`)
+  const fetchDeliverables = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/brand/deliverables')
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.deliverables)) {
+        setItems(data.deliverables)
+      } else {
+        setItems([])
+      }
+    } catch {
+      toast.error('Network error loading deliverables')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDeliverables()
+  }, [fetchDeliverables])
+
+  const handleApproveContent = async (id: string, name: string) => {
+    try {
+      const res = await fetch('/api/brand/deliverables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'approved' }),
+      })
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, status: 'approved' } : item))
+        )
+        toast.success(`Content approved for ${name}! Payment queue unlocked automatically.`)
+      } else {
+        toast.error('Failed to approve content')
+      }
+    } catch {
+      toast.error('Error approving content')
+    }
   }
 
-  const handleRequestRevision = (id: string, name: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: 'revision_requested' } : item
-      )
-    )
-    toast.info(`Revision requested from ${name}. Creator notified via 1to7 app.`)
+  const handleRequestRevision = async (id: string, name: string) => {
+    try {
+      const res = await fetch('/api/brand/deliverables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'revision_requested' }),
+      })
+      if (res.ok) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, status: 'revision_requested' } : item
+          )
+        )
+        toast.info(`Revision requested from ${name}. Creator notified via 1to7 app.`)
+      } else {
+        toast.error('Failed to request revision')
+      }
+    } catch {
+      toast.error('Error requesting revision')
+    }
   }
 
-  const handleBulkApprove = (selected: DeliverableItem[]) => {
-    const ids = new Set(selected.map((s) => s.id))
-    setItems((prev) =>
-      prev.map((item) => (ids.has(item.id) ? { ...item, status: 'approved' } : item))
-    )
-    toast.success(`Bulk approved ${selected.length} deliverables! Payouts unlocked.`)
+  const handleBulkApprove = async (selected: DeliverableItem[]) => {
+    try {
+      const ids = selected.map((s) => s.id)
+      const res = await fetch('/api/brand/deliverables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status: 'approved' }),
+      })
+      if (res.ok) {
+        const idSet = new Set(ids)
+        setItems((prev) =>
+          prev.map((item) => (idSet.has(item.id) ? { ...item, status: 'approved' } : item))
+        )
+        toast.success(`Bulk approved ${selected.length} deliverables! Payouts unlocked.`)
+      } else {
+        toast.error('Failed to bulk approve deliverables')
+      }
+    } catch {
+      toast.error('Error bulk approving deliverables')
+    }
   }
 
   const filteredItems = items.filter((item) => {
@@ -105,6 +144,8 @@ export default function BrandDeliverablesPage() {
         theme="light"
         keyField="id"
         tableLayout="fixed"
+        loading={loading}
+        emptyMessage="No live deliverables submitted yet. Once creators publish and submit their reels, they will appear here for review."
         title="Live Reel Submissions"
         subtitle="Inspect published video links and release creator compensations"
         data={filteredItems}

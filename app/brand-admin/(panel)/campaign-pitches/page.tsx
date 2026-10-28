@@ -310,24 +310,34 @@ export default function CampaignPitchesCurationPage() {
     const first = selectedApplications[0]
     const appBrandName = first?.brand_name?.toLowerCase().trim()
     if (appBrandName) {
-      const match = registeredBrands.find(
+      const match = activeRegisteredBrands.find(
         b => b.name.toLowerCase().trim() === appBrandName || b.slug.toLowerCase().trim() === appBrandName
       )
       if (match) return match.name
     }
-    return registeredBrands[0]?.name || ''
-  }, [selectedApplications, registeredBrands])
+    return activeRegisteredBrands[0]?.name || ''
+  }, [selectedApplications, activeRegisteredBrands])
 
-  const handleOpenDispatchModal = (appId?: string) => {
-    const targetIds = appId ? [appId] : selectedIds
-    if (targetIds.length === 0) {
+  // Automatically keep dispatchTargetBrand valid and pre-selected to an active workspace
+  useEffect(() => {
+    if (activeRegisteredBrands.length > 0) {
+      const isCurrentValid = activeRegisteredBrands.some(b => b.name === dispatchTargetBrand)
+      if (!dispatchTargetBrand || !isCurrentValid) {
+        setDispatchTargetBrand(autoDetectedBrand || activeRegisteredBrands[0].name)
+      }
+    } else {
+      setDispatchTargetBrand('')
+    }
+  }, [activeRegisteredBrands, autoDetectedBrand, dispatchTargetBrand])
+
+  const handleOpenDispatchModal = (appIds?: string | string[]) => {
+    const ids = Array.isArray(appIds) ? appIds : appIds ? [appIds] : selectedIds
+    if (ids.length === 0) {
       toast.error('Please select at least one application to send to Brand')
       return
     }
-    if (appId) {
-      setSelectedIds([appId])
-    }
-    const targetApps = applications.filter(a => targetIds.includes(a.application_id))
+    setSelectedIds(ids)
+    const targetApps = applications.filter(a => ids.includes(a.application_id))
     const appBrandName = targetApps[0]?.brand_name?.toLowerCase().trim()
     const match = activeRegisteredBrands.find(
       b => b.name.toLowerCase().trim() === appBrandName || b.slug.toLowerCase().trim() === appBrandName
@@ -353,7 +363,8 @@ export default function CampaignPitchesCurationPage() {
       return
     }
 
-    if (!dispatchTargetBrand) {
+    const targetToDispatch = dispatchTargetBrand || autoDetectedBrand || activeRegisteredBrands[0]?.name
+    if (!targetToDispatch) {
       toast.error('Please choose an active Brand Client Workspace')
       return
     }
@@ -366,7 +377,7 @@ export default function CampaignPitchesCurationPage() {
         body: JSON.stringify({
           applicationIds: selectedIds,
           campaignId: selectedCampaign !== 'all' ? selectedCampaign : undefined,
-          targetBrand: dispatchTargetBrand || undefined,
+          targetBrand: targetToDispatch,
           visibleColumns,
           kamNotes: dispatchKamNotes.trim() || undefined,
         }),
@@ -1173,8 +1184,7 @@ export default function CampaignPitchesCurationPage() {
             icon: Send,
             variant: 'default',
             onClick: (rows) => {
-              setSelectedIds(rows.map((r) => r.application_id))
-              handleOpenDispatchModal()
+              handleOpenDispatchModal(rows.map((r) => r.application_id))
             },
           },
           {
@@ -1365,7 +1375,7 @@ export default function CampaignPitchesCurationPage() {
                     <>
                       <div className="relative">
                         <select
-                          value={dispatchTargetBrand}
+                          value={dispatchTargetBrand || (activeRegisteredBrands[0]?.name ?? '')}
                           onChange={(e) => setDispatchTargetBrand(e.target.value)}
                           className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
                         >
@@ -1471,7 +1481,7 @@ export default function CampaignPitchesCurationPage() {
                 </Button>
                 <Button
                   onClick={handleDispatchToBrand}
-                  disabled={isDispatching || activeRegisteredBrands.length === 0 || !dispatchTargetBrand}
+                  disabled={isDispatching || activeRegisteredBrands.length === 0 || !(dispatchTargetBrand || activeRegisteredBrands[0]?.name)}
                   className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-950/20"
                 >
                   {isDispatching ? (
@@ -1479,7 +1489,7 @@ export default function CampaignPitchesCurationPage() {
                   ) : (
                     <Send className="h-3.5 w-3.5" />
                   )}
-                  {isDispatching ? 'Dispatching...' : `Confirm & Publish to ${dispatchTargetBrand || 'Brand'} Portal`}
+                  {isDispatching ? 'Dispatching...' : `Confirm & Publish to ${dispatchTargetBrand || activeRegisteredBrands[0]?.name || 'Brand'} Portal`}
                 </Button>
               </div>
             </motion.div>

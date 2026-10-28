@@ -97,6 +97,29 @@ export async function POST(request: Request) {
 
     const updatedCount = updateRes.rowCount || updateRes.rows.length
 
+    // 1.5 Associate campaign(s) of the dispatched applications with target brand workspace
+    if (matchedBrandId) {
+      try {
+        await pool.query(
+          `
+          UPDATE public.campaigns
+          SET 
+            brand_id = $1,
+            brand_name = COALESCE(NULLIF(brand_name, ''), $2),
+            updated_at = NOW()
+          WHERE id IN (
+            SELECT DISTINCT campaign_id 
+            FROM public.applications 
+            WHERE id::text = ANY($3::text[])
+          ) AND (brand_id IS NULL OR brand_id::text = $1);
+          `,
+          [matchedBrandId, verifiedBrandName || 'Client Brand', applicationIds.map(String)]
+        )
+      } catch (campErr: any) {
+        console.warn('Campaign brand linking warning:', campErr?.message)
+      }
+    }
+
     // 2. Optionally update campaign's brand visible columns if provided
     if (campaignId && Array.isArray(visibleColumns) && visibleColumns.length > 0) {
       await pool.query(

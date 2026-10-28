@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Truck,
   Package,
@@ -10,7 +10,9 @@ import {
   MapPin,
   Instagram,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { DynamicDataTable } from '@/components/brand/DynamicDataTable'
 import { EllipsisTooltip } from '@/components/brand/EllipsisTooltip'
 
@@ -28,46 +30,30 @@ interface DispatchItem {
 }
 
 export default function BrandDispatchesTrackerPage() {
-  const [dispatches] = useState<DispatchItem[]>([
-    {
-      id: 'disp-1',
-      creator_name: 'Pooja Verma',
-      handle: 'pooja.lifestyle',
-      city: 'Mumbai',
-      campaign: 'Vitamin C Glow Serum Launch',
-      sample_choice: 'Vitamin C Serum (30ml) • Shade Glowing Dew',
-      courier_partner: 'Delhivery',
-      awb_number: 'DEL918237192',
-      status: 'Delivered',
-      dispatched_at: '2026-03-22',
-    },
-    {
-      id: 'disp-2',
-      creator_name: 'Rohan Malhotra',
-      handle: 'rohan_fitness',
-      city: 'Delhi',
-      campaign: 'Vitamin C Glow Serum Launch',
-      sample_choice: 'Vitamin C Face Wash (100ml)',
-      courier_partner: 'Shiprocket / BlueDart',
-      awb_number: 'BLU827361920',
-      status: 'Out for Delivery',
-      dispatched_at: '2026-03-23',
-    },
-    {
-      id: 'disp-3',
-      creator_name: 'Simran Kaur',
-      handle: 'simran.beautyvlogs',
-      city: 'Chandigarh',
-      campaign: 'Vitamin C Glow Serum Launch',
-      sample_choice: 'Vitamin C Glow Combo Kit',
-      courier_partner: 'Delhivery',
-      awb_number: 'DEL882910291',
-      status: 'In Transit',
-      dispatched_at: '2026-03-24',
-    },
-  ])
-
+  const [dispatches, setDispatches] = useState<DispatchItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<'all' | 'Delivered' | 'In Transit' | 'Out for Delivery' | 'Packed'>('all')
+
+  const fetchDispatches = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/brand/dispatches')
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.dispatches)) {
+        setDispatches(data.dispatches)
+      } else {
+        setDispatches([])
+      }
+    } catch {
+      toast.error('Network error loading dispatches')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDispatches()
+  }, [fetchDispatches])
 
   const filtered = dispatches.filter((d) => {
     if (statusFilter !== 'all' && d.status !== statusFilter) return false
@@ -91,6 +77,8 @@ export default function BrandDispatchesTrackerPage() {
         theme="light"
         keyField="id"
         tableLayout="fixed"
+        loading={loading}
+        emptyMessage="No sample dispatches logged for this brand yet. Dispatched sample kits will track here in real time."
         title="Live Sample Logistics Dispatches"
         subtitle="Monitor delivery tracking numbers and transit status across courier networks"
         data={filtered}
