@@ -40,6 +40,7 @@ import {
   MessageCircle,
   Link2,
   AlertTriangle,
+  UserCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -60,6 +61,28 @@ function formatFollowerCount(num: number | null | undefined): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'K'
   return num.toLocaleString('en-IN')
+}
+
+function formatAdminSender(sender: string | null | undefined): string {
+  if (!sender) return 'Influencer Ops'
+  if (sender.includes('@')) {
+    return sender.split('@')[0]
+  }
+  return sender
+}
+
+function formatRelativeOrDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const diffHours = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60))
+    if (diffHours < 1) return 'Just now'
+    if (diffHours < 24) return `${diffHours}h ago`
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  } catch {
+    return ''
+  }
 }
 
 export default function CampaignPitchesCurationPage() {
@@ -603,6 +626,20 @@ export default function CampaignPitchesCurationPage() {
                 </span>
               )}
             </div>
+            {item.brand_pitched_by && (
+              <div
+                className="text-[9px] text-neutral-400 flex items-center gap-1 mt-1 truncate max-w-[150px]"
+                title={`Forwarded by ${item.brand_pitched_by}${item.brand_pitched_at ? ` on ${new Date(item.brand_pitched_at).toLocaleString('en-IN')}` : ''}`}
+              >
+                <UserCheck className="h-2.5 w-2.5 text-amber-400/80 shrink-0" />
+                <span className="truncate">
+                  Fwd: <span className="text-neutral-200 font-semibold">{formatAdminSender(item.brand_pitched_by)}</span>
+                  {item.brand_pitched_at && (
+                    <span className="text-neutral-500 font-normal ml-1">({formatRelativeOrDate(item.brand_pitched_at)})</span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
         ),
       },
@@ -788,18 +825,38 @@ export default function CampaignPitchesCurationPage() {
 
           if (isQueued) {
             return (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[115px]">
-                <Clock className="h-3 w-3 text-blue-400 animate-pulse shrink-0" />
-                <span className="truncate">Queued for KAM</span>
-              </span>
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm shadow-blue-500/10 truncate max-w-[115px]">
+                  <Clock className="h-3 w-3 text-blue-400 animate-pulse shrink-0" />
+                  <span className="truncate">Queued for KAM</span>
+                </span>
+                {item.brand_pitched_by && (
+                  <div
+                    className="text-[9px] text-blue-300/80 mt-0.5 truncate max-w-[115px]"
+                    title={`Forwarded by ${item.brand_pitched_by}${item.brand_pitched_at ? ` on ${new Date(item.brand_pitched_at).toLocaleString('en-IN')}` : ''}`}
+                  >
+                    Fwd: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
+                  </div>
+                )}
+              </div>
             )
           }
 
           return (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[110px]">
-              <Send className="h-3 w-3 text-purple-400 shrink-0" />
-              <span className="truncate">With Brand</span>
-            </span>
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-[110px]">
+                <Send className="h-3 w-3 text-purple-400 shrink-0" />
+                <span className="truncate">With Brand</span>
+              </span>
+              {item.brand_pitched_by && (
+                <div
+                  className="text-[9px] text-purple-300/80 mt-0.5 truncate max-w-[110px]"
+                  title={`Dispatched / Forwarded by ${item.brand_pitched_by}`}
+                >
+                  By: <span className="font-semibold text-white">{formatAdminSender(item.brand_pitched_by)}</span>
+                </div>
+              )}
+            </div>
           )
         },
       },
@@ -1177,6 +1234,7 @@ export default function CampaignPitchesCurationPage() {
           'city',
           'state',
           'brand_pitch_batch_name',
+          'brand_pitched_by',
         ]}
         bulkActions={[
           {
@@ -1649,6 +1707,31 @@ export default function CampaignPitchesCurationPage() {
                       <span className="text-neutral-400">Pitch Batch</span>
                       <span className="font-semibold text-amber-300">{inspectItem.brand_pitch_batch_name || 'N/A'}</span>
                     </div>
+                    {inspectItem.brand_pitched_by && (
+                      <div className="flex justify-between items-center pt-1 border-t border-white/5">
+                        <span className="text-neutral-400 flex items-center gap-1">
+                          <UserCheck className="h-3 w-3 text-amber-400" />
+                          Forwarded By
+                        </span>
+                        <span className="font-semibold text-white text-[11px]" title={inspectItem.brand_pitched_by}>
+                          {inspectItem.brand_pitched_by}
+                        </span>
+                      </div>
+                    )}
+                    {inspectItem.brand_pitched_at && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-neutral-400">Forwarded At</span>
+                        <span className="text-neutral-300 font-mono text-[10px]">
+                          {new Date(inspectItem.brand_pitched_at).toLocaleString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-neutral-400">Followers</span>
                       <span className="font-semibold text-white">{inspectItem.followers.toLocaleString('en-IN')}</span>

@@ -202,8 +202,8 @@ export async function GET(request: Request) {
         brand_review_status: r.brand_review_status,
         brand_pitch_batch_name: batchName,
         brand_pitch_notes: r.brand_pitch_notes,
-        brand_pitched_at: r.brand_pitched_at,
-        brand_pitched_by: r.brand_pitched_by,
+        brand_pitched_at: r.brand_pitched_at || r.form_data?.sent_to_brand_admin?.queued_at || r.form_data?.sent_to_brand?.sent_at || null,
+        brand_pitched_by: r.brand_pitched_by || r.form_data?.sent_to_brand_admin?.queued_by || r.form_data?.sent_to_brand?.sent_by || null,
         brand_reviewed_at: r.brand_reviewed_at,
         brand_reviewed_by: r.brand_reviewed_by,
         brand_rejection_reason: r.brand_rejection_reason,
@@ -246,7 +246,7 @@ export async function GET(request: Request) {
         return false
       }
       if (search) {
-        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''} ${item.brand_name || ''} ${item.campaign_code || ''} ${item.campaign_title || ''} ${item.verified_address_details?.pincode || ''} ${item.verified_address_details?.street || ''}`.toLowerCase()
+        const target = `${item.creator_name} ${item.instagram_username} ${item.influencer_id} ${item.city || ''} ${item.brand_pitch_batch_name || ''} ${item.brand_name || ''} ${item.campaign_code || ''} ${item.campaign_title || ''} ${item.brand_pitched_by || ''} ${item.verified_address_details?.pincode || ''} ${item.verified_address_details?.street || ''}`.toLowerCase()
         if (!target.includes(search)) return false
       }
       return true
