@@ -293,20 +293,27 @@ export default function BrandSampleRostersPage() {
                   )}
                 </div>
 
-                {/* Right Action: Shortlist Trigger */}
+                {/* Right Action: Shortlist Trigger or View-Only Badge */}
                 <div className="flex items-center gap-2">
-                  <button
-                    disabled={selectedIds.size === 0}
-                    onClick={() => setShowShortlistModal(true)}
-                    className="px-4 py-2 rounded-xl bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-xs flex items-center gap-2 shadow-sm shadow-[#F95738]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    <span>
-                      {selectedIds.size > 0
-                        ? `Shortlist Selected (${selectedIds.size})`
-                        : 'Select Creators to Shortlist'}
+                  {activeRoster.allow_brand_shortlisting !== false ? (
+                    <button
+                      disabled={selectedIds.size === 0}
+                      onClick={() => setShowShortlistModal(true)}
+                      className="px-4 py-2 rounded-xl bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-xs flex items-center gap-2 shadow-sm shadow-[#F95738]/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>
+                        {selectedIds.size > 0
+                          ? `Shortlist Selected (${selectedIds.size})`
+                          : 'Select Creators to Shortlist'}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold">
+                      <Sparkles className="w-3.5 h-3.5 text-[#F95738]" />
+                      <span>Curated Catalog • View Only</span>
                     </span>
-                  </button>
+                  )}
                 </div>
               </div>
 
@@ -323,20 +330,22 @@ export default function BrandSampleRostersPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={toggleSelectAll}
-                    className="text-xs text-slate-600 hover:text-slate-900 transition-colors cursor-pointer font-medium"
-                  >
-                    {selectedIds.size === filteredCreators.length && filteredCreators.length > 0
-                      ? 'Deselect All'
-                      : `Select All (${filteredCreators.length})`}
-                  </button>
-                  <span className="text-slate-300">|</span>
-                  <span className="text-slate-500">
-                    <strong className="text-[#D83B1C] font-semibold">{selectedIds.size}</strong> selected
-                  </span>
-                </div>
+                {activeRoster.allow_brand_shortlisting !== false && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="text-xs text-slate-600 hover:text-slate-900 transition-colors cursor-pointer font-medium"
+                    >
+                      {selectedIds.size === filteredCreators.length && filteredCreators.length > 0
+                        ? 'Deselect All'
+                        : `Select All (${filteredCreators.length})`}
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <span className="text-slate-500">
+                      <strong className="text-[#D83B1C] font-semibold">{selectedIds.size}</strong> selected
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Creators Table */}

@@ -3189,6 +3189,39 @@ Previously, the table action only navigated to an isolated admin proxy view rath
 "Implementing administrative impersonation requires three pillars: 1) Cryptographic isolation—minting signed, scoped JWT cookies that carry impersonator audit signatures rather than modifying user passwords or credentials, 2) Seamless UX ergonomics—placing 1-click launch affordances right at the point of need (both in directory tables and active filter scopes), and 3) Transparent session awareness—embedding persistent visual indicators so operators never mistake a virtual client session for their internal admin cockpit."
 
 ====================================================================================================
+CASE 76: Multi-Tenant Curation Gatekeeper: Dual-Mode Pitching & Verified Address Exposure
+----------------------------------------------------------------------------------------------------
+Category: Multi-Tenant Architecture / Logistics Gatekeeping / Data Privacy & Selective Projection
+Interview Question:
+"How do you design an enterprise agency curation desk where account managers can selectively toggle between 'Interactive Shortlisting' and 'View-Only Showcases' for brand clients, while strictly gatekeeping physical delivery addresses to only approved logistics manifests?"
+
+[SITUATION]
+In an influencer marketing platform connecting agency operations with external enterprise brand clients (TheHype), two critical operational discrepancies emerged:
+1. Roster Interaction Drift: When Key Account Managers (KAMs) dispatched sample rosters to client brand portals, all rosters unconditionally rendered checkboxes and shortlist submission forms. Brands frequently requested view-only presentation decks where selection was disabled.
+2. Logistics Information Blackout: For physical product gifting campaigns, brands needed to know which creators had verified courier delivery addresses to plan sample dispatches, but raw PII (phone numbers, full home addresses) had to remain strictly protected until verified by Influencer Operations.
+
+[ROOT CAUSE]
+1. Latent Schema Column: The `allow_brand_shortlisting` boolean column existed on `public.sample_lists`, but was never exposed as an administrative toggle in the Brand Admin publish modal, nor honored conditionally in the client portal view.
+2. Monolithic Privacy Stripping: The brand privacy sanitization utility (`sanitizeCreatorForBrand`) indiscriminately stripped all address tokens from creator payloads to prevent PII leakage, leaving brand clients blind to whether a creator's address was actually confirmed and ready for courier shipping.
+
+[SOLUTION & ARCHITECTURE]
+1. Dual-Mode Sample Roster Publisher:
+   - Updated `app/brand-admin/(panel)/sample-lists/[id]/page.tsx` with an interactive permission toggle:
+     - Interactive Mode (`allow_brand_shortlisting: true`): Brand clients can select creator checkboxes, enter feedback notes, and submit shortlists back to the agency.
+     - Catalog Mode (`allow_brand_shortlisting: false`): Checkboxes, bulk actions, and shortlist submission triggers are cleanly hidden; rendered with a 'Curated Catalog • View Only' badge.
+   - Updated `/api/brand-admin/sample-lists/[id]/publish-to-brand` to persist this permission flag.
+2. Verified Address Gatekeeper & Safe Projection:
+   - In `app/api/brand/campaigns/[id]/creators/route.ts` and `lib/utils/brand-privacy-utils.ts`:
+     - Cross-referenced the creator's `address_status` against the Influencer Address Confirmation Desk.
+     - Gatekeeper Rule: If `address_status === 'Approved'` and structured shipping details exist, project a safe `verified_address` object (City, Pincode, formatted courier manifest) and badge as 'Address Verified'.
+     - If pending verification or not yet confirmed, render '⏳ Verification Pending' without disclosing incomplete or unverified location data.
+3. 1-Click Courier Manifest in Client Portal:
+   - Added an interactive 'Delivery Address' column to the Brand Portal's Creator Review Studio (`app/brand/(panel)/campaigns/[id]/creators/page.tsx`), allowing brand logistics leads to 1-click copy Delhivery/Shiprocket-compliant delivery manifests directly for approved creators.
+
+[INTERVIEW STAR TAKEAWAY]
+"Enterprise client portals cannot treat data exposure as binary. By combining granular administrative capability toggles (Interactive Shortlist vs. View-Only Showcase) with a two-tier logistics gatekeeper (Verified vs. Pending), we achieve seamless physical dispatch coordination without risking PII leakage or operational confusion."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
 1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema), Case 51 (Two-Gatekeeper Curation State Machine & Batch Indexing), Case 52 (Direct In-Portal Dispatch Flags & Brand-Scoped Composite Indexing), Case 53 (Relational Schema Auditing, Latent Column Drift Remediation & COALESCE Projections), Case 54 (Barter Logistics Verification Gatekeeper & Structured JSONB Address Projection), Case 55 (OTP Expiry Lifecycle & Multi-Tenant Brand Session Storage), Case 56 (Multi-Key Identity Resolution, Deduplication & ACID Dual-Layer Logistics Reconciliation), Case 58 (Elimination of In-Memory Mock Fallbacks & PostgreSQL Multi-Tenant Brand Lifecycle Management), Case 59 (Two-Tier Administrative Privilege Segregation & PostgreSQL RBAC Migration), Case 60 (Dynamic Relational KAM Resolution, Database Seeding & Role Optgroup Segmentation), Case 61 (Server-Side SLA Aggregation, Zero-Mock Watchtowers & Dynamic PostgreSQL State Binding), Case 64 (Decoupling Influencer Campaign Source Tags from Multi-Tenant Client Brand Workspaces), Case 66 (Atomic Campaign-to-Brand Relational Linking on Dispatch), Case 67 (High-Performance Creator DB Search & Dual-Auth RBAC), Case 68 (Dual-Tier Commercial Costing Schema, Atomic Mirroring & Cumulative SQL Aggregation), Case 69 (Strict Domain Decoupling of Logistics SQL Filters from Order Verification Pipelines), and Case 72 (Elimination of Cross-Tenant Leakage in Parameterized Campaign SQL Queries).

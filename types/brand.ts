@@ -117,4 +117,12 @@ export interface BrandCreatorItem {
   live_content_url?: string | null
   brand_content_status?: BrandContentStatus | null
   client_commercial?: number | null
+  address_verification_status?: 'Verified' | 'Pending' | 'Not Submitted'
+  verified_address?: {
+    street?: string
+    city?: string
+    state?: string
+    pincode?: string
+    courier_text?: string
+  } | null
 }

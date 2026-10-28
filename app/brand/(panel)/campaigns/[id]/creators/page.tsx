@@ -21,6 +21,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Package,
+  Truck,
+  Copy,
   IndianRupee,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -371,6 +373,51 @@ export default function CreatorReviewStudioPage() {
                 ) : null}
               </div>
             ),
+          },
+          {
+            key: 'delivery_address',
+            header: 'Delivery Address',
+            width: '18%',
+            render: (c) => {
+              const isVerified = c.address_verification_status === 'Verified' && c.verified_address
+              const isPending = c.address_verification_status === 'Pending'
+
+              if (isVerified && c.verified_address) {
+                return (
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 w-fit">
+                      <Truck className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                      <span>Address Verified</span>
+                    </span>
+                    <EllipsisTooltip text={`${c.verified_address.street || ''}, ${c.verified_address.city || ''} - ${c.verified_address.pincode || ''}`} subtext="Verified Shipping Destination">
+                      <div className="text-[10px] text-slate-700 truncate cursor-pointer font-medium" onClick={() => {
+                        if (c.verified_address?.courier_text) {
+                          navigator.clipboard.writeText(c.verified_address.courier_text)
+                          toast.success(`Copied courier manifest for ${c.creator_name}`)
+                        }
+                      }}>
+                        {c.verified_address.city}, {c.verified_address.pincode}
+                      </div>
+                    </EllipsisTooltip>
+                  </div>
+                )
+              }
+
+              if (isPending) {
+                return (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">
+                    <Clock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                    <span>Verification Pending</span>
+                  </span>
+                )
+              }
+
+              return (
+                <span className="text-[10px] text-slate-400 italic">
+                  Not Submitted
+                </span>
+              )
+            },
           },
           {
             key: 'brand_review_status',

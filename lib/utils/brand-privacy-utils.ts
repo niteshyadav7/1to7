@@ -43,6 +43,36 @@ export function sanitizeCreatorForBrand(raw: any): BrandCreatorItem {
     }
   })
 
+  // Delivery Address Resolution (Safe Gatekeeper: Only expose details if approved at address desk)
+  const isAddressApproved = raw.address_status === 'Approved' || formData.address_verified === true
+  const addrObj = formData.shipping_address || (Array.isArray(raw.shipping_addresses) ? raw.shipping_addresses[0] : null) || null
+  const hasSubmitted = Boolean(formData.address_confirmed === true || addrObj?.address_line1 || addrObj?.street || raw.city)
+
+  let addressVerificationStatus: 'Verified' | 'Pending' | 'Not Submitted' = 'Not Submitted'
+  if (isAddressApproved && addrObj) {
+    addressVerificationStatus = 'Verified'
+  } else if (hasSubmitted) {
+    addressVerificationStatus = 'Pending'
+  }
+
+  let verifiedAddress: BrandCreatorItem['verified_address'] = null
+  if (isAddressApproved && addrObj) {
+    const street = [addrObj.address_line1, addrObj.address_line2].filter(Boolean).join(', ') || addrObj.street || ''
+    const city = addrObj.city || raw.city || ''
+    const state = addrObj.state || raw.state || ''
+    const pincode = addrObj.pincode || addrObj.pin_code || ''
+    const creatorName = raw.creator_name || raw.full_name || 'Creator'
+    const phone = addrObj.phone || addrObj.contact_phone || 'Protected'
+
+    verifiedAddress = {
+      street,
+      city,
+      state,
+      pincode,
+      courier_text: `RECEIVER: ${creatorName}\nPHONE: ${phone}\nSTREET: ${street}\nCITY: ${city}, ${state}\nPINCODE: ${pincode}`,
+    }
+  }
+
   return {
     application_id: raw.application_id || raw.id,
     campaign_id: raw.campaign_id,
@@ -77,6 +107,8 @@ export function sanitizeCreatorForBrand(raw: any): BrandCreatorItem {
         : raw.is_commercial_pitch && raw.form_data?.client_commercial
           ? Number(raw.form_data.client_commercial)
           : null,
+    address_verification_status: addressVerificationStatus,
+    verified_address: verifiedAddress,
   }
 }
 

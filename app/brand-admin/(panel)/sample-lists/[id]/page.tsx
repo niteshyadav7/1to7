@@ -91,6 +91,7 @@ export default function SampleListStudioPage({
   const [selectedBrandName, setSelectedBrandName] = useState<string>('')
   const [pitchNote, setPitchNote] = useState<string>('')
   const [publishing, setPublishing] = useState(false)
+  const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
 
   useEffect(() => {
     fetchRosterDetails()
@@ -156,6 +157,7 @@ export default function SampleListStudioPage({
           brand_name: selectedBrandName.trim(),
           pitch_note_to_brand: pitchNote.trim() || undefined,
           visible_columns: selectedColumns,
+          allow_brand_shortlisting: allowBrandShortlisting,
         }),
       })
 
@@ -1427,6 +1429,34 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
                     placeholder="e.g. Hi Team, curated these top creators for your upcoming launch. High reel engagement and verified Pan-India delivery."
                     className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
+                </div>
+
+                {/* Brand Interaction Mode Toggle: Shortlist Mode vs Catalog View Mode */}
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Allow Client Brand to Shortlist Creators</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAllowBrandShortlisting(!allowBrandShortlisting)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        allowBrandShortlisting ? 'bg-amber-400' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
+                          allowBrandShortlisting ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-snug">
+                    {allowBrandShortlisting
+                      ? '⭐ Interactive Mode: Brand POC can select checkboxes and submit their curated shortlist back to TheHype.'
+                      : '👁️ Catalog Mode: Brand POC can only view and explore creator profiles. Selection & shortlisting buttons will be hidden.'}
+                  </p>
                 </div>
 
                 {/* Column Shield Confirmation Card */}

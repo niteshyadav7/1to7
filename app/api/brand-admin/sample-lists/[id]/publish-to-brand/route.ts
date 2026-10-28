@@ -15,7 +15,7 @@ export async function POST(
 
     const { id } = await params
     const body = await request.json()
-    const { brand_id, brand_name, pitch_note_to_brand, visible_columns } = body
+    const { brand_id, brand_name, pitch_note_to_brand, visible_columns, allow_brand_shortlisting } = body
 
     if (!brand_name?.trim()) {
       return NextResponse.json({ error: 'Target Brand Name is required' }, { status: 400 })
@@ -62,6 +62,7 @@ export async function POST(
       adminName,
       pitch_note_to_brand?.trim() || null,
       visible_columns ? JSON.stringify(visible_columns) : null,
+      allow_brand_shortlisting !== undefined ? Boolean(allow_brand_shortlisting) : null,
       id,
     ])
 
