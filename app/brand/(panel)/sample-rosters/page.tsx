@@ -625,165 +625,169 @@ export default function BrandSampleRostersPage() {
                   })}
                 </div>
               ) : (
-                /* ─── COMPACT COLORFUL TABLE VIEW ─── */
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
-                        {canShortlist && (
-                          <th className="p-3 w-9 text-center">
-                            <input
-                              type="checkbox"
-                              checked={
-                                selectedIds.size === filteredCreators.length &&
-                                filteredCreators.length > 0
-                              }
-                              onChange={toggleSelectAll}
-                              className="rounded border-slate-300 accent-[#F95738] cursor-pointer"
-                            />
-                          </th>
-                        )}
-                        <th className="py-3 px-3">Creator & Instagram</th>
-                        {isColVisible('followers') && (
-                          <th className="py-3 px-3 text-right">Followers</th>
-                        )}
-                        {isColVisible('avg_reels_views') && (
-                          <th className="py-3 px-3 text-right">Avg Views</th>
-                        )}
-                        {isColVisible('engagement_rate') && (
-                          <th className="py-3 px-3 text-right">Eng. Rate</th>
-                        )}
-                        {isColVisible('city') && <th className="py-3 px-3">City & Niche</th>}
-                        {isColVisible('sample_reel_url') && (
-                          <th className="py-3 px-3 text-center">Sample Reel</th>
-                        )}
-                        {isColVisible('brand_commercial') && (
-                          <th className="py-3 px-3 text-right">Commercial (₹)</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {filteredCreators.map((creator, idx) => {
-                        const isSelected = selectedIds.has(creator.id)
-                        const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
-                        return (
-                          <tr
-                            key={creator.id}
-                            onClick={() => toggleSelect(creator.id)}
-                            className={`transition-colors ${
-                              canShortlist ? 'cursor-pointer' : ''
-                            } ${isSelected ? 'bg-emerald-50/50' : 'hover:bg-slate-50'}`}
-                          >
-                            {canShortlist && (
-                              <td
-                                className="p-3 w-9 text-center"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleSelect(creator.id)}
-                                  className="rounded border-slate-300 accent-emerald-600 cursor-pointer"
-                                />
-                              </td>
-                            )}
+                /* ─── ZERO-SCROLL MOBILE-FIRST COMPACT LIST VIEW ─── */
+                <div className="rounded-3xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
+                  {/* List Header Strip */}
+                  <div className="bg-slate-50/90 border-b border-slate-200 px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+                    <div className="flex items-center gap-2.5">
+                      {canShortlist && (
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedIds.size === filteredCreators.length &&
+                            filteredCreators.length > 0
+                          }
+                          onChange={toggleSelectAll}
+                          className="rounded border-slate-300 accent-[#F95738] cursor-pointer h-4 w-4"
+                        />
+                      )}
+                      <span>Creator & Performance Metrics</span>
+                    </div>
+                    <span>Reel & Shortlist</span>
+                  </div>
 
-                            <td className="py-2.5 px-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
+                  {/* Responsive Creator Rows — Zero Horizontal Scroll */}
+                  <div className="divide-y divide-slate-100">
+                    {filteredCreators.map((creator, idx) => {
+                      const isSelected = selectedIds.has(creator.id)
+                      const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
+                      return (
+                        <div
+                          key={creator.id}
+                          onClick={() => toggleSelect(creator.id)}
+                          className={`p-3 sm:px-5 sm:py-3.5 transition-colors ${
+                            canShortlist ? 'cursor-pointer' : ''
+                          } ${
+                            isSelected
+                              ? 'bg-gradient-to-r from-emerald-50/60 via-emerald-50/20 to-white'
+                              : 'hover:bg-slate-50/80'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              {canShortlist && (
                                 <div
-                                  className={`w-8 h-8 rounded-xl bg-gradient-to-br ${gradientClass} text-white font-black flex items-center justify-center shrink-0 text-xs`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="shrink-0 flex items-center"
                                 >
-                                  {creator.creator_name.charAt(0).toUpperCase()}
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleSelect(creator.id)}
+                                    className="rounded border-slate-300 accent-emerald-600 cursor-pointer h-4 w-4"
+                                  />
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="font-bold text-slate-900 text-xs truncate max-w-[160px]">
-                                    {creator.creator_name}
-                                  </div>
-                                  <a
-                                    href={`https://instagram.com/${creator.instagram_username}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[11px] text-pink-600 hover:underline flex items-center gap-0.5 truncate max-w-[140px] font-semibold"
-                                  >
-                                    <span>@{creator.instagram_username}</span>
-                                    <ArrowUpRight className="h-2.5 w-2.5 shrink-0" />
-                                  </a>
-                                </div>
-                              </div>
-                            </td>
+                              )}
 
-                            {isColVisible('followers') && (
-                              <td className="py-2.5 px-3 text-right font-extrabold text-slate-900">
-                                {formatCompactNumber(creator.followers)}
-                              </td>
-                            )}
-
-                            {isColVisible('avg_reels_views') && (
-                              <td className="py-2.5 px-3 text-right font-semibold text-violet-700">
-                                {creator.avg_reels_views > 0
-                                  ? formatCompactNumber(creator.avg_reels_views)
-                                  : '—'}
-                              </td>
-                            )}
-
-                            {isColVisible('engagement_rate') && (
-                              <td className="py-2.5 px-3 text-right font-bold text-emerald-600">
-                                {creator.engagement_rate > 0 ? `${creator.engagement_rate}%` : '—'}
-                              </td>
-                            )}
-
-                            {isColVisible('city') && (
-                              <td className="py-2.5 px-3">
-                                <div className="space-y-0.5 min-w-0">
-                                  <div className="flex items-center gap-1 text-slate-800 text-[11px] font-medium">
-                                    <MapPin className="h-2.5 w-2.5 text-indigo-500 shrink-0" />
-                                    <span className="truncate max-w-[110px]">
-                                      {creator.city || 'Pan-India'}
-                                    </span>
-                                  </div>
-                                  {creator.niche && (
-                                    <span className="text-[10px] text-purple-600 truncate max-w-[110px] block font-medium">
-                                      {creator.niche}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            )}
-
-                            {isColVisible('sample_reel_url') && (
-                              <td
-                                className="py-2.5 px-3 text-center"
-                                onClick={(e) => e.stopPropagation()}
+                              <div
+                                className={`h-9 w-9 rounded-xl bg-gradient-to-br ${gradientClass} text-white font-black flex items-center justify-center shrink-0 text-xs shadow-xs`}
                               >
-                                {creator.sample_reel_url ? (
-                                  <a
-                                    href={creator.sample_reel_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 inline-flex items-center gap-1 text-[11px] font-bold border border-pink-200 transition-colors"
-                                  >
-                                    <Video className="h-3 w-3" />
-                                    <span>Watch</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-slate-400 text-[11px]">—</span>
-                                )}
-                              </td>
+                                {creator.creator_name.charAt(0).toUpperCase()}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">
+                                    {creator.creator_name}
+                                  </p>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
+                                    #{idx + 1}
+                                  </span>
+                                </div>
+                                <a
+                                  href={`https://instagram.com/${creator.instagram_username}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-[11px] text-pink-600 hover:underline inline-flex items-center gap-0.5 font-bold max-w-full"
+                                >
+                                  <span className="truncate">@{creator.instagram_username}</span>
+                                  <ArrowUpRight className="h-2.5 w-2.5 shrink-0" />
+                                </a>
+                              </div>
+                            </div>
+
+                            <div
+                              className="flex items-center gap-1.5 shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {isColVisible('sample_reel_url') && creator.sample_reel_url && (
+                                <a
+                                  href={creator.sample_reel_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-50 to-purple-50 hover:from-rose-100 hover:to-purple-100 text-pink-700 border border-pink-200/80 text-[11px] font-bold inline-flex items-center gap-1 transition-all"
+                                >
+                                  <Video className="h-3 w-3 text-pink-600 shrink-0" />
+                                  <span>Reel</span>
+                                </a>
+                              )}
+
+                              {canShortlist && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSelect(creator.id)}
+                                  className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-extrabold cursor-pointer transition-all inline-flex items-center gap-1 ${
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs'
+                                      : 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white shadow-xs'
+                                  }`}
+                                >
+                                  <Check className={`h-3 w-3 ${isSelected ? 'stroke-[3]' : ''}`} />
+                                  <span>{isSelected ? 'Added' : 'Shortlist'}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div
+                            className={`mt-2 flex items-center gap-1.5 flex-wrap ${
+                              canShortlist ? 'pl-6 sm:pl-16' : 'pl-11'
+                            }`}
+                          >
+                            {isColVisible('followers') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50/80 border border-indigo-200/60 text-[10px] font-bold text-indigo-950">
+                                <span className="text-indigo-500 font-extrabold uppercase text-[9px]">
+                                  Followers
+                                </span>
+                                <span>{formatCompactNumber(creator.followers)}</span>
+                              </span>
                             )}
 
-                            {isColVisible('brand_commercial') && (
-                              <td className="py-2.5 px-3 text-right font-black text-[#D83B1C]">
-                                {creator.brand_commercial
-                                  ? `₹${Number(creator.brand_commercial).toLocaleString('en-IN')}`
-                                  : '—'}
-                              </td>
+                            {isColVisible('avg_reels_views') && creator.avg_reels_views > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-violet-50/80 border border-violet-200/60 text-[10px] font-bold text-violet-950">
+                                <span className="text-violet-500 font-extrabold uppercase text-[9px]">
+                                  Views
+                                </span>
+                                <span>{formatCompactNumber(creator.avg_reels_views)}</span>
+                              </span>
                             )}
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+
+                            {isColVisible('engagement_rate') && creator.engagement_rate > 0 && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/70 text-[10px] font-extrabold text-emerald-700">
+                                <span className="text-emerald-500 uppercase text-[9px]">Eng</span>
+                                <span>{creator.engagement_rate}%</span>
+                              </span>
+                            )}
+
+                            {isColVisible('city') && creator.city && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                                <MapPin className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                                <span className="truncate max-w-[90px]">{creator.city}</span>
+                              </span>
+                            )}
+
+                            {isColVisible('brand_commercial') &&
+                              Number(creator.brand_commercial) > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[10px] font-black text-[#D83B1C]">
+                                  ₹{Number(creator.brand_commercial).toLocaleString('en-IN')}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

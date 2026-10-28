@@ -656,168 +656,171 @@ export default function PublicRosterViewerPage({
             })}
           </div>
         ) : (
-          /* ─── 4B. COMPACT COLORFUL LIST / TABLE VIEW ─── */
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200">
-                    {canShortlist && !submittedSuccess && (
-                      <th className="py-3 px-3 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedIds.length === items.length && items.length > 0
-                          }
-                          onChange={selectAll}
-                          className="rounded border-slate-300 accent-[#F95738] cursor-pointer h-3.5 w-3.5"
-                        />
-                      </th>
-                    )}
-                    <th className="py-3 px-3">Creator</th>
-                    {visibleCols.includes('followers') && (
-                      <th className="py-3 px-3 text-right">Followers</th>
-                    )}
-                    {visibleCols.includes('avg_reels_views') && (
-                      <th className="py-3 px-3 text-right">Avg Views</th>
-                    )}
-                    {visibleCols.includes('engagement_rate') && (
-                      <th className="py-3 px-3 text-right hidden sm:table-cell">Eng %</th>
-                    )}
-                    {visibleCols.includes('city') && (
-                      <th className="py-3 px-3 hidden md:table-cell">Location</th>
-                    )}
-                    {visibleCols.includes('brand_commercial') && (
-                      <th className="py-3 px-3 text-right">Quote</th>
-                    )}
-                    <th className="py-3 px-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredItems.map((item, idx) => {
-                    const isSelected = selectedIds.includes(item.id)
-                    const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
-                    return (
-                      <tr
-                        key={item.id}
-                        onClick={() => {
-                          if (canShortlist && !submittedSuccess) toggleSelect(item.id)
-                        }}
-                        className={`transition-colors ${
-                          canShortlist && !submittedSuccess ? 'cursor-pointer' : ''
-                        } ${isSelected ? 'bg-emerald-50/50' : 'hover:bg-slate-50/80'}`}
-                      >
+          /* ─── 4B. ZERO-SCROLL MOBILE-FIRST COMPACT LIST VIEW ─── */
+          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+            {/* List Header Strip */}
+            <div className="bg-slate-50/90 border-b border-slate-200 px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
+              <div className="flex items-center gap-2.5">
+                {canShortlist && !submittedSuccess && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === items.length && items.length > 0}
+                    onChange={selectAll}
+                    className="rounded border-slate-300 accent-[#F95738] cursor-pointer h-4 w-4"
+                  />
+                )}
+                <span>Creator & Performance Metrics</span>
+              </div>
+              <span>Reel & Shortlist</span>
+            </div>
+
+            {/* Responsive Creator Rows — Zero Horizontal Scroll */}
+            <div className="divide-y divide-slate-100">
+              {filteredItems.map((item, idx) => {
+                const isSelected = selectedIds.includes(item.id)
+                const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      if (canShortlist && !submittedSuccess) toggleSelect(item.id)
+                    }}
+                    className={`p-3 sm:px-5 sm:py-3.5 transition-colors ${
+                      canShortlist && !submittedSuccess ? 'cursor-pointer' : ''
+                    } ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-emerald-50/60 via-emerald-50/20 to-white'
+                        : 'hover:bg-slate-50/80'
+                    }`}
+                  >
+                    {/* Top Line: Identity on Left + Action Buttons on Right */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {canShortlist && !submittedSuccess && (
-                          <td
-                            className="py-2.5 px-3 text-center"
+                          <div
                             onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 flex items-center"
                           >
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleSelect(item.id)}
-                              className="rounded border-slate-300 accent-emerald-600 cursor-pointer h-3.5 w-3.5"
+                              className="rounded border-slate-300 accent-emerald-600 cursor-pointer h-4 w-4"
                             />
-                          </td>
-                        )}
-
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div
-                              className={`h-8 w-8 rounded-xl bg-gradient-to-br ${gradientClass} text-white flex items-center justify-center font-bold text-xs shrink-0`}
-                            >
-                              {item.creator_name?.charAt(0)?.toUpperCase() || '#'}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 text-xs truncate max-w-[140px] sm:max-w-[200px]">
-                                {item.creator_name}
-                              </p>
-                              <a
-                                href={`https://instagram.com/${item.instagram_username}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[11px] text-pink-600 hover:underline inline-flex items-center gap-0.5 font-semibold"
-                              >
-                                <span>@{item.instagram_username}</span>
-                                <ArrowUpRight className="h-2.5 w-2.5" />
-                              </a>
-                            </div>
                           </div>
-                        </td>
-
-                        {visibleCols.includes('followers') && (
-                          <td className="py-2.5 px-3 text-right font-extrabold text-slate-900">
-                            {formatCompactNumber(item.followers)}
-                          </td>
                         )}
 
-                        {visibleCols.includes('avg_reels_views') && (
-                          <td className="py-2.5 px-3 text-right font-semibold text-violet-700">
-                            {item.avg_reels_views > 0
-                              ? formatCompactNumber(item.avg_reels_views)
-                              : '—'}
-                          </td>
-                        )}
-
-                        {visibleCols.includes('engagement_rate') && (
-                          <td className="py-2.5 px-3 text-right hidden sm:table-cell font-bold text-emerald-600">
-                            {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
-                          </td>
-                        )}
-
-                        {visibleCols.includes('city') && (
-                          <td className="py-2.5 px-3 hidden md:table-cell text-slate-600 text-[11px]">
-                            {item.city || 'Pan India'}
-                          </td>
-                        )}
-
-                        {visibleCols.includes('brand_commercial') && (
-                          <td className="py-2.5 px-3 text-right font-bold text-[#D83B1C]">
-                            {item.brand_commercial
-                              ? `₹${Number(item.brand_commercial).toLocaleString('en-IN')}`
-                              : '—'}
-                          </td>
-                        )}
-
-                        <td
-                          className="py-2.5 px-3 text-right"
-                          onClick={(e) => e.stopPropagation()}
+                        <div
+                          className={`h-9 w-9 rounded-xl bg-gradient-to-br ${gradientClass} text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs`}
                         >
-                          <div className="inline-flex items-center justify-end gap-1.5">
-                            {visibleCols.includes('sample_reel_url') &&
-                              item.sample_reel_url && (
-                                <a
-                                  href={item.sample_reel_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 text-[11px] font-bold inline-flex items-center gap-1"
-                                >
-                                  <Video className="h-3 w-3" />
-                                  <span className="hidden sm:inline">Reel</span>
-                                </a>
-                              )}
+                          {item.creator_name?.charAt(0)?.toUpperCase() || '#'}
+                        </div>
 
-                            {canShortlist && !submittedSuccess && (
-                              <button
-                                type="button"
-                                onClick={() => toggleSelect(item.id)}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                                  isSelected
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-[#F95738] hover:bg-[#E04728] text-white'
-                                }`}
-                              >
-                                {isSelected ? '✓ Shortlisted' : '+ Shortlist'}
-                              </button>
-                            )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">
+                              {item.creator_name}
+                            </p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
+                              #{idx + 1}
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          <a
+                            href={`https://instagram.com/${item.instagram_username}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[11px] text-pink-600 hover:underline inline-flex items-center gap-0.5 font-bold max-w-full"
+                          >
+                            <span className="truncate">@{item.instagram_username}</span>
+                            <ArrowUpRight className="h-2.5 w-2.5 shrink-0" />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Right Actions — Always visible without horizontal scroll */}
+                      <div
+                        className="flex items-center gap-1.5 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {visibleCols.includes('sample_reel_url') && item.sample_reel_url && (
+                          <a
+                            href={item.sample_reel_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-50 to-purple-50 hover:from-rose-100 hover:to-purple-100 text-pink-700 border border-pink-200/80 text-[11px] font-bold inline-flex items-center gap-1 transition-all"
+                          >
+                            <Video className="h-3 w-3 text-pink-600 shrink-0" />
+                            <span>Reel</span>
+                          </a>
+                        )}
+
+                        {canShortlist && !submittedSuccess && (
+                          <button
+                            type="button"
+                            onClick={() => toggleSelect(item.id)}
+                            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-extrabold cursor-pointer transition-all inline-flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs'
+                                : 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white shadow-xs'
+                            }`}
+                          >
+                            <Check className={`h-3 w-3 ${isSelected ? 'stroke-[3]' : ''}`} />
+                            <span>{isSelected ? 'Added' : 'Shortlist'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Second Line: Compact Colorful Metrics Strip (Fits 100% on Mobile) */}
+                    <div
+                      className={`mt-2 flex items-center gap-1.5 flex-wrap ${
+                        canShortlist && !submittedSuccess ? 'pl-6 sm:pl-16' : 'pl-11'
+                      }`}
+                    >
+                      {visibleCols.includes('followers') && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50/80 border border-indigo-200/60 text-[10px] font-bold text-indigo-950">
+                          <span className="text-indigo-500 font-extrabold uppercase text-[9px]">
+                            Followers
+                          </span>
+                          <span>{formatCompactNumber(item.followers)}</span>
+                        </span>
+                      )}
+
+                      {visibleCols.includes('avg_reels_views') && item.avg_reels_views > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-violet-50/80 border border-violet-200/60 text-[10px] font-bold text-violet-950">
+                          <span className="text-violet-500 font-extrabold uppercase text-[9px]">
+                            Views
+                          </span>
+                          <span>{formatCompactNumber(item.avg_reels_views)}</span>
+                        </span>
+                      )}
+
+                      {visibleCols.includes('engagement_rate') && item.engagement_rate > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/70 text-[10px] font-extrabold text-emerald-700">
+                          <span className="text-emerald-500 uppercase text-[9px]">Eng</span>
+                          <span>{item.engagement_rate}%</span>
+                        </span>
+                      )}
+
+                      {visibleCols.includes('city') && item.city && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">
+                          <MapPin className="h-2.5 w-2.5 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[90px]">{item.city}</span>
+                        </span>
+                      )}
+
+                      {visibleCols.includes('brand_commercial') &&
+                        Number(item.brand_commercial) > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[10px] font-black text-[#D83B1C]">
+                            ₹{Number(item.brand_commercial).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
