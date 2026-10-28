@@ -74,13 +74,6 @@ const NAV_SECTIONS: NavSection[] = [
         badge: 'Pitch',
         badgeVariant: 'amber',
       },
-      {
-        title: 'Brand Shortlists',
-        href: '/brand-admin/brand-shortlists',
-        icon: CheckSquare,
-        badge: 'Inbound',
-        badgeVariant: 'emerald',
-      },
     ],
   },
   {

@@ -48,6 +48,7 @@ export default function SampleListsDashboardPage() {
   const [brandName, setBrandName] = useState('')
   const [categoryNiche, setCategoryNiche] = useState('')
   const [description, setDescription] = useState('')
+  const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
   const [creating, setCreating] = useState(false)
 
   // Delete Modal
@@ -108,6 +109,7 @@ export default function SampleListsDashboardPage() {
           brand_name: brandName.trim(),
           category_niche: categoryNiche.trim() || undefined,
           description: description.trim() || undefined,
+          allow_brand_shortlisting: allowBrandShortlisting,
         }),
       })
 
@@ -524,9 +526,23 @@ export default function SampleListsDashboardPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-neutral-400 text-[10px]">
-                      <CheckSquare className="w-3 h-3 text-purple-400 shrink-0" />
-                      <span>{list.allow_brand_shortlisting ? 'Inbound Open' : 'Read-only'}</span>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      {Number(list.shortlisted_creators_count || 0) > 0 ? (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold flex items-center gap-1">
+                          <Check className="w-3 h-3 shrink-0" />
+                          {list.shortlisted_creators_count} Approved by Brand
+                        </span>
+                      ) : list.allow_brand_shortlisting ? (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold flex items-center gap-1">
+                          <CheckSquare className="w-3 h-3 shrink-0" />
+                          YES: Can Approve
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 text-neutral-400 border border-white/10 font-semibold flex items-center gap-1">
+                          <Eye className="w-3 h-3 shrink-0" />
+                          NO: Show Only
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -601,6 +617,7 @@ export default function SampleListsDashboardPage() {
                   <th className="py-2 px-3">Roster Title & Target Brand</th>
                   <th className="py-2 px-2.5">Category / Niche</th>
                   <th className="py-2 px-2.5 text-center">Creators</th>
+                  <th className="py-2 px-2.5 text-center">Brand Power & Approvals</th>
                   <th className="py-2 px-2.5 text-center">Client Views</th>
                   <th className="py-2 px-2.5">Created Date</th>
                   <th className="py-2 px-2.5">Client Link</th>
@@ -658,6 +675,26 @@ export default function SampleListsDashboardPage() {
                         <span className="font-bold text-white text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10">
                           {list.items_count || 0}
                         </span>
+                      </td>
+
+                      {/* Brand Power & Approvals */}
+                      <td className="py-2 px-2.5 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          {Number(list.shortlisted_creators_count || 0) > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold text-[10px]">
+                              <Check className="w-2.5 h-2.5" />
+                              {list.shortlisted_creators_count} Approved
+                            </span>
+                          ) : list.allow_brand_shortlisting ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/25 font-bold text-[10px]">
+                              YES • Can Approve
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 text-neutral-400 border border-white/10 font-semibold text-[10px]">
+                              NO • Show Only
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Client Views */}
@@ -817,6 +854,42 @@ export default function SampleListsDashboardPage() {
                     placeholder="e.g. Curated for Q4 Diwali Hamper Campaign with >50k followers"
                     className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50 resize-none"
                   />
+                </div>
+
+                {/* YES / NO Power Toggle */}
+                <div className="p-3 rounded-xl bg-[#0c1017] border border-white/10 space-y-2">
+                  <div>
+                    <p className="text-xs font-bold text-white">Allow Brand to Approve / Shortlist Creators?</p>
+                    <p className="text-[10px] text-neutral-400">
+                      Choose YES to give the brand selection power, or NO for a Show-Only catalog.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAllowBrandShortlisting(true)}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        allowBrandShortlisting
+                          ? 'bg-emerald-500 text-neutral-950 border-emerald-400 shadow-sm'
+                          : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      YES (Can Approve)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllowBrandShortlisting(false)}
+                      className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        !allowBrandShortlisting
+                          ? 'bg-amber-400 text-neutral-950 border-amber-300 shadow-sm'
+                          : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      NO (Show Only)
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">

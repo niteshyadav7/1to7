@@ -105,6 +105,11 @@ export interface SampleList {
   created_at: string
   updated_at: string
   items_count?: number
+  shortlisted_creators_count?: number
+  shortlisted_item_ids?: string[]
+  brand_feedback_notes?: string | null
+  latest_shortlist_at?: string | null
+  shortlist_status?: string | null
 }
 
 export interface SampleListItem {

@@ -92,6 +92,8 @@ export default function SampleListStudioPage({
   const [pitchNote, setPitchNote] = useState<string>('')
   const [publishing, setPublishing] = useState(false)
   const [allowBrandShortlisting, setAllowBrandShortlisting] = useState(true)
+  const [brandShortlist, setBrandShortlist] = useState<any>(null)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending'>('all')
 
   useEffect(() => {
     fetchRosterDetails()
@@ -531,13 +533,45 @@ export default function SampleListStudioPage({
     toast.success('Clean client presentation CSV downloaded!')
   }
 
-  const filteredItems = items.filter(
-    (i) =>
+  const handleQuickToggleShortlisting = async (nextVal: boolean) => {
+    if (!list) return
+    setAllowBrandShortlisting(nextVal)
+    setList({ ...list, allow_brand_shortlisting: nextVal })
+    try {
+      const res = await fetch(`/api/admin/sample-lists/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow_brand_shortlisting: nextVal }),
+      })
+      if (res.ok) {
+        toast.success(
+          nextVal
+            ? 'YES: Brand now has power to Approve / Shortlist creators!'
+            : 'NO: Switched to Show-Only Mode (Brand can only view creators)'
+        )
+      }
+    } catch {
+      toast.error('Failed to update brand permission')
+    }
+  }
+
+  const shortlistedIdsSet = new Set<string>(
+    Array.isArray(brandShortlist?.shortlisted_item_ids)
+      ? brandShortlist.shortlisted_item_ids.map(String)
+      : []
+  )
+
+  const filteredItems = items.filter((i) => {
+    const matchesSearch =
       i.creator_name.toLowerCase().includes(search.toLowerCase()) ||
       i.instagram_username.toLowerCase().includes(search.toLowerCase()) ||
       (i.city && i.city.toLowerCase().includes(search.toLowerCase())) ||
       (i.niche && i.niche.toLowerCase().includes(search.toLowerCase()))
-  )
+    if (!matchesSearch) return false
+    if (statusFilter === 'approved') return shortlistedIdsSet.has(String(i.id))
+    if (statusFilter === 'pending') return !shortlistedIdsSet.has(String(i.id))
+    return true
+  })
 
   if (loading) {
     return (
@@ -722,6 +756,111 @@ export default function SampleListStudioPage({
         </div>
       </div>
 
+      {/* Unified Brand Power Switch (YES/NO) & Brand Approval Filter Tabs */}
+      <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+              Brand Approval / Shortlist Power
+            </span>
+            <span className="text-xs text-slate-300">
+              Can <strong className="text-white">{list.brand_name}</strong> approve/shortlist creators or only view?
+            </span>
+          </div>
+          <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-white/10 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => handleQuickToggleShortlisting(true)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                allowBrandShortlisting
+                  ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ✓ YES (Can Approve / Shortlist)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickToggleShortlisting(false)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                !allowBrandShortlisting
+                  ? 'bg-amber-400 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              👁️ NO (Show Only)
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Tabs for Brand Decisions inside the same tab */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              statusFilter === 'all'
+                ? 'bg-white text-slate-950 border-white'
+                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-white'
+            }`}
+          >
+            All Creators ({items.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('approved')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+              statusFilter === 'approved'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-emerald-300'
+            }`}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Approved by Brand ({shortlistedIdsSet.size})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+              statusFilter === 'pending'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-slate-950 text-slate-400 border-white/10 hover:text-amber-300'
+            }`}
+          >
+            Pending / Unselected ({Math.max(0, items.length - shortlistedIdsSet.size)})
+          </button>
+        </div>
+      </div>
+
+      {/* Brand Submitted Feedback Banner (if brand submitted shortlist notes) */}
+      {brandShortlist && (
+        <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <div>
+              <span className="font-bold text-emerald-300">
+                Brand Response Received: {shortlistedIdsSet.size} of {items.length} creators approved/shortlisted
+              </span>
+              {brandShortlist.brand_poc_name && (
+                <span className="text-slate-400 ml-2">
+                  by <strong className="text-slate-200">{brandShortlist.brand_poc_name}</strong>
+                </span>
+              )}
+              {brandShortlist.brand_feedback_notes && (
+                <p className="text-[11px] text-emerald-200/90 mt-0.5 italic">
+                  &ldquo;{brandShortlist.brand_feedback_notes}&rdquo;
+                </p>
+              )}
+            </div>
+          </div>
+          {brandShortlist.submitted_at && (
+            <span className="text-[11px] text-slate-400 shrink-0">
+              Submitted {new Date(brandShortlist.submitted_at).toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Search Input */}
       <div className="relative">
         <Search className="h-4 w-4 text-slate-500 absolute left-3.5 top-3" />
@@ -752,13 +891,14 @@ export default function SampleListStudioPage({
                     <Lock className="h-2.5 w-2.5" /> Cost (₹)
                   </span>
                 </th>
+                <th className="py-2 px-2 text-center">Brand Status</th>
                 <th className="py-2 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-500 text-xs">
+                  <td colSpan={10} className="py-8 text-center text-slate-500 text-xs">
                     No creators in this sample roster matching your search.
                   </td>
                 </tr>
@@ -837,6 +977,28 @@ export default function SampleListStudioPage({
                     {/* Internal Cost (Secret) */}
                     <td className="py-1.5 px-2 text-right font-mono text-amber-300/90 text-[11px]">
                       {item.internal_cost ? `₹${item.internal_cost.toLocaleString()}` : '—'}
+                    </td>
+
+                    {/* Brand Decision Status */}
+                    <td className="py-1.5 px-2 text-center">
+                      {!allowBrandShortlisting ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-400 border border-white/10">
+                          👁️ Show Only
+                        </span>
+                      ) : shortlistedIdsSet.has(String(item.id)) ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
+                          <span>Approved</span>
+                        </span>
+                      ) : shortlistedIdsSet.size > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/80 text-slate-400 border border-white/5">
+                          Not Selected
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                          Pending
+                        </span>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -1431,31 +1593,42 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
                   />
                 </div>
 
-                {/* Brand Interaction Mode Toggle: Shortlist Mode vs Catalog View Mode */}
-                <div className="p-3.5 rounded-2xl bg-slate-950 border border-white/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer">
-                      <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                      <span>Allow Client Brand to Shortlist Creators</span>
-                    </label>
+                {/* Brand Interaction Mode Toggle: YES (Approve/Shortlist Power) vs NO (Show Only) */}
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-white/10 space-y-2.5">
+                  <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Give Brand Power to Approve / Shortlist Creators?</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setAllowBrandShortlisting(!allowBrandShortlisting)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        allowBrandShortlisting ? 'bg-amber-400' : 'bg-slate-700'
+                      onClick={() => setAllowBrandShortlisting(true)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        allowBrandShortlisting
+                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm'
+                          : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
                       }`}
                     >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-slate-950 shadow ring-0 transition duration-200 ease-in-out ${
-                          allowBrandShortlisting ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
+                      <Check className="h-3.5 w-3.5" />
+                      <span>YES (Approve / Shortlist)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAllowBrandShortlisting(false)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        !allowBrandShortlisting
+                          ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-sm'
+                          : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>NO (Show Only)</span>
                     </button>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
                     {allowBrandShortlisting
-                      ? '⭐ Interactive Mode: Brand POC can select checkboxes and submit their curated shortlist back to TheHype.'
-                      : '👁️ Catalog Mode: Brand POC can only view and explore creator profiles. Selection & shortlisting buttons will be hidden.'}
+                      ? '✓ YES: Brand gets checkboxes & Approve/Shortlist button. Their decisions appear directly in this roster table.'
+                      : '👁️ NO: Brand can only view creator profiles & reels. No approve/shortlist buttons will be shown.'}
                   </p>
                 </div>
 

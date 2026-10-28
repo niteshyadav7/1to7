@@ -24,10 +24,25 @@ export async function GET(
       [id]
     )
 
+    // Fetch latest brand shortlist / approval response for this roster
+    let latestShortlist: any = null
+    try {
+      const shortlistRes = await pool.query(
+        `SELECT * FROM public.brand_shortlists WHERE sample_list_id = $1 ORDER BY submitted_at DESC LIMIT 1;`,
+        [id]
+      )
+      if (shortlistRes.rows.length > 0) {
+        latestShortlist = shortlistRes.rows[0]
+      }
+    } catch {
+      // Non-fatal if table doesn't exist yet
+    }
+
     return NextResponse.json({
       success: true,
       list: listRes.rows[0],
       items: itemsRes.rows,
+      shortlist: latestShortlist,
     })
   } catch (error: any) {
     console.error('Error fetching sample roster details:', error)

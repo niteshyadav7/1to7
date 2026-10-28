@@ -82,6 +82,9 @@ CASE 71: Domain De-SaaSification: Pruning Phantom Multi-Tab Brand Dashboards int
 CASE 72: Unauthenticated Impersonation Drift & Phantom Hardcoded Mock Leaks (Real Brand View Cross-Portal Session Bridging & Prototype Fallback Elimination)
 CASE 73: Master-Detail Scalability Architecture: Replacing Horizontal Brand Pill Wrappers with Searchable Vertical Master-Detail Navigation (Scaling from Prototype to 100+ Enterprise Workspaces)
 CASE 74: Complete Multi-Tenant White-Labeling, Brand Domain Isolation & Zero-Leakage Architecture (TheHype Brand Portal & Subdomain Routing)
+CASE 75: 1-Click Virtual Brand Session Bridging & Removal of Redundant Intermediate Impersonation Screens
+CASE 76: Multi-Tenant Curation Gatekeeper: Dual-Mode Pitching & Verified Address Exposure
+CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
 
 
 
@@ -3220,6 +3223,51 @@ In an influencer marketing platform connecting agency operations with external e
 
 [INTERVIEW STAR TAKEAWAY]
 "Enterprise client portals cannot treat data exposure as binary. By combining granular administrative capability toggles (Interactive Shortlist vs. View-Only Showcase) with a two-tier logistics gatekeeper (Verified vs. Pending), we achieve seamless physical dispatch coordination without risking PII leakage or operational confusion."
+
+====================================================================================================
+CASE 77: Unifying Split Outbound/Inbound Sample Roster Tabs via PostgreSQL LATERAL JOIN & Live YES/NO Approval Power Toggle
+----------------------------------------------------------------------------------------------------
+Category: Database Query Optimization (LATERAL JOIN) / Enterprise Workflow Consolidation / State-Driven UI
+Interview Question:
+"Tell me about a time when two separate database tables caused a fragmented, multi-tab administrative UX, and how you unified outbound creation and inbound client responses into a single real-time workspace."
+
+[SITUATION]
+In the Brand Admin portal, the sample pitching workflow was split across two separate sidebar tabs:
+1. 'Sample Rosters' (`/brand-admin/sample-lists`): Where Key Account Managers (KAMs) created outbound creator pitch decks and sent them to brands.
+2. 'Brand Shortlists' (`/brand-admin/brand-shortlists`): Where KAMs had to navigate separately to check if a brand had approved or shortlisted creators from those rosters.
+Furthermore, operators wanted an explicit, unambiguous YES / NO switch when creating or viewing a roster to control whether the brand had the power to approve/shortlist creators (`YES: Can Approve`) or only view the catalog (`NO: Show Only`), and see each creator's approval status directly inside the same Sample Roster table.
+
+[ROOT CAUSE]
+The split UI mirrored the underlying relational schema (`public.sample_lists` for outbound rosters vs. `public.brand_shortlists` for inbound client submissions) rather than the operator's mental model. Because `GET /api/admin/sample-lists` and `GET /api/admin/sample-lists/[id]` queried only `public.sample_lists`, operators could not see inbound brand selections inside the roster studio.
+
+[SOLUTION & ARCHITECTURE]
+1. PostgreSQL `LEFT JOIN LATERAL` Aggregation:
+   - Updated `GET /api/admin/sample-lists` to join the latest inbound submission from `public.brand_shortlists` per roster in a single query:
+     ```sql
+     LEFT JOIN LATERAL (
+       SELECT
+         bs.id AS latest_shortlist_id,
+         bs.shortlisted_creators_count,
+         bs.shortlisted_item_ids,
+         bs.brand_feedback_notes,
+         bs.submitted_at AS latest_shortlist_at,
+         bs.status AS shortlist_status
+       FROM public.brand_shortlists bs
+       WHERE bs.sample_list_id = sl.id
+       ORDER BY bs.submitted_at DESC
+       LIMIT 1
+     ) bs_latest ON true
+     ```
+   - Updated `GET /api/admin/sample-lists/[id]` to return the latest `shortlist` record alongside `list` and `items`.
+2. Live YES / NO Brand Power Switch:
+   - Added a 1-click segmented switch (`YES: Can Approve / Shortlist` vs. `NO: Show Only`) in the Sample Roster studio header, the Create Roster modal, and the Send to Brand modal.
+   - Toggling immediately persists `allow_brand_shortlisting` via `PATCH /api/admin/sample-lists/[id]` and dynamically enables or hides selection checkboxes on both the Brand Portal (`/brand/sample-rosters`) and public share links (`/view/roster/[token]`).
+3. In-Place Brand Status Column & Filter Tabs:
+   - Removed the redundant `Brand Shortlists` sidebar tab and redirected `/brand-admin/brand-shortlists` to `/brand-admin/sample-lists`.
+   - Inside `/brand-admin/sample-lists/[id]`, added filter tabs (`All Creators`, `Approved by Brand`, `Pending / Unselected`) and a dedicated `Brand Status` column showing `Approved`, `Not Selected`, `Pending`, or `Show Only` per creator.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never force users to context-switch across multiple tabs just because your database normalizes outbound proposals and inbound responses into two tables. Using a `LEFT JOIN LATERAL` to project the latest client response directly onto the parent entity enables a single unified workspace where permissions (YES/NO approval power) and outcomes (Approved vs. Pending) live side by side."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

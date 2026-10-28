@@ -18,9 +18,21 @@ export async function GET(request: Request) {
     let queryText = `
       SELECT 
         sl.*,
-        COUNT(sli.id)::int as items_count
+        COUNT(sli.id)::int as items_count,
+        COALESCE(bs.shortlisted_creators_count, 0)::int as shortlisted_creators_count,
+        bs.shortlisted_item_ids as shortlisted_item_ids,
+        bs.brand_feedback_notes as brand_feedback_notes,
+        bs.submitted_at as latest_shortlist_at,
+        bs.status as shortlist_status
       FROM public.sample_lists sl
       LEFT JOIN public.sample_list_items sli ON sli.sample_list_id = sl.id
+      LEFT JOIN LATERAL (
+        SELECT shortlisted_creators_count, shortlisted_item_ids, brand_feedback_notes, submitted_at, status
+        FROM public.brand_shortlists
+        WHERE sample_list_id = sl.id
+        ORDER BY submitted_at DESC
+        LIMIT 1
+      ) bs ON true
       WHERE sl.status = $1
     `
     const params: any[] = [status]
@@ -31,7 +43,7 @@ export async function GET(request: Request) {
     }
 
     queryText += `
-      GROUP BY sl.id
+      GROUP BY sl.id, bs.shortlisted_creators_count, bs.shortlisted_item_ids, bs.brand_feedback_notes, bs.submitted_at, bs.status
       ORDER BY sl.created_at DESC
     `
 
