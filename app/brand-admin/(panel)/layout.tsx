@@ -23,6 +23,7 @@ import {
   Eye,
   BookmarkPlus,
   CheckSquare,
+  Truck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { BrandAdminPayload } from '@/types/brand-admin'
@@ -73,6 +74,13 @@ const NAV_SECTIONS: NavSection[] = [
         icon: BookmarkPlus,
         badge: 'Pitch',
         badgeVariant: 'amber',
+      },
+      {
+        title: 'Brand Dispatch',
+        href: '/brand-admin/brand-dispatch',
+        icon: Truck,
+        badge: 'Courier',
+        badgeVariant: 'emerald',
       },
     ],
   },

@@ -9,6 +9,7 @@ import {
   BookmarkPlus,
   Sparkles,
   ArrowUpRight,
+  Truck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandPayload } from '@/types/brand'
@@ -19,12 +20,12 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   const router = useRouter()
 
   const cachedUser = brandCache.get<BrandPayload>('brand_user')
-  const cachedCounts = brandCache.get<{ rosters: number; campaigns: number; pendingApps: number }>('brand_counts')
+  const cachedCounts = brandCache.get<{ rosters: number; campaigns: number; pendingApps: number; dispatchCount: number }>('brand_counts')
 
   const [brandUser, setBrandUser] = useState<BrandPayload | null>(cachedUser)
   const [loading, setLoading] = useState(!cachedUser)
-  const [counts, setCounts] = useState<{ rosters: number; campaigns: number; pendingApps: number }>(
-    cachedCounts || { rosters: 0, campaigns: 0, pendingApps: 0 }
+  const [counts, setCounts] = useState<{ rosters: number; campaigns: number; pendingApps: number; dispatchCount: number }>(
+    cachedCounts || { rosters: 0, campaigns: 0, pendingApps: 0, dispatchCount: 0 }
   )
 
   const fetchBrandSessionAndCounts = useCallback(
@@ -42,14 +43,16 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         }
 
         // Fetch lightweight tab counts in parallel
-        const [rostersRes, campaignsRes] = await Promise.allSettled([
+        const [rostersRes, campaignsRes, dispatchRes] = await Promise.allSettled([
           fetch('/api/brand/sample-rosters', { cache: 'no-store' }),
           fetch('/api/brand/campaigns', { cache: 'no-store' }),
+          fetch('/api/brand/dispatch', { cache: 'no-store' }),
         ])
 
         let rostersCount = counts.rosters
         let campaignsCount = counts.campaigns
         let pendingAppsCount = counts.pendingApps
+        let dispatchCount = counts.dispatchCount
 
         if (rostersRes.status === 'fulfilled' && rostersRes.value.ok) {
           const rData = await rostersRes.value.json()
@@ -69,11 +72,19 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
             brandCache.set('brand_campaigns', cData.campaigns)
           }
         }
+        if (dispatchRes.status === 'fulfilled' && dispatchRes.value.ok) {
+          const dData = await dispatchRes.value.json()
+          if (Array.isArray(dData.shipments)) {
+            dispatchCount = dData.shipments.length
+            brandCache.set('brand_dispatch_shipments', dData.shipments)
+          }
+        }
 
         const newCounts = {
           rosters: rostersCount,
           campaigns: campaignsCount,
           pendingApps: pendingAppsCount,
+          dispatchCount,
         }
         setCounts(newCounts)
         brandCache.set('brand_counts', newCounts)
@@ -83,7 +94,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
         if (!silent) setLoading(false)
       }
     },
-    [router, counts.rosters, counts.campaigns, counts.pendingApps]
+    [router, counts.rosters, counts.campaigns, counts.pendingApps, counts.dispatchCount]
   )
 
   useEffect(() => {
@@ -115,6 +126,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
   }
 
   const isSampleRostersActive = pathname.startsWith('/brand/sample-rosters')
+  const isDispatchActive = pathname.startsWith('/brand/dispatch')
   const isCampaignsActive =
     pathname.startsWith('/brand/campaigns') ||
     pathname === '/brand' ||
@@ -211,7 +223,7 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               <Link
                 href="/brand/campaigns"
                 prefetch={true}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
                   isCampaignsActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25 font-black'
                     : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
@@ -229,6 +241,30 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
                   }`}
                 >
                   {counts.pendingApps > 0 ? `${counts.pendingApps} New` : counts.campaigns}
+                </span>
+              </Link>
+
+              <Link
+                href="/brand/dispatch"
+                prefetch={true}
+                className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center gap-2 ${
+                  isDispatchActive
+                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25 font-black'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5 font-semibold'
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5 shrink-0" />
+                <span>Product Dispatch</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    isDispatchActive
+                      ? 'bg-black/25 text-white'
+                      : counts.dispatchCount > 0
+                        ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/40'
+                        : 'bg-white/10 text-slate-300'
+                  }`}
+                >
+                  {counts.dispatchCount}
                 </span>
               </Link>
             </nav>
@@ -266,25 +302,25 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
             </div>
           </div>
 
-          {/* Bottom Row (Mobile Only): Full-Width 1-Tap 2-Tab Segmented Switcher */}
+          {/* Bottom Row (Mobile Only): Full-Width 1-Tap 3-Tab Segmented Switcher */}
           <div className="md:hidden pb-2.5 pt-0.5">
             <nav
               aria-label="Mobile Workspace Switcher"
-              className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-slate-900/95 border border-white/10"
+              className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-slate-900/95 border border-white/10"
             >
               <Link
                 href="/brand/sample-rosters"
                 prefetch={true}
-                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1 ${
                   isSampleRostersActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
                 <BookmarkPlus className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Sample Pitch</span>
+                <span className="truncate">Pitch</span>
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black shrink-0 ${
+                  className={`px-1 py-0.2 rounded-full text-[9px] font-black shrink-0 ${
                     isSampleRostersActive
                       ? 'bg-black/25 text-white'
                       : 'bg-white/10 text-slate-300'
@@ -297,16 +333,16 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
               <Link
                 href="/brand/campaigns"
                 prefetch={true}
-                className={`py-2 px-2.5 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1.5 ${
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1 ${
                   isCampaignsActive
                     ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
                     : 'text-slate-300 hover:text-white'
                 }`}
               >
                 <Users className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Applications</span>
+                <span className="truncate">Campaigns</span>
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-black shrink-0 ${
+                  className={`px-1 py-0.2 rounded-full text-[9px] font-black shrink-0 ${
                     isCampaignsActive
                       ? 'bg-black/25 text-white'
                       : counts.pendingApps > 0
@@ -315,6 +351,30 @@ export default function BrandPanelLayout({ children }: { children: React.ReactNo
                   }`}
                 >
                   {counts.pendingApps > 0 ? counts.pendingApps : counts.campaigns}
+                </span>
+              </Link>
+
+              <Link
+                href="/brand/dispatch"
+                prefetch={true}
+                className={`py-2 px-1.5 rounded-xl text-[11px] font-extrabold transition-all duration-150 active:scale-95 flex items-center justify-center gap-1 ${
+                  isDispatchActive
+                    ? 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] text-white shadow-md shadow-[#F95738]/25'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Dispatch</span>
+                <span
+                  className={`px-1 py-0.2 rounded-full text-[9px] font-black shrink-0 ${
+                    isDispatchActive
+                      ? 'bg-black/25 text-white'
+                      : counts.dispatchCount > 0
+                        ? 'bg-emerald-500/30 text-emerald-300'
+                        : 'bg-white/10 text-slate-300'
+                  }`}
+                >
+                  {counts.dispatchCount}
                 </span>
               </Link>
             </nav>

@@ -92,6 +92,7 @@ CASE 81: Zero-Sidebar Mobile-First Brand Portal Architecture: Replacing Desktop 
 CASE 82: Ultra-Fast Client-Side SWR In-Memory Caching & 0ms Optimistic UI for Enterprise Brand Portals (Eliminating Waterfall Spinners, Zero-Latency 1-Click Decisions & Mobile Touch Ergonomics)
 CASE 83: Fixed-Layout Table Column Starvation & Action Button Overlap Remediation (Dynamic Table Mathematical Width Balancing & MinWidth Enforcement)
 CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
+CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
 
 
 
@@ -3496,6 +3497,7 @@ In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`)
 
 ====================================================================================================
 CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
+CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
 ====================================================================================================
 CATEGORIES: Multi-Portal State Machines / Business Logic Gatekeeper / Role-Based Workflow Orchestration / PostgreSQL + JSONB Dual Projection
 INTERVIEW QUESTION: "How do you architect a multi-portal B2B workflow where external clients sometimes actively approve records and other times only view catalogs passively, while ensuring external client clicks never prematurely trigger internal fulfillment pipelines without an internal account manager's final sign-off?"
@@ -3532,6 +3534,38 @@ However, Campaign Curation previously lacked:
 
 [INTERVIEW STAR TAKEAWAY]
 "Never allow external client portal actions to directly mutate internal fulfillment state machines (`applications.status = 'Approved'`). By introducing a two-stage gatekeeper (`brand_review_status = 'brand_approved'` with `is_finalized = false` -> internal KAM `final_approve` -> `applications.status = 'Approved'`) alongside a live `allow_brand_curation` capability toggle, we supported both passive view-only enterprise clients and active self-serve brands while guaranteeing 100% internal operational control before Influencer Ops fulfillment begins."
+
+====================================================================================================
+CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
+====================================================================================================
+CATEGORIES: Logistics Architecture / Multi-Tenant Portals / Dynamic Schema Projection / Two-Way Warehouse Sync / PII Gatekeeper
+INTERVIEW QUESTION: "How did you eliminate manual Google Sheet exports for barter/sample product dispatch across 30+ client brands while supporting campaign-specific custom fields (Size, Shade, SKU) and real-time courier AWB tracking?"
+
+[SITUATION]
+For barter and sample seeding campaigns, once creators were Final Approved (`status = 'Approved'`) and their shipping addresses were verified in Influencer Admin (`/admin/address-confirmation`), the agency operations team previously had to export static CSVs, copy-paste rows into brand-specific Google Sheets, manually strip internal margin/costing columns, and email or WhatsApp those links to each brand's warehouse team. Whenever a creator updated a phone number or address, or when a campaign had custom variant fields (e.g., `Shoe Size`, `Foundation Shade`, `Flavor`), the Google Sheet immediately went stale, causing failed courier deliveries and zero visibility into which samples had actually been shipped by the brand.
+
+[ROOT CAUSE]
+1. Disconnected Post-Approval Logistics Pipeline:
+   - While `/admin/address-confirmation` verified creator addresses (`form_data.address_confirmation.status = 'verified'`), Brand Admin had no dedicated Post-Approval Dispatch Desk to inspect readiness (`Final Approved` + `Address Verified` + `Custom Campaign Order Fields`) and publish a live courier manifest directly into the Brand Client Portal (`brand.thehype.in`).
+2. Static Column Schemas vs Dynamic Campaign Attributes:
+   - Different campaigns collect different custom fields in `applications.form_data.order_details` or `custom_answers` (such as `Size`, `Color`, `Variant`, `Skin Tone`). Hardcoding table columns failed to surface campaign-specific fulfillment attributes.
+3. Unidirectional Export Without Warehouse Feedback Loop:
+   - Static CSV/Google Sheet exports gave brands no way to mark individual or bulk creator shipments as `Shipped` or attach `Courier Partner` (Delhivery, BlueDart, Shiprocket) and `AWB Tracking Numbers` back into the platform.
+
+[SOLUTION & ARCHITECTURE]
+1. Brand Admin `Brand Dispatch` Desk (`/brand-admin/brand-dispatch` & `/api/brand-admin/brand-dispatch`):
+   - Automatically aggregates all Final Approved creators (`applications.status = 'Approved'` or `form_data.brand_curation.is_finalized = true`) across all barter/sample campaigns.
+   - Computes real-time dispatch readiness across 5 interactive KPI Watchtower cards: `Total Final Approved`, `Ready for Brand Dispatch` (Approved + Address Verified), `Address Pending / Missing`, `Live on Brand Portal`, and `Product Shipped / AWB`.
+   - Extracts dynamic custom fulfillment keys (`dynamicFieldKeys`) from `form_data.order_details` and `campaigns.order_form_fields` so KAMs can inspect and selectively expose custom variant attributes alongside standard courier fields.
+   - Built an in-place **Verify / Edit Shipping Address Modal** so Brand Admins can fix a missing pincode, landmark, or alternate phone number on the spot without switching portals.
+   - Built a **Publish Courier Manifest to Brand Portal Modal** (`action: 'release_to_brand'`) with a granular **Courier Column & Custom Field Privacy Shield**, allowing KAMs to choose exactly which fields (`Recipient Name`, `Street Address`, `Landmark`, `City/State/Pincode`, `Primary/Alt Phone`, `Variant/SKU`, plus dynamic custom fields) are projected to the brand.
+2. Brand Client Portal `Product Dispatch` Tab (`/brand/dispatch` & `/api/brand/dispatch`):
+   - Added a 3rd tab (`Product Dispatch`) with a live shipment counter badge to the Brand Client Portal's sticky segmented top navigation (`/brand/(panel)/layout.tsx`).
+   - Built a zero-latency, SWR-cached **Live Courier Manifest** supporting both a **Desktop Spreadsheet View** and **Mobile Warehouse Cards**, 1-tap **Copy Courier Label**, and **1-Click Courier CSV Export** (formatted for Shiprocket/Delhivery bulk upload).
+   - Implemented **Two-Way Warehouse Sync** (`POST /api/brand/dispatch` -> `action: 'mark_shipped'`): brand logistics teams can mark single or bulk creators as `✓ Shipped` with optional `Courier Partner`, `AWB Tracking Number`, and `Warehouse Notes`, which immediately reflects live on the Brand Admin Dispatch Desk.
+
+[INTERVIEW STAR TAKEAWAY]
+"To replace fragile, manual Google Sheet handoffs between agency operations and client warehouses, we architected a gated, two-way `Brand Dispatch` pipeline backed by JSONB state projection (`form_data.brand_dispatch`). PII (phone numbers and street addresses) remains strictly hidden during initial creator pitching and is only unlocked on the Brand Portal's `Product Dispatch` tab after both Final Approval and explicit Dispatch Release, complete with dynamic campaign variant columns and live warehouse AWB write-back."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
