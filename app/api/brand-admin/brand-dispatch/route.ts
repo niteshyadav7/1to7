@@ -4,7 +4,7 @@ import { getBrandAdminFromRequest } from '@/lib/brand-admin-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const DEFAULT_DISPATCH_COLUMNS = [
+const DEFAULT_DISPATCH_COLUMNS = [
   { key: 'recipient_name', label: 'Recipient Full Name', category: 'courier' },
   { key: 'phone', label: 'Primary Contact Phone', category: 'courier' },
   { key: 'alt_phone', label: 'Alternate Phone Number', category: 'courier' },
@@ -622,3 +622,4 @@ export async function POST(request: Request) {
     client.release()
   }
 }
+

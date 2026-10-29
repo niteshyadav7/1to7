@@ -23,7 +23,7 @@ import {
   Hash,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { brandCache } from '@/lib/brandCache'
+import { brandCache } from '@/lib/brand-cache'
 
 interface DispatchShipment {
   application_id: string
@@ -61,7 +61,7 @@ interface DispatchShipment {
 
 export default function BrandProductDispatchPage() {
   const cachedShipments = brandCache.get<DispatchShipment[]>('brand_dispatch_shipments') || []
-  const cachedBrandName = brandCache.get<any>('brand_auth_me')?.brand_name || ''
+  const cachedBrandName = brandCache.get<any>('brand_user')?.brand_name || ''
 
   const [shipments, setShipments] = useState<DispatchShipment[]>(cachedShipments)
   const [brandName, setBrandName] = useState<string>(cachedBrandName)
@@ -906,3 +906,4 @@ export default function BrandProductDispatchPage() {
     </div>
   )
 }
+
