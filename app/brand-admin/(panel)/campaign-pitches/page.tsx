@@ -1915,11 +1915,11 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
@@ -1929,53 +1929,55 @@ export default function CampaignPitchesCurationPage() {
                 </div>
                 <button
                   onClick={() => setShowColumnShieldModal(false)}
-                  className="text-neutral-400 hover:text-white p-1 cursor-pointer"
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer transition"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Strict Security Alert */}
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-start gap-2.5 text-xs text-amber-200">
-                <Lock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-amber-300">Zero-PII & Margin Guarantee:</span> Internal agency costs, creator phone numbers, emails, and home addresses are permanently excluded from brand client view.
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
+                {/* Strict Security Alert */}
+                <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-start gap-2.5 text-xs text-amber-200">
+                  <Lock className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-amber-300">Zero-PII & Margin Guarantee:</span> Internal agency costs, creator phone numbers, emails, and home addresses are permanently excluded from brand client view.
+                  </div>
+                </div>
+
+                {/* Column Options Grid */}
+                <div className="space-y-2">
+                  {CAMPAIGN_PITCH_COLUMNS.map((col) => {
+                    const isChecked = visibleColumns.includes(col.key)
+                    return (
+                      <label
+                        key={col.key}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                          isChecked ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-950/80 border-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-semibold text-white">{col.label}</div>
+                          <div className="text-[10px] text-neutral-400 capitalize">{col.category} field</div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setVisibleColumns(prev => [...prev, col.key])
+                            } else {
+                              setVisibleColumns(prev => prev.filter(k => k !== col.key))
+                            }
+                          }}
+                          className="rounded border-neutral-700 bg-slate-950 text-amber-500 focus:ring-amber-400 h-4 w-4"
+                        />
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
 
-              {/* Column Options Grid */}
-              <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {CAMPAIGN_PITCH_COLUMNS.map((col) => {
-                  const isChecked = visibleColumns.includes(col.key)
-                  return (
-                    <label
-                      key={col.key}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
-                        isChecked ? 'bg-amber-500/10 border-amber-500/40' : 'bg-slate-950/80 border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <div>
-                        <div className="text-xs font-semibold text-white">{col.label}</div>
-                        <div className="text-[10px] text-neutral-400 capitalize">{col.category} field</div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setVisibleColumns(prev => [...prev, col.key])
-                          } else {
-                            setVisibleColumns(prev => prev.filter(k => k !== col.key))
-                          }
-                        }}
-                        className="rounded border-neutral-700 bg-slate-950 text-amber-500 focus:ring-amber-400 h-4 w-4"
-                      />
-                    </label>
-                  )
-                })}
-              </div>
-
-              <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+              <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                 <Button
                   variant="outline"
                   onClick={() => setShowColumnShieldModal(false)}
@@ -2012,19 +2014,32 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Send className="h-5 w-5" />
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Send className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Send to Brand Client Portal</h3>
+                    <p className="text-xs text-neutral-400">Dispatch {selectedIds.length} creator profile{selectedIds.length > 1 ? 's' : ''}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Send to Brand Client Portal</h3>
-                  <p className="text-xs text-neutral-400">Dispatch {selectedIds.length} creator profile{selectedIds.length > 1 ? 's' : ''}</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isDispatching) setShowDispatchModal(false)
+                  }}
+                  disabled={isDispatching}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer transition disabled:opacity-50"
+                  aria-label="Close modal"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <div className="mt-4 space-y-4">
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
                 {/* 1. Target Client Brand Selection Dropdown */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -2233,7 +2248,7 @@ export default function CampaignPitchesCurationPage() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+              <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                 <Button
                   variant="outline"
                   onClick={() => setShowDispatchModal(false)}
@@ -2274,19 +2289,32 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-md w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
-                  <XCircle className="h-5 w-5" />
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                    <XCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Internal Curation Drop</h3>
+                    <p className="text-xs text-neutral-400">Drop {selectedIds.length} profile{selectedIds.length > 1 ? 's' : ''} before brand review</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Internal Curation Drop</h3>
-                  <p className="text-xs text-neutral-400">Drop {selectedIds.length} profile{selectedIds.length > 1 ? 's' : ''} before brand review</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isDropping) setShowInternalDropModal(false)
+                  }}
+                  disabled={isDropping}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 cursor-pointer transition disabled:opacity-50"
+                  aria-label="Close modal"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <div className="mt-4 space-y-4">
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
                 <p className="text-xs text-neutral-300 leading-relaxed">
                   These creators will be marked as <strong className="text-neutral-200">Internal Dropped</strong> and will <strong>never be shown</strong> to the client brand.
                 </p>
@@ -2321,7 +2349,7 @@ export default function CampaignPitchesCurationPage() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+              <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                 <Button
                   variant="outline"
                   onClick={() => setShowInternalDropModal(false)}
@@ -2687,9 +2715,9 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
                 <div className="flex items-center gap-2.5">
                   <div className="h-10 w-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                     <Truck className="h-5 w-5" />
@@ -2712,7 +2740,7 @@ export default function CampaignPitchesCurationPage() {
                 </button>
               </div>
 
-              <div className="mt-4 space-y-4 text-xs">
+              <div className="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
                 {/* Creator Header */}
                 <div className="p-3 bg-slate-950/80 border border-white/10 rounded-xl flex items-center justify-between">
                   <div>
@@ -2797,7 +2825,7 @@ export default function CampaignPitchesCurationPage() {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+              <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                 <Button
                   variant="outline"
                   onClick={() => setViewAddressItem(null)}
@@ -2830,13 +2858,13 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-white/12 text-white relative overflow-hidden cursor-default"
+              className="bg-slate-900 rounded-3xl max-w-xl w-full shadow-2xl border border-white/12 text-white relative cursor-default flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-hidden"
             >
               {/* Subtle ambient glow */}
               <div className="absolute -top-16 -right-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
               {/* Modal Header */}
-              <div className="flex items-start justify-between pb-4 border-b border-white/10 relative z-10">
+              <div className="flex items-start justify-between p-4 sm:p-5 border-b border-white/10 relative z-10 shrink-0 bg-slate-900">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-lg shadow-emerald-500/10">
                     <Share2 className="h-5 w-5" />
@@ -2862,7 +2890,7 @@ export default function CampaignPitchesCurationPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="mt-5 space-y-4 relative z-10 text-xs">
+              <div className="p-4 sm:p-5 space-y-4 relative z-10 text-xs overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
                 {/* Brand & Batch Selectors */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -3024,7 +3052,7 @@ export default function CampaignPitchesCurationPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="mt-5 flex items-center justify-between pt-4 border-t border-white/10 text-xs">
+              <div className="p-4 sm:p-5 flex items-center justify-between border-t border-white/10 relative z-10 shrink-0 bg-slate-900 text-xs">
                 <span className="text-[11px] text-slate-400">
                   Target: <strong className="text-white">{shareBrand}</strong> {shareBatch ? `(${shareBatch})` : ''}
                 </span>
@@ -3056,10 +3084,10 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-hidden"
             >
-              <form onSubmit={handleSaveCosting}>
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <form onSubmit={handleSaveCosting} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                       <IndianRupee className="h-5 w-5" />
@@ -3085,7 +3113,7 @@ export default function CampaignPitchesCurationPage() {
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-4">
+                <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
                   {/* Selected Creators preview */}
                   <div>
                     <div className="text-[10px] uppercase font-bold text-neutral-400 mb-1">
@@ -3211,7 +3239,7 @@ export default function CampaignPitchesCurationPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-white/10">
+                <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                   <Button
                     type="button"
                     variant="outline"

@@ -94,6 +94,7 @@ CASE 83: Fixed-Layout Table Column Starvation & Action Button Overlap Remediatio
 CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
 CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
 CASE 86: Phantom Zero-Creator View in Brand Review Studio: Silent Try-Catch Masking Non-Existent Column `u.profile_photo` & Inconsistent Status Count Predicates
+CASE 87: Unconstrained Modal Viewport Overflow & Action Button Clipping on Standard Height Displays (768px / Scaled Laptops) in Brand Admin Curation Desk
 
 
 
@@ -3599,6 +3600,45 @@ On the client Brand Portal (`/brand/campaigns`), the overview cards accurately d
 
 [INTERVIEW STAR TAKEAWAY]
 "Never let API routes swallow database query errors into default empty arrays while returning HTTP 200. When querying across relational tables, always defensively project column aliases (`COALESCE(u.instagram_profile_pic, '') AS profile_photo`) matching actual database schemas, and let query exceptions bubble up into proper HTTP 500 error responses so the client and monitoring systems can immediately detect schema drift."
+
+====================================================================================================
+CASE 87: Unconstrained Modal Viewport Overflow & Action Button Clipping on Standard Height Displays (768px / Scaled Laptops) in Brand Admin Curation Desk
+====================================================================================================
+CATEGORIES: Frontend Architecture / Responsive Design / Modal Usability / CSS Flexbox Scrolling / Mobile & Laptop Ergonomics
+INTERVIEW QUESTION: "How do you design and structure feature-rich enterprise modal dialogs containing multiple complex sub-forms so that they never overflow vertically or clip action buttons on small laptop screens or mobile devices?"
+
+[SITUATION]
+In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`), Key Account Managers (KAMs) dispatch curated creator batches to the Brand Client Portal using the "Send to Brand Client Portal" modal dialog (`showDispatchModal`). On standard business laptops (e.g., 1366x768 resolution or 1080p displays with Windows 125%/150% scaling, where browser viewports are often 600px - 700px high), the modal vertically overflowed off the top and bottom edges of the screen. Critical footer action buttons (`Cancel` and `Confirm & Publish to Brand Portal`) were pushed past the bottom edge of the window, leaving users unable to click them or complete the dispatch workflow without zooming out or inspecting the DOM.
+
+[ROOT CAUSE]
+1. Lack of Viewport Constraints & Unbounded Flexbox Growth:
+   - The modal card container was defined with `className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10"`.
+   - It lacked any maximum height bound (e.g., `max-h-[90vh]`) and lacked `overflow-hidden`.
+   - The modal was configured with a narrow `max-w-md` (448px), forcing labels, multi-line notes, and toggles to wrap extensively, driving natural content height beyond 850px across 7 form sections (Target Brand, Selected Creators preview, Column Shield badge, Logistics readiness, Commercial costing toggle, Brand curation power toggle, Curation notes textarea).
+2. Missing Decoupled Scrolling Architecture (Sticky Header / Scrollable Body / Sticky Footer):
+   - Without an inner scroll container (`overflow-y-auto`), the browser positioned the modal centered on the screen, pushing both the top header and bottom footer outside the viewport boundaries.
+
+[SOLUTION & ARCHITECTURE]
+1. Established Strict Viewport Bound & Decoupled 3-Tier Flexbox Modal Structure:
+   - Applied `className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"` to `showDispatchModal`.
+   - Wider `max-w-lg` (512px) allows form controls and toggle chips to breathe in horizontal rows rather than stacking into excessive vertical heights.
+2. Sticky Header with Explicit Close Anchor:
+   - Header is isolated with `shrink-0 p-4 sm:p-5 border-b border-white/10 bg-slate-900 flex items-center justify-between` and includes an explicit `X` dismiss button alongside the title and creator count badge.
+3. Isolated, Ergonomic Scrollable Body:
+   - The form body is enclosed in `flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4 scrollbar-thin scrollbar-thumb-white/20`, ensuring only the scrollable content moves while maintaining complete isolation from the outer window.
+4. Permanently Visible Sticky Action Footer:
+   - Footer buttons (`Cancel` and `Confirm & Publish`) are anchored in `shrink-0 p-4 sm:p-5 border-t border-white/10 bg-slate-900 flex items-center justify-end gap-2`, guaranteeing that action buttons are 100% visible and clickable on every screen resolution and scaling factor.
+5. Systematic Across-the-Board Audit of All Operational Modals:
+   - Audited and modernized companion modals across `campaign-pitches` and `brand-dispatch`:
+     * `showColumnShieldModal` (Brand Column Visibility Shield)
+     * `showInternalDropModal` (Internal Curation Drop Desk)
+     * `viewAddressItem` (Verified Courier Delivery Manifest Modal)
+     * `showShareModal` (1-Click WhatsApp Review Link Share Modal)
+     * `showCostingModal` (Creator Commercial Costing Quote Modal)
+     * `shipModal` (Mark Sample Shipped & AWB Tracking Modal)
+
+[INTERVIEW STAR TAKEAWAY]
+"Never rely on default intrinsic height for content-dense enterprise modals. Always engineer modals using a 3-tier flex column layout (`max-h-[90vh] flex flex-col overflow-hidden`): anchor the header with `shrink-0`, bind actions in a sticky `shrink-0` footer, and delegate scrolling exclusively to the intermediate body (`flex-1 overflow-y-auto overscroll-contain`). This guarantees that primary CTAs remain permanently visible and clickable across all client viewports and display scaling factors."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

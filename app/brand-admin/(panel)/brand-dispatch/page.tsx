@@ -1418,7 +1418,7 @@ export default function BrandDispatchDeskPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default"
+              className="bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/10 text-white cursor-default max-h-[90vh] overflow-y-auto"
             >
               <form onSubmit={handleConfirmMarkShipped}>
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
