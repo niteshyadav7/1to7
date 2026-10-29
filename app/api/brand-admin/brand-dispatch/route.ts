@@ -418,7 +418,7 @@ export async function POST(request: Request) {
     }
 
     const nowIso = new Date().toISOString()
-    const actorName = admin.full_name || admin.email
+    const actorName = admin.name || admin.email
 
     await client.query('BEGIN')
 
