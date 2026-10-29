@@ -88,6 +88,8 @@ export interface DynamicDataTableProps<T> {
   defaultCompact?: boolean
   className?: string
   headerActions?: React.ReactNode
+  hideSearch?: boolean
+  hideHeaderOnMobile?: boolean
 }
 
 export function DynamicDataTable<T extends Record<string, any>>({
@@ -116,6 +118,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
   tableLayout = 'auto',
   minTableWidth = 'min-w-full',
   defaultCompact = true,
+  hideSearch = false,
+  hideHeaderOnMobile = false,
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -304,7 +308,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
     <div className={`font-sans space-y-3 w-full max-w-full overflow-hidden ${className}`}>
       {/* ─── TABLE TOP BAR (Title + Global Actions) ─── */}
       {(title || headerActions) && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${hideHeaderOnMobile ? 'hidden sm:flex' : ''}`}>
           <div>
             {title && (
               <h2 className={`text-base sm:text-lg font-extrabold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -367,36 +371,38 @@ export function DynamicDataTable<T extends Record<string, any>>({
         )}
 
         {/* Right Controls: Search, Column Manager, Density, CSV Export */}
-        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap md:ml-auto">
+        <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap md:ml-auto w-full sm:w-auto justify-end">
           {/* Live Search */}
-          <div className="relative flex-1 sm:w-56 min-w-[160px]">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-500'}`} />
-            <Input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setCurrentPage(1)
-              }}
-              placeholder={searchPlaceholder}
-              className={`pl-7 pr-6 h-8 text-xs rounded-lg transition ${
-                isLight
-                  ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#febd1c]'
-                  : 'bg-[#0c1017] border-white/10 text-white placeholder:text-neutral-500 focus:border-amber-400'
-              }`}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
-                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-white'
+          {!hideSearch && (
+            <div className="relative flex-1 sm:w-56 min-w-[160px]">
+              <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-500'}`} />
+              <Input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setCurrentPage(1)
+                }}
+                placeholder={searchPlaceholder}
+                className={`pl-7 pr-6 h-8 text-xs rounded-lg transition ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#febd1c]'
+                    : 'bg-[#0c1017] border-white/10 text-white placeholder:text-neutral-500 focus:border-amber-400'
                 }`}
-              >
-                ✕
-              </button>
-            )}
-          </div>
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
+                    isLight ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-white'
+                  }`}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Density Toggle Button */}
           <button
@@ -553,7 +559,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
         isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-xl'
       }`}>
         <div className="overflow-x-auto w-full max-w-full scrollbar-none">
-          <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''} ${minTableWidth}`}>
+          <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''} ${minTableWidth && minTableWidth !== 'min-w-full' ? minTableWidth : tableLayout === 'fixed' ? 'min-w-[760px]' : 'min-w-full'}`}>
             {/* Header */}
             <thead className={`font-bold uppercase tracking-wider text-[10px] border-b select-none sticky top-0 z-10 ${
               isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'

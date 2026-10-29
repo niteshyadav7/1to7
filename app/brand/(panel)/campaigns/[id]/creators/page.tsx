@@ -353,7 +353,7 @@ export default function CreatorReviewStudioPage() {
             </div>
 
             {/* Status Filter Pills inside Header */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
+            <div className="w-full max-w-full overflow-x-auto scrollbar-none py-1 flex items-center gap-1.5 sm:gap-2">
               {[
                 { key: 'pending', label: 'Pending', count: counts.pending },
                 { key: 'approved', label: 'Approved', count: counts.approved },
@@ -703,6 +703,9 @@ export default function CreatorReviewStudioPage() {
           theme="light"
           keyField="application_id"
           tableLayout="fixed"
+          minTableWidth="min-w-[760px]"
+          hideSearch={true}
+          hideHeaderOnMobile={true}
           loading={loading}
           title="Campaign Creator Shortlists"
           subtitle={
@@ -712,7 +715,6 @@ export default function CreatorReviewStudioPage() {
           }
           data={filteredCreators}
           exportFilename={`thehype_campaign_${campaignId}_creators.csv`}
-          searchPlaceholder="Search creator handle, name, city, or sample..."
           bulkActions={
             allowBrandCuration
               ? [
@@ -741,6 +743,7 @@ export default function CreatorReviewStudioPage() {
               header: 'Creator & Instagram Profile',
               sortable: true,
               width: '26%',
+              minWidth: '180px',
               render: (c) => (
                 <div className="flex items-center gap-2 min-w-0 max-w-full">
                   <div className="w-7 h-7 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[#D83B1C] font-black flex items-center justify-center shrink-0 text-[10px]">
@@ -776,6 +779,7 @@ export default function CreatorReviewStudioPage() {
               sortable: true,
               align: 'center',
               width: '12%',
+              minWidth: '85px',
               render: (c) => (
                 <span className="font-bold text-slate-900 text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 whitespace-nowrap">
                   {formatFollowerCount(c.followers)}
@@ -787,6 +791,7 @@ export default function CreatorReviewStudioPage() {
               header: 'City',
               sortable: true,
               width: '12%',
+              minWidth: '95px',
               render: (c) => (
                 <div className="inline-flex items-center gap-1 text-slate-600 text-[10px] truncate max-w-full">
                   <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
@@ -797,7 +802,8 @@ export default function CreatorReviewStudioPage() {
             {
               key: 'selected_variant',
               header: 'Sample & Commercial Quote',
-              width: '20%',
+              width: '18%',
+              minWidth: '130px',
               render: (c) => (
                 <div className="flex flex-col gap-1 max-w-full">
                   <span className="text-[10px] font-semibold text-slate-700 truncate">
@@ -817,13 +823,14 @@ export default function CreatorReviewStudioPage() {
               align: 'center',
               sortable: true,
               width: '14%',
+              minWidth: '100px',
               render: (c) => {
                 const isApproved = c.brand_review_status === 'brand_approved'
                 const isRejected = c.brand_review_status === 'brand_rejected'
                 const isOnHold = c.brand_review_status === 'on_hold'
                 return (
                   <span
-                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap inline-flex items-center justify-center shrink-0 ${
                       isApproved
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
@@ -849,9 +856,10 @@ export default function CreatorReviewStudioPage() {
               header: allowBrandCuration ? '1-Click Decision' : 'Mode',
               align: 'right',
               sortable: false,
-              width: '16%',
+              width: '18%',
+              minWidth: '140px',
               render: (c) => (
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center justify-end gap-1.5 shrink-0 whitespace-nowrap">
                   {!allowBrandCuration ? (
                     <span className="text-slate-500 font-semibold text-[10px] inline-flex items-center gap-1">
                       <Eye className="w-3 h-3 text-indigo-500" />
@@ -864,7 +872,7 @@ export default function CreatorReviewStudioPage() {
                         type="button"
                         onClick={() => handleApprove(c.application_id, c.creator_name)}
                         disabled={actionInProgress === c.application_id}
-                        className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        className="h-6 px-2.5 rounded-md bg-[#F95738] hover:bg-[#E04728] text-white font-bold text-[10px] shadow-sm transition flex items-center gap-1 cursor-pointer disabled:opacity-50 shrink-0"
                       >
                         <Check className="w-3 h-3 stroke-[2.5]" />
                         <span>Approve</span>
@@ -876,7 +884,7 @@ export default function CreatorReviewStudioPage() {
                           setSelectedReason(rejectionReasons[0])
                           setCustomNote('')
                         }}
-                        className="h-6 w-6 rounded-md border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer"
+                        className="h-6 w-6 rounded-md border border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 flex items-center justify-center transition cursor-pointer shrink-0"
                       >
                         <X className="w-3 h-3" />
                       </button>
