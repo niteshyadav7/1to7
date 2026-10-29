@@ -115,7 +115,7 @@ export default function CreatorReviewStudioPage() {
   const counts = useMemo(() => {
     return {
       all: creators.length,
-      pending: creators.filter((c) => c.brand_review_status === 'pending_brand_review').length,
+      pending: creators.filter((c) => c.brand_review_status === 'pending_brand_review' || c.brand_review_status === 'on_hold').length,
       approved: creators.filter((c) => c.brand_review_status === 'brand_approved').length,
       rejected: creators.filter((c) => c.brand_review_status === 'brand_rejected').length,
     }

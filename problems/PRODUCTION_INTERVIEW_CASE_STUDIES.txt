@@ -93,6 +93,7 @@ CASE 82: Ultra-Fast Client-Side SWR In-Memory Caching & 0ms Optimistic UI for En
 CASE 83: Fixed-Layout Table Column Starvation & Action Button Overlap Remediation (Dynamic Table Mathematical Width Balancing & MinWidth Enforcement)
 CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
 CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
+CASE 86: Phantom Zero-Creator View in Brand Review Studio: Silent Try-Catch Masking Non-Existent Column `u.profile_photo` & Inconsistent Status Count Predicates
 
 
 
@@ -3498,6 +3499,7 @@ In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`)
 ====================================================================================================
 CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
 CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
+CASE 86: Phantom Zero-Creator View in Brand Review Studio: Silent Try-Catch Masking Non-Existent Column `u.profile_photo` & Inconsistent Status Count Predicates
 ====================================================================================================
 CATEGORIES: Multi-Portal State Machines / Business Logic Gatekeeper / Role-Based Workflow Orchestration / PostgreSQL + JSONB Dual Projection
 INTERVIEW QUESTION: "How do you architect a multi-portal B2B workflow where external clients sometimes actively approve records and other times only view catalogs passively, while ensuring external client clicks never prematurely trigger internal fulfillment pipelines without an internal account manager's final sign-off?"
@@ -3537,6 +3539,7 @@ However, Campaign Curation previously lacked:
 
 ====================================================================================================
 CASE 85: Dynamic Brand Dispatch & Live Courier Manifest Hub (Replacing Static Google Sheets with Two-Way Warehouse Sync, Dynamic Custom Fields & Live AWB Tracking)
+CASE 86: Phantom Zero-Creator View in Brand Review Studio: Silent Try-Catch Masking Non-Existent Column `u.profile_photo` & Inconsistent Status Count Predicates
 ====================================================================================================
 CATEGORIES: Logistics Architecture / Multi-Tenant Portals / Dynamic Schema Projection / Two-Way Warehouse Sync / PII Gatekeeper
 INTERVIEW QUESTION: "How did you eliminate manual Google Sheet exports for barter/sample product dispatch across 30+ client brands while supporting campaign-specific custom fields (Size, Shade, SKU) and real-time courier AWB tracking?"
@@ -3566,6 +3569,36 @@ For barter and sample seeding campaigns, once creators were Final Approved (`sta
 
 [INTERVIEW STAR TAKEAWAY]
 "To replace fragile, manual Google Sheet handoffs between agency operations and client warehouses, we architected a gated, two-way `Brand Dispatch` pipeline backed by JSONB state projection (`form_data.brand_dispatch`). PII (phone numbers and street addresses) remains strictly hidden during initial creator pitching and is only unlocked on the Brand Portal's `Product Dispatch` tab after both Final Approval and explicit Dispatch Release, complete with dynamic campaign variant columns and live warehouse AWB write-back."
+
+====================================================================================================
+CASE 86: Phantom Zero-Creator View in Brand Review Studio: Silent Try-Catch Masking Non-Existent Column `u.profile_photo` & Inconsistent Status Count Predicates
+====================================================================================================
+CATEGORIES: Database / PostgreSQL / API Silent Failure / Schema Drift / UI Synchronization
+INTERVIEW QUESTION: "Tell me about a bug where an overview screen showed correct counts (e.g., 6 awaiting review, 4 approved) but clicking into the detailed review page showed 0 records without throwing an error to the frontend."
+
+[SITUATION]
+On the client Brand Portal (`/brand/campaigns`), the overview cards accurately displayed "Pitched 10", "Awaiting 6", and "Approved 4" for campaign SuperSox (`CAM-MVS21RD4`), with a CTA button "Review 6 Pending Creators". However, upon navigating into `/brand/campaigns/[id]/creators`, the review studio showed "Pending (0)", "Approved (0)", "Rejected (0)", "All (0)", and an empty viewport "No creators found in this filter view", despite the database holding 10 valid pitched creator applications.
+
+[ROOT CAUSE]
+1. Schema Drift & Non-Existent Column in SQL Projections:
+   - In `app/api/brand/campaigns/[id]/creators/route.ts`, the SQL `SELECT` statement requested `u.profile_photo` from `public.users`.
+   - The `public.users` table schema stores social avatar URLs as `instagram_profile_pic`, not `profile_photo`. PostgreSQL consistently threw `column u.profile_photo does not exist`.
+2. Silent Try-Catch Swallowing Database Errors:
+   - The query was wrapped in an overly permissive `try / catch (dbErr) { console.warn(...) }` block that allowed execution to proceed with an empty array `rows = []`.
+   - The endpoint responded with HTTP `200 OK` and `{ success: true, creators: [], counts: { total: 0, pending: 0, approved: 0, rejected: 0 } }`. Because HTTP status was 200, the frontend treated this as a valid zero-data state and cached `[]` in `brandCache`.
+3. Inconsistent Frontend Status Predicates:
+   - In `app/brand/(panel)/campaigns/[id]/creators/page.tsx`, the tab count calculation for `pending` checked only `c.brand_review_status === 'pending_brand_review'`, whereas the tab filter logic also supported `|| c.brand_review_status === 'on_hold'`.
+
+[SOLUTION & ARCHITECTURE]
+1. Corrected Column Projection to Use Schema-Compliant Fallback:
+   - Updated the query in `app/api/brand/campaigns/[id]/creators/route.ts` from `u.profile_photo` to:
+     `COALESCE(u.instagram_profile_pic, '') as profile_photo, u.instagram_profile_pic`
+   - Verified against PostgreSQL: query immediately succeeded and returned all 10 pitched creator records.
+2. Synchronized Tab Count & Filter Predicates:
+   - Updated `app/brand/(panel)/campaigns/[id]/creators/page.tsx` tab count calculation so that `pending` accurately tallies both `'pending_brand_review'` and `'on_hold'`.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never let API routes swallow database query errors into default empty arrays while returning HTTP 200. When querying across relational tables, always defensively project column aliases (`COALESCE(u.instagram_profile_pic, '') AS profile_photo`) matching actual database schemas, and let query exceptions bubble up into proper HTTP 500 error responses so the client and monitoring systems can immediately detect schema drift."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
