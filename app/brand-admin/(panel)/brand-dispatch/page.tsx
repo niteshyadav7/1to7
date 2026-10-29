@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useRealtime } from '@/hooks/useRealtime'
 import { DynamicDataTable, ColumnDef } from '@/components/brand/DynamicDataTable'
+import { SearchableSelect, SearchableOption } from '@/components/brand/SearchableSelect'
 
 interface BrandDispatchItem {
   application_id: string
@@ -195,6 +196,66 @@ export default function BrandDispatchDeskPage() {
     if (selectedBrand === 'all') return campaigns
     return campaigns.filter((c) => c.brand_name.toLowerCase() === selectedBrand.toLowerCase())
   }, [campaigns, selectedBrand])
+
+  const brandOptions: SearchableOption[] = useMemo(() => {
+    const list: SearchableOption[] = [
+      {
+        value: 'all',
+        label: `All Brands (${brands.length + registeredBrands.length})`,
+        sublabel: 'Across all workspaces and campaigns',
+      },
+    ]
+
+    if (registeredBrands.length > 0) {
+      registeredBrands.forEach((b) => {
+        list.push({
+          value: b.name,
+          label: b.name,
+          sublabel: b.isActive ? 'Registered Client Workspace' : 'Client Workspace (Paused)',
+          group: '⭐ Registered Client Workspaces',
+          badge: 'Workspace',
+        })
+      })
+    }
+
+    brands.forEach((b) => {
+      list.push({
+        value: b,
+        label: b,
+        sublabel: 'Campaign Brand Tag',
+        group: '🏷️ Campaign Brands',
+        badge: 'Tag',
+      })
+    })
+
+    return list
+  }, [brands, registeredBrands])
+
+  const campaignOptions: SearchableOption[] = useMemo(() => {
+    const list: SearchableOption[] = [
+      {
+        value: 'all',
+        label: `All Campaigns (${filteredCampaignsList.length})`,
+        sublabel: selectedBrand !== 'all' ? `Filtered by ${selectedBrand}` : 'Across all brands',
+      },
+    ]
+
+    filteredCampaignsList.forEach((c) => {
+      const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
+      const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
+      const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
+      const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
+      list.push({
+        value: c.id,
+        label: `${brandText}${titleText}${codeText}`.trim() || c.campaign_code || 'Campaign',
+        sublabel: c.campaign_code ? `Code: ${c.campaign_code}` : undefined,
+        group: hasBrand ? c.brand_name : 'Campaigns',
+        badge: c.campaign_code || undefined,
+      })
+    })
+
+    return list
+  }, [filteredCampaignsList, selectedBrand])
 
   const selectedItems = useMemo(
     () => items.filter((i) => selectedIds.includes(i.application_id)),
@@ -909,63 +970,28 @@ export default function BrandDispatchDeskPage() {
       <div className="bg-slate-900/80 backdrop-blur-xl p-3.5 sm:p-4 rounded-2xl border border-white/10 shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
-            <div>
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                Client Brand
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => {
-                    setSelectedBrand(e.target.value)
-                    setSelectedCampaign('all')
-                  }}
-                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 cursor-pointer appearance-none"
-                >
-                  <option value="all">All Brands ({brands.length})</option>
-                  {registeredBrands.length > 0 && (
-                    <optgroup label="⭐ Registered Client Workspaces">
-                      {registeredBrands.map((b) => (
-                        <option key={`reg-${b.id}`} value={b.name}>
-                          ⭐ {b.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  <optgroup label="🏷️ Campaign Brands">
-                    {brands.map((b) => (
-                      <option key={`camp-${b}`} value={b}>
-                        🏷️ {b}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableSelect
+              label="Client Brand"
+              value={selectedBrand}
+              onChange={(val) => {
+                setSelectedBrand(val)
+                setSelectedCampaign('all')
+              }}
+              options={brandOptions}
+              icon={Building2}
+              placeholder="All Brands"
+              searchPlaceholder="Search brands..."
+            />
 
-            <div>
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                Campaign
-              </label>
-              <div className="relative">
-                <Target className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-                <select
-                  value={selectedCampaign}
-                  onChange={(e) => setSelectedCampaign(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 cursor-pointer appearance-none"
-                >
-                  <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
-                  {filteredCampaignsList.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.brand_name} — {c.title} ({c.campaign_code})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableSelect
+              label="Campaign"
+              value={selectedCampaign}
+              onChange={(val) => setSelectedCampaign(val)}
+              options={campaignOptions}
+              icon={Target}
+              placeholder="All Campaigns"
+              searchPlaceholder="Search campaigns..."
+            />
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-end">

@@ -54,6 +54,7 @@ import { Input } from '@/components/ui/input'
 import { GlobalLoader } from '@/components/ui/global-loader'
 import { useRealtime } from '@/hooks/useRealtime'
 import { DynamicDataTable, ColumnDef } from '@/components/brand/DynamicDataTable'
+import { SearchableSelect, SearchableOption } from '@/components/brand/SearchableSelect'
 import {
   CampaignPitchItem,
   CAMPAIGN_PITCH_COLUMNS,
@@ -405,6 +406,87 @@ export default function CampaignPitchesCurationPage() {
     if (selectedBrand === 'all') return campaigns
     return campaigns.filter(c => c.brand_name.toLowerCase() === selectedBrand.toLowerCase())
   }, [campaigns, selectedBrand])
+
+  // Searchable dropdown options for Brand, Campaign, Batch
+  const brandOptions: SearchableOption[] = useMemo(() => {
+    const list: SearchableOption[] = [
+      {
+        value: 'all',
+        label: `All Brands (${brands.length + registeredBrands.length})`,
+        sublabel: 'Across all workspaces and campaigns',
+      },
+    ]
+
+    if (registeredBrands.length > 0) {
+      registeredBrands.forEach((b) => {
+        list.push({
+          value: b.name,
+          label: b.name,
+          sublabel: b.isActive ? 'Registered Client Workspace' : 'Client Workspace (Paused)',
+          group: '⭐ Registered Client Workspaces (Brand Admin)',
+          badge: 'Workspace',
+        })
+      })
+    }
+
+    brands.forEach((b) => {
+      list.push({
+        value: b,
+        label: b,
+        sublabel: 'Influencer Campaign Tag',
+        group: '🏷️ Influencer Campaign Brands (Source Tags)',
+        badge: 'Tag',
+      })
+    })
+
+    return list
+  }, [brands, registeredBrands])
+
+  const campaignOptions: SearchableOption[] = useMemo(() => {
+    const list: SearchableOption[] = [
+      {
+        value: 'all',
+        label: `All Campaigns (${filteredCampaignsList.length})`,
+        sublabel: selectedBrand !== 'all' ? `Filtered by ${selectedBrand}` : 'Across all brands',
+      },
+    ]
+
+    filteredCampaignsList.forEach((c) => {
+      const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
+      const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
+      const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
+      const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
+      list.push({
+        value: c.id,
+        label: `${brandText}${titleText}${codeText}`.trim() || c.campaign_code || 'Campaign',
+        sublabel: c.campaign_code ? `Code: ${c.campaign_code}` : undefined,
+        group: hasBrand ? c.brand_name : 'Campaigns',
+        badge: c.campaign_code || undefined,
+      })
+    })
+
+    return list
+  }, [filteredCampaignsList, selectedBrand])
+
+  const batchOptions: SearchableOption[] = useMemo(() => {
+    const list: SearchableOption[] = [
+      {
+        value: 'all',
+        label: `All Batches (${batches.length})`,
+        sublabel: 'View all pitch batches',
+      },
+    ]
+
+    batches.forEach((b) => {
+      list.push({
+        value: b,
+        label: b,
+        sublabel: 'Curation Batch',
+      })
+    })
+
+    return list
+  }, [batches])
 
   // Checkbox toggle helpers
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1548,93 +1630,40 @@ export default function CampaignPitchesCurationPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
             {/* Brand Filter */}
-            <div>
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                Client Brand
-              </label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => {
-                    setSelectedBrand(e.target.value)
-                    setSelectedCampaign('all')
-                  }}
-                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none hover:border-white/20"
-                >
-                  <option value="all">
-                    All Brands ({brands.length + registeredBrands.length})
-                  </option>
-                  {registeredBrands.length > 0 && (
-                    <optgroup label="⭐ Registered Client Workspaces (Brand Admin)">
-                      {registeredBrands.map(b => (
-                        <option key={`reg-${b.id}`} value={b.name}>
-                          ⭐ {b.name} {!b.isActive ? '(Paused)' : ''} (Client Workspace)
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  <optgroup label="🏷️ Influencer Campaign Brands (Source Tags)">
-                    {brands.map(b => (
-                      <option key={`camp-${b}`} value={b}>
-                        🏷️ {b} (Campaign Tag)
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableSelect
+              label="Client Brand"
+              value={selectedBrand}
+              onChange={(val) => {
+                setSelectedBrand(val)
+                setSelectedCampaign('all')
+              }}
+              options={brandOptions}
+              icon={Building2}
+              placeholder="All Brands"
+              searchPlaceholder="Search 37+ brands..."
+            />
 
             {/* Campaign Filter */}
-            <div>
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                Campaign
-              </label>
-              <div className="relative">
-                <Target className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-                <select
-                  value={selectedCampaign}
-                  onChange={(e) => setSelectedCampaign(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
-                >
-                  <option value="all">All Campaigns ({filteredCampaignsList.length})</option>
-                  {filteredCampaignsList.map(c => {
-                    const hasBrand = Boolean(c.brand_name && c.brand_name !== 'Unassigned')
-                    const brandText = selectedBrand === 'all' && hasBrand ? `${c.brand_name} — ` : ''
-                    const titleText = c.title && c.title !== c.campaign_code ? `${c.title} ` : ''
-                    const codeText = c.campaign_code ? `(${c.campaign_code})` : ''
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {brandText}{titleText}{codeText}
-                      </option>
-                    )
-                  })}
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableSelect
+              label="Campaign"
+              value={selectedCampaign}
+              onChange={(val) => setSelectedCampaign(val)}
+              options={campaignOptions}
+              icon={Target}
+              placeholder="All Campaigns"
+              searchPlaceholder="Search 34+ campaigns..."
+            />
 
             {/* Batch Filter */}
-            <div>
-              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
-                Pitch Batch
-              </label>
-              <div className="relative">
-                <Layers className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-                <select
-                  value={selectedBatch}
-                  onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 text-xs font-semibold border border-white/10 rounded-xl bg-slate-950 text-white focus:outline-none focus:border-amber-400 transition-all cursor-pointer appearance-none truncate hover:border-white/20"
-                >
-                  <option value="all">All Batches ({batches.length})</option>
-                  {batches.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-neutral-500 pointer-events-none" />
-              </div>
-            </div>
+            <SearchableSelect
+              label="Pitch Batch"
+              value={selectedBatch}
+              onChange={(val) => setSelectedBatch(val)}
+              options={batchOptions}
+              icon={Layers}
+              placeholder="All Batches"
+              searchPlaceholder="Search pitch batches..."
+            />
           </div>
 
           <div className="flex items-center gap-2 self-start md:self-end">
