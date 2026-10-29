@@ -103,6 +103,9 @@ export default function CampaignPitchesCurationPage() {
     brand_approved: 0,
     brand_rejected: 0,
     internal_rejected: 0,
+    on_hold: 0,
+    needs_final_approval: 0,
+    final_approved: 0,
     costing: 0,
     total_commercial_value: 0,
   })
@@ -138,7 +141,12 @@ export default function CampaignPitchesCurationPage() {
   const [showDispatchModal, setShowDispatchModal] = useState(false)
   const [dispatchTargetBrand, setDispatchTargetBrand] = useState('')
   const [dispatchKamNotes, setDispatchKamNotes] = useState('')
+  const [dispatchAllowBrandApproval, setDispatchAllowBrandApproval] = useState(true)
   const [isDispatching, setIsDispatching] = useState(false)
+
+  // Curation & Final Approval Gatekeeper Loading State
+  const [curationActionLoading, setCurationActionLoading] = useState<string | null>(null)
+  const [togglingBrandPower, setTogglingBrandPower] = useState(false)
 
   const [showInternalDropModal, setShowInternalDropModal] = useState(false)
   const [internalDropReason, setInternalDropReason] = useState('Aesthetic mismatch with brand style')
@@ -494,6 +502,7 @@ export default function CampaignPitchesCurationPage() {
             : visibleColumns,
           kamNotes: dispatchKamNotes.trim() || undefined,
           includeCommercials: dispatchIncludeCommercials,
+          allowBrandApproval: dispatchAllowBrandApproval,
         }),
       })
 
@@ -517,6 +526,123 @@ export default function CampaignPitchesCurationPage() {
       setIsDispatching(false)
     }
   }
+
+  // Computed current Brand Curation Power for active scope
+  const activeScopeBrandPower = useMemo(() => {
+    if (applications.length === 0) return true
+    const withBrandApps = applications.filter(a => a.brand_review_status !== 'queued_for_brand_admin')
+    const pool = withBrandApps.length > 0 ? withBrandApps : applications
+    const viewOnlyCount = pool.filter(a => a.allow_brand_curation === false).length
+    return viewOnlyCount <= pool.length / 2
+  }, [applications])
+
+  // Action: Live Toggle Brand Curation Power (YES: Can Approve vs NO: View Only)
+  const handleToggleBrandPower = async (allowBrandCuration: boolean) => {
+    try {
+      setTogglingBrandPower(true)
+      const targetIds = selectedIds.length > 0 ? selectedIds : applications.map(a => a.application_id)
+      const res = await fetch('/api/brand-admin/campaign-pitches/curation-decision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_brand_power',
+          allowBrandCuration,
+          campaignId: selectedCampaign !== 'all' ? selectedCampaign : undefined,
+          brandName: selectedBrand !== 'all' ? selectedBrand : undefined,
+          applicationIds: targetIds,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setApplications(prev =>
+          prev.map(app =>
+            targetIds.includes(app.application_id)
+              ? { ...app, allow_brand_curation: allowBrandCuration }
+              : app
+          )
+        )
+        setDispatchAllowBrandApproval(allowBrandCuration)
+        toast.success(
+          allowBrandCuration
+            ? '✓ Brand Curation Power: YES (Client can approve/shortlist on portal)'
+            : '👁️ Brand Curation Power: NO (View-only catalog; our team manages approvals)'
+        )
+      } else {
+        toast.error(data.error || 'Failed to update brand curation power')
+      }
+    } catch {
+      toast.error('Network error updating brand curation power')
+    } finally {
+      setTogglingBrandPower(false)
+    }
+  }
+
+  // Action: Internal Curation Status & Final Approval Gatekeeper Sync to Influencer Admin
+  const handleCurationDecision = useCallback(
+    async (
+      action: 'final_approve' | 'final_reject' | 'on_hold' | 'unfinalize',
+      appIds: string | string[],
+      options?: { reason?: string; notes?: string }
+    ) => {
+      const ids = Array.isArray(appIds) ? appIds : [appIds]
+      if (ids.length === 0) {
+        toast.error('Please select at least one creator profile')
+        return
+      }
+
+      const loadingKey = ids.length === 1 ? `${action}:${ids[0]}` : `bulk:${action}`
+      try {
+        setCurationActionLoading(loadingKey)
+        const res = await fetch('/api/brand-admin/campaign-pitches/curation-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            applicationIds: ids,
+            reason: options?.reason,
+            notes: options?.notes,
+          }),
+        })
+        const data = await res.json()
+        if (res.ok) {
+          toast.success(data.message || 'Updated curation status')
+          setSelectedIds(prev => prev.filter(id => !ids.includes(id)))
+          await fetchData()
+          if (inspectItem && ids.includes(inspectItem.application_id)) {
+            setInspectItem(prev =>
+              prev
+                ? {
+                    ...prev,
+                    brand_review_status:
+                      action === 'final_approve'
+                        ? 'brand_approved'
+                        : action === 'final_reject'
+                          ? 'brand_rejected'
+                          : action === 'on_hold'
+                            ? 'on_hold'
+                            : prev.brand_review_status,
+                    is_curation_finalized: action === 'final_approve' || action === 'final_reject',
+                    curation_final_status:
+                      action === 'final_approve'
+                        ? 'Approved'
+                        : action === 'final_reject'
+                          ? 'Rejected'
+                          : null,
+                  }
+                : null
+            )
+          }
+        } else {
+          toast.error(data.error || 'Failed to update curation decision')
+        }
+      } catch {
+        toast.error('Network error updating curation decision')
+      } finally {
+        setCurationActionLoading(null)
+      }
+    },
+    [fetchData, inspectItem]
+  )
 
   // Action: Internal Drop
   const handleInternalDrop = async () => {
@@ -937,24 +1063,60 @@ export default function CampaignPitchesCurationPage() {
         sortable: true,
         wrap: false,
         width: '14%',
-        minWidth: '115px',
+        minWidth: '118px',
         accessor: (row) => row.brand_review_status,
         render: (item) => {
           const isApproved = item.brand_review_status === 'brand_approved'
           const isRejected = item.brand_review_status === 'brand_rejected'
+          const isOnHold = item.brand_review_status === 'on_hold'
           const isInternalDropped = item.brand_review_status === 'internal_rejected'
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
+          const isFinalized = Boolean(item.is_curation_finalized)
 
-          if (isApproved) {
+          if (isApproved && isFinalized) {
             return (
               <div className="min-w-0 w-full space-y-0.5 pr-1">
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 truncate max-w-full block">
-                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400 shrink-0 inline mr-0.5" />
-                  <span className="truncate">Shortlisted</span>
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 truncate max-w-full block shadow-sm shadow-emerald-500/10">
+                  <CheckCheck className="h-2.5 w-2.5 text-emerald-400 shrink-0 inline mr-0.5" />
+                  <span className="truncate">Final Approved</span>
+                </span>
+                <div
+                  className="text-[7.5px] text-emerald-400/90 font-semibold truncate block"
+                  title={`Synced to Influencer Ops • By ${item.curation_finalized_by || item.brand_reviewed_by || 'Brand Ops'}`}
+                >
+                  ✓ Synced to Ops
+                </div>
+              </div>
+            )
+          }
+
+          if (isApproved && !isFinalized) {
+            return (
+              <div className="min-w-0 w-full space-y-0.5 pr-1">
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 truncate max-w-full block shadow-sm shadow-amber-500/10">
+                  <CheckCircle2 className="h-2.5 w-2.5 text-amber-400 animate-pulse shrink-0 inline mr-0.5" />
+                  <span className="truncate">Brand Shortlisted</span>
+                </span>
+                <div
+                  className="text-[7.5px] text-amber-300/90 font-semibold truncate block"
+                  title="Brand approved on portal — click ✓ Final to sync to Influencer Admin"
+                >
+                  ⚡ Needs Final Sign-Off
+                </div>
+              </div>
+            )
+          }
+
+          if (isOnHold) {
+            return (
+              <div className="min-w-0 w-full space-y-0.5 pr-1">
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-300 border border-orange-500/30 truncate max-w-full block">
+                  <Clock className="h-2.5 w-2.5 text-orange-400 shrink-0 inline mr-0.5" />
+                  <span className="truncate">On Hold / Backup</span>
                 </span>
                 {item.brand_reviewed_by && (
-                  <div className="text-[8px] text-emerald-400/80 truncate block" title={`By ${item.brand_reviewed_by}`}>
-                    By {item.brand_reviewed_by}
+                  <div className="text-[7.5px] text-orange-300/80 truncate block" title={`By ${item.brand_reviewed_by}`}>
+                    By: {formatAdminSender(item.brand_reviewed_by)}
                   </div>
                 )}
               </div>
@@ -964,18 +1126,16 @@ export default function CampaignPitchesCurationPage() {
           if (isRejected) {
             return (
               <div className="min-w-0 w-full space-y-0.5 pr-1">
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 truncate max-w-full block">
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-semibold px-1.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 truncate max-w-full block">
                   <XCircle className="h-2.5 w-2.5 text-rose-400 shrink-0 inline mr-0.5" />
-                  <span className="truncate">Rejected</span>
+                  <span className="truncate">{isFinalized ? 'Final Rejected' : 'Brand Rejected'}</span>
                 </span>
-                {item.brand_rejection_reason && (
-                  <div
-                    className="text-[8px] text-rose-400/80 truncate block"
-                    title={item.brand_rejection_reason}
-                  >
-                    {item.brand_rejection_reason}
-                  </div>
-                )}
+                <div
+                  className="text-[7.5px] text-rose-400/80 truncate block"
+                  title={item.brand_rejection_reason || (isFinalized ? 'Synced to Influencer Ops' : 'Awaiting Final')}
+                >
+                  {isFinalized ? '✕ Synced to Ops' : (item.brand_rejection_reason || 'Needs Final')}
+                </div>
               </div>
             )
           }
@@ -983,7 +1143,7 @@ export default function CampaignPitchesCurationPage() {
           if (isInternalDropped) {
             return (
               <div className="min-w-0 w-full pr-1">
-                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 truncate max-w-full block">
+                <span className="inline-flex items-center gap-0.5 text-[8.5px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 truncate max-w-full block">
                   <X className="h-2.5 w-2.5 text-neutral-500 shrink-0 inline mr-0.5" />
                   <span className="truncate">Dropped</span>
                 </span>
@@ -1014,7 +1174,9 @@ export default function CampaignPitchesCurationPage() {
             <div className="min-w-0 w-full space-y-0.5 pr-1">
               <span className="inline-flex items-center gap-0.5 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm shadow-purple-500/10 truncate max-w-full block">
                 <Send className="h-2.5 w-2.5 text-purple-400 shrink-0 inline mr-0.5" />
-                <span className="truncate">With Brand</span>
+                <span className="truncate">
+                  {item.allow_brand_curation === false ? 'With Brand (View)' : 'With Brand'}
+                </span>
               </span>
               {item.brand_pitched_by && (
                 <div
@@ -1035,30 +1197,31 @@ export default function CampaignPitchesCurationPage() {
         hideable: false,
         align: 'right',
         wrap: false,
-        width: '9%',
-        minWidth: '80px',
+        width: '12%',
+        minWidth: '108px',
         render: (item) => {
           const isQueued = item.brand_review_status === 'queued_for_brand_admin'
-          return (
-            <div className="flex items-center justify-end gap-1 shrink-0 whitespace-nowrap min-w-[70px]" onClick={(e) => e.stopPropagation()}>
-              {!isQueued && (
-                <button
-                  type="button"
-                  onClick={() => setInspectItem(item)}
-                  className="h-5.5 px-1.5 rounded bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 text-[9px] font-medium flex items-center gap-0.5 transition-all cursor-pointer shrink-0"
-                  title="Inspect details"
-                >
-                  <Eye className="h-2 w-2" />
-                  <span>View</span>
-                </button>
-              )}
+          const isApproved = item.brand_review_status === 'brand_approved'
+          const isRejected = item.brand_review_status === 'brand_rejected'
+          const isOnHold = item.brand_review_status === 'on_hold'
+          const isFinalized = Boolean(item.is_curation_finalized)
+          const isRowBusy =
+            curationActionLoading === `final_approve:${item.application_id}` ||
+            curationActionLoading === `final_reject:${item.application_id}` ||
+            curationActionLoading === `on_hold:${item.application_id}` ||
+            curationActionLoading === `unfinalize:${item.application_id}`
 
-              {isQueued && (
+          return (
+            <div
+              className="flex items-center justify-end gap-1 shrink-0 whitespace-nowrap"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isQueued ? (
                 <>
                   <button
                     type="button"
                     onClick={() => handleOpenDispatchModal(item.application_id)}
-                    className="h-5.5 px-2 rounded text-[9px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-amber-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="h-5.5 px-1.5 rounded text-[8.5px] font-bold bg-[#febd1c] hover:bg-amber-300 text-neutral-950 flex items-center gap-0.5 cursor-pointer shadow-xs transition-all shrink-0"
                     title="Send to Brand Client Portal"
                   >
                     <Send className="h-2 w-2" />
@@ -1067,15 +1230,114 @@ export default function CampaignPitchesCurationPage() {
 
                   <button
                     type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('final_approve', item.application_id)}
+                    className="h-5.5 px-1.5 rounded text-[8.5px] font-bold bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/35 flex items-center gap-0.5 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Direct Final Approve & Sync to Influencer Admin"
+                  >
+                    <Check className="h-2.5 w-2.5 stroke-[2.5]" />
+                    <span>Approve</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => {
                       setSelectedIds([item.application_id])
                       setShowInternalDropModal(true)
                     }}
-                    className="h-5.5 w-5.5 rounded bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0"
-                    title="Drop creator"
+                    className="h-5.5 w-5 rounded bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 border border-white/5 hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                    title="Internal Drop (Do not send)"
                   >
                     <X className="h-2.5 w-2.5" />
                   </button>
+                </>
+              ) : isApproved && !isFinalized ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('final_approve', item.application_id)}
+                    className="h-5.5 px-1.5 rounded text-[8.5px] font-black bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center gap-0.5 cursor-pointer shadow-sm shadow-emerald-500/25 transition-all shrink-0 disabled:opacity-50"
+                    title="Final Approve & Sync Status to Influencer Admin Panel"
+                  >
+                    <CheckCheck className="h-2.5 w-2.5 stroke-[2.5]" />
+                    <span>Final ✓</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('on_hold', item.application_id)}
+                    className="h-5.5 w-5 rounded bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Put On Hold / Backup"
+                  >
+                    <Clock className="h-2.5 w-2.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('final_reject', item.application_id)}
+                    className="h-5.5 w-5 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Final Reject & Sync to Influencer Admin"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </>
+              ) : isApproved && isFinalized ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('on_hold', item.application_id)}
+                    className="h-5.5 px-1.5 rounded bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/25 text-[8px] font-bold flex items-center gap-0.5 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Move to On Hold"
+                  >
+                    <Clock className="h-2 w-2" />
+                    <span>Hold</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('unfinalize', item.application_id)}
+                    className="h-5.5 w-5 rounded bg-white/5 hover:bg-white/15 text-neutral-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Unlock / Revert Final Sync"
+                  >
+                    <RotateCcw className="h-2.5 w-2.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={isRowBusy}
+                    onClick={() => handleCurationDecision('final_approve', item.application_id)}
+                    className="h-5.5 px-1.5 rounded text-[8.5px] font-bold bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 border border-emerald-500/35 flex items-center gap-0.5 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Final Approve & Sync to Influencer Admin"
+                  >
+                    <Check className="h-2.5 w-2.5 stroke-[2.5]" />
+                    <span>Approve</span>
+                  </button>
+                  {!isOnHold && (
+                    <button
+                      type="button"
+                      disabled={isRowBusy}
+                      onClick={() => handleCurationDecision('on_hold', item.application_id)}
+                      className="h-5.5 w-5 rounded bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                      title="Mark On Hold / Backup"
+                    >
+                      <Clock className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                  {(!isRejected || !isFinalized) && (
+                    <button
+                      type="button"
+                      disabled={isRowBusy}
+                      onClick={() => handleCurationDecision('final_reject', item.application_id)}
+                      className="h-5.5 w-5 rounded bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                      title="Final Reject & Sync to Influencer Admin"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -1083,7 +1345,7 @@ export default function CampaignPitchesCurationPage() {
         },
       },
     ],
-    []
+    [curationActionLoading, handleCurationDecision]
   )
 
   return (
@@ -1103,7 +1365,7 @@ export default function CampaignPitchesCurationPage() {
             Campaign Curation & Pitch Desk
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-1 max-w-3xl leading-relaxed">
-            Review applicant creators forwarded from Influencer Ops, verify barter delivery addresses, configure client column privacy, and dispatch curated rosters to Brand Portals in real time.
+            Review applicant creators forwarded from Influencer Ops, verify barter delivery addresses, configure client column privacy, and give Final Sign-Off before syncing status to Influencer Admin.
           </p>
         </div>
 
@@ -1148,7 +1410,7 @@ export default function CampaignPitchesCurationPage() {
       </div>
 
       {/* 2. Metric KPI Cards (Interactive Command Deck) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
         {[
           {
             id: 'all',
@@ -1160,19 +1422,6 @@ export default function CampaignPitchesCurationPage() {
             activeClass: 'bg-gradient-to-b from-amber-500/15 via-slate-900/90 to-slate-900 border-amber-500/60 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400/50',
             iconBg: 'bg-amber-500/10 text-amber-400',
             topLine: 'via-amber-400'
-          },
-          {
-            id: 'costing',
-            label: 'Costing (Paid)',
-            count: counts.costing || 0,
-            subtext: counts.total_commercial_value > 0
-              ? `₹${Number(counts.total_commercial_value).toLocaleString('en-IN')} quote`
-              : 'Commercial quotes',
-            icon: IndianRupee,
-            accentText: 'text-emerald-400',
-            activeClass: 'bg-gradient-to-b from-emerald-500/20 via-slate-900/90 to-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/15 ring-1 ring-emerald-400/50',
-            iconBg: 'bg-emerald-500/10 text-emerald-400',
-            topLine: 'via-emerald-400',
           },
           {
             id: 'queued_for_brand_admin',
@@ -1190,7 +1439,7 @@ export default function CampaignPitchesCurationPage() {
             id: 'pending_brand_review',
             label: 'With Brand',
             count: counts.pending_brand_review,
-            subtext: 'Awaiting client review',
+            subtext: 'On client portal',
             icon: Send,
             accentText: 'text-purple-400',
             activeClass: 'bg-gradient-to-b from-purple-500/15 via-slate-900/90 to-slate-900 border-purple-500/60 shadow-lg shadow-purple-500/10 ring-1 ring-purple-400/50',
@@ -1198,21 +1447,44 @@ export default function CampaignPitchesCurationPage() {
             topLine: 'via-purple-400'
           },
           {
-            id: 'brand_approved',
-            label: 'Shortlisted',
-            count: counts.brand_approved,
-            subtext: 'Approved by client',
-            icon: CheckCircle2,
+            id: 'needs_final_approval',
+            label: 'Needs Final Sign-Off',
+            count: counts.needs_final_approval || 0,
+            subtext: 'Brand shortlisted',
+            icon: Sparkles,
+            accentText: 'text-amber-300',
+            activeClass: 'bg-gradient-to-b from-amber-500/20 via-slate-900/90 to-slate-900 border-amber-400/70 shadow-lg shadow-amber-500/15 ring-1 ring-amber-400/60',
+            iconBg: 'bg-amber-500/15 text-amber-300',
+            topLine: 'via-amber-300',
+            pulse: (counts.needs_final_approval || 0) > 0
+          },
+          {
+            id: 'final_approved',
+            label: 'Final Approved',
+            count: counts.final_approved || 0,
+            subtext: 'Synced to Influencer Ops',
+            icon: CheckCheck,
             accentText: 'text-emerald-400',
             activeClass: 'bg-gradient-to-b from-emerald-500/15 via-slate-900/90 to-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400/50',
             iconBg: 'bg-emerald-500/10 text-emerald-400',
             topLine: 'via-emerald-400'
           },
           {
+            id: 'on_hold',
+            label: 'On Hold / Backup',
+            count: counts.on_hold || 0,
+            subtext: 'Waitlisted profiles',
+            icon: Clock,
+            accentText: 'text-orange-400',
+            activeClass: 'bg-gradient-to-b from-orange-500/15 via-slate-900/90 to-slate-900 border-orange-500/60 shadow-lg shadow-orange-500/10 ring-1 ring-orange-400/50',
+            iconBg: 'bg-orange-500/10 text-orange-400',
+            topLine: 'via-orange-400'
+          },
+          {
             id: 'brand_rejected',
             label: 'Rejected',
             count: counts.brand_rejected,
-            subtext: 'Client rejected',
+            subtext: 'Not selected',
             icon: XCircle,
             accentText: 'text-rose-400',
             activeClass: 'bg-gradient-to-b from-rose-500/15 via-slate-900/90 to-slate-900 border-rose-500/60 shadow-lg shadow-rose-500/10 ring-1 ring-rose-400/50',
@@ -1220,16 +1492,18 @@ export default function CampaignPitchesCurationPage() {
             topLine: 'via-rose-400'
           },
           {
-            id: 'internal_rejected',
-            label: 'Internal Dropped',
-            count: counts.internal_rejected,
-            subtext: 'Dropped before brand',
-            icon: X,
-            accentText: 'text-neutral-400',
-            activeClass: 'bg-gradient-to-b from-neutral-800/40 via-slate-900/90 to-slate-900 border-neutral-600 shadow-lg ring-1 ring-neutral-500/50',
-            iconBg: 'bg-white/5 text-neutral-400',
-            topLine: 'via-neutral-500'
-          }
+            id: 'costing',
+            label: 'Costing (Paid)',
+            count: counts.costing || 0,
+            subtext: counts.total_commercial_value > 0
+              ? `₹${Number(counts.total_commercial_value).toLocaleString('en-IN')} quote`
+              : 'Commercial quotes',
+            icon: IndianRupee,
+            accentText: 'text-emerald-400',
+            activeClass: 'bg-gradient-to-b from-emerald-500/20 via-slate-900/90 to-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/15 ring-1 ring-emerald-400/50',
+            iconBg: 'bg-emerald-500/10 text-emerald-400',
+            topLine: 'via-emerald-400',
+          },
         ].map((kpi) => {
           const Icon = kpi.icon
           const isActive = selectedStatus === kpi.id
@@ -1237,7 +1511,7 @@ export default function CampaignPitchesCurationPage() {
             <div
               key={kpi.id}
               onClick={() => setSelectedStatus(kpi.id)}
-              className={`cursor-pointer p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 select-none ${
+              className={`cursor-pointer p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 select-none ${
                 isActive
                   ? kpi.activeClass
                   : 'bg-slate-900/70 backdrop-blur-xl border-white/[0.08] hover:border-white/20 hover:bg-slate-900/90'
@@ -1245,25 +1519,25 @@ export default function CampaignPitchesCurationPage() {
             >
               <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent ${kpi.topLine} to-transparent opacity-80`} />
               <div className="flex items-center justify-between">
-                <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 truncate ${
+                <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 truncate ${
                   isActive ? 'text-white font-extrabold' : kpi.accentText
                 }`}>
-                  {kpi.pulse && <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />}
+                  {kpi.pulse && <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />}
                   {kpi.label}
                 </span>
                 <div className={`h-6 w-6 rounded-lg ${kpi.iconBg} flex items-center justify-center shrink-0`}>
                   <Icon className="h-3.5 w-3.5" />
                 </div>
               </div>
-              <div className="flex items-baseline justify-between mt-2">
-                <div className="text-2xl font-black text-white tracking-tight">{kpi.count}</div>
+              <div className="flex items-baseline justify-between mt-1.5">
+                <div className="text-xl sm:text-2xl font-black text-white tracking-tight">{kpi.count}</div>
                 {isActive && (
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-white/10">
+                  <span className="text-[8.5px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-white/10">
                     Active
                   </span>
                 )}
               </div>
-              <div className="text-[10px] text-neutral-400 mt-1 truncate">{kpi.subtext}</div>
+              <div className="text-[9.5px] text-neutral-400 mt-0.5 truncate">{kpi.subtext}</div>
             </div>
           )
         })}
@@ -1400,6 +1674,89 @@ export default function CampaignPitchesCurationPage() {
         </div>
       </div>
 
+      {/* 3.5. Dynamic Brand Curation Power & Final Approval Gatekeeper Strip (Matches Sample Rosters) */}
+      <div className="rounded-2xl bg-slate-900/90 border border-white/10 px-4 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div>
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">
+              Brand Curation Power
+            </div>
+            <div className="text-xs text-neutral-300">
+              Can{' '}
+              <strong className="text-white">
+                {selectedBrand !== 'all' ? selectedBrand : 'Client Brand'}
+              </strong>{' '}
+              approve/shortlist creators on portal or view only?
+            </div>
+          </div>
+
+          <div className="inline-flex items-center p-1 rounded-xl bg-slate-950 border border-white/10 shrink-0">
+            <button
+              type="button"
+              disabled={togglingBrandPower}
+              onClick={() => handleToggleBrandPower(true)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeScopeBrandPower
+                  ? 'bg-emerald-500 text-slate-950 shadow-sm shadow-emerald-500/25'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>YES (Can Approve)</span>
+            </button>
+            <button
+              type="button"
+              disabled={togglingBrandPower}
+              onClick={() => handleToggleBrandPower(false)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                !activeScopeBrandPower
+                  ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/25'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>NO (Show Only)</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between lg:justify-end gap-3 border-t lg:border-t-0 border-white/10 pt-2.5 lg:pt-0">
+          {(counts.needs_final_approval || 0) > 0 ? (
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3 py-1 rounded-full">
+                <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                <span>
+                  {counts.needs_final_approval} Brand Shortlisted — Awaiting Your Final Sign-Off
+                </span>
+              </span>
+              <button
+                type="button"
+                disabled={curationActionLoading !== null}
+                onClick={() => {
+                  const pendingIds = applications
+                    .filter((a) => a.brand_review_status === 'brand_approved' && !a.is_curation_finalized)
+                    .map((a) => a.application_id)
+                  handleCurationDecision('final_approve', pendingIds)
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer transition-all"
+              >
+                <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Final Approve & Sync All ({counts.needs_final_approval})</span>
+              </button>
+            </div>
+          ) : (
+            <div className="text-[11px] text-neutral-400 flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span>
+                Gatekeeper Active: Only creators with{' '}
+                <strong className="text-emerald-300">Final Sign-Off</strong> sync to Influencer Admin (
+                <strong className="text-white">{counts.final_approved || 0}</strong> synced)
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 4. Luxury Dynamic Curation Data Table */}
       <DynamicDataTable
         data={applications}
@@ -1417,10 +1774,13 @@ export default function CampaignPitchesCurationPage() {
           onChange: (val) => setSelectedStatus(val),
           options: [
             { label: 'All', value: 'all', count: counts.all },
-            { label: 'Costing / Paid', value: 'costing', count: counts.costing || 0 },
+            { label: 'Needs Final Sign-Off', value: 'needs_final_approval', count: counts.needs_final_approval || 0 },
+            { label: 'Final Approved (Synced)', value: 'final_approved', count: counts.final_approved || 0 },
+            { label: 'On Hold', value: 'on_hold', count: counts.on_hold || 0 },
             { label: 'Queued', value: 'queued_for_brand_admin', count: counts.queued_for_brand_admin },
             { label: 'Sent to Brand', value: 'pending_brand_review', count: counts.pending_brand_review },
-            { label: 'Shortlisted', value: 'brand_approved', count: counts.brand_approved },
+            { label: 'Shortlisted (All)', value: 'brand_approved', count: counts.brand_approved },
+            { label: 'Costing / Paid', value: 'costing', count: counts.costing || 0 },
             { label: 'Rejected', value: 'brand_rejected', count: counts.brand_rejected },
             { label: 'Internal Dropped', value: 'internal_rejected', count: counts.internal_rejected },
           ],
@@ -1448,6 +1808,39 @@ export default function CampaignPitchesCurationPage() {
             },
           },
           {
+            label: '✓ Final Approve & Sync to Ops',
+            icon: CheckCheck,
+            variant: 'default',
+            onClick: (rows) => {
+              handleCurationDecision(
+                'final_approve',
+                rows.map((r) => r.application_id)
+              )
+            },
+          },
+          {
+            label: '⏸ Mark On Hold',
+            icon: Clock,
+            variant: 'outline',
+            onClick: (rows) => {
+              handleCurationDecision(
+                'on_hold',
+                rows.map((r) => r.application_id)
+              )
+            },
+          },
+          {
+            label: '✕ Final Reject & Sync',
+            icon: XCircle,
+            variant: 'danger',
+            onClick: (rows) => {
+              handleCurationDecision(
+                'final_reject',
+                rows.map((r) => r.application_id)
+              )
+            },
+          },
+          {
             label: 'Set Commercial Costing (₹)',
             icon: IndianRupee,
             variant: 'outline',
@@ -1466,7 +1859,7 @@ export default function CampaignPitchesCurationPage() {
           },
           {
             label: "Drop / Don't Send",
-            icon: XCircle,
+            icon: X,
             variant: 'danger',
             onClick: (rows) => {
               setSelectedIds(rows.map((r) => r.application_id))
@@ -1745,6 +2138,56 @@ export default function CampaignPitchesCurationPage() {
                     onChange={(e) => setDispatchIncludeCommercials(e.target.checked)}
                     className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
                   />
+                </div>
+
+                {/* 3.7 Brand Curation Power Toggle (YES: Can Approve vs NO: View Only) */}
+                <div className="p-3 rounded-xl bg-slate-950 border border-white/10 space-y-2">
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <CheckCheck className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Brand Curation Power on Portal</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">
+                      Can the client brand shortlist/approve creators on their portal, or only view profiles while our team handles approvals?
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDispatchAllowBrandApproval(true)}
+                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                        dispatchAllowBrandApproval
+                          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-[11px] font-extrabold flex items-center gap-1">
+                        <Check className="h-3 w-3 stroke-[2.5]" />
+                        <span>YES (Can Approve)</span>
+                      </div>
+                      <div className="text-[9px] text-neutral-400 mt-0.5">
+                        Brand clicks Approve/Reject; you give Final Sign-Off
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDispatchAllowBrandApproval(false)}
+                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                        !dispatchAllowBrandApproval
+                          ? 'bg-indigo-500/20 border-indigo-400/50 text-indigo-200'
+                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-[11px] font-extrabold flex items-center gap-1">
+                        <Eye className="h-3 w-3" />
+                        <span>NO (View Only)</span>
+                      </div>
+                      <div className="text-[9px] text-neutral-400 mt-0.5">
+                        Brand only views catalog; our team approves here
+                      </div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 4. Curation Pitch Note */}
@@ -2089,15 +2532,31 @@ export default function CampaignPitchesCurationPage() {
                     )}
                   </div>
 
-                  {/* Brand Decision Section */}
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-1.5 text-xs">
-                    <div className="font-bold text-amber-300">Brand Review Status</div>
+                  {/* Brand Decision & Final Approval Gatekeeper Section */}
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-amber-300">Curation & Final Sign-Off</span>
+                      {inspectItem.is_curation_finalized ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          ✓ Synced to Influencer Admin ({inspectItem.curation_final_status || 'Final'})
+                        </span>
+                      ) : inspectItem.brand_review_status === 'brand_approved' ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          ⚡ Awaiting Final Sign-Off
+                        </span>
+                      ) : null}
+                    </div>
+
                     <div className="capitalize font-semibold text-white">
                       {inspectItem.brand_review_status.replace(/_/g, ' ')}
                     </div>
+
                     {inspectItem.brand_reviewed_by && (
                       <div className="text-[11px] text-neutral-300">
-                        Reviewed by: <strong className="text-white">{inspectItem.brand_reviewed_by}</strong> on {new Date(inspectItem.brand_reviewed_at || '').toLocaleDateString('en-IN')}
+                        Reviewed by: <strong className="text-white">{inspectItem.brand_reviewed_by}</strong>{' '}
+                        {inspectItem.brand_reviewed_at
+                          ? `on ${new Date(inspectItem.brand_reviewed_at).toLocaleDateString('en-IN')}`
+                          : ''}
                       </div>
                     )}
                     {inspectItem.brand_rejection_reason && (
@@ -2107,9 +2566,69 @@ export default function CampaignPitchesCurationPage() {
                     )}
                     {inspectItem.brand_feedback_notes && (
                       <div className="text-[11px] text-neutral-300 mt-1">
-                        Brand feedback: "{inspectItem.brand_feedback_notes}"
+                        Notes: &ldquo;{inspectItem.brand_feedback_notes}&rdquo;
                       </div>
                     )}
+
+                    {/* Quick Internal Action Buttons inside Drawer */}
+                    <div className="pt-2 border-t border-white/10 space-y-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        Internal Curation Decision (Syncs to Influencer Admin)
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={curationActionLoading !== null}
+                          onClick={() => handleCurationDecision('final_approve', inspectItem.application_id)}
+                          className="py-2 px-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Final Approve & Sync</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={curationActionLoading !== null}
+                          onClick={() => handleCurationDecision('on_hold', inspectItem.application_id)}
+                          className="py-2 px-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>Put On Hold</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={curationActionLoading !== null}
+                          onClick={() => handleCurationDecision('final_reject', inspectItem.application_id)}
+                          className="py-2 px-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Final Reject & Sync</span>
+                        </button>
+                        {inspectItem.is_curation_finalized ? (
+                          <button
+                            type="button"
+                            disabled={curationActionLoading !== null}
+                            onClick={() => handleCurationDecision('unfinalize', inspectItem.application_id)}
+                            className="py-2 px-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-neutral-200 border border-white/10 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Unlock / Revert</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const id = inspectItem.application_id
+                              setInspectItem(null)
+                              handleOpenDispatchModal(id)
+                            }}
+                            className="py-2 px-2.5 rounded-xl bg-[#febd1c] hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Send to Brand</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

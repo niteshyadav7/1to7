@@ -21,7 +21,21 @@ export async function GET(
 
     // Query applications for this campaign
     let rows: any[] = []
+    let campaignAllowCuration = true
     try {
+      const campRes = await pool.query(
+        `
+        SELECT COALESCE(allow_brand_curation, true) as allow_brand_curation
+        FROM public.campaigns
+        WHERE id::text = $1 OR campaign_code = $1
+        LIMIT 1;
+        `,
+        [String(campaignId)]
+      )
+      if (campRes.rows[0]) {
+        campaignAllowCuration = Boolean(campRes.rows[0].allow_brand_curation)
+      }
+
       const query = `
         SELECT 
           a.id as application_id,
@@ -54,16 +68,25 @@ export async function GET(
           c.campaign_code,
           c.brand_name,
           c.deliverables,
-          c.budget_type
+          c.budget_type,
+          COALESCE(c.allow_brand_curation, true) as allow_brand_curation
         FROM public.applications a
         JOIN public.users u ON a.user_id = u.id
         JOIN public.campaigns c ON a.campaign_id = c.id
         WHERE (a.campaign_id::text = $1 OR a.campaign_id::text = (SELECT id::text FROM public.campaigns WHERE campaign_code = $1 LIMIT 1))
-          AND a.brand_review_status IN ('pending_brand_review', 'brand_approved', 'brand_rejected', 'changes_requested')
+          AND a.brand_review_status IN ('pending_brand_review', 'brand_approved', 'brand_rejected', 'changes_requested', 'on_hold')
         ORDER BY a.brand_pitched_at DESC NULLS LAST, a.created_at DESC
       `
       const res = await pool.query(query, [String(campaignId)])
       rows = res.rows
+      if (rows.length > 0) {
+        const firstMeta = rows[0].form_data?.brand_curation
+        if (firstMeta && firstMeta.allow_brand_curation !== undefined) {
+          campaignAllowCuration = Boolean(firstMeta.allow_brand_curation)
+        } else {
+          campaignAllowCuration = Boolean(rows[0].allow_brand_curation !== false)
+        }
+      }
     } catch (dbErr: any) {
       console.warn('DB query error in brand creators route:', dbErr.message)
     }
@@ -73,7 +96,7 @@ export async function GET(
 
     // Apply client filters
     const filtered = sanitizedList.filter((item) => {
-      if (statusFilter === 'pending' && item.brand_review_status !== 'pending_brand_review') {
+      if (statusFilter === 'pending' && item.brand_review_status !== 'pending_brand_review' && item.brand_review_status !== 'on_hold') {
         return false
       }
       if (statusFilter === 'approved' && item.brand_review_status !== 'brand_approved') {
@@ -93,10 +116,11 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
+      allow_brand_curation: campaignAllowCuration,
       creators: filtered,
       counts: {
         total: sanitizedList.length,
-        pending: sanitizedList.filter((c) => c.brand_review_status === 'pending_brand_review').length,
+        pending: sanitizedList.filter((c) => c.brand_review_status === 'pending_brand_review' || c.brand_review_status === 'on_hold').length,
         approved: sanitizedList.filter((c) => c.brand_review_status === 'brand_approved').length,
         rejected: sanitizedList.filter((c) => c.brand_review_status === 'brand_rejected').length,
       },
@@ -107,7 +131,7 @@ export async function GET(
   }
 }
 
-// POST: Execute 1-click Approve or Reject decisions
+// POST: Execute 1-click Approve or Reject decisions from Brand Portal
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -137,13 +161,39 @@ export async function POST(
       )
     }
 
+    // Verify if campaign is in View-Only mode
+    try {
+      const checkRes = await pool.query(
+        `
+        SELECT COALESCE(allow_brand_curation, true) as allow_brand_curation,
+               COALESCE(auto_approve_on_brand_selection, false) as auto_approve_on_brand_selection
+        FROM public.campaigns
+        WHERE id::text = $1 OR campaign_code = $1
+        LIMIT 1;
+        `,
+        [String(campaignId)]
+      )
+      if (checkRes.rows[0] && checkRes.rows[0].allow_brand_curation === false) {
+        return NextResponse.json(
+          {
+            error:
+              'This campaign is in View-Only mode. Creator shortlisting and approvals are managed by your Account Manager.',
+          },
+          { status: 403 }
+        )
+      }
+    } catch {
+      // Non-fatal fallback
+    }
+
     const isApprove = action === 'approve' || action === 'batch_approve'
     const newStatus = isApprove ? 'brand_approved' : 'brand_rejected'
     const timestamp = new Date().toISOString()
-    const reviewerName = brandUser.full_name || brandUser.email
+    const reviewerName = brandUser.full_name || brandUser.email || 'Brand Reviewer'
 
     try {
-      // 1. Update applications brand status in DB
+      // 1. Update applications brand_review_status WITHOUT prematurely overriding Influencer Admin applications.status
+      //    Internal Brand Admin team must Final Approve in Campaign Curation before it syncs to Influencer Admin Panel!
       const updateQuery = `
         UPDATE public.applications
         SET 
@@ -152,17 +202,26 @@ export async function POST(
           brand_reviewed_by = $3,
           brand_rejection_reason = $4,
           brand_feedback_notes = $5,
-          status = CASE WHEN $6 = true THEN 'Approved'::application_status ELSE status END,
+          form_data = jsonb_set(
+            COALESCE(form_data, '{}'::jsonb),
+            '{brand_curation}',
+            COALESCE(form_data->'brand_curation', '{}'::jsonb) || jsonb_build_object(
+              'brand_decision', $1::text,
+              'brand_decided_by', $3::text,
+              'brand_decided_at', $2::text,
+              'is_finalized', false
+            ),
+            true
+          ),
           updated_at = NOW()
-        WHERE id::text = ANY($7::text[])
+        WHERE id::text = ANY($6::text[])
       `
       await pool.query(updateQuery, [
         newStatus,
         timestamp,
-        brandUser.id === 'brand-demo-1' ? null : (brandUser.full_name || brandUser.email),
+        brandUser.id === 'brand-demo-1' ? reviewerName : reviewerName,
         isApprove ? null : (reason || 'Brand selection criteria not met'),
         notes || null,
-        isApprove,
         application_ids.map(String),
       ])
 
@@ -178,25 +237,25 @@ export async function POST(
               brandUser.email,
               isApprove ? 'approved_creator' : 'rejected_creator',
               appId,
-              JSON.stringify({ campaign_id: campaignId, reason, reviewer: reviewerName }),
+              JSON.stringify({ campaign_id: campaignId, reason, notes, reviewer: reviewerName }),
             ]
           )
         }
       }
     } catch (dbErr: any) {
-      console.warn('DB update in brand action (non-fatal for mock):', dbErr.message)
+      console.warn('DB update warning in brand creators POST:', dbErr.message)
     }
 
     return NextResponse.json({
       success: true,
-      action: newStatus,
-      updated_count: application_ids.length,
-      message: isApprove
-        ? `Successfully approved ${application_ids.length} creator${application_ids.length > 1 ? 's' : ''}! Product dispatch is queued.`
-        : `Marked ${application_ids.length} creator${application_ids.length > 1 ? 's' : ''} as rejected.`,
+      action,
+      new_status: newStatus,
+      updated_ids: application_ids,
+      reviewed_at: timestamp,
+      reviewed_by: reviewerName,
     })
   } catch (error: any) {
-    console.error('Brand Action POST Error:', error)
+    console.error('Brand Creators POST Error:', error)
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }

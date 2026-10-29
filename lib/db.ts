@@ -309,6 +309,15 @@ export async function ensurePocMigration(): Promise<void> {
           ALTER TABLE public.campaigns ADD COLUMN auto_approve_on_brand_selection BOOLEAN DEFAULT false;
         END IF;
 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'allow_brand_curation'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN allow_brand_curation BOOLEAN DEFAULT true;
+        END IF;
+
         CREATE INDEX IF NOT EXISTS idx_applications_brand_pitch_batch ON public.applications(brand_pitch_batch_name);
 
         -- 10. Sample Roster Brand Portal Direct Publication & Dispatch

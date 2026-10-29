@@ -91,6 +91,7 @@ CASE 80: Multi-Tab Cookie Collision, Cross-Tenant `brand_id IS NULL` SQL Leakage
 CASE 81: Zero-Sidebar Mobile-First Brand Portal Architecture: Replacing Desktop Left Sidebars with a Sticky 2-Tab Segmented Navigation Hub & Responsive Creator Review Cards
 CASE 82: Ultra-Fast Client-Side SWR In-Memory Caching & 0ms Optimistic UI for Enterprise Brand Portals (Eliminating Waterfall Spinners, Zero-Latency 1-Click Decisions & Mobile Touch Ergonomics)
 CASE 83: Fixed-Layout Table Column Starvation & Action Button Overlap Remediation (Dynamic Table Mathematical Width Balancing & MinWidth Enforcement)
+CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
 
 
 
@@ -3492,6 +3493,45 @@ In the Brand Operations Campaign Curation Desk (`/brand-admin/campaign-pitches`)
 
 [INTERVIEW STAR TAKEAWAY]
 "In fixed-layout tables (`table-layout: fixed`), flex containers aligned with `justify-end` will overflow to the left into adjacent columns if the cell's allocated percentage produces a pixel width smaller than the intrinsic width of its child buttons. Always calculate the minimum pixel sum of interactive controls, enforce `minWidth` on both `<th>` and `<td>`, and rebalance percentage distributions so action columns never starve."
+
+====================================================================================================
+CASE 84: Dual-Mode Campaign Curation Power (`YES: Can Approve` vs `NO: View-Only Catalog`) & Two-Stage Final Approval Gatekeeper Sync to Influencer Admin Panel
+====================================================================================================
+CATEGORIES: Multi-Portal State Machines / Business Logic Gatekeeper / Role-Based Workflow Orchestration / PostgreSQL + JSONB Dual Projection
+INTERVIEW QUESTION: "How do you architect a multi-portal B2B workflow where external clients sometimes actively approve records and other times only view catalogs passively, while ensuring external client clicks never prematurely trigger internal fulfillment pipelines without an internal account manager's final sign-off?"
+
+[SITUATION]
+In the 3-portal 1to7 ecosystem (`Influencer Admin Panel` -> `Brand Admin Campaign Curation` -> `Brand Client Portal`), two real-world operational patterns existed across enterprise clients:
+1. Passive Brands ("Sirf Dekhte Hai"): Some client brands only open the Brand Portal to view the curated roster, while our internal Brand Admin / KAM team makes all shortlisting, hold, and approval decisions on their behalf.
+2. Active Brands ("Check Karti Hai & Approve Deti Hai"): Other client brands actively review creators on the Brand Portal and click Approve or Reject.
+However, Campaign Curation previously lacked:
+- A `YES (Can Approve)` vs `NO (View-Only Catalog)` permission toggle (which existed only in Sample Rosters).
+- Internal curation status controls (`Final Approve`, `On Hold / Backup`, `Final Reject`) for rows already dispatched (`With Brand`) or reviewed by the client.
+- A Gatekeeper boundary: whenever a client clicked "Approve" on the Brand Portal (`POST /api/brand/campaigns/[id]/creators`), it immediately overwrote `applications.status = 'Approved'` in the main Influencer Admin Panel BEFORE our internal Brand Admin / KAM verified commercial margins, delivery addresses, or campaign budgets.
+
+[ROOT CAUSE]
+1. Direct External-to-Internal State Mutation:
+   - `POST /api/brand/campaigns/[id]/creators` executed `SET brand_review_status = 'brand_approved', status = 'Approved'::application_status` in a single step, coupling external client shortlisting directly to internal Influencer Ops fulfillment.
+2. Missing Campaign-Level Curation Mode Flag:
+   - Unlike `sample_Shared_lists.allow_brand_approval`, `public.campaigns` and `public.applications` had no `allow_brand_curation` flag to switch the Brand Client Portal between interactive shortlisting and a read-only presentation catalog.
+3. Locked Internal Curation Controls Post-Dispatch:
+   - In `/brand-admin/campaign-pitches`, once an application left `queued_for_brand_admin` (`With Brand`), the `ACTIONS` column only rendered a passive `View` button, leaving internal KAMs unable to mark creators as Approved, On Hold, or Rejected when brands operated in View-Only mode.
+
+[SOLUTION & ARCHITECTURE]
+1. Dual-Mode Brand Curation Power (`allow_brand_curation`):
+   - Added `allow_brand_curation BOOLEAN DEFAULT true` to `public.campaigns` (`lib/db.ts`) and mirrored per-batch/per-application state inside `applications.form_data->'brand_curation'->>'allow_brand_curation'`.
+   - Added the `Brand Curation Power` toggle both inside the "Send to Brand Client Portal" modal and as a live 1-click control bar on `/brand-admin/campaign-pitches` (`✓ YES (Can Approve)` vs `👁️ NO (Show Only)`).
+   - Updated `/brand/campaigns/[id]/creators` (`GET` & `POST`) so that when `allow_brand_curation === false`, the Brand Portal renders a clean `👁️ View-Only Catalog • Managed by Account Manager` badge, hides all checkboxes/Approve/Reject buttons, and blocks unauthorized mutation attempts at the API layer (`403 Forbidden`).
+2. Two-Stage Final Approval Gatekeeper (`is_curation_finalized`):
+   - Decoupled Brand Portal shortlisting from Influencer Admin fulfillment:
+     - Stage 1 (Brand Portal Action): When a client clicks Approve/Reject on `/brand/campaigns/[id]/creators`, `POST /api/brand/campaigns/[id]/creators` sets `brand_review_status = 'brand_approved' | 'brand_rejected'` and `form_data.brand_curation.is_finalized = false` WITHOUT mutating `applications.status`.
+     - In Campaign Curation (`/brand-admin/campaign-pitches`), these profiles surface under the `Needs Final Sign-Off` filter with an amber `⚡ Brand Shortlisted • Needs Final Sign-Off` badge.
+     - Stage 2 (Internal Final Sign-Off): Created `POST /api/brand-admin/campaign-pitches/curation-decision` supporting `final_approve`, `final_reject`, `on_hold`, `unfinalize`, and `toggle_brand_power`. Only when the internal Brand Admin clicks `✓ Final` (single or bulk) does the system set `is_finalized = true` and sync `applications.status = 'Approved'::application_status` (or `'Rejected'`) to the Influencer Admin Panel!
+3. Cross-Portal Status Transparency (`/admin/applications/[campaign_id]`):
+   - Updated the Influencer Admin Panel to read `form_data.brand_curation.is_finalized`, distinguishing between `Brand Shortlisted (Awaiting Curation Final)`, `On Hold (Brand Curation)`, and `✓ Final Approved (Brand Ops)`.
+
+[INTERVIEW STAR TAKEAWAY]
+"Never allow external client portal actions to directly mutate internal fulfillment state machines (`applications.status = 'Approved'`). By introducing a two-stage gatekeeper (`brand_review_status = 'brand_approved'` with `is_finalized = false` -> internal KAM `final_approve` -> `applications.status = 'Approved'`) alongside a live `allow_brand_curation` capability toggle, we supported both passive view-only enterprise clients and active self-serve brands while guaranteeing 100% internal operational control before Influencer Ops fulfillment begins."
 
 ====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:

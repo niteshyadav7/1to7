@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { applicationIds, campaignId, visibleColumns, kamNotes, targetBrand, includeCommercials } = body
+    const { applicationIds, campaignId, visibleColumns, kamNotes, targetBrand, includeCommercials, allowBrandApproval } = body
+    const allowCuration = allowBrandApproval !== false
 
     if (!Array.isArray(applicationIds) || applicationIds.length === 0) {
       return NextResponse.json(
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
 
     const reviewerName = admin.name || admin.email || 'Brand Operations'
 
-    // 1. Update applications status to pending_brand_review and sync commercial flag
+    // 1. Update applications status to pending_brand_review and sync commercial + brand curation power flag
     const updateRes = await pool.query(
       `
       UPDATE public.applications
@@ -89,12 +90,38 @@ export async function POST(request: Request) {
         brand_pitched_by = $1,
         brand_pitch_notes = COALESCE($2, brand_pitch_notes),
         is_commercial_pitch = CASE WHEN $3 = true THEN true ELSE is_commercial_pitch END,
+        form_data = jsonb_set(
+          COALESCE(form_data, '{}'::jsonb),
+          '{brand_curation}',
+          COALESCE(form_data->'brand_curation', '{}'::jsonb) || jsonb_build_object(
+            'allow_brand_curation', $5::boolean,
+            'dispatched_by', $1::text,
+            'dispatched_at', NOW()
+          ),
+          true
+        ),
         updated_at = NOW()
       WHERE id::text = ANY($4::text[])
       RETURNING id;
       `,
-      [reviewerName, kamNotes || null, Boolean(includeCommercials), applicationIds.map(String)]
+      [reviewerName, kamNotes || null, Boolean(includeCommercials), applicationIds.map(String), allowCuration]
     )
+
+    // 1.2 Sync allow_brand_curation onto parent campaign(s)
+    try {
+      await pool.query(
+        `
+        UPDATE public.campaigns
+        SET allow_brand_curation = $1, updated_at = NOW()
+        WHERE id IN (
+          SELECT DISTINCT campaign_id FROM public.applications WHERE id::text = ANY($2::text[])
+        );
+        `,
+        [allowCuration, applicationIds.map(String)]
+      )
+    } catch (cErr: any) {
+      console.warn('Campaign allow_brand_curation update warning:', cErr?.message)
+    }
 
     const updatedCount = updateRes.rowCount || updateRes.rows.length
 

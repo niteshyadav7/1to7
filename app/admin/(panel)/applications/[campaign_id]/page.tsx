@@ -1026,22 +1026,41 @@ export default function AdminApplicationsPage() {
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-                    {/* Brand Portal Review Status Badge */}
-                    {app.brand_review_status === 'brand_approved' ? (
+                    {/* Brand Portal & Campaign Curation Gatekeeper Status Badge */}
+                    {app.brand_review_status === 'brand_approved' &&
+                    (app.form_data?.brand_curation?.is_finalized || app.status === 'Approved') ? (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 flex items-center gap-1.5"
-                        title={`Approved by Brand on ${app.brand_reviewed_at ? new Date(app.brand_reviewed_at).toLocaleDateString('en-IN') : ''} ${app.brand_reviewed_by ? 'by ' + app.brand_reviewed_by : ''}`}
+                        title={`Final Approved in Campaign Curation${app.form_data?.brand_curation?.finalized_by ? ' by ' + app.form_data.brand_curation.finalized_by : ''}${app.brand_reviewed_at ? ' on ' + new Date(app.brand_reviewed_at).toLocaleDateString('en-IN') : ''}`}
                       >
                         <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        <span>Brand Approved ({app.brand_pitch_batch_name || 'Shortlisted'})</span>
+                        <span>✓ Final Approved ({app.brand_pitch_batch_name || 'Brand Ops'})</span>
+                      </span>
+                    ) : app.brand_review_status === 'brand_approved' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1.5"
+                        title={`Shortlisted by Brand (${app.brand_reviewed_by || 'Client'}) — Awaiting Final Sign-Off in Campaign Curation`}
+                      >
+                        <Clock className="h-3 w-3 text-amber-400 animate-pulse" />
+                        <span>Brand Shortlisted (Awaiting Curation Final)</span>
+                      </span>
+                    ) : app.brand_review_status === 'on_hold' ? (
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-orange-500/15 text-orange-300 border border-orange-500/25 flex items-center gap-1.5"
+                        title={`Placed On Hold / Backup in Campaign Curation${app.brand_reviewed_by ? ' by ' + app.brand_reviewed_by : ''}`}
+                      >
+                        <Clock className="h-3 w-3 text-orange-400" />
+                        <span>On Hold (Brand Curation)</span>
                       </span>
                     ) : app.brand_review_status === 'brand_rejected' ? (
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25 flex items-center gap-1.5"
-                        title={`Rejected by Brand: ${app.brand_rejection_reason || 'Criteria mismatch'}`}
+                        title={`Rejected: ${app.brand_rejection_reason || 'Criteria mismatch'}`}
                       >
                         <XCircle className="h-3 w-3 text-rose-400" />
-                        <span>Brand Rejected</span>
+                        <span>
+                          {app.form_data?.brand_curation?.is_finalized ? 'Final Rejected' : 'Brand Rejected'}
+                        </span>
                       </span>
                     ) : app.brand_review_status === 'internal_rejected' ? (
                       <span

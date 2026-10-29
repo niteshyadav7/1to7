@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   List,
   ArrowUpRight,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BrandCreatorItem } from '@/types/brand'
@@ -53,6 +54,7 @@ export default function CreatorReviewStudioPage() {
   const cacheKey = `brand_creators_${campaignId}`
   const cachedCreators = brandCache.get<BrandCreatorItem[]>(cacheKey) || []
   const [creators, setCreators] = useState<BrandCreatorItem[]>(cachedCreators)
+  const [allowBrandCuration, setAllowBrandCuration] = useState<boolean>(true)
   const [loading, setLoading] = useState(cachedCreators.length === 0)
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
@@ -75,6 +77,11 @@ export default function CreatorReviewStudioPage() {
         const data = await res.json()
         if (res.ok && data.creators) {
           setCreators(data.creators)
+          const canCurate = data.allow_brand_curation !== false
+          setAllowBrandCuration(canCurate)
+          if (!canCurate) {
+            setSelectedAppIds(new Set())
+          }
           brandCache.set(cacheKey, data.creators)
         } else if (!silent) {
           toast.error(data.error || 'Failed to fetch creators')
@@ -326,11 +333,21 @@ export default function CreatorReviewStudioPage() {
                 <ArrowLeft className="w-4 h-4" />
               </Link>
               <div>
-                <h1 className="text-base sm:text-xl font-black text-white tracking-tight">
-                  Campaign Creator Applications
-                </h1>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-base sm:text-xl font-black text-white tracking-tight">
+                    Campaign Creator Applications
+                  </h1>
+                  {!allowBrandCuration && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/25 border border-indigo-400/40 text-[10px] font-bold text-indigo-200">
+                      <Eye className="w-3 h-3 text-indigo-300" />
+                      <span>View-Only Catalog • Managed by Account Manager</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  1-tap approve or reject shortlisted creators for product sample dispatch.
+                  {allowBrandCuration
+                    ? '1-tap approve or reject shortlisted creators for product sample dispatch.'
+                    : 'Browse curated creator profiles for your campaign. Final selection is managed by your Account Manager.'}
                 </p>
               </div>
             </div>
@@ -411,7 +428,7 @@ export default function CreatorReviewStudioPage() {
               </button>
             </div>
 
-            {filteredCreators.length > 0 && (
+            {allowBrandCuration && filteredCreators.length > 0 && (
               <button
                 type="button"
                 onClick={toggleSelectAll}
@@ -441,6 +458,7 @@ export default function CreatorReviewStudioPage() {
             {filteredCreators.map((c, idx) => {
               const isApproved = c.brand_review_status === 'brand_approved'
               const isRejected = c.brand_review_status === 'brand_rejected'
+              const isOnHold = c.brand_review_status === 'on_hold'
               const isSelected = selectedAppIds.has(c.application_id)
               const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
               const isVerifiedAddr =
@@ -454,9 +472,11 @@ export default function CreatorReviewStudioPage() {
                       ? 'border-emerald-500/70 bg-gradient-to-b from-emerald-50/20 via-white to-white'
                       : isRejected
                         ? 'border-red-200 bg-slate-50/40'
-                        : isSelected
-                          ? 'border-[#F95738] ring-2 ring-[#F95738]/20'
-                          : 'border-slate-200/90 hover:border-[#F95738]/50'
+                        : isOnHold
+                          ? 'border-amber-300 bg-amber-50/20'
+                          : isSelected
+                            ? 'border-[#F95738] ring-2 ring-[#F95738]/20'
+                            : 'border-slate-200/90 hover:border-[#F95738]/50'
                   }`}
                 >
                   <div
@@ -465,7 +485,9 @@ export default function CreatorReviewStudioPage() {
                         ? 'from-emerald-400 to-teal-600'
                         : isRejected
                           ? 'from-red-400 to-rose-500'
-                          : gradientClass.split(' ').slice(0, 2).join(' ')
+                          : isOnHold
+                            ? 'from-amber-400 to-orange-500'
+                            : gradientClass.split(' ').slice(0, 2).join(' ')
                     }`}
                   />
 
@@ -495,12 +517,14 @@ export default function CreatorReviewStudioPage() {
                         </div>
                       </div>
 
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectApp(c.application_id)}
-                        className="h-4 w-4 rounded border-slate-300 accent-[#F95738] cursor-pointer mt-1 shrink-0"
-                      />
+                      {allowBrandCuration && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectApp(c.application_id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-[#F95738] cursor-pointer mt-1 shrink-0"
+                        />
+                      )}
                     </div>
 
                     {/* Metrics & Badges Row */}
@@ -566,9 +590,45 @@ export default function CreatorReviewStudioPage() {
                     </div>
                   </div>
 
-                  {/* Card Footer: 1-Tap Approve / Reject */}
+                  {/* Card Footer: 1-Tap Approve / Reject or View-Only Status */}
                   <div className="px-4 pb-4 pt-1">
-                    {c.brand_review_status === 'pending_brand_review' ? (
+                    {!allowBrandCuration ? (
+                      <div
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl border ${
+                          isApproved
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            : isRejected
+                              ? 'bg-red-50 border-red-200 text-red-700'
+                              : isOnHold
+                                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                                : 'bg-slate-50 border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        <span className="font-extrabold text-xs flex items-center gap-1.5">
+                          {isApproved ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              <span>Approved Profile</span>
+                            </>
+                          ) : isRejected ? (
+                            <>
+                              <XCircle className="w-4 h-4 text-red-600" />
+                              <span>Not Selected</span>
+                            </>
+                          ) : isOnHold ? (
+                            <>
+                              <Clock className="w-4 h-4 text-amber-600" />
+                              <span>On Hold / Backup</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-4 h-4 text-indigo-500" />
+                              <span>Curated Profile • View Only</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    ) : c.brand_review_status === 'pending_brand_review' || isOnHold ? (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -645,28 +705,36 @@ export default function CreatorReviewStudioPage() {
           tableLayout="fixed"
           loading={loading}
           title="Campaign Creator Shortlists"
-          subtitle="1-click approve creators or bulk select candidates for automated courier dispatch"
+          subtitle={
+            allowBrandCuration
+              ? '1-click approve creators or bulk select candidates for automated courier dispatch'
+              : 'View-only curated creator roster managed by your Account Manager'
+          }
           data={filteredCreators}
           exportFilename={`thehype_campaign_${campaignId}_creators.csv`}
           searchPlaceholder="Search creator handle, name, city, or sample..."
-          bulkActions={[
-            {
-              label: 'Bulk 1-Click Approve',
-              icon: Check,
-              variant: 'default',
-              onClick: async (selected) => {
-                await handleBulkAction(selected, true)
-              },
-            },
-            {
-              label: 'Bulk Reject',
-              icon: X,
-              variant: 'danger',
-              onClick: async (selected) => {
-                await handleBulkAction(selected, false)
-              },
-            },
-          ]}
+          bulkActions={
+            allowBrandCuration
+              ? [
+                  {
+                    label: 'Bulk 1-Click Approve',
+                    icon: Check,
+                    variant: 'default',
+                    onClick: async (selected) => {
+                      await handleBulkAction(selected, true)
+                    },
+                  },
+                  {
+                    label: 'Bulk Reject',
+                    icon: X,
+                    variant: 'danger',
+                    onClick: async (selected) => {
+                      await handleBulkAction(selected, false)
+                    },
+                  },
+                ]
+              : undefined
+          }
           columns={[
             {
               key: 'creator_name',
@@ -752,6 +820,7 @@ export default function CreatorReviewStudioPage() {
               render: (c) => {
                 const isApproved = c.brand_review_status === 'brand_approved'
                 const isRejected = c.brand_review_status === 'brand_rejected'
+                const isOnHold = c.brand_review_status === 'on_hold'
                 return (
                   <span
                     className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${
@@ -759,23 +828,37 @@ export default function CreatorReviewStudioPage() {
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         : isRejected
                           ? 'bg-red-50 text-red-700 border-red-200'
-                          : 'bg-[#FFF2EF] text-[#D83B1C] border-[#F95738]/30'
+                          : isOnHold
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-[#FFF2EF] text-[#D83B1C] border-[#F95738]/30'
                     }`}
                   >
-                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
+                    {isApproved
+                      ? 'Approved'
+                      : isRejected
+                        ? 'Rejected'
+                        : isOnHold
+                          ? 'On Hold'
+                          : 'Pending'}
                   </span>
                 )
               },
             },
             {
               key: 'actions',
-              header: '1-Click Decision',
+              header: allowBrandCuration ? '1-Click Decision' : 'Mode',
               align: 'right',
               sortable: false,
               width: '16%',
               render: (c) => (
                 <div className="flex items-center justify-end gap-1">
-                  {c.brand_review_status === 'pending_brand_review' ? (
+                  {!allowBrandCuration ? (
+                    <span className="text-slate-500 font-semibold text-[10px] inline-flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-indigo-500" />
+                      <span>View Only</span>
+                    </span>
+                  ) : c.brand_review_status === 'pending_brand_review' ||
+                    c.brand_review_status === 'on_hold' ? (
                     <>
                       <button
                         type="button"
@@ -811,7 +894,7 @@ export default function CreatorReviewStudioPage() {
       )}
 
       {/* ─── FLOATING MOBILE BULK DECISION DOCK ─── */}
-      {selectedAppIds.size > 0 && (
+      {allowBrandCuration && selectedAppIds.size > 0 && (
         <div className="fixed bottom-0 inset-x-0 sm:bottom-5 sm:inset-x-4 max-w-xl mx-auto z-40">
           <div className="p-3 sm:px-5 sm:py-3.5 sm:rounded-2xl bg-[#0F172A]/95 backdrop-blur-xl border-t sm:border border-white/15 shadow-2xl flex items-center justify-between gap-3 text-white">
             <div className="flex items-center gap-2.5">

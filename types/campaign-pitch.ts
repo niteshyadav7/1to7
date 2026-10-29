@@ -36,6 +36,13 @@ export interface CampaignPitchItem {
   address_verification_status?: 'Verified' | 'Pending' | 'Rejected' | 'Not Submitted'
   is_address_verified?: boolean
   is_ready_for_brand_dispatch?: boolean
+  application_status?: string
+  allow_brand_curation?: boolean
+  is_curation_finalized?: boolean
+  curation_final_status?: 'Approved' | 'Rejected' | 'On Hold' | null
+  curation_finalized_by?: string | null
+  curation_finalized_at?: string | null
+  brand_portal_decision?: 'brand_approved' | 'brand_rejected' | null
   verified_address_details?: {
     recipient_name: string
     phone: string
@@ -67,6 +74,9 @@ export interface PitchFilterCounts {
   brand_approved: number
   brand_rejected: number
   internal_rejected: number
+  on_hold?: number
+  needs_final_approval?: number
+  final_approved?: number
   costing: number
   total_commercial_value: number
 }

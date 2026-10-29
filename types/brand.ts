@@ -11,6 +11,7 @@ export type BrandReviewStatus =
   | 'brand_approved'
   | 'brand_rejected'
   | 'changes_requested'
+  | 'on_hold'
 
 export type BrandContentStatus =
   | 'pending'
@@ -118,6 +119,8 @@ export interface BrandCreatorItem {
   brand_content_status?: BrandContentStatus | null
   client_commercial?: number | null
   address_verification_status?: 'Verified' | 'Pending' | 'Not Submitted'
+  allow_brand_curation?: boolean
+  is_curation_finalized?: boolean
   verified_address?: {
     street?: string
     city?: string

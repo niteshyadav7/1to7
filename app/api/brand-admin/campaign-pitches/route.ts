@@ -82,6 +82,7 @@ export async function GET(request: Request) {
         COALESCE(c.category, c.brand_name, c.campaign_code, 'Campaign') as campaign_title,
         COALESCE(c.brand_name, 'Brand') as brand_name,
         c.deliverables,
+        COALESCE(c.allow_brand_curation, true) as allow_brand_curation,
         a.user_id,
         COALESCE(u.full_name, 'Creator') as creator_name,
         COALESCE(u.influencer_id, '') as influencer_id,
@@ -192,12 +193,28 @@ export async function GET(request: Request) {
         }
       }
 
+      const brandCurationMeta = formData.brand_curation || {}
+      const isCurationFinalized = Boolean(brandCurationMeta.is_finalized)
+      const curationFinalStatus = brandCurationMeta.final_status || null
+      const curationFinalizedBy = brandCurationMeta.finalized_by || null
+      const curationFinalizedAt = brandCurationMeta.finalized_at || null
+      const allowBrandCuration =
+        brandCurationMeta.allow_brand_curation !== undefined
+          ? Boolean(brandCurationMeta.allow_brand_curation)
+          : Boolean(r.allow_brand_curation !== false)
+
       return {
         application_id: String(r.application_id),
         campaign_id: String(r.campaign_id),
+        application_status: r.application_status || 'Applied',
         campaign_code: r.campaign_code,
         campaign_title: r.campaign_title,
         brand_name: r.brand_name,
+        allow_brand_curation: allowBrandCuration,
+        is_curation_finalized: isCurationFinalized,
+        curation_final_status: curationFinalStatus,
+        curation_finalized_by: curationFinalizedBy,
+        curation_finalized_at: curationFinalizedAt,
         user_id: String(r.user_id),
         creator_name: r.creator_name,
         influencer_id: r.influencer_id,
@@ -237,6 +254,9 @@ export async function GET(request: Request) {
       queued_for_brand_admin: allItems.filter((i) => i.brand_review_status === 'queued_for_brand_admin').length,
       pending_brand_review: allItems.filter((i) => i.brand_review_status === 'pending_brand_review').length,
       brand_approved: allItems.filter((i) => i.brand_review_status === 'brand_approved').length,
+      needs_final_approval: allItems.filter((i) => i.brand_review_status === 'brand_approved' && !i.is_curation_finalized).length,
+      final_approved: allItems.filter((i) => i.brand_review_status === 'brand_approved' && i.is_curation_finalized).length,
+      on_hold: allItems.filter((i) => i.brand_review_status === 'on_hold').length,
       brand_rejected: allItems.filter((i) => i.brand_review_status === 'brand_rejected').length,
       internal_rejected: allItems.filter((i) => i.brand_review_status === 'internal_rejected').length,
       costing: allItems.filter((i) => Boolean(i.client_commercial && i.client_commercial > 0) || i.is_commercial_pitch).length,
@@ -256,6 +276,14 @@ export async function GET(request: Request) {
       }
       if (statusFilter === 'costing') {
         if (!(item.client_commercial && item.client_commercial > 0) && !item.is_commercial_pitch) {
+          return false
+        }
+      } else if (statusFilter === 'needs_final_approval') {
+        if (item.brand_review_status !== 'brand_approved' || item.is_curation_finalized) {
+          return false
+        }
+      } else if (statusFilter === 'final_approved') {
+        if (item.brand_review_status !== 'brand_approved' || !item.is_curation_finalized) {
           return false
         }
       } else if (statusFilter !== 'all' && item.brand_review_status !== statusFilter) {
