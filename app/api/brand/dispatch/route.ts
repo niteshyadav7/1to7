@@ -232,7 +232,7 @@ export async function POST(request: Request) {
     }
 
     const nowIso = new Date().toISOString()
-    const actorName = `${brandUser.contact_name || brandUser.brand_name} (Brand)`
+    const actorName = `${brandUser.full_name || brandUser.brand_name} (Brand)`
 
     const patchObj: Record<string, any> =
       action === 'mark_pending'
@@ -289,3 +289,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to update dispatch status' }, { status: 500 })
   }
 }
+
