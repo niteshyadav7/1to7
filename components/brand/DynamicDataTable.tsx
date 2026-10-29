@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -65,11 +65,12 @@ export interface DynamicDataTableProps<T> {
   searchPlaceholder?: string
   searchFields?: (keyof T | string)[]
   filterTabs?: {
-    key: string
+    key?: string
     options: FilterTabOption[]
     activeValue: string
     onChange: (value: string) => void
   }
+  controlsLeft?: React.ReactNode
   bulkActions?: BulkAction<T>[]
   selectedRowIds?: string[]
   onSelectionChange?: (selectedIds: string[]) => void
@@ -88,8 +89,13 @@ export interface DynamicDataTableProps<T> {
   defaultCompact?: boolean
   className?: string
   headerActions?: React.ReactNode
+  toolbarActions?:
+    | React.ReactNode
+    | ((ctx: { targetRows: T[]; selectedRows: T[]; filteredRows: T[]; searchQuery: string }) => React.ReactNode)
+  onFilteredDataChange?: (filteredRows: T[], searchQuery: string) => void
   hideSearch?: boolean
   hideHeaderOnMobile?: boolean
+  stickyThead?: boolean
 }
 
 export function DynamicDataTable<T extends Record<string, any>>({
@@ -101,6 +107,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   searchPlaceholder = 'Search records...',
   searchFields,
   filterTabs,
+  controlsLeft,
   bulkActions = [],
   selectedRowIds,
   onSelectionChange,
@@ -113,6 +120,8 @@ export function DynamicDataTable<T extends Record<string, any>>({
   initialSortDir = 'asc',
   className = '',
   headerActions,
+  toolbarActions,
+  onFilteredDataChange,
   theme = 'dark',
   loading = false,
   tableLayout = 'auto',
@@ -120,6 +129,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
   defaultCompact = true,
   hideSearch = false,
   hideHeaderOnMobile = false,
+  stickyThead = false,
 }: DynamicDataTableProps<T>) {
   const isLight = theme === 'light'
   // 1. Search Query
@@ -229,6 +239,23 @@ export function DynamicDataTable<T extends Record<string, any>>({
     return result
   }, [data, search, searchFields, sortKey, sortDir, columns])
 
+  const onFilteredDataChangeRef = useRef(onFilteredDataChange)
+  onFilteredDataChangeRef.current = onFilteredDataChange
+
+  const prevFilteredRef = useRef<{ data: T[]; search: string } | null>(null)
+  React.useEffect(() => {
+    if (
+      !prevFilteredRef.current ||
+      prevFilteredRef.current.data !== processedData ||
+      prevFilteredRef.current.search !== search
+    ) {
+      prevFilteredRef.current = { data: processedData, search }
+      if (onFilteredDataChangeRef.current) {
+        onFilteredDataChangeRef.current(processedData, search)
+      }
+    }
+  }, [processedData, search])
+
   // Pagination calculations
   const totalItems = processedData.length
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
@@ -326,11 +353,15 @@ export function DynamicDataTable<T extends Record<string, any>>({
       )}
 
       {/* ─── CONTROLS BAR (Filter Tabs, Search, Column Visibility, Density, Export) ─── */}
-      <div className={`p-2 sm:p-2.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-2 ${
-        isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-lg'
+      <div className={`p-2 sm:p-2.5 ${isLight ? 'rounded-none' : 'rounded-xl'} border flex flex-col md:flex-row md:items-center justify-between gap-2.5 ${
+        isLight ? 'bg-white border-slate-200/90 shadow-2xs' : 'bg-[#121620] border-white/10 shadow-lg'
       }`}>
-        {/* Left: Filter Tabs (if provided) */}
-        {filterTabs && (
+        {/* Left: Custom Controls OR Filter Tabs */}
+        {controlsLeft ? (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none flex-wrap sm:flex-nowrap">
+            {controlsLeft}
+          </div>
+        ) : filterTabs ? (
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             {filterTabs.options.map((opt) => {
               const isActive = filterTabs.activeValue === opt.value
@@ -344,7 +375,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                     isActive
-                      ? 'bg-[#febd1c] text-neutral-950 font-bold shadow-md'
+                      ? isLight
+                        ? 'bg-[#10b981] text-white font-bold shadow-xs'
+                        : 'bg-[#febd1c] text-neutral-950 font-bold shadow-md'
                       : isLight
                       ? 'bg-white text-slate-600 hover:text-black hover:bg-slate-50 border border-slate-200'
                       : 'bg-[#0c1017] text-neutral-400 hover:text-white hover:bg-white/5 border border-white/5'
@@ -355,7 +388,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     <span
                       className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
                         isActive
-                          ? 'bg-neutral-950/20 text-neutral-950'
+                          ? isLight
+                            ? 'bg-white text-[#10b981]'
+                            : 'bg-neutral-950/20 text-neutral-950'
                           : isLight
                           ? 'bg-slate-100 text-slate-600'
                           : 'bg-white/10 text-neutral-300'
@@ -368,7 +403,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               )
             })}
           </div>
-        )}
+        ) : null}
 
         {/* Right Controls: Search, Column Manager, Density, CSV Export */}
         <div className="flex items-center gap-1.5 flex-wrap md:flex-nowrap md:ml-auto w-full sm:w-auto justify-end">
@@ -386,7 +421,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                 placeholder={searchPlaceholder}
                 className={`pl-7 pr-6 h-8 text-xs rounded-lg transition ${
                   isLight
-                    ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#febd1c]'
+                    ? 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-[#10b981]'
                     : 'bg-[#0c1017] border-white/10 text-white placeholder:text-neutral-500 focus:border-amber-400'
                 }`}
               />
@@ -409,7 +444,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             type="button"
             onClick={() => setIsCompact(!isCompact)}
             title={isCompact ? 'Comfortable Density' : 'Compact Density'}
-            className={`h-8 px-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+            className={`h-8 px-2.5 ${isLight ? 'rounded-none' : 'rounded-lg'} border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
               isLight
                 ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-50'
                 : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
@@ -424,7 +459,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             <button
               type="button"
               onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
-              className={`h-8 px-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`h-8 px-2.5 ${isLight ? 'rounded-none' : 'rounded-lg'} border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-50'
                   : 'bg-[#0c1017] border-white/10 text-neutral-400 hover:text-white'
@@ -435,7 +470,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
             </button>
 
             {isColumnDropdownOpen && (
-              <div className={`absolute right-0 top-10 z-50 w-52 p-2 rounded-xl border shadow-2xl space-y-1 ${
+              <div className={`absolute right-0 top-10 z-50 w-52 p-2 ${isLight ? 'rounded-none' : 'rounded-xl'} border shadow-2xl space-y-1 ${
                 isLight ? 'bg-white border-slate-200 text-slate-700 shadow-xl' : 'bg-[#121620] border-white/10 text-neutral-300'
               }`}>
                 <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider border-b mb-1 ${
@@ -450,7 +485,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     return (
                       <label
                         key={col.key}
-                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs cursor-pointer ${
+                        className={`flex items-center gap-2 px-2 py-1 ${isLight ? 'rounded-none' : 'rounded-md'} text-xs cursor-pointer ${
                           isLight ? 'text-slate-700 hover:bg-slate-50' : 'text-neutral-300 hover:bg-white/5'
                         }`}
                       >
@@ -465,9 +500,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                               return next
                             })
                           }}
-                          className={`rounded ${
+                          className={`${isLight ? 'rounded-none' : 'rounded'} ${
                             isLight
-                              ? 'border-slate-300 text-[#febd1c] focus:ring-0'
+                              ? 'border-slate-300 text-[#10b981] focus:ring-0'
                               : 'border-white/20 bg-[#0c1017] text-amber-500 focus:ring-0'
                           }`}
                         />
@@ -485,15 +520,24 @@ export function DynamicDataTable<T extends Record<string, any>>({
             size="sm"
             variant="outline"
             onClick={handleExportCSV}
-            className={`h-8 text-xs px-2.5 rounded-lg border ${
+            className={`h-8 text-xs px-2.5 ${isLight ? 'rounded-none' : 'rounded-lg'} border ${
               isLight
                 ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
                 : 'border-white/10 bg-[#0c1017] hover:bg-white/5 text-neutral-300'
             }`}
           >
-            <Download className="w-3.5 h-3.5 mr-1 text-[#febd1c]" />
+            <Download className={`w-3.5 h-3.5 mr-1 ${isLight ? 'text-[#10b981]' : 'text-[#febd1c]'}`} />
             <span className="hidden sm:inline">Export</span>
           </Button>
+
+          {typeof toolbarActions === 'function'
+            ? toolbarActions({
+                targetRows: selectedRows.length > 0 ? selectedRows : processedData,
+                selectedRows,
+                filteredRows: processedData,
+                searchQuery: search,
+              })
+            : toolbarActions}
         </div>
       </div>
 
@@ -555,13 +599,13 @@ export function DynamicDataTable<T extends Record<string, any>>({
       </AnimatePresence>
 
       {/* ─── DATA TABLE CANVAS ─── */}
-      <div className={`rounded-2xl border overflow-hidden w-full max-w-full ${
-        isLight ? 'bg-white border-slate-200/90 shadow-sm' : 'bg-[#121620] border-white/10 shadow-xl'
+      <div className={`${isLight ? 'rounded-none border-slate-200/90 shadow-2xs' : 'rounded-2xl border-white/10 shadow-xl'} border overflow-hidden w-full max-w-full ${
+        isLight ? 'bg-white' : 'bg-[#121620]'
       }`}>
         <div className="overflow-x-auto w-full max-w-full scrollbar-none">
           <table className={`w-full text-left border-collapse text-xs ${tableLayout === 'fixed' ? 'table-fixed' : ''} ${minTableWidth && minTableWidth !== 'min-w-full' ? minTableWidth : tableLayout === 'fixed' ? 'min-w-[760px]' : 'min-w-full'}`}>
             {/* Header */}
-            <thead className={`font-bold uppercase tracking-wider text-[10px] border-b select-none sticky top-0 z-10 ${
+            <thead className={`font-bold uppercase tracking-wider text-[10px] border-b select-none ${stickyThead ? 'sticky top-0 z-10' : ''} ${
               isLight ? 'bg-slate-50/95 text-slate-500 border-slate-200' : 'bg-[#0c1017] text-neutral-400 border-white/10'
             }`}>
               <tr>
@@ -574,9 +618,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       className="cursor-pointer transition-colors"
                     >
                       {isAllPageSelected ? (
-                        <CheckSquare className="w-3.5 h-3.5 text-[#febd1c]" />
+                        <CheckSquare className={`w-3.5 h-3.5 ${isLight ? 'text-[#10b981]' : 'text-[#febd1c]'}`} />
                       ) : isSomePageSelected ? (
-                        <MinusSquare className="w-3.5 h-3.5 text-amber-500" />
+                        <MinusSquare className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-500' : 'text-amber-500'}`} />
                       ) : (
                         <Square className={`w-3.5 h-3.5 ${isLight ? 'text-slate-400' : 'text-neutral-600'}`} />
                       )}
@@ -645,7 +689,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                     className="p-12 text-center"
                   >
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className={`w-7 h-7 animate-spin ${isLight ? 'text-[#febd1c]' : 'text-amber-400'}`} />
+                      <Loader2 className={`w-7 h-7 animate-spin ${isLight ? 'text-[#10b981]' : 'text-amber-400'}`} />
                       <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                         Loading records...
                       </span>
@@ -674,7 +718,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                         <button
                           type="button"
                           onClick={() => setSearch('')}
-                          className="text-xs text-[#febd1c] hover:underline font-semibold cursor-pointer"
+                          className={`text-xs ${isLight ? 'text-[#10b981]' : 'text-[#febd1c]'} hover:underline font-semibold cursor-pointer`}
                         >
                           Clear Search
                         </button>
@@ -694,7 +738,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                       className={`transition-colors ${
                         isSelected
                           ? isLight
-                            ? 'bg-amber-50/70 hover:bg-amber-50/90'
+                            ? 'bg-emerald-50/70 hover:bg-emerald-50/90'
                             : 'bg-amber-500/10 hover:bg-amber-500/15'
                           : isLight
                           ? 'hover:bg-slate-50/80 text-slate-800'
@@ -713,7 +757,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
                             className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-black' : 'text-neutral-500 hover:text-amber-400'}`}
                           >
                             {isSelected ? (
-                              <CheckSquare className="w-3.5 h-3.5 text-[#febd1c]" />
+                              <CheckSquare className={`w-3.5 h-3.5 ${isLight ? 'text-[#10b981]' : 'text-[#febd1c]'}`} />
                             ) : (
                               <Square className={`w-3.5 h-3.5 ${isLight ? 'text-slate-300' : 'text-neutral-600'}`} />
                             )}
@@ -784,9 +828,9 @@ export function DynamicDataTable<T extends Record<string, any>>({
                   setPageSize(Number(e.target.value))
                   setCurrentPage(1)
                 }}
-                className={`rounded-lg px-2 py-0.5 ${isCompact ? 'text-[11px]' : 'text-xs'} focus:ring-0 ${
+                className={`${isLight ? 'rounded-none' : 'rounded-lg'} px-2 py-0.5 ${isCompact ? 'text-[11px]' : 'text-xs'} focus:ring-0 ${
                   isLight
-                    ? 'bg-white border border-slate-200 text-slate-800 focus:border-[#febd1c]'
+                    ? 'bg-white border border-slate-200 text-slate-800 focus:border-[#10b981]'
                     : 'bg-[#121620] border border-white/10 text-white focus:border-amber-400'
                 }`}
               >
@@ -805,7 +849,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage(1)}
-              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 ${isLight ? 'rounded-none' : 'rounded-md'} border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
@@ -818,7 +862,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 ${isLight ? 'rounded-none' : 'rounded-md'} border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
@@ -836,7 +880,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 ${isLight ? 'rounded-none' : 'rounded-md'} border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'
@@ -849,7 +893,7 @@ export function DynamicDataTable<T extends Record<string, any>>({
               type="button"
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(totalPages)}
-              className={`p-1 rounded-md border disabled:opacity-40 transition cursor-pointer ${
+              className={`p-1 ${isLight ? 'rounded-none' : 'rounded-md'} border disabled:opacity-40 transition cursor-pointer ${
                 isLight
                   ? 'bg-white border-slate-200 text-slate-600 hover:text-black hover:bg-slate-100'
                   : 'bg-[#121620] border-white/10 text-neutral-400 hover:text-white hover:bg-white/5'

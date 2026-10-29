@@ -162,7 +162,8 @@ export async function POST(
       )
     }
 
-    // Verify if campaign is in View-Only mode
+    // Verify if campaign is in View-Only mode or auto-approves to admin
+    let autoApproveOnBrandSelection = false
     try {
       const checkRes = await pool.query(
         `
@@ -174,14 +175,17 @@ export async function POST(
         `,
         [String(campaignId)]
       )
-      if (checkRes.rows[0] && checkRes.rows[0].allow_brand_curation === false) {
-        return NextResponse.json(
-          {
-            error:
-              'This campaign is in View-Only mode. Creator shortlisting and approvals are managed by your Account Manager.',
-          },
-          { status: 403 }
-        )
+      if (checkRes.rows[0]) {
+        if (checkRes.rows[0].allow_brand_curation === false) {
+          return NextResponse.json(
+            {
+              error:
+                'This campaign is in View-Only mode. Creator shortlisting and approvals are managed by your Account Manager.',
+            },
+            { status: 403 }
+          )
+        }
+        autoApproveOnBrandSelection = Boolean(checkRes.rows[0].auto_approve_on_brand_selection)
       }
     } catch {
       // Non-fatal fallback
@@ -193,16 +197,20 @@ export async function POST(
     const reviewerName = brandUser.full_name || brandUser.email || 'Brand Reviewer'
 
     try {
-      // 1. Update applications brand_review_status WITHOUT prematurely overriding Influencer Admin applications.status
-      //    Internal Brand Admin team must Final Approve in Campaign Curation before it syncs to Influencer Admin Panel!
+      // 1. Update applications brand_review_status (and sync platform status if auto_approve_on_brand_selection is active)
       const updateQuery = `
         UPDATE public.applications
         SET 
           brand_review_status = $1,
-          brand_reviewed_at = $2,
+          brand_reviewed_at = $2::timestamptz,
           brand_reviewed_by = $3,
           brand_rejection_reason = $4,
           brand_feedback_notes = $5,
+          status = CASE 
+            WHEN $7 = true AND $1 = 'brand_approved' THEN 'Approved'::application_status 
+            WHEN $7 = true AND $1 = 'brand_rejected' THEN 'Rejected'::application_status
+            ELSE status 
+          END,
           form_data = jsonb_set(
             COALESCE(form_data, '{}'::jsonb),
             '{brand_curation}',
@@ -210,41 +218,65 @@ export async function POST(
               'brand_decision', $1::text,
               'brand_decided_by', $3::text,
               'brand_decided_at', $2::text,
-              'is_finalized', false
+              'is_finalized', $7::boolean
             ),
             true
           ),
           updated_at = NOW()
         WHERE id::text = ANY($6::text[])
+        RETURNING id;
       `
-      await pool.query(updateQuery, [
+      const updateResult = await pool.query(updateQuery, [
         newStatus,
         timestamp,
-        brandUser.id === 'brand-demo-1' ? reviewerName : reviewerName,
+        reviewerName,
         isApprove ? null : (reason || 'Brand selection criteria not met'),
         notes || null,
         application_ids.map(String),
+        autoApproveOnBrandSelection,
       ])
 
-      // 2. Insert audit log entries
-      if (brandUser.id !== 'brand-demo-1') {
-        for (const appId of application_ids) {
-          await pool.query(
-            `INSERT INTO public.brand_audit_logs (brand_id, user_id, user_email, action, target_id, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              brandUser.brand_id,
-              brandUser.id,
-              brandUser.email,
-              isApprove ? 'approved_creator' : 'rejected_creator',
-              appId,
-              JSON.stringify({ campaign_id: campaignId, reason, notes, reviewer: reviewerName }),
-            ]
-          )
+      const affectedCount = updateResult.rowCount || 0
+      if (affectedCount === 0) {
+        console.warn(`No application rows updated for IDs: ${application_ids.join(', ')}`)
+      }
+
+      // 2. Insert audit log entries (safely isolated so audit failure never rolls back the decision)
+      try {
+        const isValidUuid = (val?: string | null): boolean => {
+          if (!val) return false
+          return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
         }
+
+        const validBrandId = isValidUuid(brandUser.brand_id) ? brandUser.brand_id : null
+        const validUserId = isValidUuid(brandUser.id) ? brandUser.id : null
+
+        if (validBrandId) {
+          for (const appId of application_ids) {
+            const validTargetId = isValidUuid(appId) ? appId : null
+            await pool.query(
+              `INSERT INTO public.brand_audit_logs (brand_id, user_id, user_email, action, target_id, metadata)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [
+                validBrandId,
+                validUserId,
+                brandUser.email || reviewerName,
+                isApprove ? 'approved_creator' : 'rejected_creator',
+                validTargetId,
+                JSON.stringify({ campaign_id: campaignId, reason, notes, reviewer: reviewerName }),
+              ]
+            )
+          }
+        }
+      } catch (auditErr: any) {
+        console.warn('brand_audit_logs insert warning:', auditErr?.message)
       }
     } catch (dbErr: any) {
-      console.warn('DB update warning in brand creators POST:', dbErr.message)
+      console.error('CRITICAL DB update error in brand creators POST:', dbErr)
+      return NextResponse.json(
+        { error: `Database error updating creator status: ${dbErr.message}` },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({

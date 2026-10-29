@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import {
   Sparkles,
   Search,
@@ -46,6 +48,8 @@ import {
   Edit3,
   Plus,
   DollarSign,
+  Download,
+  Upload,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -61,6 +65,15 @@ import {
   FORBIDDEN_CLIENT_KEYS,
   ColumnShieldOption
 } from '@/types/campaign-pitch'
+import {
+  BULK_SHEET_HEADERS,
+  BULK_SHEET_HEADER_ORDER,
+  BulkPreviewSummary,
+  BulkRowPreview,
+  BulkSheetField,
+  BulkSheetRawRow,
+  mapRecordsToBulkRows,
+} from '@/lib/campaign-pitch-bulk-sheet'
 
 function formatFollowerCount(num: number | null | undefined): string {
   if (!num) return '0'
@@ -162,6 +175,24 @@ export default function CampaignPitchesCurationPage() {
   const [costingIsCommercial, setCostingIsCommercial] = useState<boolean>(true)
   const [costingNotes, setCostingNotes] = useState<string>('')
   const [isSavingCosting, setIsSavingCosting] = useState(false)
+
+  // Bulk Costing & Decision CSV/Excel Sheet Modal State
+  const [showBulkSheetModal, setShowBulkSheetModal] = useState(false)
+  const [bulkSheetTargetRows, setBulkSheetTargetRows] = useState<CampaignPitchItem[]>([])
+  const tableFilteredRowsRef = useRef<CampaignPitchItem[]>([])
+  const tableSearchQueryRef = useRef<string>('')
+  const [bulkSheetSearchScope, setBulkSheetSearchScope] = useState<string>('')
+  const [bulkSheetFileName, setBulkSheetFileName] = useState<string>('')
+  const [bulkSheetRawRows, setBulkSheetRawRows] = useState<BulkSheetRawRow[]>([])
+  const [bulkSheetDetectedFields, setBulkSheetDetectedFields] = useState<BulkSheetField[]>([])
+  const [bulkSheetPreviewRows, setBulkSheetPreviewRows] = useState<BulkRowPreview[]>([])
+  const [bulkSheetSummary, setBulkSheetSummary] = useState<BulkPreviewSummary | null>(null)
+  const [bulkSheetPreviewFilter, setBulkSheetPreviewFilter] = useState<'changes' | 'errors' | 'all'>('changes')
+  const [bulkSheetPasteText, setBulkSheetPasteText] = useState<string>('')
+  const [isBulkPreviewLoading, setIsBulkPreviewLoading] = useState(false)
+  const [isBulkCommitting, setIsBulkCommitting] = useState(false)
+  const [isBulkDragging, setIsBulkDragging] = useState(false)
+  const bulkFileInputRef = useRef<HTMLInputElement>(null)
 
   // Commercials toggle for Brand Portal Dispatch
   const [dispatchIncludeCommercials, setDispatchIncludeCommercials] = useState(false)
@@ -356,6 +387,280 @@ export default function CampaignPitchesCurationPage() {
       toast.error('Network error saving costing quote')
     } finally {
       setIsSavingCosting(false)
+    }
+  }
+
+  // ───────────────────────── Bulk Costing & Decision CSV / Excel Handlers ─────────────────────────
+  const formatStatusForTemplate = (item: CampaignPitchItem): string => {
+    if (item.brand_review_status === 'brand_approved' && item.is_curation_finalized) {
+      return 'Final Approved'
+    }
+    if (item.brand_review_status === 'brand_rejected' && item.is_curation_finalized) {
+      return 'Final Rejected'
+    }
+    switch (item.brand_review_status) {
+      case 'brand_approved':
+        return 'Brand Shortlisted (Needs Sign-Off)'
+      case 'brand_rejected':
+        return 'Rejected'
+      case 'on_hold':
+        return 'On Hold'
+      case 'pending_brand_review':
+        return 'With Brand'
+      case 'queued_for_brand_admin':
+        return 'Queued'
+      case 'internal_rejected':
+        return 'Internal Dropped'
+      default:
+        return item.brand_review_status || 'Queued'
+    }
+  }
+
+  // Stable callback for DynamicDataTable to report filtered rows and search query into refs (never causes re-render loops)
+  const handleFilteredDataChange = useCallback((filtered: CampaignPitchItem[], q: string) => {
+    tableFilteredRowsRef.current = filtered
+    tableSearchQueryRef.current = q
+  }, [])
+
+  // Helper: get currently active filtered or selected rows (respects Brand, Campaign, Batch, Status Tab, Table Search, and Checkboxes)
+  const getActiveFilteredRows = useCallback((): CampaignPitchItem[] => {
+    if (selectedIds.length > 0) {
+      return applications.filter((a) => selectedIds.includes(a.application_id))
+    }
+    if (tableSearchQueryRef.current.trim() || tableFilteredRowsRef.current.length > 0) {
+      return tableFilteredRowsRef.current
+    }
+    return applications
+  }, [selectedIds, applications])
+
+  const handleDownloadBulkSheetTemplate = (rowsOverride?: CampaignPitchItem[]) => {
+    const activeFiltered = getActiveFilteredRows()
+    const sourceRows =
+      rowsOverride && rowsOverride.length > 0
+        ? rowsOverride
+        : bulkSheetTargetRows.length > 0
+          ? bulkSheetTargetRows
+          : activeFiltered
+
+    if (sourceRows.length === 0) {
+      toast.error('No creator rows match your current filter to export into the template')
+      return
+    }
+
+    const escapeCsvCell = (val: unknown): string => {
+      const str = val === null || val === undefined ? '' : String(val)
+      return `"${str.replace(/"/g, '""')}"`
+    }
+
+    const headerLine = BULK_SHEET_HEADER_ORDER.map(escapeCsvCell).join(',')
+    const dataLines = sourceRows.map((item) => {
+      const isPaid = Boolean(
+        item.is_commercial_pitch || (item.client_commercial && Number(item.client_commercial) > 0)
+      )
+      const campaignLabel = item.campaign_code
+        ? `${item.campaign_code} - ${item.campaign_title || ''}`
+        : item.campaign_title || ''
+
+      return [
+        item.application_id,
+        item.influencer_id || '',
+        item.creator_name || '',
+        item.instagram_username ? `@${item.instagram_username.replace(/^@/, '')}` : '',
+        item.brand_name || '',
+        campaignLabel,
+        formatStatusForTemplate(item),
+        item.client_commercial && Number(item.client_commercial) > 0 ? Number(item.client_commercial) : '',
+        item.internal_cost && Number(item.internal_cost) > 0 ? Number(item.internal_cost) : '',
+        isPaid ? 'Commercial' : 'Barter',
+        '', // Final Decision left blank by default so unchanged rows aren't touched
+        item.brand_rejection_reason || '',
+        item.brand_feedback_notes || '',
+      ]
+        .map(escapeCsvCell)
+        .join(',')
+    })
+
+    const csvContent = '\uFEFF' + [headerLine, ...dataLines].join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const activeCampObj = campaigns.find((c) => c.id === selectedCampaign)
+    const activeSearch = tableSearchQueryRef.current.trim()
+    const slugParts = [
+      selectedBrand !== 'all' ? selectedBrand : '',
+      activeCampObj ? activeCampObj.campaign_code || activeCampObj.title : '',
+      activeSearch ? activeSearch : '',
+      `${sourceRows.length}_creators`,
+    ]
+      .filter(Boolean)
+      .join('_')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+    link.href = url
+    link.download = `bulk_costing_decisions_${slugParts || 'all'}_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success(
+      `Downloaded Filtered Template CSV (${sourceRows.length} creator${sourceRows.length > 1 ? 's' : ''}) — fill Costing or APPROVE / REJECT / HOLD and import!`
+    )
+  }
+
+  const resetBulkSheetState = () => {
+    setBulkSheetFileName('')
+    setBulkSheetRawRows([])
+    setBulkSheetDetectedFields([])
+    setBulkSheetPreviewRows([])
+    setBulkSheetSummary(null)
+    setBulkSheetPreviewFilter('changes')
+    setBulkSheetPasteText('')
+    if (bulkFileInputRef.current) {
+      bulkFileInputRef.current.value = ''
+    }
+  }
+
+  const handleOpenBulkSheetModal = (rowsOverride?: CampaignPitchItem[]) => {
+    const activeFiltered = getActiveFilteredRows()
+    const scope =
+      rowsOverride && rowsOverride.length > 0
+        ? rowsOverride
+        : activeFiltered
+    setBulkSheetTargetRows(scope)
+    setBulkSheetSearchScope(tableSearchQueryRef.current)
+    resetBulkSheetState()
+    setShowBulkSheetModal(true)
+  }
+
+  const runBulkSheetPreview = async (
+    records: Array<Record<string, unknown>>,
+    sourceLabel: string
+  ) => {
+    const { rows, detectedFields } = mapRecordsToBulkRows(records)
+    const hasIdentifier =
+      detectedFields.includes('application_id') ||
+      detectedFields.includes('influencer_id') ||
+      detectedFields.includes('instagram')
+    if (!hasIdentifier) {
+      toast.error(
+        'Missing creator identifier column ("Application ID", "Influencer ID", or "Instagram Handle"). Please use the downloaded Template CSV.'
+      )
+      return
+    }
+    if (rows.length === 0) {
+      toast.error('No data rows found in the sheet')
+      return
+    }
+
+    setBulkSheetFileName(sourceLabel)
+    setBulkSheetRawRows(rows)
+    setBulkSheetDetectedFields(detectedFields)
+    setIsBulkPreviewLoading(true)
+
+    const scopeApplicationIds = (
+      bulkSheetTargetRows.length > 0 ? bulkSheetTargetRows : getActiveFilteredRows()
+    ).map((a) => a.application_id)
+
+    try {
+      const res = await fetch('/api/brand-admin/campaign-pitches/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'preview', rows, scopeApplicationIds }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to validate uploaded sheet')
+        return
+      }
+      setBulkSheetPreviewRows(data.rows || [])
+      setBulkSheetSummary(data.summary || null)
+      if ((data.summary?.errorRows || 0) > 0) {
+        setBulkSheetPreviewFilter('errors')
+        toast.warning(`Found ${data.summary.errorRows} row(s) with errors — review before applying`)
+      } else if ((data.summary?.updateRows || 0) > 0) {
+        setBulkSheetPreviewFilter('changes')
+        toast.success(`Ready to update ${data.summary.updateRows} creator profile(s)!`)
+      } else {
+        setBulkSheetPreviewFilter('all')
+        toast.info('Parsed sheet — no differences from current database values detected')
+      }
+    } catch {
+      toast.error('Network error validating bulk sheet')
+    } finally {
+      setIsBulkPreviewLoading(false)
+    }
+  }
+
+  const handleBulkSheetFileSelect = async (file: File) => {
+    const lower = file.name.toLowerCase()
+    try {
+      if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        if (!firstSheetName) {
+          toast.error('Excel workbook has no sheets')
+          return
+        }
+        const sheet = workbook.Sheets[firstSheetName]
+        const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+        await runBulkSheetPreview(records, file.name)
+      } else {
+        const text = await file.text()
+        const parsed = Papa.parse<Record<string, unknown>>(text, {
+          header: true,
+          skipEmptyLines: true,
+        })
+        await runBulkSheetPreview(parsed.data || [], file.name)
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to read spreadsheet file')
+    }
+  }
+
+  const handleBulkSheetPasteParse = async (rawText: string) => {
+    setBulkSheetPasteText(rawText)
+    if (!rawText.trim()) return
+    const parsed = Papa.parse<Record<string, unknown>>(rawText.trim(), {
+      header: true,
+      skipEmptyLines: true,
+    })
+    await runBulkSheetPreview(parsed.data || [], 'Pasted Spreadsheet Data')
+  }
+
+  const handleCommitBulkSheet = async () => {
+    if (bulkSheetRawRows.length === 0) return
+    if (!bulkSheetSummary || bulkSheetSummary.updateRows === 0) {
+      toast.error('No changes to apply')
+      return
+    }
+
+    try {
+      setIsBulkCommitting(true)
+      const scopeApplicationIds = (
+        bulkSheetTargetRows.length > 0 ? bulkSheetTargetRows : getActiveFilteredRows()
+      ).map((a) => a.application_id)
+      const res = await fetch('/api/brand-admin/campaign-pitches/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'commit', rows: bulkSheetRawRows, scopeApplicationIds }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Bulk updates applied!')
+        setShowBulkSheetModal(false)
+        resetBulkSheetState()
+        setSelectedIds([])
+        await fetchData()
+      } else {
+        toast.error(data.error || 'Failed to apply bulk updates')
+      }
+    } catch {
+      toast.error('Network error applying bulk updates')
+    } finally {
+      setIsBulkCommitting(false)
     }
   }
 
@@ -762,10 +1067,11 @@ export default function CampaignPitchesCurationPage() {
     }
   }
 
-  // Export to CSV
+  // Export to CSV (Strictly respects active filters, search, or checkboxes)
   const handleExportCSV = () => {
-    if (applications.length === 0) {
-      toast.error('No data to export')
+    const rowsToExport = getActiveFilteredRows()
+    if (rowsToExport.length === 0) {
+      toast.error('No creator rows match your active filter to export')
       return
     }
 
@@ -787,7 +1093,7 @@ export default function CampaignPitchesCurationPage() {
       'Notes'
     ]
 
-    const rows = applications.map(a => [
+    const rows = rowsToExport.map(a => [
       `"${a.creator_name || ''}"`,
       `"${a.influencer_id || ''}"`,
       `"${a.instagram_username || ''}"`,
@@ -805,15 +1111,29 @@ export default function CampaignPitchesCurationPage() {
       `"${(a.brand_feedback_notes || a.brand_pitch_notes || '').replace(/"/g, '""')}"`
     ])
 
+    const activeCampObj = campaigns.find((c) => c.id === selectedCampaign)
+    const activeSearch = tableSearchQueryRef.current.trim()
+    const slugParts = [
+      selectedBrand !== 'all' ? selectedBrand : '',
+      activeCampObj ? activeCampObj.campaign_code || activeCampObj.title : '',
+      activeSearch ? activeSearch : '',
+      `${rowsToExport.length}_creators`,
+    ]
+      .filter(Boolean)
+      .join('_')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Campaign_Curation_Pitches_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `Campaign_Curation_${slugParts || 'all'}_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    toast.success('Exported CSV successfully')
+    toast.success(`Exported ${rowsToExport.length} filtered creator row(s) to CSV`)
   }
 
   // Memoized column definitions for DynamicDataTable
@@ -1483,10 +1803,19 @@ export default function CampaignPitchesCurationPage() {
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            className="border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400 text-xs h-9 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer rounded-xl shadow-sm"
+            className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 flex items-center gap-1.5 bg-slate-900/80 cursor-pointer rounded-xl shadow-sm"
+          >
+            <Download className="h-3.5 w-3.5 text-neutral-400" />
+            <span>Export CSV</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => handleOpenBulkSheetModal(getActiveFilteredRows())}
+            title="Download pre-filled template for active filter or import updated CSV / Excel"
+            className="border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 font-bold text-xs h-9 flex items-center gap-1.5 cursor-pointer rounded-xl shadow-sm transition-all"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-400" />
-            Export CSV
+            <span>Bulk CSV / Template</span>
           </Button>
         </div>
       </div>
@@ -1878,6 +2207,14 @@ export default function CampaignPitchesCurationPage() {
             },
           },
           {
+            label: 'Bulk Costing / Approve CSV',
+            icon: FileSpreadsheet,
+            variant: 'emerald',
+            onClick: (rows) => {
+              handleOpenBulkSheetModal(rows)
+            },
+          },
+          {
             label: `Configure Shared Columns (${visibleColumns.length})`,
             icon: ShieldCheck,
             variant: 'outline',
@@ -1897,6 +2234,35 @@ export default function CampaignPitchesCurationPage() {
           },
         ]}
         exportFilename="campaign_curation_pitches.csv"
+        onFilteredDataChange={handleFilteredDataChange}
+        toolbarActions={({ targetRows, selectedRows }) => (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleDownloadBulkSheetTemplate(targetRows)}
+              title={`Download pre-filled CSV template for ${targetRows.length} active creator(s) matching your filter`}
+              className="h-8 text-xs px-2.5 rounded-lg border border-emerald-500/35 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+              <span>
+                Template ({targetRows.length})
+              </span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleOpenBulkSheetModal(targetRows)}
+              title="Import filled CSV / Excel to dynamically update Costing & Approve / Reject / Hold"
+              className="h-8 text-xs px-2.5 rounded-lg border border-amber-400/40 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 font-bold cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5 mr-1 text-amber-400" />
+              <span className="hidden sm:inline">Bulk CSV</span>
+            </Button>
+          </>
+        )}
         defaultPageSize={10}
         pageSizeOptions={[10, 25, 50, 100]}
         emptyMessage="No applications match your active filter"
@@ -2014,16 +2380,16 @@ export default function CampaignPitchesCurationPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden"
+              className="bg-slate-900 rounded-2xl max-w-2xl sm:max-w-3xl w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 shrink-0 bg-slate-900">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                    <Send className="h-5 w-5" />
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0 bg-slate-900">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <Send className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">Send to Brand Client Portal</h3>
-                    <p className="text-xs text-neutral-400">Dispatch {selectedIds.length} creator profile{selectedIds.length > 1 ? 's' : ''}</p>
+                    <h3 className="text-sm sm:text-base font-bold text-white">Send to Brand Client Portal</h3>
+                    <p className="text-[11px] text-neutral-400">Dispatch {selectedIds.length} creator profile{selectedIds.length > 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 <button
@@ -2039,216 +2405,222 @@ export default function CampaignPitchesCurationPage() {
                 </button>
               </div>
 
-              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
-                {/* 1. Target Client Brand Selection Dropdown */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-amber-400" />
-                      Target Client Brand
-                    </label>
-                    {autoDetectedBrand && dispatchTargetBrand === autoDetectedBrand && (
-                      <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Sparkles className="h-2.5 w-2.5" />
-                        Auto-detected
+              <div className="p-4 sm:p-5 space-y-3 sm:space-y-3.5 overflow-y-auto max-h-[calc(90vh-100px)]">
+                {/* Row 1: Target Client Brand (Left) + Selected Creators (Right) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5 items-start">
+                  {/* Left: Target Brand */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-amber-400" />
+                        Target Client Brand
+                      </label>
+                      {autoDetectedBrand && dispatchTargetBrand === autoDetectedBrand && (
+                        <span className="text-[10px] text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          Auto-detected
+                        </span>
+                      )}
+                    </div>
+                    {activeRegisteredBrands.length === 0 ? (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-1.5">
+                        <div className="flex items-center gap-2 font-bold text-amber-300 text-xs">
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                          {registeredBrands.length === 0 ? 'No Client Brands Found' : 'All Brands Paused'}
+                        </div>
+                        <p className="text-[10px] text-neutral-300 leading-snug">
+                          {registeredBrands.length === 0
+                            ? 'Creators can only be dispatched to registered Brand Workspaces.'
+                            : 'All registered brand accounts are paused. Please activate a brand.'}
+                        </p>
+                        <Link href="/brand-admin/brands">
+                          <Button
+                            size="sm"
+                            type="button"
+                            className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-[10px] h-6 px-2.5 rounded-lg shadow-sm"
+                          >
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {registeredBrands.length === 0 ? 'Onboard Brand' : 'Manage Brands'}
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <select
+                            value={dispatchTargetBrand || (activeRegisteredBrands[0]?.name ?? '')}
+                            onChange={(e) => setDispatchTargetBrand(e.target.value)}
+                            className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
+                          >
+                            <option value="">-- Choose Active Brand Workspace --</option>
+                            {activeRegisteredBrands.map(b => (
+                              <option key={b.id} value={b.name}>
+                                ⭐ {b.name} (Assigned KAM: {b.assignedKam || 'Ops'})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-1 truncate">
+                          Appears live on <strong>{dispatchTargetBrand || 'the brand'}&apos;s</strong> portal studio.
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Right: Selected Creators Preview */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] uppercase font-bold text-neutral-400">
+                        Selected Creators ({selectedApplications.length})
+                      </span>
+                      <span className="text-[10px] text-amber-300 font-mono font-medium">
+                        {selectedApplications.reduce((sum, a) => sum + (Number(a.followers) || 0), 0).toLocaleString()} reach
+                      </span>
+                    </div>
+                    <div className="h-[68px] overflow-y-auto p-2 rounded-xl bg-slate-950 border border-white/10 space-y-1 scrollbar-thin scrollbar-thumb-white/20">
+                      {selectedApplications.map(app => (
+                        <div key={app.application_id} className="flex items-center justify-between text-xs py-0.5">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-semibold text-white truncate text-[11px]">{app.creator_name}</span>
+                            <span className="text-[10px] text-neutral-500">(@{app.instagram_username})</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-amber-300/80 shrink-0">
+                            {app.followers.toLocaleString()} f
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Privacy Shield (Left) + Logistics Readiness (Right) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
+                  {/* Privacy Shield */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+                    <div className="flex items-center gap-2 text-amber-300 min-w-0">
+                      <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span className="truncate text-[11px]">Privacy Shield: {visibleColumns.length} cols shared</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDispatchModal(false)
+                        setShowColumnShieldModal(true)
+                      }}
+                      className="text-[11px] text-amber-400 font-bold hover:underline cursor-pointer shrink-0 ml-2"
+                    >
+                      Edit
+                    </button>
+                  </div>
+
+                  {/* Logistics / Address Readiness */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Truck className="h-4 w-4 text-emerald-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-semibold text-white truncate text-[11px]">
+                          {selectedApplications.filter(a => a.address_verification_status === 'Verified').length} of {selectedApplications.length} Addresses Verified
+                        </div>
+                        <div className="text-[9px] text-neutral-400 truncate">
+                          Physical samples require verified address
+                        </div>
+                      </div>
+                    </div>
+                    {selectedApplications.filter(a => a.address_verification_status === 'Verified').length === selectedApplications.length ? (
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
+                        100% Ready
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
+                        Partial
                       </span>
                     )}
                   </div>
-                  {activeRegisteredBrands.length === 0 ? (
-                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-amber-300 text-xs">
-                        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                        {registeredBrands.length === 0 ? 'No Client Brand Workspaces Found' : 'All Brand Workspaces Are Paused'}
-                      </div>
-                      <p className="text-[11px] text-neutral-300 leading-relaxed">
-                        {registeredBrands.length === 0
-                          ? 'Creators can only be dispatched to registered Brand Workspaces created in Brand Admin. No client brand accounts exist in the database right now.'
-                          : 'Creators can only be dispatched to Active Brand Workspaces. All registered brand accounts are currently paused. Please activate a brand in Client Brands management.'}
+                </div>
+
+                {/* Row 3: Commercial Costing (Left) + Brand Curation Power (Right) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
+                  {/* Commercial Quote Toggle */}
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-emerald-500/30 flex items-center justify-between gap-2.5">
+                    <div className="space-y-0.5 min-w-0">
+                      <label
+                        htmlFor="dispatch-commercials-toggle"
+                        className="text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer truncate"
+                      >
+                        <IndianRupee className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span className="truncate">Commercial Quote (₹)</span>
+                      </label>
+                      <p className="text-[10px] text-neutral-400 truncate">
+                        Quote visible to brand. Internal costs hidden.
                       </p>
-                      <Link href="/brand-admin/brands">
-                        <Button
-                          size="sm"
-                          type="button"
-                          className="bg-[#febd1c] hover:bg-[#febd1c]/90 text-neutral-950 font-bold text-[11px] h-7 px-3 rounded-lg shadow-sm"
-                        >
-                          <Building2 className="h-3 w-3 mr-1.5" />
-                          {registeredBrands.length === 0 ? 'Onboard Brand Workspace' : 'Manage & Activate Brands'}
-                        </Button>
-                      </Link>
                     </div>
-                  ) : (
-                    <>
-                      <div className="relative">
-                        <select
-                          value={dispatchTargetBrand || (activeRegisteredBrands[0]?.name ?? '')}
-                          onChange={(e) => setDispatchTargetBrand(e.target.value)}
-                          className="w-full text-xs p-2.5 pl-3 pr-8 border border-white/10 rounded-xl bg-slate-950 text-white font-medium focus:outline-none focus:border-amber-400 cursor-pointer"
-                        >
-                          <option value="">-- Choose Active Brand Workspace --</option>
-                          {activeRegisteredBrands.map(b => (
-                            <option key={b.id} value={b.name}>
-                              ⭐ {b.name} (Assigned KAM: {b.assignedKam || 'Ops'})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="text-[10px] text-neutral-400 mt-1">
-                        These profiles will appear live on <strong>{dispatchTargetBrand || 'the brand'}&apos;s</strong> client portal review studio.
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                {/* 2. Selected Creators Preview */}
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-neutral-400 mb-1">
-                    Selected Creators ({selectedApplications.length})
+                    <input
+                      id="dispatch-commercials-toggle"
+                      type="checkbox"
+                      checked={dispatchIncludeCommercials}
+                      onChange={(e) => setDispatchIncludeCommercials(e.target.checked)}
+                      className="h-4 w-4 rounded border-neutral-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer shrink-0"
+                    />
                   </div>
-                  <div className="max-h-24 overflow-y-auto p-2 rounded-xl bg-slate-950 border border-white/5 space-y-1">
-                    {selectedApplications.map(app => (
-                      <div key={app.application_id} className="flex items-center justify-between text-xs py-0.5">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="font-semibold text-white truncate">{app.creator_name}</span>
-                          <span className="text-[10px] text-neutral-500">(@{app.instagram_username})</span>
-                        </div>
-                        <span className="text-[10px] font-mono text-amber-300/80 shrink-0">
-                          {app.followers.toLocaleString()} f
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* 3. Column Privacy Shield Badge */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
-                  <div className="flex items-center gap-2 text-amber-300">
-                    <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span>Privacy Shield Active: {visibleColumns.length} columns shared</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowDispatchModal(false)
-                      setShowColumnShieldModal(true)
-                    }}
-                    className="text-[11px] text-amber-400 font-bold hover:underline cursor-pointer"
-                  >
-                    Edit
-                  </button>
-                </div>
-
-                {/* 3.5 Logistics / Address Readiness */}
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-white/5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <div>
-                      <div className="font-semibold text-white">
-                        {selectedApplications.filter(a => a.address_verification_status === 'Verified').length} of {selectedApplications.length} Addresses Verified
+                  {/* Brand Curation Power */}
+                  <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10 flex flex-col justify-between gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <CheckCheck className="h-3.5 w-3.5 text-amber-400" />
+                        <span>Brand Curation Power</span>
                       </div>
-                      <div className="text-[10px] text-neutral-400">
-                        Physical samples can only be dispatched to verified addresses
-                      </div>
+                      <span className="text-[9px] text-neutral-400">
+                        {dispatchAllowBrandApproval ? 'Shortlist enabled' : 'View-only mode'}
+                      </span>
                     </div>
-                  </div>
-                  {selectedApplications.filter(a => a.address_verification_status === 'Verified').length === selectedApplications.length ? (
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0">
-                      100% Ready
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full shrink-0">
-                      Partial
-                    </span>
-                  )}
-                </div>
-
-                {/* 3.6 Commercial Costing for Brand Portal Toggle */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 flex items-start justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <label
-                      htmlFor="dispatch-commercials-toggle"
-                      className="text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <IndianRupee className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Include Commercial Costing in Brand Portal</span>
-                    </label>
-                    <p className="text-[10px] text-neutral-400 leading-relaxed">
-                      Show client commercial quote (₹) to brand reviewers. Creator internal costs remain strictly hidden.
-                    </p>
-                  </div>
-                  <input
-                    id="dispatch-commercials-toggle"
-                    type="checkbox"
-                    checked={dispatchIncludeCommercials}
-                    onChange={(e) => setDispatchIncludeCommercials(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-neutral-700 bg-slate-900 text-emerald-500 focus:ring-emerald-400 cursor-pointer"
-                  />
-                </div>
-
-                {/* 3.7 Brand Curation Power Toggle (YES: Can Approve vs NO: View Only) */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-white/10 space-y-2">
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <CheckCheck className="h-3.5 w-3.5 text-amber-400" />
-                      <span>Brand Curation Power on Portal</span>
-                    </div>
-                    <p className="text-[10px] text-neutral-400 mt-0.5">
-                      Can the client brand shortlist/approve creators on their portal, or only view profiles while our team handles approvals?
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDispatchAllowBrandApproval(true)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                        dispatchAllowBrandApproval
-                          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
-                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:border-white/20'
-                      }`}
-                    >
-                      <div className="text-[11px] font-extrabold flex items-center gap-1">
+                    <div className="grid grid-cols-2 gap-1.5 bg-slate-900 p-0.5 rounded-lg border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setDispatchAllowBrandApproval(true)}
+                        className={`py-1 px-2 rounded-md text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          dispatchAllowBrandApproval
+                            ? 'bg-emerald-500/25 border border-emerald-500/50 text-emerald-300 shadow-xs'
+                            : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
                         <Check className="h-3 w-3 stroke-[2.5]" />
-                        <span>YES (Can Approve)</span>
-                      </div>
-                      <div className="text-[9px] text-neutral-400 mt-0.5">
-                        Brand clicks Approve/Reject; you give Final Sign-Off
-                      </div>
-                    </button>
+                        <span>Can Approve</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setDispatchAllowBrandApproval(false)}
-                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
-                        !dispatchAllowBrandApproval
-                          ? 'bg-indigo-500/20 border-indigo-400/50 text-indigo-200'
-                          : 'bg-slate-900 border-white/10 text-neutral-400 hover:border-white/20'
-                      }`}
-                    >
-                      <div className="text-[11px] font-extrabold flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setDispatchAllowBrandApproval(false)}
+                        className={`py-1 px-2 rounded-md text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          !dispatchAllowBrandApproval
+                            ? 'bg-indigo-500/25 border border-indigo-400/50 text-indigo-200 shadow-xs'
+                            : 'text-neutral-400 hover:text-white'
+                        }`}
+                      >
                         <Eye className="h-3 w-3" />
-                        <span>NO (View Only)</span>
-                      </div>
-                      <div className="text-[9px] text-neutral-400 mt-0.5">
-                        Brand only views catalog; our team approves here
-                      </div>
-                    </button>
+                        <span>View Only</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* 4. Curation Pitch Note */}
+                {/* Row 4: Curation Note for Brand (Compact 1-row input) */}
                 <div>
-                  <label className="text-xs font-semibold text-neutral-300 block mb-1.5">
+                  <label className="text-[11px] font-semibold text-neutral-300 block mb-1">
                     Curation Note for Brand (Optional)
                   </label>
-                  <textarea
+                  <input
+                    type="text"
                     value={dispatchKamNotes}
                     onChange={(e) => setDispatchKamNotes(e.target.value)}
-                    placeholder={`e.g. Curated for ${dispatchTargetBrand || 'brand'} festive push, verified reach & high reel retention.`}
-                    className="w-full text-xs p-3 border border-white/10 rounded-xl bg-slate-950 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 h-16"
+                    placeholder={`e.g. Curated for ${dispatchTargetBrand || 'brand'} festive push, verified reach & high retention.`}
+                    className="w-full text-xs px-3 py-2 border border-white/10 rounded-xl bg-slate-950 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-400 h-9"
                   />
                 </div>
               </div>
 
-              <div className="p-4 sm:p-5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
+              {/* Modal Footer */}
+              <div className="px-5 py-3 sm:py-3.5 flex items-center justify-end gap-2 border-t border-white/10 shrink-0 bg-slate-900">
                 <Button
                   variant="outline"
                   onClick={() => setShowDispatchModal(false)}
@@ -3114,6 +3486,25 @@ export default function CampaignPitchesCurationPage() {
                 </div>
 
                 <div className="p-4 sm:p-5 space-y-4 overflow-y-auto overscroll-contain flex-1 scrollbar-thin scrollbar-thumb-white/20">
+                  {/* Shortcut to Bulk CSV/Excel Sheet Import */}
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-emerald-200 leading-tight">
+                      <span className="font-bold text-emerald-300">Different quotes per creator?</span>{' '}
+                      Download a pre-filled CSV template, edit in Excel, and import dynamically.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCostingModal(false)
+                        handleOpenBulkSheetModal(costingTargetItems.length > 0 ? costingTargetItems : applications)
+                      }}
+                      className="shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <FileSpreadsheet className="h-3 w-3" />
+                      <span>Bulk CSV / Excel</span>
+                    </button>
+                  </div>
+
                   {/* Selected Creators preview */}
                   <div>
                     <div className="text-[10px] uppercase font-bold text-neutral-400 mb-1">
@@ -3263,6 +3654,488 @@ export default function CampaignPitchesCurationPage() {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 10. Bulk Costing & Curation Decision CSV / Excel Import Modal */}
+      <AnimatePresence>
+        {showBulkSheetModal && (
+          <div
+            onClick={() => {
+              if (!isBulkCommitting && !isBulkPreviewLoading) setShowBulkSheetModal(false)
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md cursor-pointer"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 rounded-2xl max-w-4xl w-full shadow-2xl border border-white/10 text-white cursor-default flex flex-col max-h-[92vh] overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-white/10 shrink-0 bg-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                      <span>Dynamic Bulk Costing & Curation Sheet</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        CSV / Excel / Paste
+                      </span>
+                    </h3>
+                    <p className="text-[11px] text-neutral-400">
+                      Download the pre-filled template, update creator commercial quotes or Approve / Reject / Hold decisions in Excel, and import dynamically.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkSheetModal(false)}
+                  disabled={isBulkCommitting}
+                  className="text-neutral-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-white/20">
+                {/* Step 1: Download Pre-Filled Template & Column Reference */}
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1.5 flex-1">
+                    <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
+                      <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px]">
+                        STEP 1
+                      </span>
+                      <span>Download Filter-Scoped Creator Template</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
+                        {(bulkSheetTargetRows.length > 0 ? bulkSheetTargetRows : getActiveFilteredRows()).length} Creators
+                      </span>
+                    </div>
+
+                    {/* Active Filter Scope Pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                      <span className="text-neutral-400 font-semibold">Scope:</span>
+                      {selectedBrand !== 'all' && (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                          Brand: {selectedBrand}
+                        </span>
+                      )}
+                      {selectedCampaign !== 'all' && (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium">
+                          Campaign: {campaigns.find(c => c.id === selectedCampaign)?.campaign_code || 'Selected'}
+                        </span>
+                      )}
+                      {selectedBatch !== 'all' && (
+                        <span className="px-2 py-0.5 rounded bg-white/5 text-neutral-300 border border-white/10 font-medium">
+                          Batch: {selectedBatch}
+                        </span>
+                      )}
+                      {bulkSheetSearchScope.trim() && (
+                        <span className="px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25 font-medium">
+                          Search: &quot;{bulkSheetSearchScope.trim()}&quot;
+                        </span>
+                      )}
+                      {selectedIds.length > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-bold">
+                          {selectedIds.length} Checked
+                        </span>
+                      )}
+                      {selectedBrand === 'all' && selectedCampaign === 'all' && selectedBatch === 'all' && !bulkSheetSearchScope.trim() && selectedIds.length === 0 && (
+                        <span className="px-2 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10">
+                          All Filtered Rows
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-neutral-400">
+                      Editable columns:{' '}
+                      <span className="text-emerald-300 font-mono">Client Commercial (₹)</span>,{' '}
+                      <span className="text-amber-300 font-mono">Internal Cost (₹)</span>,{' '}
+                      <span className="text-sky-300 font-mono">Pitch Type (Commercial / Barter)</span>,{' '}
+                      <span className="text-purple-300 font-mono">Final Decision (APPROVE / REJECT / HOLD)</span>,{' '}
+                      <span className="text-neutral-300 font-mono">Reject Reason</span>,{' '}
+                      <span className="text-neutral-300 font-mono">Decision Notes</span>.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => handleDownloadBulkSheetTemplate(bulkSheetTargetRows.length > 0 ? bulkSheetTargetRows : getActiveFilteredRows())}
+                    className="shrink-0 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs h-9 px-3.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download Template CSV ({(bulkSheetTargetRows.length > 0 ? bulkSheetTargetRows : getActiveFilteredRows()).length})</span>
+                  </Button>
+                </div>
+
+                {/* Step 2: Upload Filled CSV/Excel or Paste Spreadsheet Rows */}
+                {!bulkSheetSummary && (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    {/* File Dropzone */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        setIsBulkDragging(true)
+                      }}
+                      onDragLeave={() => setIsBulkDragging(false)}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        setIsBulkDragging(false)
+                        const file = e.dataTransfer.files?.[0]
+                        if (file) handleBulkSheetFileSelect(file)
+                      }}
+                      onClick={() => bulkFileInputRef.current?.click()}
+                      className={`md:col-span-7 p-5 rounded-xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center min-h-[170px] ${
+                        isBulkDragging
+                          ? 'border-emerald-400 bg-emerald-500/10'
+                          : 'border-white/15 hover:border-emerald-500/40 bg-slate-950/80 hover:bg-slate-950'
+                      }`}
+                    >
+                      <input
+                        ref={bulkFileInputRef}
+                        type="file"
+                        accept=".csv,.tsv,.xlsx,.xls"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleBulkSheetFileSelect(file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <div className="h-10 w-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-2.5">
+                        {isBulkPreviewLoading ? (
+                          <RefreshCw className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Upload className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="text-xs font-bold text-white">
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] mr-1.5">
+                          STEP 2
+                        </span>
+                        Click to Upload or Drag & Drop Filled Sheet
+                      </div>
+                      <p className="text-[11px] text-neutral-400 mt-1">
+                        Supports <span className="text-neutral-200 font-semibold">.CSV</span>,{' '}
+                        <span className="text-neutral-200 font-semibold">.XLSX</span>,{' '}
+                        <span className="text-neutral-200 font-semibold">.XLS</span>, and{' '}
+                        <span className="text-neutral-200 font-semibold">.TSV</span>
+                      </p>
+                      <p className="text-[10px] text-neutral-500 mt-1.5">
+                        Rows are matched safely by <span className="font-mono text-neutral-300">Application ID</span>. Unchanged cells are ignored automatically.
+                      </p>
+                    </div>
+
+                    {/* Direct Paste from Excel / Google Sheets */}
+                    <div className="md:col-span-5 p-3.5 rounded-xl bg-slate-950 border border-white/10 flex flex-col justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-neutral-200 mb-1 flex items-center justify-between">
+                          <span>Or Paste from Excel / Google Sheets</span>
+                          <span className="text-[10px] text-neutral-500 font-normal">Include header row</span>
+                        </div>
+                        <textarea
+                          value={bulkSheetPasteText}
+                          onChange={(e) => setBulkSheetPasteText(e.target.value)}
+                          placeholder="Copy rows (including header row) from Excel or Google Sheets and paste here..."
+                          className="w-full h-24 text-[11px] p-2.5 rounded-lg bg-slate-900 border border-white/10 text-white placeholder-neutral-500 font-mono focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        disabled={!bulkSheetPasteText.trim() || isBulkPreviewLoading}
+                        onClick={() => handleBulkSheetPasteParse(bulkSheetPasteText)}
+                        className="w-full bg-white/10 hover:bg-white/15 text-white font-semibold text-xs h-8 rounded-lg cursor-pointer"
+                      >
+                        {isBulkPreviewLoading ? 'Validating...' : 'Preview Pasted Rows'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Live Diff & Validation Preview */}
+                {bulkSheetSummary && (
+                  <div className="space-y-3">
+                    {/* Summary KPI Bar */}
+                    <div className="p-3 rounded-xl bg-slate-950 border border-white/10 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                          STEP 3 · PREVIEW
+                        </span>
+                        <span className="text-xs font-bold text-white truncate max-w-[200px]" title={bulkSheetFileName}>
+                          {bulkSheetFileName}
+                        </span>
+                        {bulkSheetDetectedFields.length > 0 && (
+                          <span className="text-[10px] text-neutral-400">
+                            ({bulkSheetDetectedFields.length} mapped columns)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold">
+                          {bulkSheetSummary.updateRows} To Update
+                        </span>
+                        {bulkSheetSummary.costingUpdates > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold">
+                            ₹ Costing: {bulkSheetSummary.costingUpdates}
+                          </span>
+                        )}
+                        {bulkSheetSummary.approvals > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-semibold">
+                            Approve: {bulkSheetSummary.approvals}
+                          </span>
+                        )}
+                        {bulkSheetSummary.rejections > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold">
+                            Reject: {bulkSheetSummary.rejections}
+                          </span>
+                        )}
+                        {bulkSheetSummary.holds > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-500/30 text-sky-300 font-semibold">
+                            Hold: {bulkSheetSummary.holds}
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-neutral-400">
+                          {bulkSheetSummary.unchangedRows} Unchanged
+                        </span>
+                        {bulkSheetSummary.errorRows > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-rose-500/20 border border-rose-500/40 text-rose-300 font-bold">
+                            {bulkSheetSummary.errorRows} Errors
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Filter Tabs + Re-upload button */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => setBulkSheetPreviewFilter('changes')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                            bulkSheetPreviewFilter === 'changes'
+                              ? 'bg-emerald-500 text-slate-950'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          Changes ({bulkSheetSummary.updateRows})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBulkSheetPreviewFilter('errors')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                            bulkSheetPreviewFilter === 'errors'
+                              ? 'bg-rose-500 text-white'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          Errors ({bulkSheetSummary.errorRows})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBulkSheetPreviewFilter('all')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                            bulkSheetPreviewFilter === 'all'
+                              ? 'bg-white/15 text-white'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          All Rows ({bulkSheetSummary.totalRows})
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkSheetSummary(null)
+                          setBulkSheetPreviewRows([])
+                          setBulkSheetRawRows([])
+                          setBulkSheetFileName('')
+                        }}
+                        className="text-[11px] text-neutral-400 hover:text-white underline cursor-pointer"
+                      >
+                        Upload a different file
+                      </button>
+                    </div>
+
+                    {/* Preview Diff Table */}
+                    <div className="rounded-xl border border-white/10 bg-slate-950 overflow-hidden max-h-[340px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-900/90 sticky top-0 z-10 text-[10px] uppercase text-neutral-400 border-b border-white/10">
+                          <tr>
+                            <th className="py-2 px-3 font-bold">Row</th>
+                            <th className="py-2 px-3 font-bold">Creator & Campaign</th>
+                            <th className="py-2 px-3 font-bold">Costing Changes (Before → After)</th>
+                            <th className="py-2 px-3 font-bold">Decision Changes</th>
+                            <th className="py-2 px-3 font-bold text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5 text-xs">
+                          {bulkSheetPreviewRows
+                            .filter((row) => {
+                              if (bulkSheetPreviewFilter === 'changes') return row.status === 'update'
+                              if (bulkSheetPreviewFilter === 'errors') return row.status === 'error'
+                              return true
+                            })
+                            .map((row) => {
+                              const fieldLabels: Record<string, string> = {
+                                client_commercial: 'Client Quote',
+                                internal_cost: 'Internal Cost',
+                                pitch_type: 'Pitch Type',
+                                decision: 'Decision',
+                              }
+                              const costingChanges = row.changes.filter(
+                                (c) =>
+                                  c.field === 'client_commercial' ||
+                                  c.field === 'internal_cost' ||
+                                  c.field === 'pitch_type'
+                              )
+                              const decisionChanges = row.changes.filter((c) => c.field === 'decision')
+                              return (
+                                <tr key={`${row.rowNumber}-${row.application_id}`} className="hover:bg-white/[0.02]">
+                                  <td className="py-2.5 px-3 font-mono text-[11px] text-neutral-500">
+                                    #{row.rowNumber}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <div className="font-semibold text-white">
+                                      {row.creator_name || 'Unknown Creator'}
+                                      {row.instagram_username && (
+                                        <span className="text-[11px] text-neutral-400 font-normal ml-1">
+                                          (@{row.instagram_username})
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-neutral-500 font-mono truncate max-w-[210px]">
+                                      ID: {row.application_id || 'Missing'}
+                                    </div>
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    {costingChanges.length > 0 ? (
+                                      <div className="space-y-1">
+                                        {costingChanges.map((chg, idx) => (
+                                          <div key={idx} className="text-[11px] flex flex-wrap items-center gap-1">
+                                            <span className="text-neutral-400 font-medium">{fieldLabels[chg.field] || chg.field}:</span>
+                                            <span className="text-neutral-500 line-through font-mono">{chg.from}</span>
+                                            <span className="text-neutral-400">→</span>
+                                            <span className="text-emerald-300 font-bold font-mono">{chg.to}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-neutral-600">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    {decisionChanges.length > 0 ? (
+                                      <div className="space-y-1">
+                                        {decisionChanges.map((chg, idx) => (
+                                          <div key={idx} className="text-[11px] flex flex-wrap items-center gap-1">
+                                            <span className="text-neutral-500 font-mono">{chg.from}</span>
+                                            <span className="text-neutral-400">→</span>
+                                            <span
+                                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                                chg.to.toLowerCase().includes('approve')
+                                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                                  : chg.to.toLowerCase().includes('reject')
+                                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                                  : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                              }`}
+                                            >
+                                              {chg.to}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-neutral-600">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right">
+                                    {row.status === 'update' && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                        Ready
+                                      </span>
+                                    )}
+                                    {row.status === 'unchanged' && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] text-neutral-500 bg-white/5">
+                                        Unchanged
+                                      </span>
+                                    )}
+                                    {row.status === 'error' && (
+                                      <div className="text-right">
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                          Error
+                                        </span>
+                                        {row.errors.map((err, i) => (
+                                          <div key={i} className="text-[10px] text-rose-400 mt-0.5">
+                                            {err}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {row.warnings.map((warn, i) => (
+                                      <div key={i} className="text-[10px] text-amber-400 mt-0.5">
+                                        ⚠ {warn}
+                                      </div>
+                                    ))}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-2 border-t border-white/10 shrink-0 bg-slate-900">
+                <div className="text-[11px] text-neutral-400">
+                  {bulkSheetSummary ? (
+                    <span>
+                      <strong className="text-emerald-400">{bulkSheetSummary.updateRows}</strong> creator row(s) will be updated in a single atomic transaction.
+                    </span>
+                  ) : (
+                    <span>Tip: Leave decision blank if you only want to update costing.</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowBulkSheetModal(false)}
+                    disabled={isBulkCommitting}
+                    className="border-white/10 hover:bg-white/5 text-neutral-300 text-xs h-9 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  {bulkSheetSummary && (
+                    <Button
+                      type="button"
+                      disabled={isBulkCommitting || bulkSheetSummary.updateRows === 0}
+                      onClick={handleCommitBulkSheet}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-9 px-4 flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-950"
+                    >
+                      {isBulkCommitting ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )}
+                      <span>
+                        {isBulkCommitting
+                          ? 'Applying Bulk Updates...'
+                          : `Apply Bulk Updates (${bulkSheetSummary.updateRows})`}
+                      </span>
+                    </Button>
+                  )}
+                </div>
+              </div>
             </motion.div>
           </div>
         )}

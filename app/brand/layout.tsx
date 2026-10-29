@@ -1,7 +1,14 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-brand-inter',
+})
 
 export const viewport: Viewport = {
-  themeColor: '#F95738',
+  themeColor: '#10b981',
   width: 'device-width',
   initialScale: 1,
 }
@@ -33,7 +40,12 @@ export default function BrandRootLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="brand-portal-scope min-h-screen font-sans antialiased text-[#1a1c1c] selection:bg-[#F95738]/25 selection:text-[#F95738]">
+    <div
+      className={`${inter.variable} ${inter.className} brand-portal-scope min-h-screen antialiased text-slate-900 selection:bg-[#10b981]/20 selection:text-[#10b981]`}
+      style={{
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      }}
+    >
       {children}
     </div>
   )

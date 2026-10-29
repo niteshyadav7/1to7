@@ -7,22 +7,17 @@ import {
   Instagram,
   Video,
   MapPin,
-  Users,
   Send,
   Loader2,
   Check,
   X,
   AlertCircle,
-  Search,
-  LayoutGrid,
-  List,
   Eye,
-  Sparkles,
   ArrowUpRight,
-  TrendingUp,
-  Flame,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { DynamicDataTable, ColumnDef } from '@/components/brand/DynamicDataTable'
 
 function formatCompactNumber(num: number): string {
   const n = Number(num) || 0
@@ -30,15 +25,6 @@ function formatCompactNumber(num: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`
   return n.toLocaleString('en-IN')
 }
-
-const AVATAR_GRADIENTS = [
-  'from-[#F95738] to-[#FF8A5B] shadow-[#F95738]/25',
-  'from-violet-600 to-indigo-600 shadow-violet-500/25',
-  'from-rose-500 to-pink-600 shadow-rose-500/25',
-  'from-emerald-500 to-teal-600 shadow-emerald-500/25',
-  'from-blue-600 to-cyan-500 shadow-blue-500/25',
-  'from-amber-500 to-orange-600 shadow-amber-500/25',
-]
 
 export default function PublicRosterViewerPage({
   params,
@@ -51,10 +37,8 @@ export default function PublicRosterViewerPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // UI & Filter state
-  const [search, setSearch] = useState('')
+  // Filter state
   const [filterTab, setFilterTab] = useState<'all' | 'selected'>('all')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // Shortlisting state
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -122,19 +106,12 @@ export default function PublicRosterViewerPage({
     }
   }
 
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (filterTab === 'selected' && !selectedIds.includes(item.id)) return false
-      if (!search.trim()) return true
-      const q = search.toLowerCase()
-      return (
-        (item.creator_name || '').toLowerCase().includes(q) ||
-        (item.instagram_username || '').toLowerCase().includes(q) ||
-        (item.city || '').toLowerCase().includes(q) ||
-        (item.niche || '').toLowerCase().includes(q)
-      )
-    })
-  }, [items, search, filterTab, selectedIds])
+  const displayedItems = useMemo(() => {
+    if (filterTab === 'selected') {
+      return items.filter((item) => selectedIds.includes(item.id))
+    }
+    return items
+  }, [items, filterTab, selectedIds])
 
   // Aggregate Proposal Metrics
   const aggregateStats = useMemo(() => {
@@ -185,12 +162,12 @@ export default function PublicRosterViewerPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-slate-900">
-        <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-[#F95738] to-[#FF8A5B] text-white flex items-center justify-center mb-3 shadow-lg shadow-[#F95738]/25">
-          <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-slate-900 font-sans">
+        <div className="h-10 w-10 rounded-full bg-[#161e2b] text-white flex items-center justify-center mb-3 shadow-md border border-[#243044]">
+          <Loader2 className="h-5 w-5 animate-spin text-[#10b981]" />
         </div>
-        <p className="text-xs font-extrabold uppercase tracking-widest text-slate-500">
-          Loading Curated Pitch Deck...
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Loading Curated Talent Roster...
         </p>
       </div>
     )
@@ -198,12 +175,12 @@ export default function PublicRosterViewerPage({
 
   if (error || !roster) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 text-slate-900">
-        <div className="max-w-md w-full p-6 rounded-3xl bg-white border border-slate-200 text-center space-y-3 shadow-xl">
-          <div className="h-12 w-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto">
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 text-slate-900 font-sans">
+        <div className="max-w-md w-full p-6 rounded-none bg-white border border-slate-200 text-center space-y-3 shadow-sm">
+          <div className="h-12 w-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center mx-auto">
             <AlertCircle className="h-6 w-6 text-rose-500" />
           </div>
-          <h2 className="text-base font-black text-slate-900">Presentation Unavailable</h2>
+          <h2 className="text-base font-bold text-slate-900">Presentation Unavailable</h2>
           <p className="text-xs text-slate-500 leading-relaxed">
             {error || 'This sample roster presentation link may have expired or was deactivated.'}
           </p>
@@ -215,168 +192,343 @@ export default function PublicRosterViewerPage({
   const visibleCols: string[] = roster.visible_columns || []
   const canShortlist = Boolean(roster.allow_brand_shortlisting)
 
+  // Construct Data Table Columns
+  const columns: ColumnDef<any>[] = []
+
+  // 1. Selection Checkbox Column
+  if (canShortlist) {
+    columns.push({
+      key: 'selection',
+      header: '',
+      width: '44px',
+      align: 'center',
+      render: (item) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(item.id)}
+          onChange={() => toggleSelect(item.id)}
+          className="rounded-none border-slate-300 text-[#10b981] accent-[#10b981] cursor-pointer h-4 w-4"
+        />
+      ),
+    })
+  }
+
+  // 2. Creator & Instagram
+  columns.push({
+    key: 'creator_name',
+    header: 'CREATOR & INSTAGRAM',
+    sortable: true,
+    width: canShortlist ? '26%' : '32%',
+    render: (item) => (
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-8 h-8 rounded-full bg-slate-900 text-emerald-400 border border-slate-700 font-bold flex items-center justify-center shrink-0 text-xs">
+          {item.creator_name?.charAt(0)?.toUpperCase() || '#'}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-bold text-slate-900 text-xs truncate">
+            {item.creator_name}
+          </div>
+          <a
+            href={`https://instagram.com/${item.instagram_username}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-[11px] text-pink-600 hover:text-pink-700 hover:underline inline-flex items-center gap-0.5 truncate font-medium"
+          >
+            <Instagram className="w-3 h-3 text-pink-500 shrink-0" />
+            <span>@{item.instagram_username}</span>
+            <ArrowUpRight className="w-2.5 h-2.5 opacity-70 shrink-0" />
+          </a>
+        </div>
+      </div>
+    ),
+  })
+
+  // 3. Followers
+  if (visibleCols.length === 0 || visibleCols.includes('followers')) {
+    columns.push({
+      key: 'followers',
+      header: 'FOLLOWERS',
+      sortable: true,
+      width: '12%',
+      render: (item) => (
+        <span className="font-mono tabular-nums font-bold text-xs text-slate-900">
+          {formatCompactNumber(item.followers)}
+        </span>
+      ),
+    })
+  }
+
+  // 4. Avg Reels Views
+  if (visibleCols.length === 0 || visibleCols.includes('avg_reels_views')) {
+    columns.push({
+      key: 'avg_reels_views',
+      header: 'EST. REEL VIEWS',
+      sortable: true,
+      width: '13%',
+      render: (item) => (
+        <span className="font-mono tabular-nums text-xs text-slate-700">
+          {item.avg_reels_views > 0 ? formatCompactNumber(item.avg_reels_views) : '—'}
+        </span>
+      ),
+    })
+  }
+
+  // 5. Engagement Rate
+  if (visibleCols.length === 0 || visibleCols.includes('engagement_rate')) {
+    columns.push({
+      key: 'engagement_rate',
+      header: 'ENGAGEMENT',
+      sortable: true,
+      width: '11%',
+      render: (item) => (
+        <span className="font-mono tabular-nums font-bold text-xs text-emerald-600">
+          {Number(item.engagement_rate) > 0 ? `${item.engagement_rate}%` : '—'}
+        </span>
+      ),
+    })
+  }
+
+  // 6. City & Niche
+  if (visibleCols.length === 0 || visibleCols.includes('city')) {
+    columns.push({
+      key: 'city',
+      header: 'LOCATION & NICHE',
+      sortable: true,
+      width: '15%',
+      render: (item) => (
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {item.city && (
+            <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 truncate">
+              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+              <span>{item.city}</span>
+            </span>
+          )}
+          {item.niche && (
+            <span className="text-[10px] text-slate-400 truncate">
+              {item.niche}
+            </span>
+          )}
+          {!item.city && !item.niche && <span className="text-slate-400 text-xs">—</span>}
+        </div>
+      ),
+    })
+  }
+
+  // 7. Sample Reel
+  if (visibleCols.length === 0 || visibleCols.includes('sample_reel_url')) {
+    columns.push({
+      key: 'sample_reel_url',
+      header: 'SAMPLE REEL',
+      width: '12%',
+      render: (item) =>
+        item.sample_reel_url ? (
+          <a
+            href={item.sample_reel_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-none border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-700 text-[11px] font-semibold transition"
+          >
+            <Video className="w-3 h-3 text-pink-600 shrink-0" />
+            <span>Sample Reel ↗</span>
+          </a>
+        ) : (
+          <span className="text-slate-400 text-xs">—</span>
+        ),
+    })
+  }
+
+  // 8. Commercial Quote
+  if (visibleCols.includes('brand_commercial')) {
+    columns.push({
+      key: 'brand_commercial',
+      header: 'COMMERCIAL',
+      sortable: true,
+      width: '12%',
+      render: (item) => (
+        <span className="font-mono tabular-nums font-bold text-xs text-emerald-700">
+          {Number(item.brand_commercial) > 0
+            ? `₹${Number(item.brand_commercial).toLocaleString('en-IN')}`
+            : '—'}
+        </span>
+      ),
+    })
+  }
+
+  // 9. Shortlist Action
+  if (canShortlist) {
+    columns.push({
+      key: 'action',
+      header: 'SHORTLIST',
+      width: '12%',
+      align: 'center',
+      render: (item) => {
+        const isSelected = selectedIds.includes(item.id)
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleSelect(item.id)
+            }}
+            className={`w-full py-1.5 px-2 rounded-none text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+              isSelected
+                ? 'bg-[#10b981] hover:bg-[#059669] text-white shadow-2xs'
+                : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-300'
+            }`}
+          >
+            {isSelected ? (
+              <>
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Shortlisted</span>
+              </>
+            ) : (
+              <span>+ Shortlist</span>
+            )}
+          </button>
+        )
+      },
+    })
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-[#F95738]/20 selection:text-[#D83B1C] pb-28 sm:pb-24">
-      {/* ─── 1. STICKY PREMIUM HEADER BAR ─── */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
-        <div className="max-w-6xl mx-auto px-3.5 sm:px-6 h-14 flex items-center justify-between gap-2">
-          {/* Brand Identity */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center shrink-0 p-1 shadow-sm border border-slate-700">
-              <img
-                src="/thehype-logo.png"
-                alt="TheHype"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-sm text-slate-900 tracking-tight">TheHype</span>
-                <span className="text-slate-300">•</span>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FFF2EF] text-[#D83B1C] border border-[#F95738]/25 truncate">
+    <div
+      className="min-h-screen bg-[#F8FAFC] text-slate-900 pb-28 font-sans"
+      style={{
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      }}
+    >
+      {/* ─── 1. APPLE-STYLE CENTER FLOATING FROSTED GLASS HEADER ─── */}
+      <header className="sticky top-0 z-40 w-full pt-3 pb-1 sm:pt-3.5 sm:pb-1.5 bg-[#F8FAFC]/85 backdrop-blur-md transition-all">
+        <div className="max-w-[1440px] w-full mx-auto px-3.5 sm:px-5 lg:px-6">
+          <div className="bg-white/95 backdrop-blur-2xl border border-slate-300/80 shadow-[0_4px_24px_rgba(15,23,42,0.08)] rounded-full px-4 sm:px-6 h-12 flex items-center justify-between gap-3">
+            {/* Brand Identity */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-7 w-7 rounded-full bg-slate-900 border border-slate-700/80 overflow-hidden flex items-center justify-center shrink-0 p-0.5 shadow-xs">
+                <img
+                  src="https://thehype.in/img/logo.png"
+                  alt="TheHype"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/thehype-logo.png'
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-extrabold text-xs sm:text-sm text-slate-950 tracking-tight">TheHype</span>
+                <span className="text-slate-400 font-bold">•</span>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 border border-emerald-300 truncate max-w-[140px] sm:max-w-[220px]">
                   {roster.brand_name}
                 </span>
+                <span className="hidden md:inline-block text-xs font-semibold text-slate-600 truncate">
+                  Curated Talent Proposal
+                </span>
               </div>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 leading-none mt-0.5">
-                Curated Talent Proposal
-              </p>
-            </div>
-          </div>
-
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* View Mode Toggle (Grid / List) */}
-            <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-[#F95738] shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-                title="Card View"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'list'
-                    ? 'bg-white text-[#F95738] shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-                title="Compact List View"
-              >
-                <List className="h-3.5 w-3.5" />
-              </button>
             </div>
 
-            {canShortlist && (
-              <button
-                type="button"
-                onClick={() => setShowSubmitModal(true)}
-                disabled={selectedIds.length === 0}
-                className="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white transition-all items-center gap-1.5 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed shadow-md shadow-[#F95738]/20"
-              >
-                <Send className="h-3 w-3" />
-                <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Submit Shortlist (${selectedIds.length})`}</span>
-              </button>
-            )}
+            {/* Right Header Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              {canShortlist && (
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(true)}
+                  disabled={selectedIds.length === 0}
+                  className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                    selectedIds.length > 0
+                      ? 'bg-[#10b981] hover:bg-[#059669] text-white shadow-emerald-500/20'
+                      : 'bg-slate-100 text-slate-500 border border-slate-300/80 cursor-not-allowed opacity-90'
+                  }`}
+                >
+                  <Send className="h-3 w-3" />
+                  <span>
+                    {submittedSuccess
+                      ? `Update Shortlist (${selectedIds.length})`
+                      : `Confirm Shortlist (${selectedIds.length})`}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ─── 2. MAIN CONTAINER ─── */}
-      <main className="max-w-6xl mx-auto px-3.5 sm:px-6 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
-        {/* ─── VIBRANT PREMIUM PITCH HERO CARD ─── */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E1B4B] to-[#2E1035] text-white p-5 sm:p-7 shadow-xl border border-white/10">
-          {/* Ambient Glow Orbs */}
-          <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#F95738]/25 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div className="space-y-2 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#F95738] to-[#FF7659] text-white shadow-sm shadow-[#F95738]/30">
-                    <Flame className="h-3 w-3" />
-                    {roster.category_niche || 'CURATED PITCH'}
-                  </span>
-                  {canShortlist ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                      1-Click Shortlisting Active
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-slate-200 border border-white/15">
-                      <Eye className="h-3 w-3 text-amber-300" />
-                      Curated Showcase • View Only
-                    </span>
-                  )}
-                </div>
-
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+      {/* ─── 2. MAIN WORKSPACE CANVAS ─── */}
+      <main className="max-w-[1440px] w-full mx-auto px-3.5 sm:px-5 lg:px-6 pt-2 sm:pt-3 space-y-3 sm:space-y-4">
+        {/* ─── COMPACT EXECUTIVE PROPOSAL OVERVIEW STRIP ─── */}
+        <section className="bg-white border border-slate-300/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+            {/* Left: Title, Tag & Metadata in a tight group */}
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-950 tracking-tight truncate">
                   {roster.title}
                 </h1>
-
-                <p className="text-xs text-slate-300">
-                  Prepared exclusively by <strong className="text-white font-bold">TheHype</strong>{' '}
-                  for <strong className="text-[#FF8A5B] font-bold">{roster.brand_name}</strong>
-                </p>
-
-                {roster.description && (
-                  <p className="text-xs text-slate-300/90 max-w-3xl leading-relaxed pt-0.5">
-                    {roster.description}
-                  </p>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-900 border border-slate-300">
+                  {roster.category_niche || 'CURATED ROSTER'}
+                </span>
+                {canShortlist ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-900 border border-emerald-300">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-700" />
+                    1-Click Shortlist
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300">
+                    <Eye className="h-3 w-3 text-slate-600" />
+                    Curated Showcase
+                  </span>
+                )}
+                {submittedSuccess && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-400 text-emerald-900 text-[11px] font-extrabold">
+                    <Check className="h-3.5 w-3.5 stroke-[3] text-emerald-700" />
+                    Submitted ({selectedIds.length})
+                  </span>
                 )}
               </div>
 
-              {submittedSuccess && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-500/25 shrink-0">
-                  <Check className="h-4 w-4 stroke-[3]" />
-                  <span>Shortlist Submitted ({selectedIds.length})</span>
-                </div>
-              )}
+              <p className="text-xs sm:text-[13px] text-slate-700 font-medium truncate">
+                Prepared exclusively by <strong className="text-slate-950 font-bold">TheHype</strong> for{' '}
+                <strong className="text-emerald-900 font-bold underline decoration-emerald-400 decoration-2 underline-offset-2">{roster.brand_name}</strong>
+                {roster.description ? ` • ${roster.description}` : ''}
+              </p>
             </div>
 
-            {/* 4-Column Glassmorphic Colorful KPI Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-orange-300 block">
-                  Creators Pitched
+            {/* Right: 4 Compact Inline KPI Metric Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-300 text-center min-w-[75px] shadow-2xs">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 block">
+                  Pitched
                 </span>
-                <span className="text-base sm:text-xl font-black text-white mt-0.5 block">
+                <span className="text-sm sm:text-base font-black font-mono tabular-nums text-slate-950 block mt-0.5">
                   {items.length}
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-violet-300 block">
-                  Combined Reach
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-300 text-center min-w-[80px] shadow-2xs">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 block">
+                  Reach
                 </span>
-                <span className="text-base sm:text-xl font-black text-white mt-0.5 block">
+                <span className="text-sm sm:text-base font-black font-mono tabular-nums text-slate-950 block mt-0.5">
                   {formatCompactNumber(aggregateStats.totalFollowers)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-pink-300 block">
-                  Est. Reel Views
+              <div className="px-3.5 py-1.5 rounded-xl bg-slate-100/90 border border-slate-300 text-center min-w-[85px] shadow-2xs">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-700 block">
+                  Reel Views
                 </span>
-                <span className="text-base sm:text-xl font-black text-white mt-0.5 block">
+                <span className="text-sm sm:text-base font-black font-mono tabular-nums text-slate-950 block mt-0.5">
                   {aggregateStats.totalViews > 0
                     ? formatCompactNumber(aggregateStats.totalViews)
                     : '—'}
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 block">
-                  {canShortlist ? 'Shortlisted' : 'Avg Engagement'}
+              <div className="px-3.5 py-1.5 rounded-xl bg-emerald-100/80 border border-emerald-300 text-center min-w-[90px] shadow-2xs">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 block">
+                  {canShortlist ? 'Shortlisted' : 'Avg Eng'}
                 </span>
-                <span className="text-base sm:text-xl font-black text-white mt-0.5 block">
+                <span className="text-sm sm:text-base font-black font-mono tabular-nums text-emerald-950 block mt-0.5">
                   {canShortlist
                     ? `${selectedIds.length} / ${items.length}`
                     : aggregateStats.avgEng !== '—'
@@ -388,62 +540,70 @@ export default function PublicRosterViewerPage({
           </div>
         </section>
 
-        {/* ─── 3. MOBILE-FIRST SEARCH, FILTER & BULK BAR ─── */}
-        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 shadow-xs">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search creator name, @handle, or city..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white transition-all"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+        {/* ─── PURE HIGH-DENSITY DATA TABLE (LIST VIEW) ─── */}
+        <DynamicDataTable<any>
+          theme="light"
+          keyField="id"
+          tableLayout="fixed"
+          minTableWidth="min-w-[800px]"
+          data={displayedItems}
+          columns={columns}
+          searchPlaceholder="Search creator name, @handle, city, niche..."
+          exportFilename={`${roster.title.replace(/\s+/g, '_')}_Talent_Deck.csv`}
+          defaultPageSize={25}
+          pageSizeOptions={[10, 25, 50, 100]}
+          controlsLeft={
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {canShortlist && (
+                <div className="inline-flex items-center p-0.5 rounded-none bg-slate-100 border border-slate-200/80 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setFilterTab('all')}
+                    className={`px-2.5 py-1 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      filterTab === 'all'
+                        ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>All</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        filterTab === 'all'
+                          ? 'bg-[#10b981] text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {items.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterTab('selected')}
+                    className={`px-2.5 py-1 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      filterTab === 'selected'
+                        ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>Shortlisted</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        filterTab === 'selected'
+                          ? 'bg-[#10b981] text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {selectedIds.length}
+                    </span>
+                  </button>
+                </div>
+              )}
 
-          {/* Filter Pills & Select All */}
-          {canShortlist && (
-            <div className="flex items-center justify-between sm:justify-end gap-2">
-              <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] font-bold">
-                <button
-                  type="button"
-                  onClick={() => setFilterTab('all')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    filterTab === 'all'
-                      ? 'bg-[#F95738] text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  All ({items.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab('selected')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    filterTab === 'selected'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Shortlisted ({selectedIds.length})
-                </button>
-              </div>
-
-              {!submittedSuccess && (
+              {canShortlist && (
                 <button
                   type="button"
                   onClick={selectAll}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-[#F95738]/30 bg-[#FFF2EF] hover:bg-[#F95738] text-[#D83B1C] hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="px-2.5 py-1 rounded-none text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition cursor-pointer shrink-0"
                 >
                   {selectedIds.length === items.length && items.length > 0
                     ? 'Clear All'
@@ -451,478 +611,93 @@ export default function PublicRosterViewerPage({
                 </button>
               )}
             </div>
-          )}
-        </section>
-
-        {/* ─── 4. CREATOR ROSTER DISPLAY (GRID OR COMPACT LIST) ─── */}
-        {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-2 shadow-xs">
-            <p className="text-sm font-bold text-slate-900">No creators match your filter</p>
-            <p className="text-xs text-slate-500">
-              Try clearing your search query or switching back to All Creators.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('')
-                setFilterTab('all')
-              }}
-              className="mt-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#F95738] text-white cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : viewMode === 'grid' ? (
-          /* ─── 4A. MOBILE-FIRST COLORFUL PREMIUM CARDS GRID ─── */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-            {filteredItems.map((item, idx) => {
-              const isSelected = selectedIds.includes(item.id)
-              const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => {
-                    if (canShortlist) toggleSelect(item.id)
-                  }}
-                  className={`group rounded-3xl bg-white border transition-all duration-200 flex flex-col justify-between overflow-hidden relative ${
-                    canShortlist ? 'cursor-pointer' : ''
-                  } ${
-                    isSelected
-                      ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-lg shadow-emerald-500/10 bg-gradient-to-b from-emerald-50/30 via-white to-white'
-                      : 'border-slate-200/90 hover:border-[#F95738]/50 hover:shadow-md shadow-xs'
-                  }`}
-                >
-                  {/* Top Accent Line */}
-                  <div
-                    className={`h-1 w-full bg-gradient-to-r ${
-                      isSelected
-                        ? 'from-emerald-400 via-teal-500 to-emerald-600'
-                        : gradientClass.split(' ').slice(0, 2).join(' ')
-                    }`}
-                  />
-
-                  <div className="p-4 space-y-3.5">
-                    {/* Top Row: Vibrant Avatar + Name/Handle + Checkbox */}
-                    <div className="flex items-start justify-between gap-2.5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`h-11 w-11 rounded-2xl bg-gradient-to-br ${gradientClass} text-white flex items-center justify-center font-black text-sm shrink-0 shadow-md`}
-                        >
-                          {item.creator_name?.charAt(0)?.toUpperCase() || '#'}
-                        </div>
-
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="font-extrabold text-sm text-slate-900 truncate">
-                              {item.creator_name}
-                            </h3>
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500">
-                              #{idx + 1}
-                            </span>
-                          </div>
-
-                          <a
-                            href={`https://instagram.com/${item.instagram_username}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-pink-600 hover:text-pink-700 hover:underline mt-0.5 max-w-full"
-                          >
-                            <Instagram className="h-3 w-3 shrink-0 text-pink-500" />
-                            <span className="truncate">@{item.instagram_username}</span>
-                            <ArrowUpRight className="h-3 w-3 shrink-0 opacity-70" />
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Top-Right Selection Button */}
-                      {canShortlist && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleSelect(item.id)
-                          }}
-                          className={`h-8 w-8 rounded-xl border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
-                            isSelected
-                              ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/30'
-                              : 'bg-slate-50 border-slate-200 text-slate-400 group-hover:border-[#F95738] group-hover:text-[#F95738]'
-                          }`}
-                          aria-label={isSelected ? 'Remove from shortlist' : 'Add to shortlist'}
-                        >
-                          <Check className={`h-4 w-4 ${isSelected ? 'stroke-[3]' : ''}`} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Colorful Location & Niche Micro-Pills */}
-                    {(visibleCols.includes('city') || item.niche) && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {visibleCols.includes('city') && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200/60 text-[10px] font-bold">
-                            <MapPin className="h-2.5 w-2.5 text-indigo-500 shrink-0" />
-                            <span className="truncate max-w-[140px]">
-                              {item.city || 'Pan India'}
-                            </span>
-                          </span>
-                        )}
-                        {item.niche && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/60 text-[10px] font-bold truncate max-w-[160px]">
-                            {item.niche}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Unified 3-Column Horizontal Metrics Strip with Rich Accents */}
-                    <div className="grid grid-cols-3 divide-x divide-slate-200/80 rounded-2xl bg-gradient-to-b from-slate-50/90 to-slate-100/50 border border-slate-200/80 py-2.5 px-1 text-center">
-                      {visibleCols.includes('followers') && (
-                        <div className="px-1.5">
-                          <span className="text-[9px] uppercase font-extrabold tracking-wider text-indigo-500 block">
-                            Followers
-                          </span>
-                          <span className="font-black text-slate-900 text-xs sm:text-sm mt-0.5 block">
-                            {formatCompactNumber(item.followers)}
-                          </span>
-                        </div>
-                      )}
-
-                      {visibleCols.includes('avg_reels_views') && (
-                        <div className="px-1.5">
-                          <span className="text-[9px] uppercase font-extrabold tracking-wider text-violet-500 block">
-                            Avg Views
-                          </span>
-                          <span className="font-black text-slate-900 text-xs sm:text-sm mt-0.5 block">
-                            {item.avg_reels_views > 0
-                              ? formatCompactNumber(item.avg_reels_views)
-                              : '—'}
-                          </span>
-                        </div>
-                      )}
-
-                      {visibleCols.includes('engagement_rate') && (
-                        <div className="px-1.5">
-                          <span className="text-[9px] uppercase font-extrabold tracking-wider text-emerald-600 block">
-                            Engagement
-                          </span>
-                          <span className="font-black text-emerald-600 text-xs sm:text-sm mt-0.5 block">
-                            {item.engagement_rate > 0 ? `${item.engagement_rate}%` : '—'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Pitch note if available */}
-                    {item.pitch_note && (
-                      <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/70 text-[11px] text-amber-900 italic leading-relaxed">
-                        &ldquo;{item.pitch_note}&rdquo;
-                      </div>
-                    )}
-
-                    {/* Commercial Quote if visible */}
-                    {visibleCols.includes('brand_commercial') &&
-                      Number(item.brand_commercial) > 0 && (
-                        <div className="px-3 py-2 rounded-xl bg-[#FFF2EF] border border-[#F95738]/25 flex items-center justify-between">
-                          <span className="text-[11px] text-[#D83B1C] font-bold">
-                            Commercial Quote
-                          </span>
-                          <span className="text-xs font-black text-[#D83B1C]">
-                            ₹{Number(item.brand_commercial).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      )}
-                  </div>
-
-                  {/* Card Footer: Vibrant Side-by-Side Thumb Actions */}
-                  <div
-                    className="px-4 pb-4 pt-1 flex items-center gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {visibleCols.includes('sample_reel_url') && item.sample_reel_url && (
-                      <a
-                        href={item.sample_reel_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-50 via-pink-50 to-purple-50 hover:from-rose-100 hover:to-purple-100 border border-pink-200/80 text-pink-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
-                      >
-                        <Video className="h-3.5 w-3.5 text-pink-600 shrink-0" />
-                        <span>Sample Reel</span>
-                        <ArrowUpRight className="h-3 w-3 opacity-70 shrink-0" />
-                      </a>
-                    )}
-
-                    {canShortlist && (
-                      <button
-                        type="button"
-                        onClick={() => toggleSelect(item.id)}
-                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25'
-                            : 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white shadow-sm shadow-[#F95738]/20'
-                        }`}
-                      >
-                        <Check className={`h-3.5 w-3.5 ${isSelected ? 'stroke-[3]' : ''}`} />
-                        <span>{isSelected ? 'Shortlisted' : 'Shortlist'}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          /* ─── 4B. ZERO-SCROLL MOBILE-FIRST COMPACT LIST VIEW ─── */
-          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-            {/* List Header Strip */}
-            <div className="bg-slate-50/90 border-b border-slate-200 px-3.5 sm:px-5 py-2.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-              <div className="flex items-center gap-2.5">
-                {canShortlist && (
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.length === items.length && items.length > 0}
-                    onChange={selectAll}
-                    className="rounded border-slate-300 accent-[#F95738] cursor-pointer h-4 w-4"
-                  />
-                )}
-                <span>Creator & Performance Metrics</span>
-              </div>
-              <span>Reel & Shortlist</span>
-            </div>
-
-            {/* Responsive Creator Rows — Zero Horizontal Scroll */}
-            <div className="divide-y divide-slate-100">
-              {filteredItems.map((item, idx) => {
-                const isSelected = selectedIds.includes(item.id)
-                const gradientClass = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length]
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      if (canShortlist) toggleSelect(item.id)
-                    }}
-                    className={`p-3 sm:px-5 sm:py-3.5 transition-colors ${
-                      canShortlist ? 'cursor-pointer' : ''
-                    } ${
-                      isSelected
-                        ? 'bg-gradient-to-r from-emerald-50/60 via-emerald-50/20 to-white'
-                        : 'hover:bg-slate-50/80'
-                    }`}
-                  >
-                    {/* Top Line: Identity on Left + Action Buttons on Right */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        {canShortlist && (
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="shrink-0 flex items-center"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSelect(item.id)}
-                              className="rounded border-slate-300 accent-emerald-600 cursor-pointer h-4 w-4"
-                            />
-                          </div>
-                        )}
-
-                        <div
-                          className={`h-9 w-9 rounded-xl bg-gradient-to-br ${gradientClass} text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs`}
-                        >
-                          {item.creator_name?.charAt(0)?.toUpperCase() || '#'}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">
-                              {item.creator_name}
-                            </p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0">
-                              #{idx + 1}
-                            </span>
-                          </div>
-                          <a
-                            href={`https://instagram.com/${item.instagram_username}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-[11px] text-pink-600 hover:underline inline-flex items-center gap-0.5 font-bold max-w-full"
-                          >
-                            <span className="truncate">@{item.instagram_username}</span>
-                            <ArrowUpRight className="h-2.5 w-2.5 shrink-0" />
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Right Actions — Always visible without horizontal scroll */}
-                      <div
-                        className="flex items-center gap-1.5 shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {visibleCols.includes('sample_reel_url') && item.sample_reel_url && (
-                          <a
-                            href={item.sample_reel_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-50 to-purple-50 hover:from-rose-100 hover:to-purple-100 text-pink-700 border border-pink-200/80 text-[11px] font-bold inline-flex items-center gap-1 transition-all"
-                          >
-                            <Video className="h-3 w-3 text-pink-600 shrink-0" />
-                            <span>Reel</span>
-                          </a>
-                        )}
-
-                        {canShortlist && (
-                          <button
-                            type="button"
-                            onClick={() => toggleSelect(item.id)}
-                            className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] font-extrabold cursor-pointer transition-all inline-flex items-center gap-1 ${
-                              isSelected
-                                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs'
-                                : 'bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white shadow-xs'
-                            }`}
-                          >
-                            <Check className={`h-3 w-3 ${isSelected ? 'stroke-[3]' : ''}`} />
-                            <span>{isSelected ? 'Added' : 'Shortlist'}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Second Line: Compact Colorful Metrics Strip (Fits 100% on Mobile) */}
-                    <div
-                      className={`mt-2 flex items-center gap-1.5 flex-wrap ${
-                        canShortlist ? 'pl-6 sm:pl-16' : 'pl-11'
-                      }`}
-                    >
-                      {visibleCols.includes('followers') && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50/80 border border-indigo-200/60 text-[10px] font-bold text-indigo-950">
-                          <span className="text-indigo-500 font-extrabold uppercase text-[9px]">
-                            Followers
-                          </span>
-                          <span>{formatCompactNumber(item.followers)}</span>
-                        </span>
-                      )}
-
-                      {visibleCols.includes('avg_reels_views') && item.avg_reels_views > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-violet-50/80 border border-violet-200/60 text-[10px] font-bold text-violet-950">
-                          <span className="text-violet-500 font-extrabold uppercase text-[9px]">
-                            Views
-                          </span>
-                          <span>{formatCompactNumber(item.avg_reels_views)}</span>
-                        </span>
-                      )}
-
-                      {visibleCols.includes('engagement_rate') && item.engagement_rate > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/70 text-[10px] font-extrabold text-emerald-700">
-                          <span className="text-emerald-500 uppercase text-[9px]">Eng</span>
-                          <span>{item.engagement_rate}%</span>
-                        </span>
-                      )}
-
-                      {visibleCols.includes('city') && item.city && (
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-semibold">
-                          <MapPin className="h-2.5 w-2.5 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[90px]">{item.city}</span>
-                        </span>
-                      )}
-
-                      {visibleCols.includes('brand_commercial') &&
-                        Number(item.brand_commercial) > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFF2EF] border border-[#F95738]/25 text-[10px] font-black text-[#D83B1C]">
-                            ₹{Number(item.brand_commercial).toLocaleString('en-IN')}
-                          </span>
-                        )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
+          }
+        />
       </main>
 
-      {/* ─── 5. THUMB-FRIENDLY STICKY BOTTOM DOCK (MOBILE & DESKTOP) ─── */}
+      {/* ─── 3. STICKY BOTTOM SHORTLIST DOCK (WHEN SHORTLISTING ACTIVE) ─── */}
       {canShortlist && (
-        <div className="fixed bottom-0 inset-x-0 sm:bottom-5 sm:inset-x-4 max-w-xl mx-auto z-40">
-          <div className="bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#0F172A] text-white border-t sm:border border-white/15 sm:rounded-2xl px-4 py-3 shadow-2xl flex items-center justify-between gap-3">
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-[#161e2b] border-t border-[#243044] text-white px-4 py-2.5 shadow-2xl">
+          <div className="max-w-[1440px] w-full mx-auto px-3.5 sm:px-5 lg:px-6 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-slate-950 flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+              <span className="px-2 py-0.5 rounded-none bg-[#10b981] text-white font-mono font-bold text-xs shrink-0">
                 {selectedIds.length}
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">
-                  {selectedIds.length === 0
-                    ? 'Tap creators to shortlist'
-                    : `${selectedIds.length} of ${items.length} Creators Selected`}
-                </p>
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  className="text-[10px] text-orange-300 hover:text-white underline cursor-pointer block font-semibold"
-                >
-                  {selectedIds.length === items.length ? 'Clear selection' : 'Select all creators'}
-                </button>
-              </div>
+              </span>
+              <p className="text-xs font-semibold text-white truncate">
+                {selectedIds.length === 0
+                  ? 'Select creators from the list to shortlist'
+                  : `${selectedIds.length} of ${items.length} Creators Selected`}
+              </p>
+              <button
+                type="button"
+                onClick={selectAll}
+                className="text-xs text-emerald-400 hover:text-emerald-300 underline font-medium cursor-pointer ml-1 hidden sm:inline"
+              >
+                {selectedIds.length === items.length ? 'Clear selection' : 'Select all creators'}
+              </button>
             </div>
 
             <button
               type="button"
               onClick={() => setShowSubmitModal(true)}
               disabled={selectedIds.length === 0}
-              className="px-4 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed shrink-0 shadow-lg shadow-[#F95738]/30"
+              className="px-4 sm:px-5 py-2 rounded-none text-xs font-bold bg-[#10b981] hover:bg-[#059669] text-white transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-md"
             >
               <Send className="h-3.5 w-3.5" />
-              <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Confirm Shortlist (${selectedIds.length})`}</span>
+              <span>
+                {submittedSuccess
+                  ? `Update Shortlist (${selectedIds.length})`
+                  : `Confirm Shortlist (${selectedIds.length})`}
+              </span>
             </button>
           </div>
         </div>
       )}
 
-      {/* ─── 6. PREMIUM SUBMISSION MODAL (MOBILE BOTTOM SHEET) ─── */}
+      {/* ─── 4. ENTERPRISE SHORTLIST SUBMISSION MODAL ─── */}
       <AnimatePresence>
         {showSubmitModal && (
           <div
             onClick={() => {
               if (!submitting) setShowSubmitModal(false)
             }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-950/60 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
           >
             <motion.div
-              initial={{ y: 40, opacity: 0 }}
+              initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
+              exit={{ y: 20, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-white border-t sm:border border-slate-200 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md bg-white border border-slate-200 rounded-none p-5 sm:p-6 shadow-2xl space-y-4 text-slate-900 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#F95738] to-[#FF7659] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#F95738]/25">
+                  <div className="h-9 w-9 rounded-full bg-slate-900 text-emerald-400 flex items-center justify-center shrink-0 border border-slate-700">
                     <Send className="h-4 w-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-slate-900">
+                    <h3 className="text-sm font-bold text-slate-900">
                       Confirm Creator Shortlist
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Sending <strong className="text-[#D83B1C]">{selectedIds.length} creators</strong> to TheHype Team
+                      Submitting <strong className="text-emerald-700 font-semibold">{selectedIds.length} creators</strong> to TheHype Team
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowSubmitModal(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-none text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitShortlist} className="space-y-3.5 text-xs">
+              <form onSubmit={handleSubmitShortlist} className="space-y-3 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      Brand / Company Name *
+                      Brand / Company *
                     </label>
                     <input
                       type="text"
@@ -930,12 +705,12 @@ export default function PublicRosterViewerPage({
                       value={submitBrandName}
                       onChange={(e) => setSubmitBrandName(e.target.value)}
                       placeholder="e.g. Invergy, Mamaearth"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                      className="w-full bg-white border border-slate-300 rounded-none px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#10b981]"
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                      Your Name / Reviewer POC *
+                      Reviewer Name *
                     </label>
                     <input
                       type="text"
@@ -943,7 +718,7 @@ export default function PublicRosterViewerPage({
                       value={pocName}
                       onChange={(e) => setPocName(e.target.value)}
                       placeholder="e.g. Nitesh Yadav"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                      className="w-full bg-white border border-slate-300 rounded-none px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#10b981]"
                     />
                   </div>
                 </div>
@@ -958,8 +733,8 @@ export default function PublicRosterViewerPage({
                       required
                       value={pocEmail}
                       onChange={(e) => setPocEmail(e.target.value)}
-                      placeholder="rajesh@brand.com"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                      placeholder="poc@brand.com"
+                      className="w-full bg-white border border-slate-300 rounded-none px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#10b981]"
                     />
                   </div>
                   <div className="space-y-1">
@@ -971,7 +746,7 @@ export default function PublicRosterViewerPage({
                       value={pocPhone}
                       onChange={(e) => setPocPhone(e.target.value)}
                       placeholder="+91 98765 43210"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white"
+                      className="w-full bg-white border border-slate-300 rounded-none px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#10b981]"
                     />
                   </div>
                 </div>
@@ -984,23 +759,23 @@ export default function PublicRosterViewerPage({
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="e.g. Approved these creators for the upcoming launch. Please share dispatch dates."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#F95738] focus:bg-white resize-none"
+                    placeholder="e.g. Approved these creators for the upcoming campaign. Please coordinate dispatch."
+                    className="w-full bg-white border border-slate-300 rounded-none px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#10b981] resize-none"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                   <button
                     type="button"
                     onClick={() => setShowSubmitModal(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 cursor-pointer"
+                    className="px-4 py-2 rounded-none text-xs font-semibold text-slate-700 hover:text-slate-900 border border-slate-300 hover:bg-slate-50 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-extrabold bg-gradient-to-r from-[#F95738] to-[#FF6B4A] hover:from-[#E04728] hover:to-[#F95738] text-white flex items-center justify-center gap-1.5 shadow-lg shadow-[#F95738]/25 disabled:opacity-50 cursor-pointer"
+                    className="px-5 py-2 rounded-none text-xs font-bold bg-[#10b981] hover:bg-[#059669] text-white flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     {submitting ? (
                       <>
@@ -1010,7 +785,11 @@ export default function PublicRosterViewerPage({
                     ) : (
                       <>
                         <Send className="h-3.5 w-3.5" />
-                        <span>{submittedSuccess ? `Update Shortlist (${selectedIds.length})` : `Submit Shortlist (${selectedIds.length})`}</span>
+                        <span>
+                          {submittedSuccess
+                            ? `Update Shortlist (${selectedIds.length})`
+                            : `Submit Shortlist (${selectedIds.length})`}
+                        </span>
                       </>
                     )}
                   </button>

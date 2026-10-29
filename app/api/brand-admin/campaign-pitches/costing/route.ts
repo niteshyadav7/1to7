@@ -30,6 +30,9 @@ export async function POST(request: Request) {
         ? Boolean(is_commercial_pitch)
         : commVal !== null && commVal > 0
 
+    // NOTE: jsonb_set() is STRICT — passing a NULL new_value makes the whole
+    // expression NULL and would wipe form_data (brand curation, address meta, etc.).
+    // COALESCE(to_jsonb(...), 'null'::jsonb) stores a JSON null instead.
     const updateQuery = `
       UPDATE public.applications
       SET 
@@ -40,10 +43,10 @@ export async function POST(request: Request) {
           jsonb_set(
             COALESCE(form_data, '{}'::jsonb),
             '{client_commercial}',
-            to_jsonb($1::numeric)
+            COALESCE(to_jsonb($1::numeric), 'null'::jsonb)
           ),
           '{internal_cost}',
-          to_jsonb($2::numeric)
+          COALESCE(to_jsonb($2::numeric), 'null'::jsonb)
         ),
         updated_at = NOW()
       WHERE id::text = ANY($4::text[])

@@ -64,6 +64,9 @@ export default function SampleListStudioPage({
   const [dbLoading, setDbLoading] = useState(false)
   const [selectedDbCreators, setSelectedDbCreators] = useState<any[]>([])
   const [addingFromDb, setAddingFromDb] = useState(false)
+  const searchAbortControllerRef = useRef<AbortController | null>(null)
+  const searchSeqRef = useRef(0)
+  const isInitialDbModalOpen = useRef(true)
 
   // Sheet Import & Template state
   const [sheetText, setSheetText] = useState('')
@@ -115,11 +118,28 @@ export default function SampleListStudioPage({
     }
   }, [id])
 
+  // Auto-search with throttling/debouncing as user types in DB search modal
   useEffect(() => {
-    if (showAddFromDbModal && dbResults.length === 0) {
-      handleDbSearch('')
+    if (!showAddFromDbModal) {
+      isInitialDbModalOpen.current = true
+      return
     }
-  }, [showAddFromDbModal])
+
+    // Immediate fetch on fresh modal open with empty query
+    if (isInitialDbModalOpen.current && dbResults.length === 0 && !dbSearch) {
+      isInitialDbModalOpen.current = false
+      handleDbSearch('')
+      return
+    }
+    isInitialDbModalOpen.current = false
+
+    // Debounce live typing by 300ms
+    const debounceTimer = setTimeout(() => {
+      handleDbSearch(dbSearch)
+    }, 300)
+
+    return () => clearTimeout(debounceTimer)
+  }, [dbSearch, showAddFromDbModal])
 
   const fetchAvailableBrands = async () => {
     try {
@@ -199,25 +219,41 @@ export default function SampleListStudioPage({
     }
   }
 
-  // Search DB creators
+  // Search DB creators with abort controller and race-condition guard
   const handleDbSearch = async (queryOverride?: string) => {
     const q = (typeof queryOverride === 'string' ? queryOverride : dbSearch).trim()
+
+    // Abort previous in-flight request to prevent race conditions
+    if (searchAbortControllerRef.current) {
+      searchAbortControllerRef.current.abort()
+    }
+    const abortController = new AbortController()
+    searchAbortControllerRef.current = abortController
+    const currentSeq = ++searchSeqRef.current
+
     setDbLoading(true)
     try {
       const url = q
         ? `/api/admin/influencers/search?q=${encodeURIComponent(q)}`
         : `/api/admin/influencers/search`
-      const res = await fetch(url)
+      const res = await fetch(url, { signal: abortController.signal })
       const data = await res.json()
+
+      // If a newer search query was triggered while waiting, drop stale response
+      if (currentSeq !== searchSeqRef.current) return
+
       if (res.ok) {
         setDbResults(data.influencers || data.creators || [])
       } else {
         toast.error(data.error || 'Failed to search creators')
       }
-    } catch {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return
       toast.error('Network error searching creators')
     } finally {
-      setDbLoading(false)
+      if (currentSeq === searchSeqRef.current) {
+        setDbLoading(false)
+      }
     }
   }
 
@@ -1268,21 +1304,38 @@ export default function SampleListStudioPage({
 
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Search className="h-4 w-4 text-slate-500 absolute left-3 top-2.5" />
+                  {dbLoading ? (
+                    <Loader2 className="h-4 w-4 text-purple-400 absolute left-3 top-2.5 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4 text-slate-500 absolute left-3 top-2.5" />
+                  )}
                   <input
                     type="text"
                     value={dbSearch}
                     onChange={(e) => setDbSearch(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleDbSearch(dbSearch)}
                     placeholder="Search by creator name, Instagram handle, category, or city..."
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-purple-400 placeholder:text-slate-500"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl pl-9 pr-9 py-2 text-xs text-white focus:outline-none focus:border-purple-400 placeholder:text-slate-500"
                   />
+                  {dbSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDbSearch('')
+                        handleDbSearch('')
+                      }}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={() => handleDbSearch(dbSearch)}
                   disabled={dbLoading}
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {dbLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Search'}
                 </button>
@@ -1732,7 +1785,7 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-lg max-h-[90vh] flex flex-col bg-[#121620] border border-amber-400/35 rounded-2xl shadow-2xl text-white cursor-default overflow-hidden my-auto"
+              className="w-full max-w-2xl sm:max-w-3xl max-h-[90vh] flex flex-col bg-[#121620] border border-amber-400/35 rounded-2xl shadow-2xl text-white cursor-default overflow-hidden my-auto"
             >
               {/* Fixed Modal Header */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0 bg-[#0c1017]/60">
@@ -1758,189 +1811,200 @@ Rohan Sharma\t@rohan_fitness\t85K\t45K\t4.5%\tDelhi\tFitness & Health\thttps://w
 
               {/* Scrollable Form Body */}
               <form onSubmit={handlePublishToBrand} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
-                <div className="p-5 space-y-3.5 overflow-y-auto flex-1">
-                  {/* 1. Delivery Mode: Assign vs Clone */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Send className="h-3 w-3 text-amber-400" />
-                      <span>1. Delivery Mode</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPublishMode('assign')
-                          if (list?.brand_id) setSelectedBrandId(list.brand_id)
-                          if (list?.brand_name) setSelectedBrandName(list.brand_name)
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                          publishMode === 'assign'
-                            ? 'bg-amber-500/15 border-amber-400 text-white'
-                            : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold text-xs text-amber-300">Send / Update This Roster</div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
-                          Publishes this exact roster to the selected brand portal.
-                        </p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPublishMode('clone')
-                          setSelectedBrandId('')
-                          setSelectedBrandName('')
-                        }}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                          publishMode === 'clone'
-                            ? 'bg-purple-500/15 border-purple-400 text-white'
-                            : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold text-xs text-purple-300">Clone for Another Brand</div>
-                        <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
-                          Sends a separate copy to another brand without changing {list?.brand_name}.
-                        </p>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 2. Brand Selector (Clean Single Dropdown, Custom Input only if selected) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
+                <div className="p-4 sm:p-5 space-y-3 sm:space-y-3.5 overflow-y-auto max-h-[calc(90vh-100px)] flex-1">
+                  {/* Row 1: Delivery Mode (Left) + Brand Selector (Right) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5 items-start">
+                    {/* 1. Delivery Mode: Assign vs Clone */}
+                    <div className="space-y-1.5">
                       <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                        <Building2 className="h-3 w-3 text-amber-400" />
-                        <span>2. Select Target Client Brand *</span>
+                        <Send className="h-3 w-3 text-amber-400" />
+                        <span>1. Delivery Mode</span>
                       </label>
-                      {availableBrands.length > 0 && (
-                        <span className="text-[10px] text-amber-400 font-semibold">
-                          {availableBrands.length} Client Brands
-                        </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPublishMode('assign')
+                            if (list?.brand_id) setSelectedBrandId(list.brand_id)
+                            if (list?.brand_name) setSelectedBrandName(list.brand_name)
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            publishMode === 'assign'
+                              ? 'bg-amber-500/15 border-amber-400 text-white'
+                              : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <div className="font-bold text-xs text-amber-300">Send This Roster</div>
+                          <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                            Publishes this exact roster to the brand portal.
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPublishMode('clone')
+                            setSelectedBrandId('')
+                            setSelectedBrandName('')
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            publishMode === 'clone'
+                              ? 'bg-purple-500/15 border-purple-400 text-white'
+                              : 'bg-[#0c1017] border-white/10 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <div className="font-bold text-xs text-purple-300">Clone Roster</div>
+                          <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                            Sends a separate copy to another brand.
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Brand Selector */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <Building2 className="h-3 w-3 text-amber-400" />
+                          <span>2. Select Target Client Brand *</span>
+                        </label>
+                        {availableBrands.length > 0 && (
+                          <span className="text-[10px] text-amber-400 font-semibold">
+                            {availableBrands.length} Brands
+                          </span>
+                        )}
+                      </div>
+
+                      {availableBrands.length > 0 ? (
+                        <>
+                          <select
+                            value={
+                              selectedBrandId ||
+                              (availableBrands.some(
+                                (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                              )
+                                ? availableBrands.find(
+                                    (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                                  )?.id
+                                : selectedBrandName
+                                ? 'custom'
+                                : '')
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value
+                              if (val === 'custom') {
+                                setSelectedBrandId('custom')
+                                setSelectedBrandName('')
+                              } else if (!val) {
+                                setSelectedBrandId('')
+                                setSelectedBrandName('')
+                              } else {
+                                const match = availableBrands.find((b) => b.id === val)
+                                if (match) {
+                                  setSelectedBrandId(match.id)
+                                  setSelectedBrandName(match.name)
+                                }
+                              }
+                            }}
+                            className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                          >
+                            <option value="" className="bg-[#121620] text-slate-400">
+                              -- Select Client Brand ({availableBrands.length}) --
+                            </option>
+                            {availableBrands.map((b) => (
+                              <option key={b.id} value={b.id} className="bg-[#121620] text-white">
+                                {b.name} {b.industry ? `(${b.industry})` : ''}
+                              </option>
+                            ))}
+                            <option value="custom" className="bg-[#121620] text-amber-300 font-bold">
+                              + Type Custom / Other Brand Name
+                            </option>
+                          </select>
+
+                          {(selectedBrandId === 'custom' ||
+                            (selectedBrandName &&
+                              !availableBrands.some(
+                                (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
+                              ))) && (
+                            <input
+                              type="text"
+                              value={selectedBrandName}
+                              onChange={(e) => setSelectedBrandName(e.target.value)}
+                              placeholder="Type custom brand name..."
+                              className="w-full bg-[#0c1017] border border-amber-400/40 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 mt-1"
+                              required
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <input
+                          type="text"
+                          value={selectedBrandName}
+                          onChange={(e) => setSelectedBrandName(e.target.value)}
+                          placeholder="Enter target brand name..."
+                          className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+                          required
+                        />
                       )}
                     </div>
+                  </div>
 
-                    {availableBrands.length > 0 ? (
-                      <>
-                        <select
-                          value={
-                            selectedBrandId ||
-                            (availableBrands.some(
-                              (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
-                            )
-                              ? availableBrands.find(
-                                  (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
-                                )?.id
-                              : selectedBrandName
-                              ? 'custom'
-                              : '')
-                          }
-                          onChange={(e) => {
-                            const val = e.target.value
-                            if (val === 'custom') {
-                              setSelectedBrandId('custom')
-                              setSelectedBrandName('')
-                            } else if (!val) {
-                              setSelectedBrandId('')
-                              setSelectedBrandName('')
-                            } else {
-                              const match = availableBrands.find((b) => b.id === val)
-                              if (match) {
-                                setSelectedBrandId(match.id)
-                                setSelectedBrandName(match.name)
-                              }
-                            }
-                          }}
-                          className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 cursor-pointer"
+                  {/* Row 2: Brand Approval Power (Left) + Note to Brand (Right) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5 items-start">
+                    {/* 3. Brand Interaction Mode Toggle: YES vs NO */}
+                    <div className="p-2.5 rounded-xl bg-[#0c1017] border border-white/10 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3 text-amber-400" />
+                          <span>3. Brand Approval Power</span>
+                        </label>
+                        <span className="text-[9px] text-slate-400">
+                          {allowBrandShortlisting ? 'Shortlist enabled' : 'View only'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAllowBrandShortlisting(true)}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                            allowBrandShortlisting
+                              ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
+                              : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                          }`}
                         >
-                          <option value="" className="bg-[#121620] text-slate-400">
-                            -- Select Client Brand ({availableBrands.length}) --
-                          </option>
-                          {availableBrands.map((b) => (
-                            <option key={b.id} value={b.id} className="bg-[#121620] text-white">
-                              {b.name} {b.industry ? `(${b.industry})` : ''}
-                            </option>
-                          ))}
-                          <option value="custom" className="bg-[#121620] text-amber-300 font-bold">
-                            + Type Custom / Other Brand Name
-                          </option>
-                        </select>
-
-                        {(selectedBrandId === 'custom' ||
-                          (selectedBrandName &&
-                            !availableBrands.some(
-                              (b) => b.name.toLowerCase() === selectedBrandName.trim().toLowerCase()
-                            ))) && (
-                          <input
-                            type="text"
-                            value={selectedBrandName}
-                            onChange={(e) => setSelectedBrandName(e.target.value)}
-                            placeholder="Type custom brand name..."
-                            className="w-full bg-[#0c1017] border border-amber-400/40 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 mt-1.5"
-                            required
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <input
-                        type="text"
-                        value={selectedBrandName}
-                        onChange={(e) => setSelectedBrandName(e.target.value)}
-                        placeholder="Enter target brand name..."
-                        className="w-full bg-[#0c1017] border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-                        required
-                      />
-                    )}
-                  </div>
-
-                  {/* 3. Brand Interaction Mode Toggle: YES vs NO */}
-                  <div className="p-3 rounded-xl bg-[#0c1017] border border-white/10 space-y-2">
-                    <label className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                      <Sparkles className="h-3 w-3 text-amber-400" />
-                      <span>3. Give Brand Power to Approve / Shortlist Creators?</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAllowBrandShortlisting(true)}
-                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                          allowBrandShortlisting
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm'
-                            : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        <span>YES (Can Approve)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAllowBrandShortlisting(false)}
-                        className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                          !allowBrandShortlisting
-                            ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
-                            : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>NO (Show Only)</span>
-                      </button>
+                          <Check className="h-3.5 w-3.5" />
+                          <span>YES (Can Approve)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAllowBrandShortlisting(false)}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                            !allowBrandShortlisting
+                              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-sm'
+                              : 'bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>NO (Show Only)</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* 4. Optional Pitch Note (Compact 2-row) */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                      <span>4. Note to Brand Client (Optional)</span>
-                      <span className="text-[10px] text-emerald-400 font-medium normal-case flex items-center gap-1">
-                        <Shield className="h-3 w-3" /> {selectedColumns.length} columns • Margin Protected
-                      </span>
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={pitchNote}
-                      onChange={(e) => setPitchNote(e.target.value)}
-                      placeholder="e.g. Hi Team, curated these top creators for your upcoming launch."
-                      className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 resize-none"
-                    />
+                    {/* 4. Optional Pitch Note (Compact) */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                        <span>4. Note to Brand Client (Optional)</span>
+                        <span className="text-[10px] text-emerald-400 font-medium normal-case flex items-center gap-1">
+                          <Shield className="h-3 w-3" /> {selectedColumns.length} cols
+                        </span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={pitchNote}
+                        onChange={(e) => setPitchNote(e.target.value)}
+                        placeholder="e.g. Hi Team, curated these top creators for your upcoming launch."
+                        className="w-full bg-[#0c1017] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 resize-none h-[54px]"
+                      />
+                    </div>
                   </div>
                 </div>
 

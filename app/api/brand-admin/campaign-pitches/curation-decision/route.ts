@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import pool from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/admin-auth'
 import { getBrandAdminFromRequest } from '@/lib/brand-admin-auth'
+import { applyFinalApprove, applyFinalReject, applyOnHold } from '@/lib/campaign-pitch-curation'
 
 export async function POST(request: Request) {
   try {
@@ -182,34 +183,7 @@ export async function POST(request: Request) {
     const ids = applicationIds.map(String)
 
     if (action === 'final_approve') {
-      const updateRes = await pool.query(
-        `
-        UPDATE public.applications
-        SET
-          brand_review_status = 'brand_approved',
-          status = 'Approved'::application_status,
-          brand_reviewed_at = COALESCE(brand_reviewed_at, NOW()),
-          brand_reviewed_by = COALESCE(brand_reviewed_by, $1),
-          brand_feedback_notes = COALESCE($2, brand_feedback_notes),
-          form_data = jsonb_set(
-            COALESCE(form_data, '{}'::jsonb),
-            '{brand_curation}',
-            COALESCE(form_data->'brand_curation', '{}'::jsonb) || jsonb_build_object(
-              'is_finalized', true,
-              'final_status', 'Approved',
-              'finalized_by', $1::text,
-              'finalized_at', NOW(),
-              'notes', COALESCE($2::text, '')
-            ),
-            true
-          ),
-          updated_at = NOW()
-        WHERE id::text = ANY($3::text[])
-        RETURNING id;
-        `,
-        [reviewerName, notes || null, ids]
-      )
-      const count = updateRes.rowCount || 0
+      const count = await applyFinalApprove(pool, ids, reviewerName, notes)
       return NextResponse.json({
         success: true,
         updatedCount: count,
@@ -218,42 +192,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'final_reject') {
-      const rejectReason = reason?.trim() || 'Not selected in final brand curation'
-      const updateRes = await pool.query(
-        `
-        UPDATE public.applications
-        SET
-          brand_review_status = 'brand_rejected',
-          status = 'Rejected'::application_status,
-          brand_rejection_reason = $1,
-          brand_reviewed_at = NOW(),
-          brand_reviewed_by = $2,
-          brand_feedback_notes = COALESCE($3, brand_feedback_notes),
-          form_data = jsonb_set(
-            jsonb_set(
-              COALESCE(form_data, '{}'::jsonb),
-              '{rejection_reason}',
-              to_jsonb($1::text),
-              true
-            ),
-            '{brand_curation}',
-            COALESCE(form_data->'brand_curation', '{}'::jsonb) || jsonb_build_object(
-              'is_finalized', true,
-              'final_status', 'Rejected',
-              'finalized_by', $2::text,
-              'finalized_at', NOW(),
-              'reason', $1::text,
-              'notes', COALESCE($3::text, '')
-            ),
-            true
-          ),
-          updated_at = NOW()
-        WHERE id::text = ANY($4::text[])
-        RETURNING id;
-        `,
-        [rejectReason, reviewerName, notes || null, ids]
-      )
-      const count = updateRes.rowCount || 0
+      const count = await applyFinalReject(pool, ids, reviewerName, reason, notes)
       return NextResponse.json({
         success: true,
         updatedCount: count,
@@ -262,35 +201,7 @@ export async function POST(request: Request) {
     }
 
     if (action === 'on_hold') {
-      const holdNotes = notes?.trim() || reason?.trim() || 'Placed on Hold / Backup list by Brand Curation'
-      const updateRes = await pool.query(
-        `
-        UPDATE public.applications
-        SET
-          brand_review_status = 'on_hold',
-          status = 'Applied'::application_status,
-          brand_reviewed_at = NOW(),
-          brand_reviewed_by = $1,
-          brand_feedback_notes = $2,
-          form_data = jsonb_set(
-            COALESCE(form_data, '{}'::jsonb),
-            '{brand_curation}',
-            COALESCE(form_data->'brand_curation', '{}'::jsonb) || jsonb_build_object(
-              'is_finalized', false,
-              'final_status', 'On Hold',
-              'updated_by', $1::text,
-              'updated_at', NOW(),
-              'notes', $2::text
-            ),
-            true
-          ),
-          updated_at = NOW()
-        WHERE id::text = ANY($3::text[])
-        RETURNING id;
-        `,
-        [reviewerName, holdNotes, ids]
-      )
-      const count = updateRes.rowCount || 0
+      const count = await applyOnHold(pool, ids, reviewerName, reason, notes)
       return NextResponse.json({
         success: true,
         updatedCount: count,
