@@ -211,7 +211,7 @@ export default function ApplicationFormModal({
       const data = await res.json()
       const initialData: Record<string, string> = {}
       if (data.formConfig) {
-        const ordered = orderFieldsStateBeforeCity(data.formConfig)
+        const ordered = orderFieldsStateBeforeCity<FormField>(data.formConfig)
         setFields(ordered)
         ordered.forEach((f: FormField) => {
           initialData[f.field_name] = getPrefillValueForField(f.field_name, user) || ''
