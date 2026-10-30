@@ -405,25 +405,33 @@ export async function POST(request: Request) {
               const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
               if (verifiedSelectedProfile?.username && verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase()) {
                 profileUpdates.instagram_username = verifiedSelectedProfile.username
-                if (verifiedSelectedProfile.followers > 0) {
-                  profileUpdates.followers = verifiedSelectedProfile.followers
-                }
+              }
+              if (verifiedSelectedProfile?.followers && verifiedSelectedProfile.followers > 0 && verifiedSelectedProfile.followers !== user.followers) {
+                profileUpdates.followers = verifiedSelectedProfile.followers
+                profileUpdates.instagram_followers_count = verifiedSelectedProfile.followers
               }
               if (Object.keys(profileUpdates).length > 0) {
                 profileUpdates.updated_at = new Date().toISOString()
                 await supabase.from('users').update(profileUpdates).eq('id', userId)
               }
             }
-            if (verifiedSelectedProfile?.username && (!verifiedSelectedProfile.id || verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase())) {
+            if (verifiedSelectedProfile?.username) {
               const norm = verifiedSelectedProfile.username.toLowerCase()
               const { data: existingProf } = await supabase
                 .from('user_instagram_profiles')
-                .select('id')
+                .select('id, followers')
                 .eq('user_id', userId)
                 .eq('normalized_username', norm)
                 .maybeSingle()
               
-              if (!existingProf) {
+              if (existingProf) {
+                if (verifiedSelectedProfile.followers > 0 && existingProf.followers !== verifiedSelectedProfile.followers) {
+                  await supabase
+                    .from('user_instagram_profiles')
+                    .update({ followers: verifiedSelectedProfile.followers })
+                    .eq('id', existingProf.id)
+                }
+              } else {
                 await supabase.from('user_instagram_profiles').insert([{
                   user_id: userId,
                   username: verifiedSelectedProfile.username,
@@ -505,25 +513,33 @@ export async function POST(request: Request) {
           const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
           if (verifiedSelectedProfile?.username && verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase()) {
             profileUpdates.instagram_username = verifiedSelectedProfile.username
-            if (verifiedSelectedProfile.followers > 0) {
-              profileUpdates.followers = verifiedSelectedProfile.followers
-            }
+          }
+          if (verifiedSelectedProfile?.followers && verifiedSelectedProfile.followers > 0 && verifiedSelectedProfile.followers !== user.followers) {
+            profileUpdates.followers = verifiedSelectedProfile.followers
+            profileUpdates.instagram_followers_count = verifiedSelectedProfile.followers
           }
           if (Object.keys(profileUpdates).length > 0) {
             profileUpdates.updated_at = new Date().toISOString()
             await supabase.from('users').update(profileUpdates).eq('id', userId)
           }
         }
-        if (verifiedSelectedProfile?.username && (!verifiedSelectedProfile.id || verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase())) {
+        if (verifiedSelectedProfile?.username) {
           const norm = verifiedSelectedProfile.username.toLowerCase()
           const { data: existingProf } = await supabase
             .from('user_instagram_profiles')
-            .select('id')
+            .select('id, followers')
             .eq('user_id', userId)
             .eq('normalized_username', norm)
             .maybeSingle()
           
-          if (!existingProf) {
+          if (existingProf) {
+            if (verifiedSelectedProfile.followers > 0 && existingProf.followers !== verifiedSelectedProfile.followers) {
+              await supabase
+                .from('user_instagram_profiles')
+                .update({ followers: verifiedSelectedProfile.followers })
+                .eq('id', existingProf.id)
+            }
+          } else {
             await supabase.from('user_instagram_profiles').insert([{
               user_id: userId,
               username: verifiedSelectedProfile.username,

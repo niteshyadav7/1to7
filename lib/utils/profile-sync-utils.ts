@@ -102,6 +102,14 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
     ]
   },
   {
+    key: 'followers',
+    label: 'Followers Count',
+    patterns: [
+      /^(followers?|follower\s*count|followers?\s*count|instagram\s*followers?|ig\s*followers?|total\s*followers?)$/i,
+      /\b(follower\s*count|followers?\s*count|instagram\s*followers?)\b/i
+    ]
+  },
+  {
     key: 'full_name',
     label: 'Full Name',
     patterns: [
@@ -298,6 +306,17 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
     options: [],
     description: 'Auto-saves creator YouTube profile',
     canonicalKey: 'youtube'
+  },
+  {
+    id: 'followers',
+    label: 'Followers Count',
+    icon: '👥',
+    name: 'Followers Count',
+    type: 'number',
+    required: true,
+    options: [],
+    description: 'Auto-saves creator Instagram follower count',
+    canonicalKey: 'followers'
   }
 ]
 
@@ -536,6 +555,25 @@ export function extractProfileUpdatesFromFormData(
     }
   }
 
+  // Fallback: If no structured address object was provided, check if a string address was answered in an address field
+  if (!shippingAddrCandidate) {
+    for (const [k, v] of Object.entries(formData)) {
+      if (typeof v === 'string' && v.trim().length >= 5 && isAddressField(k)) {
+        shippingAddrCandidate = {
+          title: 'Delivery Address',
+          address_line1: v.trim(),
+          recipient_name: existingProfile?.full_name || '',
+          mobile: existingProfile?.mobile || '',
+          city: existingProfile?.city || '',
+          state: existingProfile?.state || '',
+          pincode: existingProfile?.pincode || '',
+          is_default: true
+        }
+        break
+      }
+    }
+  }
+
   if (shippingAddrCandidate && shippingAddrCandidate.address_line1) {
     const existingAddresses: any[] = Array.isArray(existingProfile?.shipping_addresses)
       ? [...existingProfile.shipping_addresses]
@@ -626,6 +664,13 @@ export function extractProfileUpdatesFromFormData(
         } else if (targetCanonical === 'instagram_username') {
           profileUpdates.instagram_username = valueStr.replace(/^@/, '').trim()
           hasChanges = true
+        } else if (targetCanonical === 'followers') {
+          const num = Number(String(valueStr).replace(/[^0-9]/g, ''))
+          if (num > 0) {
+            profileUpdates.followers = num
+            profileUpdates.instagram_followers_count = num
+            hasChanges = true
+          }
         } else {
           // Dynamic custom attribute specified by admin (e.g. skin_type, food_preference, height)
           const customKey = createAttributeSlug(targetCanonical)
@@ -690,11 +735,28 @@ export function extractProfileUpdatesFromFormData(
       } else if (canonicalKey === 'instagram_username') {
         profileUpdates.instagram_username = valueStr.replace(/^@/, '').trim()
         hasChanges = true
+      } else if (canonicalKey === 'followers') {
+        const num = Number(String(valueStr).replace(/[^0-9]/g, ''))
+        if (num > 0) {
+          profileUpdates.followers = num
+          profileUpdates.instagram_followers_count = num
+          hasChanges = true
+        }
       }
 
       delete customAttributes[canonicalKey]
       const slug = createAttributeSlug(rawKey)
       if (slug) delete customAttributes[slug]
+    }
+  }
+
+  // Direct check for followers if passed at root of formData
+  if (formData.followers !== undefined && formData.followers !== null) {
+    const num = Number(String(formData.followers).replace(/[^0-9]/g, ''))
+    if (num > 0 && num !== existingProfile?.followers) {
+      profileUpdates.followers = num
+      profileUpdates.instagram_followers_count = num
+      hasChanges = true
     }
   }
 
@@ -763,6 +825,15 @@ export function getPrefillValueForField(rawLabel: string, user: any): string {
 
   const canonicalKey = getCanonicalField(rawLabel)
 
+  // Direct check for followers
+  if (canonicalKey === 'followers' || cleanQuestionLabel(rawLabel).toLowerCase().includes('follower')) {
+    const fCount = user.followers || user.instagram_followers_count ||
+      (Array.isArray(user.instagram_profiles) && user.instagram_profiles.length > 0
+        ? (user.instagram_profiles.find((p: any) => p.is_primary)?.followers || user.instagram_profiles[0]?.followers)
+        : null)
+    if (fCount && Number(fCount) > 0) return String(fCount)
+  }
+
   // Check direct column on user
   if (canonicalKey && user[canonicalKey] !== undefined && user[canonicalKey] !== null) {
     const val = String(user[canonicalKey]).trim()
@@ -790,6 +861,11 @@ export function getPrefillValueForField(rawLabel: string, user: any): string {
         if (val) return val
       }
     }
+  }
+
+  // Check fallback string address in user.address
+  if ((canonicalKey === 'shipping_address' || isAddressField(rawLabel)) && user.address && typeof user.address === 'string' && user.address.trim()) {
+    return user.address.trim()
   }
 
   // Check custom_attributes JSONB

@@ -95,6 +95,31 @@ describe('profile-sync-utils', () => {
       expect(prefilled).toContain('400053')
     })
 
+    it('prefills follower count from user.followers or primary instagram profile', () => {
+      const userWithFollowers = {
+        followers: 12500,
+      }
+      expect(getPrefillValueForField('Followers Count', userWithFollowers)).toBe('12500')
+      expect(getPrefillValueForField('Instagram Followers', userWithFollowers)).toBe('12500')
+      expect(getPrefillValueForField('Followers', userWithFollowers)).toBe('12500')
+
+      const userWithProfiles = {
+        followers: 0,
+        instagram_profiles: [
+          { username: 'test_creator', followers: 45000, is_primary: true }
+        ]
+      }
+      expect(getPrefillValueForField('Followers Count', userWithProfiles)).toBe('45000')
+    })
+
+    it('prefills address string from user.address when shipping_addresses is empty', () => {
+      const userWithStringAddr = {
+        address: 'B-12, Sector 62, Noida, Uttar Pradesh',
+        shipping_addresses: []
+      }
+      expect(getPrefillValueForField('Delivery Address', userWithStringAddr)).toBe('B-12, Sector 62, Noida, Uttar Pradesh')
+    })
+
     it('prefills value from custom_attributes JSONB', () => {
       const user = {
         custom_attributes: {
@@ -179,6 +204,21 @@ describe('profile-sync-utils', () => {
       const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, existingProfile)
       expect(hasChanges).toBe(true)
       expect(profileUpdates.instagram_username).toBe('new_creator_handle')
+    })
+
+    it('syncs followers count answered in a campaign question', () => {
+      const formData = { 'Followers Count': '15,200' }
+      const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, { followers: 0 })
+      expect(hasChanges).toBe(true)
+      expect(profileUpdates.followers).toBe(15200)
+    })
+
+    it('saves a plain-text delivery address into shipping_addresses', () => {
+      const formData = { 'Delivery Address': 'B-12, Sector 62, Noida' }
+      const { profileUpdates } = extractProfileUpdatesFromFormData(formData, { shipping_addresses: [] })
+      expect(profileUpdates.shipping_addresses.length).toBe(1)
+      expect(profileUpdates.shipping_addresses[0].address_line1).toBe('B-12, Sector 62, Noida')
+      expect(profileUpdates.shipping_addresses[0].is_default).toBe(true)
     })
   })
 })

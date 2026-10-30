@@ -33,7 +33,7 @@ import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLoca
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import AddressSelectorField, { formatAddressToString } from '@/components/campaigns/AddressSelectorField'
-import { getPrefillValueForField, isAddressField, isStandardProfileField } from '@/lib/utils/profile-sync-utils'
+import { getPrefillValueForField, isAddressField, isStandardProfileField, getCanonicalField } from '@/lib/utils/profile-sync-utils'
 
 function getActiveCustomState(
   customData: Record<string, any>,
@@ -318,18 +318,28 @@ export default function CampaignDetailModal({
       const missing = getMissingFields()
       const initial: Record<string, any> = {}
       missing.forEach(field => {
-        initial[field] = (user as any)[field] || (field === 'followers' ? 0 : '')
+        initial[field] = (user as any)[field] || (field === 'followers' ? (activeSelectedProfile?.followers || user?.followers || 0) : '')
       })
-      setInlineData(initial)
 
       // Also init custom fields with auto-prefill from user profile or previous response
       if (hasCustomFields) {
         const cfInitial: Record<string, any> = {}
         campaign!.form_fields!.forEach(f => {
-          cfInitial[f.name] = campaign?.form_data?.[f.name] ?? getPrefillValueForField(f.name, user) ?? ''
+          const prefill = campaign?.form_data?.[f.name] ?? getPrefillValueForField(f.name, user) ?? ''
+          cfInitial[f.name] = prefill
+          if (isStateField(f.name, (f as any).profile_sync_key) && prefill && !initial.state) {
+            initial.state = prefill
+          }
+          if (isCityField(f.name, (f as any).profile_sync_key) && prefill && !initial.city) {
+            initial.city = prefill
+          }
+          if ((f.name.toLowerCase().includes('follower') || getCanonicalField(f.name) === 'followers') && prefill && (!initial.followers || initial.followers === 0)) {
+            initial.followers = Number(prefill)
+          }
         })
         setCustomFormData(cfInitial)
       }
+      setInlineData(initial)
       if (campaign?.form_data?.comments && !commentText) {
         setCommentText(campaign.form_data.comments)
       }
@@ -352,7 +362,10 @@ export default function CampaignDetailModal({
     ]
     return requiredFields.filter(field => {
       const val = (u as any)[field]
-      if (field === 'followers') return val === undefined || val === null || val === 0 || val === '0'
+      if (field === 'followers') {
+        const eff = val || activeSelectedProfile?.followers || 0
+        return eff === undefined || eff === null || eff === 0 || eff === '0'
+      }
       return !val || (typeof val === 'string' && val.trim() === '')
     })
   }
@@ -360,7 +373,34 @@ export default function CampaignDetailModal({
   const campaignMissingFields = propUser
     ? getCreatorMissingFields(propUser)
     : getMissingFields().filter(f => !bankFields.includes(f))
-  const missingFields = campaignMissingFields
+
+  // Deduplicate: identify which profile fields are already covered by campaign custom questions
+  const coveredByCampaignFields = new Set<string>()
+  if (hasCustomFields && campaign?.form_fields) {
+    for (const cf of campaign.form_fields) {
+      if (!cf?.name) continue
+      if (isStateField(cf.name, (cf as any).profile_sync_key)) {
+        coveredByCampaignFields.add('state')
+        coveredByCampaignFields.add('city')
+      }
+      if (isCityField(cf.name, (cf as any).profile_sync_key)) {
+        coveredByCampaignFields.add('city')
+      }
+      const canon = getCanonicalField(cf.name) || (cf as any).profile_sync_key
+      if (canon) {
+        coveredByCampaignFields.add(canon)
+        if (canon === 'state') coveredByCampaignFields.add('city')
+      }
+      const rawLower = cf.name.toLowerCase()
+      if (rawLower.includes('follower')) coveredByCampaignFields.add('followers')
+      if (rawLower.includes('gender') || rawLower.includes('sex')) coveredByCampaignFields.add('gender')
+      if (rawLower.includes('full name') || rawLower.includes('your name')) coveredByCampaignFields.add('full_name')
+      if (rawLower.includes('instagram') || rawLower.includes('insta handle')) coveredByCampaignFields.add('instagram_username')
+    }
+  }
+
+  // Filter missing fields: If covered in Campaign Questions, DO NOT ask them in the top profile section!
+  const missingFields = campaignMissingFields.filter(f => !coveredByCampaignFields.has(f))
   const needsInlineForm = true // Always show form for comments
 
   // Check pending missing profile fields only (fields that belong to creator profile)
@@ -369,7 +409,8 @@ export default function CampaignDetailModal({
     missingFields.forEach(field => {
       const val = inlineData[field]
       if (field === 'followers') {
-        if (val === undefined || val === null || val === '' || Number(val) <= 0) {
+        const effective = val !== undefined && val !== '' ? Number(val) : (activeSelectedProfile?.followers ?? user?.followers ?? 0)
+        if (effective <= 0) {
           missing.push(FIELD_LABELS[field] || 'Followers Count')
         }
       } else {
@@ -661,6 +702,7 @@ export default function CampaignDetailModal({
                 }
                 return next
               })
+              setInlineData(p => ({ ...p, state: val || "", city: '' }))
             }}
           >
             <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
@@ -684,7 +726,10 @@ export default function CampaignDetailModal({
               <Select
                 disabled={!activeStateVal}
                 value={customFormData[field.name] || ""}
-                onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val || "" }))}
+                onValueChange={(val) => {
+                  setCustomFormData(p => ({ ...p, [field.name]: val || "" }))
+                  setInlineData(p => ({ ...p, city: val || "" }))
+                }}
               >
                 <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                   } ${!activeStateVal ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`}>
@@ -711,7 +756,12 @@ export default function CampaignDetailModal({
         })() : field.type === 'dropdown' ? (
           <Select
             value={customFormData[field.name] || ""}
-            onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
+            onValueChange={(val) => {
+              setCustomFormData(p => ({ ...p, [field.name]: val }))
+              if (field.name.toLowerCase().includes('gender') || getCanonicalField(field.name) === 'gender') {
+                setInlineData(p => ({ ...p, gender: val }))
+              }
+            }}
           >
             <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
               }`}>
@@ -774,7 +824,18 @@ export default function CampaignDetailModal({
           <Input
             value={customFormData[field.name] || ''}
             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              const val = field.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value
+              setCustomFormData(p => ({ ...p, [field.name]: val }))
+              if (field.name.toLowerCase().includes('follower') || getCanonicalField(field.name) === 'followers') {
+                const num = Number(e.target.value)
+                setInlineData(p => ({ ...p, followers: num }))
+                setReviewFollowers(num)
+              }
+              if (field.name.toLowerCase().includes('full name') || getCanonicalField(field.name) === 'full_name') {
+                setInlineData(p => ({ ...p, full_name: e.target.value }))
+              }
+            }}
             placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
             className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
               }`}
@@ -1175,53 +1236,14 @@ export default function CampaignDetailModal({
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar scrollbar-none">
-                          {/* Missing Profile Requirements Alert Box - Only shown if creator profile has incomplete fields */}
-                          {getPendingProfileRequirements().length > 0 && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="p-3 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
-                            >
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="flex items-start gap-2.5">
-                                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                                  <div className="space-y-1 text-xs">
-                                    <p className="font-bold text-amber-950">
-                                      Action Required: Please complete profile details to apply
-                                    </p>
-                                    <p className="text-amber-800 text-[11px] leading-relaxed">
-                                      Fill in the fields below or update your profile:
-                                    </p>
-                                    <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                      {getPendingProfileRequirements().map((req, i) => (
-                                        <span
-                                          key={i}
-                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"
-                                        >
-                                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                          {req}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    onClose()
-                                    router.push('/dashboard/profile')
-                                  }}
-                                  className="h-8 px-3 text-[11px] font-bold text-amber-900 border-amber-300 hover:bg-amber-100 bg-white shadow-2xs gap-1.5 cursor-pointer shrink-0 self-start sm:self-center"
-                                >
-                                  <User className="h-3.5 w-3.5 text-amber-700" />
-                                  <span>Go to Profile</span>
-                                  <ArrowRight className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </motion.div>
+                          {/* Profile Details Section - Seamless inline collection without disruptive redirect */}
+                          {missingFields.length > 0 && (
+                            <div className="pt-1 pb-1">
+                              <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Profile Details
+                              </p>
+                            </div>
                           )}
 
                           {Array.from(new Set(missingFields.map(f => (f === 'city' ? 'state' : f)))).map((field) => (
@@ -1234,7 +1256,16 @@ export default function CampaignDetailModal({
                                   </label>
                                   <Select
                                     value={inlineData[field] || ""}
-                                    onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
+                                    onValueChange={(val) => {
+                                      setInlineData(p => ({ ...p, [field]: val }))
+                                      if (campaign?.form_fields) {
+                                        campaign.form_fields.forEach(cf => {
+                                          if (cf.name.toLowerCase().includes('gender') || getCanonicalField(cf.name) === 'gender') {
+                                            setCustomFormData(p => ({ ...p, [cf.name]: val }))
+                                          }
+                                        })
+                                      }
+                                    }}
                                   >
                                     <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData[field] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                       }`}>
@@ -1257,7 +1288,16 @@ export default function CampaignDetailModal({
                                     </label>
                                     <Select
                                       value={inlineData.state || ""}
-                                      onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
+                                      onValueChange={(val) => {
+                                        setInlineData(p => ({ ...p, state: val, city: '' }))
+                                        if (campaign?.form_fields) {
+                                          campaign.form_fields.forEach(cf => {
+                                            if (isStateField(cf.name, (cf as any).profile_sync_key)) {
+                                              setCustomFormData(p => ({ ...p, [cf.name]: val }))
+                                            }
+                                          })
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData.state ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                         }`}>
@@ -1279,7 +1319,16 @@ export default function CampaignDetailModal({
                                     <Select
                                       disabled={!inlineData.state && !user?.state}
                                       value={inlineData.city || ""}
-                                      onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
+                                      onValueChange={(val) => {
+                                        setInlineData(p => ({ ...p, city: val }))
+                                        if (campaign?.form_fields) {
+                                          campaign.form_fields.forEach(cf => {
+                                            if (isCityField(cf.name, (cf as any).profile_sync_key)) {
+                                              setCustomFormData(p => ({ ...p, [cf.name]: val }))
+                                            }
+                                          })
+                                        }
+                                      }}
                                     >
                                       <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData.city ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
                                         }`}>
@@ -1312,7 +1361,21 @@ export default function CampaignDetailModal({
                                     <Input
                                       value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
                                       type={field === 'followers' ? 'number' : 'text'}
-                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        const val = field === 'followers' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value
+                                        setInlineData(p => ({ ...p, [field]: val }))
+                                        if (field === 'followers') {
+                                          const num = Number(e.target.value)
+                                          setReviewFollowers(num)
+                                          if (campaign?.form_fields) {
+                                            campaign.form_fields.forEach(cf => {
+                                              if (cf.name.toLowerCase().includes('follower') || getCanonicalField(cf.name) === 'followers') {
+                                                setCustomFormData(p => ({ ...p, [cf.name]: num }))
+                                              }
+                                            })
+                                          }
+                                        }
+                                      }}
                                       placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
                                       className={`w-full bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${hasAttemptedInlineSubmit && (
                                           field === 'followers'

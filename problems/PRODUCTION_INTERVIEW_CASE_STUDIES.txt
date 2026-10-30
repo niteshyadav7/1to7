@@ -112,6 +112,7 @@ CASE 101: Silent SQL Parameter Type Deduction Failure (42P08) & False HTTP 200 S
 CASE 102: Split-Identity Ingestion Collision & PostgreSQL 23505 Unique Constraint Violation (users_mobile_key) During Creator Identity Reconciliation
 CASE 103: Multi-Filter Count Desynchronization, Global vs Scoped Metrics Drift & Ghost Zero-State in Admin Logistics Desk
 CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
+CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Deduplicated In-Modal Progressive Profiling with Cross-Campaign Auto-Fill
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4474,6 +4475,7 @@ Implemented an ACID-Compliant Transactional Identity Merge & Reconciliation Proc
 ====================================================================================================
 CASE 103: Multi-Filter Count Desynchronization, Global vs Scoped Metrics Drift & Ghost Zero-State in Admin Logistics Desk
 CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
+CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Deduplicated In-Modal Progressive Profiling with Cross-Campaign Auto-Fill
 ====================================================================================================
 CATEGORY: Frontend Architecture / Data Grid Filtering / State Management / React Performance / Logistics UX
 INTERVIEW QUESTION: "In high-density administrative dashboards with multi-tier filters (dropdowns, status tabs, search inputs), how do you prevent count desynchronization where tab badges and KPI cards display phantom counts that lead to empty-state tables when clicked? What is your architectural strategy for cross-filter metric scoping?"
@@ -4592,3 +4594,33 @@ SUMMARY CHECKLIST FOR INTERVIEWS:
 
 
 
+
+
+================================================================================
+CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Deduplicated In-Modal Progressive Profiling with Cross-Campaign Auto-Fill
+Category: UX / Form Architecture / Data Sync
+================================================================================
+
+Interview Question:
+"Your apply form asks the same question twice and sends users away to another page to fill in missing details. How would you redesign it so every answer is asked once and reused across forms?"
+
+[SITUATION]
+In CampaignDetailModal.tsx the Wakefit campaign (CAM-MUZIMMIF) asked State, City and Followers in a hardcoded "missing profile" section, then asked STATE / UT and CURRENT CITY again under Campaign Questions. A yellow "Action Required -> GO TO PROFILE" banner closed the modal and sent creators to /dashboard/profile, which caused people to abandon the application. Answers given in one campaign were not reliably reused in the next one.
+
+[ROOT CAUSE]
+1. Two separate render sources: the hardcoded missingFields list and campaign.form_fields. Neither checked what the other was already asking.
+2. Separate state with no sync: inlineData and customFormData were never kept in step, so picking a State at the bottom left the top State empty and validation failed.
+3. CANONICAL_FIELDS had no "followers" key, and plain-text addresses were never written to shipping_addresses. Neither could be saved back to the profile or used to pre-fill the next form.
+
+[SOLUTION & ARCHITECTURE]
+1. Deduplication: build a coveredByCampaignFields set (isStateField / isCityField / getCanonicalField / profile_sync_key). Any profile field already asked by the campaign is removed from the top section, so each question appears once.
+2. Removed the "Go to Profile" banner and redirect. Missing details are filled inside the modal under a neutral "Profile Details" heading.
+3. Two-way sync: State/City/Gender/Followers changes in either section update the other (inlineData <-> customFormData). Followers also updates the review step.
+4. Profile sync layer (profile-sync-utils.ts): added "followers" as a canonical field and preset. getPrefillValueForField falls back to user.followers, then instagram_followers_count, then the primary Instagram profile. Plain-text addresses are turned into a default shipping_addresses entry.
+5. /api/apply: saves followers and instagram_followers_count, and updates follower counts on existing user_instagram_profiles rows. refreshUserProfile() then reloads the creator's data so the next campaign opens pre-filled.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Duplicate questions and a forced redirect to the profile page made creators abandon applications.
+T: Ask each question once, keep users inside the modal, and reuse answers across campaigns.
+A: Built a canonical-field deduplication step, two-way state sync between the form sections, and a write-back sync to the profile with pre-fill fallbacks. Added unit tests for follower and address sync.
+R: Each question is now asked once, there is no redirect, and later campaigns open pre-filled. All 320 tests pass.
