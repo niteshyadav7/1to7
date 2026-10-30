@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Loader2, Pencil, MessageSquare, CheckCircle, CheckCircle2, Layout, User, Users, Phone, Mail, ArrowRight, ShieldCheck, TrendingUp, FileText, UploadCloud, Image as ImageIcon, Calendar, Lock, Instagram, MapPin } from 'lucide-react'
@@ -13,7 +13,7 @@ import { useAuth } from '@/components/providers/AuthProvider'
 import { STATES, INDIA_DATA, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 import { extractInstagramUsername } from '@/lib/instagram-utils'
 import { checkFollowerEligibility, formatFollowerCount, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
-import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
+import { checkCampaignLocationEligibility, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState, orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import AddressSelectorField from '@/components/campaigns/AddressSelectorField'
@@ -146,6 +146,8 @@ export default function ApplicationFormModal({
   const [guestCity, setGuestCity] = useState('')
   const [checkingMobile, setCheckingMobile] = useState(false)
   const [mobileStatus, setMobileStatus] = useState<'idle' | 'exists' | 'new'>('idle')
+  const orderedLegacyFields = orderFieldsStateBeforeCity(fields)
+  const orderedCampaignFields = orderFieldsStateBeforeCity(campaign?.form_fields || [])
 
   // Reset all state when modal opens/closes
   useEffect(() => {
@@ -209,8 +211,9 @@ export default function ApplicationFormModal({
       const data = await res.json()
       const initialData: Record<string, string> = {}
       if (data.formConfig) {
-        setFields(data.formConfig)
-        data.formConfig.forEach((f: FormField) => {
+        const ordered = orderFieldsStateBeforeCity(data.formConfig)
+        setFields(ordered)
+        ordered.forEach((f: FormField) => {
           initialData[f.field_name] = getPrefillValueForField(f.field_name, user) || ''
         })
       }
@@ -365,7 +368,7 @@ export default function ApplicationFormModal({
     if (!campaign) return
 
     // Validate required legacy form config fields
-    for (const field of fields) {
+    for (const field of orderedLegacyFields) {
       if (field.is_required && !formData[field.field_name]?.trim()) {
         toast.error(`"${field.field_name}" is required`)
         return
@@ -374,7 +377,7 @@ export default function ApplicationFormModal({
 
     // Validate required custom campaign form_fields
     if (campaign.form_fields && campaign.form_fields.length > 0) {
-      for (const field of campaign.form_fields) {
+      for (const field of orderedCampaignFields) {
         if (field.required && !formData[field.name]?.trim()) {
           toast.error(`"${field.name}" is required`)
           return
@@ -385,7 +388,7 @@ export default function ApplicationFormModal({
     // Validate state & city relationship if present
     const activeStateVal = getActiveState(formData, user)
     if (activeStateVal) {
-      for (const field of fields) {
+      for (const field of orderedLegacyFields) {
         if (isCityField(field.field_name)) {
           const cVal = formData[field.field_name]
           if (cVal && !isCityInState(cVal, activeStateVal)) {
@@ -395,7 +398,7 @@ export default function ApplicationFormModal({
         }
       }
       if (campaign.form_fields) {
-        for (const cf of campaign.form_fields) {
+        for (const cf of orderedCampaignFields) {
           if (isCityField(cf.name, (cf as any).profile_sync_key)) {
             const cVal = formData[cf.name]
             if (cVal && !isCityInState(cVal, activeStateVal)) {
@@ -964,7 +967,7 @@ export default function ApplicationFormModal({
                             </div>
                           )}
 
-                          {fields.length > 0 && fields.map((field) => {
+                          {orderedLegacyFields.length > 0 && orderedLegacyFields.map((field) => {
                             const isFieldAddr = isAddressField(field.field_name)
                             const isFieldState = isStateField(field.field_name)
                             const isFieldCity = isCityField(field.field_name)
@@ -1160,7 +1163,7 @@ export default function ApplicationFormModal({
                                   Campaign Questions
                                 </p>
                               </div>
-                              {campaign.form_fields!.map((field, idx) => {
+                              {orderedCampaignFields.map((field, idx) => {
                                 const isFieldState = isStateField(field.name, (field as any).profile_sync_key)
                                 const isFieldCity = isCityField(field.name, (field as any).profile_sync_key)
                                 const activeStateVal = getActiveState(formData, user)

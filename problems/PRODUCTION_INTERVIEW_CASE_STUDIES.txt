@@ -109,6 +109,9 @@ CASE 98: Dynamic Bulk Costing & Curation Decision Spreadsheet Engine: Pre-Filled
 CASE 99: 'Maximum Update Depth Exceeded': Infinite Re-Render Cascades from Inline Callbacks in Parent-Child Table Synchronization and Ref-Shielded Effect Architecture
 CASE 100: Brand Portal Header Harmonization & Single-Bar Table Controls Consolidation Across Campaigns and Dispatch
 CASE 101: Silent SQL Parameter Type Deduction Failure (42P08) & False HTTP 200 State Reversion Trap in Brand Creator Approvals
+CASE 102: Split-Identity Ingestion Collision & PostgreSQL 23505 Unique Constraint Violation (users_mobile_key) During Creator Identity Reconciliation
+CASE 103: Multi-Filter Count Desynchronization, Global vs Scoped Metrics Drift & Ghost Zero-State in Admin Logistics Desk
+CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4394,9 +4397,189 @@ Avoid consumer SaaS tropes (such as bubbly 24px borders, toy-like gradients, mul
 "To build a truly world-class enterprise B2B dashboard, you must resist the temptation to build consumer-style fluffy cards. The Gentelella Standard proves that operational authority comes from restraint: high-contrast dark-mode sidebars, crisp zero-radius rectangular tables, single-bar consolidated controls, global deferred search, and graceful permission decoupling where restricted clients experience a bespoke catalog without ever feeling restricted."
 
 ====================================================================================================
+CASE 102: Split-Identity Ingestion Collision & PostgreSQL 23505 Unique Constraint Violation (users_mobile_key) During Creator Identity Reconciliation
+====================================================================================================
+CATEGORY: Database Architecture / PostgreSQL Constraints / Identity Deduplication / Account Merging & Data Integrity
+INTERVIEW QUESTION: "How do you detect, handle, and reconcile duplicate user accounts when unique constraints (e.g. UNIQUE mobile/email) block manual data updates in production? What is your account merger strategy?"
+
+[SITUATION]
+An administrator attempted to update a creator's registered mobile number directly within the Supabase Table Editor (`public.users` table, influencer `HY8541`, Tina Basu). The existing row contained mobile `9749165222` (entered with a single-digit typo, where a 9 was keyed instead of a 0). When the administrator entered her genuine phone number `9740165222` and submitted the change, PostgreSQL aborted the operation with error:
+`Failed to run sql query: ERROR: 23505: duplicate key value violates unique constraint "users_mobile_key" DETAIL: Key (mobile)=(9740165222) already exists.`
+Concurrently, creator Tina Basu had logged a high-priority support ticket (`ISS-903386`) stating:
+"the phone number is reflecting inccorectly on the app, for which i am not getting any OTP".
+
+[ROOT CAUSE]
+Deep relational inspection across PostgreSQL uncovered a classic Split-Identity Ingestion Collision caused by an asynchronous batch import on 2026-08-27:
+1. Dual Entity Existence in `public.users`:
+   Two records existed for the exact same physical creator:
+   - Account 1 (`HY8541` / `2e121881-8bc9-4ce0-8df4-f14e5888cd10`):
+     * Created: 2026-08-27 12:50:37 UTC
+     * Email: `twinklingtina@gmail.com`
+     * Mobile: `9749165222` (Typo: '9' instead of '0', though shipping address and alt_mobile stored the correct `9740165222`)
+     * Instagram Username: `instagram.com` (placeholder)
+     * Rich metadata: Profile Strength 85%, 550,000 followers, structured shipping address object, 32 profile logs, 1 feedback record, and 1 campaign application (`92d34d70-f249...` in 'Applied' status).
+   - Account 2 (`HY21328` / `efa421fa-ba7b-4c80-8dfb-487cce06be89`):
+     * Created: 2026-08-27 13:11:28 UTC (20 minutes later via automated batch import script)
+     * Email: `9740165222_1787836286222@import.1to7.com`
+     * Mobile: `9740165222` (Exact target phone number!)
+     * Instagram Username: `twinklingtina`
+     * Profile strength: 31%, 0 followers, empty address book.
+     * Crucially: Held 1 campaign application (`0f779f40-4c9b...` in 'Completed' status with live Instagram reel link).
+2. Database Constraint Collision:
+   Table `public.users` enforces a strict relational unique index: `CONSTRAINT users_mobile_key UNIQUE (mobile)`.
+   Because the phantom stub record (`HY21328`) already owned `9740165222`, any direct `UPDATE users SET mobile = '9740165222' WHERE influencer_id = 'HY8541'` was rejected by PostgreSQL under error 23505.
+3. User Experience & Operational Disconnect:
+   The creator was locked out of receiving SMS OTPs on her primary profile (`HY8541`), while her completed collaboration deliverables were orphaned under the batch-imported stub (`HY21328`).
+
+[SOLUTION & ARCHITECTURE]
+Implemented an ACID-Compliant Transactional Identity Merge & Reconciliation Procedure:
+1. Referential Integrity Audit:
+   Scanned all relational foreign keys and dependent entities across `public.applications`, `public.user_instagram_profiles`, `public.profile_logs`, `public.feedback`, `public.user_issues`, and `public.otps`. Verified that moving applications from `HY21328` to `HY8541` would not violate `UNIQUE (user_id, campaign_id)` because each account participated in completely different campaigns.
+2. Two-Phase Merging Transaction:
+   - Step 1: Repoint Foreign Key Dependencies: Transfer the 'Completed' campaign application (`0f779f40...`) from `HY21328` (`efa421fa...`) to `HY8541` (`2e121881...`).
+   - Step 2: Release Unique Constraint Lock: Delete the orphan stub account (`HY21328`).
+   - Step 3: Hydrate Primary Record: Update `HY8541` with mobile `9740165222` and real Instagram handle `twinklingtina`.
+   - Step 4: Resolve Inbound Ticket: Close user issue `ISS-903386` with status `resolved`.
+3. SQL Migration Script:
+   ```sql
+   BEGIN;
+   -- 1. Migrate campaign application from duplicate stub to primary creator account
+   UPDATE public.applications
+   SET user_id = '2e121881-8bc9-4ce0-8df4-f14e5888cd10'
+   WHERE user_id = 'efa421fa-ba7b-4c80-8dfb-487cce06be89';
+
+   -- 2. Remove the empty duplicate stub user holding the target phone number
+   DELETE FROM public.users
+   WHERE id = 'efa421fa-ba7b-4c80-8dfb-487cce06be89';
+
+   -- 3. Update the primary user record with correct phone and handle
+   UPDATE public.users
+   SET mobile = '9740165222',
+       instagram_username = 'twinklingtina'
+   WHERE id = '2e121881-8bc9-4ce0-8df4-f14e5888cd10';
+
+   -- 4. Mark creator issue as resolved
+   UPDATE public.user_issues
+   SET status = 'resolved',
+       admin_notes = 'Account merged: HY21328 consolidated into HY8541, mobile corrected to 9740165222',
+       resolved_at = NOW()
+   WHERE id = 'acb9de9f-9cb8-4330-8034-8b20df95d224';
+
+   COMMIT;
+   ```
+
+[INTERVIEW STAR TAKEAWAY]
+"When a production unique constraint violation occurs during a manual or administrative update, it is almost never a random database glitch—it is an early-warning signal of entity duplication and split identities created during bulk ingestions or un-deduplicated signups. Rather than dropping or bypassing the constraint, senior engineers perform relational cross-table dependency auditing, execute atomic zero-loss foreign-key migration transactions, and merge fragmented accounts into a single authoritative identity."
+
+====================================================================================================
+CASE 103: Multi-Filter Count Desynchronization, Global vs Scoped Metrics Drift & Ghost Zero-State in Admin Logistics Desk
+CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
+====================================================================================================
+CATEGORY: Frontend Architecture / Data Grid Filtering / State Management / React Performance / Logistics UX
+INTERVIEW QUESTION: "In high-density administrative dashboards with multi-tier filters (dropdowns, status tabs, search inputs), how do you prevent count desynchronization where tab badges and KPI cards display phantom counts that lead to empty-state tables when clicked? What is your architectural strategy for cross-filter metric scoping?"
+
+[SITUATION]
+Administrators managing the Address Confirmation Desk (`/admin/address-confirmation`) reported severe UI discrepancies:
+1. When selecting a specific campaign (e.g. "Gleema (GLEEMA)" with 32 total creators and 1 confirmed delivery address), the top KPI cards and status sub-tab badges displayed non-zero counts (e.g., `Pending Review (14)` and `Total Tracked (687)`).
+2. When the administrator clicked the `Pending Review (14)` tab, the table immediately collapsed into an empty state (`No address records found`), and the export action read `EXPORT COURIER SHEET (0)`.
+3. In addition, an intrusive Windows OS desktop horizontal scrollbar (`< ━━━━━━ [thumb] ━━━━━━ >`) appeared across the status filter tabs bar, partially obscuring the buttons and ruining usability on desktop displays.
+4. Concurrently, typing partial strings into the search bar (such as "Se") silently zeroed out all records because essential fields (such as Influencer ID `HY18691`, email, recipient contact, and street address) were completely excluded from the client-side search predicate.
+
+[ROOT CAUSE]
+Deep architectural analysis of `app/admin/(panel)/address-confirmation/page.tsx` revealed multiple cascading flaws:
+1. Global vs Scoped Metrics Calculation Disconnect:
+   The `metrics` memo was computed unconditionally over the root `entries` array:
+   ```tsx
+   const metrics = useMemo(() => {
+     let brandDispatch = 0, pending = 0, approved = 0, notSubmitted = 0, rejected = 0;
+     entries.forEach(e => { ... });
+     return { total: entries.length, brandDispatch, pending, approved, ... };
+   }, [entries]);
+   ```
+   Notice that `metrics` had zero dependencies on `selectedCampaignId` or `campaignStatusFilter`!
+   Similarly, the status tabs mapped directly to `metrics.pending`, `metrics.approved`, etc. When an admin changed the Campaign dropdown to "Gleema", the table filtered rows to Gleema, but the tabs and KPI cards remained frozen to the global dataset (or a prior campaign slice). Because Gleema had 0 pending records, clicking `Pending Review (14)` resulted in an instant ghost empty state.
+2. Silent Dropdown State Mutation on KPI Card Click:
+   Each top KPI card had an inline `onClick` handler:
+   `onClick={() => { setStatusFilter('Pending'); setCampaignStatusFilter('all'); }}`
+   This forcefully cleared the user's explicit selection in the `Campaign Selection Status` dropdown (`campaignStatusFilter`), while clicking the status tabs below did not, creating an unpredictable and inconsistent interaction model.
+3. Search Predicate Field Omissions:
+   The search filter checked creator name, Instagram handle, mobile, campaign code, brand name, and city/state/pin. However, it omitted:
+   - `entry.users?.influencer_id` (the primary identifier `HY#####` visible on every single row).
+   - `entry.users?.email`.
+   - `addr?.recipient_name` and `addr?.address_line1` / `addr?.address_line2`.
+   - `addr?.alt_mobile`.
+   Furthermore, an un-cleared two-letter fragment (like "Se") remained active, filtering out any creator who didn't contain "se".
+4. Truthy Object Trap on Empty Address Objects:
+   In `getVerificationStatus(entry)`, the code checked:
+   `if (entry.address_status === 'Pending' || entry.form_data?.address_confirmed === true || entry.form_data?.shipping_address)`
+   If `shipping_address` was an empty JSON object `{}` (or contained empty string keys), JavaScript evaluated `Boolean({}) === true`, falsely classifying an empty address as 'Pending' rather than 'Not Submitted'.
+5. Missing Scrollbar Suppression on Desktop Browsers:
+   The filter tabs container used Tailwind `overflow-x-auto` without `scrollbar-none` / `-webkit-overflow-scrolling: touch`. On Windows Chrome/Edge, this triggers the default 17px grey OS scrollbar track directly beneath the tabs.
+6. Lack of a 1-Click Clear / Reset Filter Action:
+   When compound filters resulted in zero records, the admin had no single button to reset the search, campaign, status, and sub-tab states back to default.
+
+[SOLUTION & ARCHITECTURE]
+1. Scoped Reactive Tab Counts Architecture:
+   Refactored metrics calculation into two distinct layers:
+   - Scoped Tab Counts: Computed for entries filtered by `selectedCampaignId` and `campaignStatusFilter`. This ensures that each status tab badge (`Pending Review`, `Address Verified`, `Not Submitted`, `Final Brand Dispatch`) displays the exact number of matching records that will actually appear when clicked.
+   - Campaign-Aware Top KPI Cards: Dynamic cards that accurately summarize the selected campaign's logistics health, preventing false expectations.
+2. Preserve Campaign Status Filter on Card Selection:
+   Removed destructive `setCampaignStatusFilter('all')` resets from KPI card click handlers, keeping dropdown states predictable and synchronized with sub-tabs.
+3. Comprehensive Search Predicate:
+   Expanded the search evaluator to include `influencer_id`, `email`, `recipient_name`, `address_line1`, `address_line2`, and `alt_mobile`, with defensive string casting and whitespace trimming.
+4. Strict Object-Key Evaluation for Submitted Addresses:
+   Enforced strict address validity checks (`Boolean(addr && Object.values(addr).some(v => typeof v === 'string' && v.trim().length > 0))`), preventing empty objects `{}` from masquerading as pending submissions.
+5. Windows Scrollbar Suppression (`scrollbar-none`):
+   Applied utility classes `overflow-x-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none]` to cleanly scroll horizontally on smaller viewports without rendering the Windows desktop scrollbar track.
+6. Responsive "Reset Filters" Control:
+   Added an active filter indicator and a "Clear All Filters" button whenever any filter (search, campaign, status, or tab) is actively narrowing the dataset.
+
+[INTERVIEW STAR TAKEAWAY]
+"In enterprise administrative portals, UI badge counts are a visual promise. If a tab badge reads 'Pending Review (14)', clicking that tab must reveal exactly 14 records. Decoupling metrics computation from active filter dependencies creates 'phantom count traps' where users believe data is missing or corrupted. Robust dashboard architecture derives tab counts dynamically from the intersection of all parent filters, enforces strict schema-aware truthiness guards on JSON payloads, and preserves user filter intent across card interactions."
+
+====================================================================================================
+CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
+====================================================================================================
+CATEGORIES: Frontend UX / Form Engine Architecture / Reactive Cascading Inputs / React Rules of Hooks / Schema Ordering
+INTERVIEW QUESTION: "How do you enforce structural dependency constraints (like Parent State before Child City) in dynamic, user-configured forms where admins might define questions in arbitrary orders?"
+
+[SITUATION]
+Creators applying to brand campaigns (e.g. Wakefit campaign CAM-MUZIMMIF) encountered a reversed question sequence where 'Current City' was rendered before 'State / UT' in the application modal dialog.
+Because the city selector depends dynamically on the selected state (e.g. "Select city in UTTAR PRADESH", "Showing 75 cities in UTTAR PRADESH") and disabled selection until a state was selected with the instruction "First select State / UT above", rendering City above State created a confusing, backwards user experience where creators had to jump down to question #2 to select their state before jumping back up to question #1 to select their city.
+
+[ROOT CAUSE]
+1. Arbitrary Dynamic Question Arrays:
+   Campaign questions are stored in JSONB arrays (`campaigns.form_fields` or legacy `apply_form_config`). Admins configure these questions in `FormFieldBuilder.tsx`. If an admin added 'Current City' before 'State / UT', or clicked presets in that sequence, the database stored City at index 0 and State at index 1.
+2. Preset Definition Sequence Inversion:
+   In `lib/utils/profile-sync-utils.ts`, `PROFILE_FIELD_PRESETS` listed preset `city` ('Current City') before preset `state` ('State / UT'). Admins browsing quick-add presets naturally clicked left-to-right, causing City to be added before State.
+3. Blind Array Mapping in Consumer Components:
+   Both `ApplicationFormModal.tsx` and `CampaignDetailModal.tsx` directly mapped `campaign.form_fields.map(...)` without enforcing topological dependency ordering between hierarchical parent (State) and dependent child (City).
+4. Rules of Hooks Hazard on Early Return:
+   When wrapping question arrays in memoized selectors (`useMemo`), placing hooks after conditional early returns (e.g. `if (!campaign) return null` in modals) triggers React's fatal "Rendered fewer hooks than expected" exception. Pure array reordering functions (`orderFieldsStateBeforeCity`) must be lightweight and executed directly without fragile hook placement.
+
+[SOLUTION & ARCHITECTURE]
+1. Canonical Form Field Reordering Engine (`lib/utils/location-utils.ts`):
+   - Created `orderFieldsStateBeforeCity<T>(fields: T[]): T[]`: A polymorphic, type-safe array transformer that inspects questions across any schema (`FormField`, `apply_form_config`, or profile-synced definitions).
+   - If both a State question (`isStateField`) and a City question (`isCityField`) exist, and City precedes State (`cityIdx < stateIdx`), it extracts State and inserts it immediately prior to City.
+   - Preserves all other question positions, requirement flags, and options intact.
+2. Preset Bar & Canonical Hierarchy Inversion (`lib/utils/profile-sync-utils.ts`):
+   - Reordered `PROFILE_FIELD_PRESETS` so `🗺️ State / UT` appears before `🏙️ Current City`.
+   - Reordered `CANONICAL_FIELDS` to prioritize State before City.
+3. Declarative Enforcement Across Application Modals (`ApplicationFormModal.tsx` & `CampaignDetailModal.tsx`):
+   - Both modals evaluate `orderFieldsStateBeforeCity` prior to rendering custom questions and legacy configuration fields.
+   - Validation routines (`handleSubmit` and `getPendingCustomRequirements`) evaluate requirements in the reordered state-first sequence, guaranteeing that empty field toasts alert "Please select State / UT" before prompting for City.
+4. Builder & Admin Persistence Gates:
+   - In `FormFieldBuilder.tsx`, `addPresetField` calls `orderFieldsStateBeforeCity` when appending profile fields.
+   - In `campaigns/create/page.tsx` and `campaigns/[id]/page.tsx`, `form_fields` are normalized via `orderFieldsStateBeforeCity` before saving to PostgreSQL.
+   - In `DynamicQuestionFiltersBar.tsx` and admin table columns, State is projected before City.
+
+[INTERVIEW STAR TAKEAWAY]
+"Dynamic form systems must treat hierarchical data inputs as a directed dependency graph rather than an arbitrary flat array. When a child input's options (City) are constrained by a parent input (State), the rendering engine must guarantee topological precedence at the presentation layer regardless of the raw sequence persisted by users. Back this with normalized preset definitions and pure, hook-free ordering transformations to avoid React Rules of Hooks violations while delivering a frictionless, intuitive user experience."
+
+====================================================================================================
 SUMMARY CHECKLIST FOR INTERVIEWS:
 ----------------------------------------------------------------------------------------------------
-1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema), Case 51 (Two-Gatekeeper Curation State Machine & Batch Indexing), Case 52 (Direct In-Portal Dispatch Flags & Brand-Scoped Composite Indexing), Case 53 (Relational Schema Auditing, Latent Column Drift Remediation & COALESCE Projections), Case 54 (Barter Logistics Verification Gatekeeper & Structured JSONB Address Projection), Case 55 (OTP Expiry Lifecycle & Multi-Tenant Brand Session Storage), Case 56 (Multi-Key Identity Resolution, Deduplication & ACID Dual-Layer Logistics Reconciliation), Case 58 (Elimination of In-Memory Mock Fallbacks & PostgreSQL Multi-Tenant Brand Lifecycle Management), Case 59 (Two-Tier Administrative Privilege Segregation & PostgreSQL RBAC Migration), Case 60 (Dynamic Relational KAM Resolution, Database Seeding & Role Optgroup Segmentation), Case 61 (Server-Side SLA Aggregation, Zero-Mock Watchtowers & Dynamic PostgreSQL State Binding), Case 64 (Decoupling Influencer Campaign Source Tags from Multi-Tenant Client Brand Workspaces), Case 66 (Atomic Campaign-to-Brand Relational Linking on Dispatch), Case 67 (High-Performance Creator DB Search & Dual-Auth RBAC), Case 68 (Dual-Tier Commercial Costing Schema, Atomic Mirroring & Cumulative SQL Aggregation), Case 69 (Strict Domain Decoupling of Logistics SQL Filters from Order Verification Pipelines), and Case 72 (Elimination of Cross-Tenant Leakage in Parameterized Campaign SQL Queries).
+1. When asked about Databases: Mention Case 1 (PostgREST 1000 limit & chunking), Case 5 (gapless ID trigger), Case 11 (Server-side SQL aggregation vs memory bloat), Case 41 (PostgreSQL Enum Type-Safety Drift & Campaign Lifecycle Migration), Case 50 (Decoupled Sample Rosters & Inbound Shortlist Schema), Case 51 (Two-Gatekeeper Curation State Machine & Batch Indexing), Case 52 (Direct In-Portal Dispatch Flags & Brand-Scoped Composite Indexing), Case 53 (Relational Schema Auditing, Latent Column Drift Remediation & COALESCE Projections), Case 54 (Barter Logistics Verification Gatekeeper & Structured JSONB Address Projection), Case 55 (OTP Expiry Lifecycle & Multi-Tenant Brand Session Storage), Case 56 (Multi-Key Identity Resolution, Deduplication & ACID Dual-Layer Logistics Reconciliation), Case 58 (Elimination of In-Memory Mock Fallbacks & PostgreSQL Multi-Tenant Brand Lifecycle Management), Case 59 (Two-Tier Administrative Privilege Segregation & PostgreSQL RBAC Migration), Case 60 (Dynamic Relational KAM Resolution, Database Seeding & Role Optgroup Segmentation), Case 61 (Server-Side SLA Aggregation, Zero-Mock Watchtowers & Dynamic PostgreSQL State Binding), Case 64 (Decoupling Influencer Campaign Source Tags from Multi-Tenant Client Brand Workspaces), Case 66 (Atomic Campaign-to-Brand Relational Linking on Dispatch), Case 67 (High-Performance Creator DB Search & Dual-Auth RBAC), Case 68 (Dual-Tier Commercial Costing Schema, Atomic Mirroring & Cumulative SQL Aggregation), Case 69 (Strict Domain Decoupling of Logistics SQL Filters from Order Verification Pipelines), Case 72 (Elimination of Cross-Tenant Leakage in Parameterized Campaign SQL Queries), and Case 102 (Split-Identity Ingestion Collision, PostgreSQL 23505 Unique Constraint Violation & Atomic Two-Phase Account Merging).
 2. When asked about APIs & Type Safety: Mention Case 2 (UUID vs campaign_code resolver), Case 9 (OAuth fragment sanitization), Case 41 (Dedicated lifecycle state machine endpoints), Case 50 (Declarative Column Visibility Shield & Zero-Trust Public Projection), Case 51 (Atomic Forward, Dispatch, and Internal Drop Endpoints), Case 52 (Brand-Scoped In-Portal Pitch Endpoints & Zero-Margin Extraction), Case 53 (Compound SQL Query Error Elimination & Defensive Attribute Normalization), Case 54 (Defensive Address Verification Filtering & Zero-Leak PII Projection), Case 55 (Signed JWT Review Token Verification & Atomic OTP Verification Handshake), Case 56 (Cascading Phone/Handle/Email/Name Identity Resolution Engine), Case 58 (Full CRUD PostgreSQL Brand Provisioning & Bcrypt Password Handshake), Case 59 (Zero-Mock Staff RBAC Mutation & Strict SuperAdmin Privilege Boundary), Case 60 (Foreign Key UUID Validation & PostgreSQL Brand Seeding API), Case 61 (Database-Backed SLA Hours Calculation & Dynamic Brand Review Endpoints), Case 64 (Registered Brand Verification Guard & Audit Event Relational Integrity), Case 66 (Zero-Mock Brand Portal Deliverables, Campaigns & Dashboard Endpoints), Case 67 (Unified Dual-Session Brand Admin & SuperAdmin Search Route with Dynamic Auto-Loading), Case 68 (Atomic Single/Bulk Costing Mutation, Selective Commercial Dispatch Gatekeeper & Server-Side Zero-Trust Margin Shield), Case 69 (Elimination of Disjunctive OR Leakage in Administrative Address Confirmation Query Filters), and Case 72 (Authenticated Cross-Portal Impersonation Bridge Endpoint & Dynamic JWT Cookie Provisioning).
 3. When asked about Third-Party Integrations & Compliance: Mention Case 8 (Dual OTP failover), Case 12 (Meta App Review Developer Policy 1.6 & OAuth visual proof), Case 28 (Third-party SDK silent CORS hang & failover circuit breaker), Case 31 (Logistics-grade address schemas & courier contracts), Case 54 (Standardized Courier Delivery Manifests for Delhivery/Shiprocket), Case 55 (WhatsApp Deep Linking `wa.me` Pre-Filled Messages & Nodemailer Email Fallback), and Case 56 (Google Form CSV Multi-Column Sanitization & 6-Digit Pincode Extraction).
 4. When asked about Frontend UX & Visualization: Mention Case 3 (Multi-status search detection & tab badges), Case 11 (Interactive Day/Week velocity charts), Case 20 (Cascading State-to-City reactive form engine), Case 22 (Broadcast Alerts Admin Attribution & Campaign-Scoped Targeting), Case 31 (1-Click Address Selector & Dynamic Profile Pre-fill), Case 33 (Zero-Redirect In-Place Modal & Action-Required Navigation Resilience), Case 40 (Table-Fixed vs Auto-Layout Engine), Case 41 (Lifecycle Modals & State Navigation Consistency), Case 47 (Production-Grade Dynamic Data Table Architecture & Cross-Portal Theme Duality), Case 48 (Table-Fixed Layout, Intrinsic Min-Content Flexbox Traps & Ellipsis Truncation to Eliminate Horizontal Scrollbars on Enterprise Portals), Case 50 (Dual-Portal Curation Hubs & Dedicated Inbound Shortlist Review Desk), Case 51 (Dedicated Campaign Pitch Desk with Multi-Level Filters, Sticky Bulk Actions & Real-Time Sync), Case 52 (Brand Portal Pitch Desk with Interactive Checkbox Shortlisting & Instant Dispatch Gateway), Case 53 (Clean Campaign Dropdown Option Formatting & Error Toast Elimination), Case 54 (Same-Tab Delivery Address Column, Stateful Logistics Badges & 1-Click Copy Courier Manifest Modal), Case 55 (Dual-Tab Zero-Password Login Card, 6-Digit Auto-Focus OTP Input, Resend Countdown & 1-Click Client Link Modal), Case 57 (High-Density Card Arrangement, Multi-Category Micro-Chips & Dual-View Grid/Table Catalog Architecture), Case 60 (High-Contrast Golden KAM Badge, Role Avatar Indicators & Modal Optgroup Separation), Case 61 (Authentic Empty State Handling, Dynamic Watchtower Cards & Pure Zero-Mock Viewports), Case 62 (Elimination of Base UI Primitive useId Hydration Drift in Global Layouts), Case 63 (Network Information API Flapping & Localhost Dev-Latency False Positives), Case 64 (Optgroup Workspace vs Source Tag Segmentation & Empty Brand Modal Guard), Case 65 (Global Modal Event Propagation Isolation & Ambient Backdrop Dismissal Architecture), Case 66 (Dispatch Modal Workspace Auto-Defaulting, Stale Closure Remediation & Brand Client Portal Zero-Mock Architecture), Case 67 (Reactive Modal Auto-Loading, Zero-State Pre-Fetch & Informative Creator Card Badging), Case 68 (7th KPI Watchtower Card, Costing/Paid Filter Tab, Interactive Table Quote Badges, Live Gross Margin Calculator & Bulk Pricing Modal), Case 69 (Orthogonal Workflow Decoupling, In-Place Order Verification Modal & Zero-State Navigation Parity), Case 71 (Domain De-SaaSification: Pruning Phantom Multi-Tab Brand Dashboards into a Single-Purpose Creator Review Studio), Case 72 (Eradication of Latent Prototype Mock Fallbacks & Live Virtual Brand Shortlist Data Binding), Case 73 (Master-Detail Scalability Architecture: Searchable Vertical Brand Navigation for 100+ Workspaces), and Case 74 (Zero-Information-Leakage Multi-Tenant White-Labeling & Host Boundary Isolation), and Case 83 (Fixed-Layout Table Column Starvation & Action Button Overlap Remediation), Case 91 (Zero-Grid Mandate & Minimalist Single-Line KAM Docking), Case 92 (Real-Time Header Search Synchronization & Elimination of Double-Deck Header Clutter), and Case 93 (Single-Bar Table Controls Consolidation & Elimination of Redundant Upper Application Cards), Case 94 (Graceful Permission Decoupling & Complete Elimination of 'View-Only' Restriction Badges and Irrelevant Status Columns), Case 95 (Public Talent Proposal De-Consumerization: Replacing Bubbly Rainbow Card Grids with Apple-Style Center Floating Headers & High-Density Tables), Case 96 (Responsive Two-Column Modal Consolidation & Viewport Overflow Remediation: Eliminating Awkward Vertical Scrollbars in Multi-Step Brand Portal Dispatch Desks), Case 97 (Real-Time Debounced Typeahead & Out-of-Order Race Condition Mitigation in Platform DB Creator Ingestion), Case 98 (Dynamic Bulk Costing & Curation Decision Spreadsheet Engine with Two-Phase Diff Preview & PostgreSQL `jsonb_set` Strict Null Safety), Case 99 ('Maximum Update Depth Exceeded': Infinite Re-Render Cascades from Inline Callbacks in Parent-Child Table Synchronization and Ref-Shielded Effect Architecture), and Master Blueprint (The Gentelella Standard: Reusable Engineering Prompt & 7 Pillars of Enterprise B2B Dashboard Architecture).

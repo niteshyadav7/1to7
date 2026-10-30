@@ -158,7 +158,7 @@ export function getCitiesForState(stateStr: string): string[] {
 export function isStateField(name?: string, syncKey?: string): boolean {
   if (syncKey === 'state') return true
   const n = (name || '').trim().toLowerCase()
-  return /^(state|state\s*\/\s*ut|state\s*name|select\s*state)$/i.test(n) || /\bstate\s*\/\s*ut\b/i.test(n)
+  return /^(state|state\s*\/\s*ut|state\s*name|select\s*state|current\s*state|living\s*state|home\s*state)$/i.test(n) || /\bstate\s*\/\s*ut\b/i.test(n) || /\bcurrent\s*state\b/i.test(n)
 }
 
 /**
@@ -182,6 +182,51 @@ export function isCityInState(city: string, state: string): boolean {
     const normC = normalizeLocationStr(c)
     return normC === normCity || normCity.includes(normC) || normC.includes(normCity)
   })
+}
+
+/**
+ * Resolves the name and sync key of any form field structure.
+ */
+export function getFormFieldMeta(field: any): { name: string; syncKey?: string } {
+  if (!field) return { name: '' }
+  if (typeof field === 'string') return { name: field }
+  const name = field.name || field.field_name || field.label || field.key || ''
+  const syncKey = field.profile_sync_key || field.canonicalKey || undefined
+  return { name: String(name), syncKey }
+}
+
+/**
+ * Reorders an array of form fields so that "State / UT" strictly precedes "Current City".
+ * If "City" appears before "State" in the input array, "State" is shifted immediately before "City"
+ * ensuring cascading state-dependent city selection operates naturally for creators.
+ */
+export function orderFieldsStateBeforeCity<T>(fields: T[]): T[] {
+  if (!Array.isArray(fields) || fields.length <= 1) return fields || []
+
+  const stateIdx = fields.findIndex(f => {
+    const meta = getFormFieldMeta(f)
+    return isStateField(meta.name, meta.syncKey)
+  })
+
+  const cityIdx = fields.findIndex(f => {
+    const meta = getFormFieldMeta(f)
+    return isCityField(meta.name, meta.syncKey)
+  })
+
+  // If either field is missing, no reordering needed
+  if (stateIdx === -1 || cityIdx === -1) {
+    return [...fields]
+  }
+
+  // If City appears before State, move State immediately before City
+  if (cityIdx < stateIdx) {
+    const result = [...fields]
+    const [stateField] = result.splice(stateIdx, 1)
+    result.splice(cityIdx, 0, stateField)
+    return result
+  }
+
+  return [...fields]
 }
 
 /**

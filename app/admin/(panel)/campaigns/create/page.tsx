@@ -17,7 +17,7 @@ import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-uti
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
 import { PocMultiSelect } from '@/components/admin/PocMultiSelect'
-import { StoreLocation } from '@/lib/utils/location-utils'
+import { StoreLocation, orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -132,7 +132,7 @@ export default function AdminCreateCampaignPage() {
     })
 
     if (Array.isArray(source.form_fields) && source.form_fields.length > 0) {
-      setCustomFields(source.form_fields)
+      setCustomFields(orderFieldsStateBeforeCity(source.form_fields))
     }
     if (Array.isArray(source.order_form_fields) && source.order_form_fields.length > 0) {
       setOrderFormFields(source.order_form_fields)
@@ -334,7 +334,7 @@ export default function AdminCreateCampaignPage() {
         product_links: formData.product_links
           ? formData.product_links.split('\n').map(l => l.trim()).filter(l => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a')
           : [],
-        form_fields: customFields.filter(f => f.name.trim()),
+        form_fields: orderFieldsStateBeforeCity(customFields.filter(f => f.name.trim())),
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,

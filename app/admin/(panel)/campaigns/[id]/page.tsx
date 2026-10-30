@@ -20,7 +20,7 @@ import { parseMinFollowers, formatFollowerCount } from '@/lib/utils/follower-uti
 import CampaignLocationPicker from '@/components/admin/CampaignLocationPicker'
 import CampaignAudiencePicker, { PilotCreator } from '@/components/admin/CampaignAudiencePicker'
 import { PocMultiSelect } from '@/components/admin/PocMultiSelect'
-import { StoreLocation } from '@/lib/utils/location-utils'
+import { StoreLocation, orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import { CampaignRecentDiffBanner, CampaignEditHistoryModal } from '@/components/admin/CampaignDiffViewer'
 import { CampaignEditLogEntry } from '@/lib/utils/campaign-audit-diff'
 
@@ -189,7 +189,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         test_creators: Array.isArray(data.campaign.test_creators) ? data.campaign.test_creators : [],
         poc_admin_ids: Array.isArray(data.campaign.poc_admin_ids) ? data.campaign.poc_admin_ids : [],
       })
-      setCustomFields(data.campaign.form_fields || [])
+      setCustomFields(orderFieldsStateBeforeCity(data.campaign.form_fields || []))
       setOrderFormFields(data.campaign.order_form_fields || [])
       setPaymentFormFields(data.campaign.payment_form_fields || [])
     } catch {
@@ -226,7 +226,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         product_links: formData.product_links
           ? formData.product_links.split('\n').map(l => l.trim()).filter(l => l && l.toLowerCase() !== 'na' && l.toLowerCase() !== 'n/a')
           : [],
-        form_fields: customFields.filter(f => f.name.trim()),
+        form_fields: orderFieldsStateBeforeCity(customFields.filter(f => f.name.trim())),
         order_form: formData.order_form,
         order_form_fields: formData.order_form ? orderFormFields.filter(f => f.name.trim()) : [],
         show_order_form: formData.show_order_form,

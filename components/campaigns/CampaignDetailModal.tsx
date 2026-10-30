@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  X, Instagram, Youtube, ShoppingBag, Users, FileText, 
+import {
+  X, Instagram, Youtube, ShoppingBag, Users, FileText,
   Link2, CheckCircle2, ArrowRight, AlertCircle, MapPin, Plus, Store, ExternalLink,
   CreditCard, Layout, Sparkles, Check, ArrowLeft, Loader2, ClipboardList, MessageSquare, UploadCloud, Image as ImageIcon,
   CheckCircle,
@@ -29,7 +29,7 @@ import Link from 'next/link'
 import { STATES, INDIA_DATA, TOP_METRO_CITIES } from '@/lib/constants/india-data'
 import MobileOTPModal from '@/components/modals/MobileOTPModal'
 import { checkFollowerEligibility, formatFollowerCount, getFollowerRequirementLabel, getEffectiveUserFollowers } from '@/lib/utils/follower-utils'
-import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState } from '@/lib/utils/location-utils'
+import { checkCampaignLocationEligibility, formatCampaignLocationText, StoreLocation, getCitiesForState, isStateField, isCityField, isCityInState, orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import { checkCreatorCompletionEligibility, CreatorCompletionEligibility } from '@/lib/utils/completion-timeline-utils'
 import QuickAddAddressModal from '@/components/modals/QuickAddAddressModal'
 import AddressSelectorField, { formatAddressToString } from '@/components/campaigns/AddressSelectorField'
@@ -187,12 +187,12 @@ export default function CampaignDetailModal({
   const userProfiles = (user?.instagram_profiles && user.instagram_profiles.length > 0)
     ? user.instagram_profiles
     : (user?.instagram_username ? [{
-        id: 'primary',
-        username: user.instagram_username,
-        normalized_username: user.instagram_username.toLowerCase(),
-        followers: user.followers || 0,
-        is_primary: true
-      }] : [])
+      id: 'primary',
+      username: user.instagram_username,
+      normalized_username: user.instagram_username.toLowerCase(),
+      followers: user.followers || 0,
+      is_primary: true
+    }] : [])
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>('')
   const [selectedStoreOutlet, setSelectedStoreOutlet] = useState<StoreLocation | null>(null)
@@ -215,7 +215,7 @@ export default function CampaignDetailModal({
             setCompletionEligibility(res)
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }, [isLoggedIn, isOpen])
 
@@ -341,12 +341,13 @@ export default function CampaignDetailModal({
   const emoji = brandEmojis[campaign.brand_name] || '✨'
 
   const hasCustomFields = campaign.form_fields && campaign.form_fields.length > 0
+  const orderedCampaignFormFields = orderFieldsStateBeforeCity(campaign?.form_fields || [])
   // Bank details excluded from campaign apply — collected later
   const bankFields = ['account_name', 'account_number', 'ifsc_code']
   const getCreatorMissingFields = (u: any) => {
     if (!u) return []
     const requiredFields = [
-      'full_name', 'instagram_username', 'gender', 
+      'full_name', 'instagram_username', 'gender',
       'state', 'city', 'followers'
     ]
     return requiredFields.filter(field => {
@@ -383,7 +384,7 @@ export default function CampaignDetailModal({
   // Check pending requirements for Custom Form Fields View (questions specific to this campaign)
   const getPendingCustomRequirements = () => {
     if (!hasCustomFields || !campaign?.form_fields) return []
-    return campaign.form_fields
+    return orderedCampaignFormFields
       .filter(f => f.required && (!customFormData[f.name] || (typeof customFormData[f.name] === 'string' && customFormData[f.name].trim() === '')))
       .map(f => f.name)
   }
@@ -428,7 +429,7 @@ export default function CampaignDetailModal({
 
   const isCustomFormValid = () => {
     if (!campaign.form_fields) return true
-    return campaign.form_fields
+    return orderedCampaignFormFields
       .filter(f => f.required)
       .every(f => {
         const val = customFormData[f.name]
@@ -464,7 +465,7 @@ export default function CampaignDetailModal({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to apply')
-      
+
       setIsSuccess(true)
       toast.success(adminMode ? 'Application submitted on behalf of creator!' : 'Application submitted successfully!')
       if (onSuccess) {
@@ -547,7 +548,7 @@ export default function CampaignDetailModal({
 
       // Refresh in-memory user cache in background without blocking UI
       if (refreshUserProfile && !adminMode) {
-        refreshUserProfile().catch(() => {})
+        refreshUserProfile().catch(() => { })
       }
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong')
@@ -662,9 +663,8 @@ export default function CampaignDetailModal({
               })
             }}
           >
-            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-            }`}>
+            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+              }`}>
               <SelectValue placeholder="Select State / UT" />
             </SelectTrigger>
             <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -686,9 +686,8 @@ export default function CampaignDetailModal({
                 value={customFormData[field.name] || ""}
                 onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val || "" }))}
               >
-                <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                  hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                } ${!activeStateVal ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`}>
+                <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                  } ${!activeStateVal ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`}>
                   <SelectValue placeholder={activeStateVal ? `Select city in ${activeStateVal}` : "Select State first"} />
                 </SelectTrigger>
                 <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -714,9 +713,8 @@ export default function CampaignDetailModal({
             value={customFormData[field.name] || ""}
             onValueChange={(val) => setCustomFormData(p => ({ ...p, [field.name]: val }))}
           >
-            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-            }`}>
+            <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+              }`}>
               <SelectValue placeholder={field.options && field.options.length > 0 ? 'Select an option' : (field.name.length > 25 ? 'Select an option' : `Select ${field.name}`)} />
             </SelectTrigger>
             <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
@@ -731,9 +729,8 @@ export default function CampaignDetailModal({
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCustomFormData(p => ({ ...p, [field.name]: e.target.value }))}
             placeholder={field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`}
             rows={3}
-            className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${
-              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-            }`}
+            className={`w-full bg-white border text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+              }`}
           />
         ) : field.type === 'image' ? (
           <div className="space-y-2">
@@ -749,9 +746,8 @@ export default function CampaignDetailModal({
                 </button>
               </div>
             ) : (
-              <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${
-                hasError ? 'border-red-400' : 'border-border-subtle'
-              }`}>
+              <label className={`relative flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed hover:border-primary-container bg-white hover:bg-gray-muted transition-all cursor-pointer group ${hasError ? 'border-red-400' : 'border-border-subtle'
+                }`}>
                 {uploadingFields[field.name] ? (
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="h-6 w-6 text-primary animate-spin" />
@@ -780,9 +776,8 @@ export default function CampaignDetailModal({
             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomFormData(p => ({ ...p, [field.name]: field.type === 'number' ? Number(e.target.value) : e.target.value }))}
             placeholder={field.type === 'date' ? '' : (field.name.length > 30 ? 'Enter your answer...' : `Enter ${field.name}...`)}
-            className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${
-              hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-            }`}
+            className={`w-full bg-white border text-foreground h-11 rounded-md focus-visible:ring-primary-container ${hasError ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+              }`}
           />
         )}
       </div>
@@ -812,11 +807,11 @@ export default function CampaignDetailModal({
             className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none"
           >
             <div className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-lg border border-border-subtle bg-white shadow-xl flex flex-col pointer-events-auto text-foreground">
-              
+
               {/* Inline Profile Completion View */}
               <AnimatePresence>
                 {showProfileInline && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, scale: 1.05 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 1.05 }}
@@ -841,7 +836,7 @@ export default function CampaignDetailModal({
                                 Please review your details and Instagram handle before submitting to <strong className="text-charcoal-surface">{campaign.brand_name}</strong>
                               </p>
                             </div>
-                            <button 
+                            <button
                               onClick={() => setShowProfileInline(false)}
                               className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
                             >
@@ -1131,294 +1126,288 @@ export default function CampaignDetailModal({
                                   </span>
                                 )}
                               </h3>
-                          <p className="text-secondary text-sm mt-0.5">{campaign.brand_name}</p>
-                        </div>
-                        <button 
-                          onClick={() => setShowProfileInline(false)}
-                          className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      </div>
-
-                      {/* Campaign + Instagram Info Cards (shown on same row to save space) */}
-                      <div className={`mt-3 ${
-                        (activeSelectedProfile?.username || user?.instagram_username)
-                          ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'
-                          : ''
-                      }`}>
-                        {/* Campaign Card */}
-                        <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
-                          <div className="flex items-center justify-center h-9 w-9 rounded-md bg-primary-container text-black font-extrabold text-sm shrink-0">
-                            {campaign.brand_name?.charAt(0) || 'C'}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">{campaign.brand_name}</p>
-                            <p className="text-[11px] text-secondary truncate">Campaign ID: {campaign.campaign_code}</p>
-                          </div>
-                        </div>
-
-                        {/* Selected Instagram Profile Card */}
-                        {(activeSelectedProfile?.username || user?.instagram_username) && (
-                          <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
-                            <div className="flex items-center justify-center h-9 w-9 rounded-md bg-pink-600 text-white shrink-0 shadow-sm">
-                              <Instagram className="h-4.5 w-4.5 text-white" />
+                              <p className="text-secondary text-sm mt-0.5">{campaign.brand_name}</p>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">
-                                {getInstagramDisplayHandle(activeSelectedProfile?.username || user?.instagram_username)}
-                              </p>
-                              <p className="text-[11px] text-secondary font-semibold truncate">
-                                {(activeSelectedProfile?.followers ?? user?.followers ?? 0).toLocaleString('en-IN')} Followers
-                                <span className="text-secondary/80">
-                                  {activeSelectedProfile?.is_primary ? ' • Primary Profile' : ' • Selected Profile'}
-                                </span>
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar scrollbar-none">
-                      {/* Missing Profile Requirements Alert Box - Only shown if creator profile has incomplete fields */}
-                      {getPendingProfileRequirements().length > 0 && (
-                        <motion.div 
-                          initial={{ opacity: 0, y: -5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="p-3 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-start gap-2.5">
-                              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                              <div className="space-y-1 text-xs">
-                                <p className="font-bold text-amber-950">
-                                  Action Required: Please complete profile details to apply
-                                </p>
-                                <p className="text-amber-800 text-[11px] leading-relaxed">
-                                  Fill in the fields below or update your profile:
-                                </p>
-                                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                  {getPendingProfileRequirements().map((req, i) => (
-                                    <span 
-                                      key={i} 
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"
-                                    >
-                                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                                      {req}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                onClose()
-                                router.push('/dashboard/profile')
-                              }}
-                              className="h-8 px-3 text-[11px] font-bold text-amber-900 border-amber-300 hover:bg-amber-100 bg-white shadow-2xs gap-1.5 cursor-pointer shrink-0 self-start sm:self-center"
+                            <button
+                              onClick={() => setShowProfileInline(false)}
+                              className="p-2 rounded-md hover:bg-gray-muted text-secondary hover:text-charcoal-surface transition-colors cursor-pointer"
                             >
-                              <User className="h-3.5 w-3.5 text-amber-700" />
-                              <span>Go to Profile</span>
-                              <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
+                              <X className="h-5 w-5" />
+                            </button>
                           </div>
-                        </motion.div>
-                      )}
 
-                      {Array.from(new Set(missingFields.map(f => (f === 'city' ? 'state' : f)))).map((field) => (
-                        <div key={field}>
-                           {field === 'gender' ? (
-                             <div className="space-y-1.5 sm:space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                                  <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
-                                  <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
-                                </label>
-                               <Select 
-                                 value={inlineData[field] || ""} 
-                                 onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
-                               >
-                                  <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                                    hasAttemptedInlineSubmit && !inlineData[field] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                  }`}>
-                                     <SelectValue placeholder="Select Gender" />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white border border-border-subtle text-foreground">
-                                     <SelectItem value="Male" className="cursor-pointer">Male</SelectItem>
-                                     <SelectItem value="Female" className="cursor-pointer">Female</SelectItem>
-                                     <SelectItem value="Other" className="cursor-pointer">Other</SelectItem>
-                                  </SelectContent>
-                               </Select>
-                             </div>
-                            ) : field === 'state' ? (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                {/* State */}
-                                <div className="space-y-1.5 sm:space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                                     <span className="break-words min-w-0 leading-normal">State</span>
-                                     <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
-                                  </label>
-                                  <Select 
-                                    value={inlineData.state || ""} 
-                                    onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
-                                  >
-                                    <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                                      hasAttemptedInlineSubmit && !inlineData.state ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                    }`}>
-                                       <SelectValue placeholder="Select State" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
-                                       {STATES.map(s => (
-                                         <SelectItem key={s} value={s} className="cursor-pointer">{s}</SelectItem>
-                                       ))}
-                                    </SelectContent>
-                                  </Select>
+                          {/* Campaign + Instagram Info Cards (shown on same row to save space) */}
+                          <div className={`mt-3 ${(activeSelectedProfile?.username || user?.instagram_username)
+                              ? 'grid grid-cols-1 sm:grid-cols-2 gap-2.5'
+                              : ''
+                            }`}>
+                            {/* Campaign Card */}
+                            <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
+                              <div className="flex items-center justify-center h-9 w-9 rounded-md bg-primary-container text-black font-extrabold text-sm shrink-0">
+                                {campaign.brand_name?.charAt(0) || 'C'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">{campaign.brand_name}</p>
+                                <p className="text-[11px] text-secondary truncate">Campaign ID: {campaign.campaign_code}</p>
+                              </div>
+                            </div>
+
+                            {/* Selected Instagram Profile Card */}
+                            {(activeSelectedProfile?.username || user?.instagram_username) && (
+                              <div className="flex items-center gap-3 rounded-md bg-white border border-border-subtle p-2.5 shadow-2xs">
+                                <div className="flex items-center justify-center h-9 w-9 rounded-md bg-pink-600 text-white shrink-0 shadow-sm">
+                                  <Instagram className="h-4.5 w-4.5 text-white" />
                                 </div>
-                                {/* City */}
-                                <div className="space-y-1.5 sm:space-y-2">
-                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                                     <span className="break-words min-w-0 leading-normal">City</span>
-                                     <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
-                                  </label>
-                                  <Select 
-                                    disabled={!inlineData.state && !user?.state}
-                                    value={inlineData.city || ""} 
-                                    onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
-                                  >
-                                    <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${
-                                      hasAttemptedInlineSubmit && !inlineData.city ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                    }`}>
-                                       <SelectValue placeholder="Select City" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
-                                       {(inlineData.state || user?.state) && INDIA_DATA[inlineData.state || user?.state!]?.map(c => (
-                                         <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>
-                                       ))}
-                                    </SelectContent>
-                                  </Select>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs sm:text-sm font-bold text-charcoal-surface truncate">
+                                    {getInstagramDisplayHandle(activeSelectedProfile?.username || user?.instagram_username)}
+                                  </p>
+                                  <p className="text-[11px] text-secondary font-semibold truncate">
+                                    {(activeSelectedProfile?.followers ?? user?.followers ?? 0).toLocaleString('en-IN')} Followers
+                                    <span className="text-secondary/80">
+                                      {activeSelectedProfile?.is_primary ? ' • Primary Profile' : ' • Selected Profile'}
+                                    </span>
+                                  </p>
                                 </div>
                               </div>
-                           ) : (
-                             <div className="space-y-1.5 sm:space-y-2">
-                               <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
-                                  <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
-                                  <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
-                               </label>
-                               <div className="relative">
-                                  {field.includes('account') || field.includes('ifsc') ? (
-                                    <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-                                  ) : field.includes('instagram') ? (
-                                    <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-                                  ) : field === 'followers' ? (
-                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-                                  ) : (
-                                    <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
-                                  )}
-                                  <Input 
-                                    value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
-                                    type={field === 'followers' ? 'number' : 'text'}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
-                                    placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
-                                    className={`w-full bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${
-                                      hasAttemptedInlineSubmit && (
-                                        field === 'followers' 
-                                          ? (!inlineData[field] || Number(inlineData[field]) <= 0)
-                                          : (!inlineData[field] || String(inlineData[field]).trim() === '')
-                                      ) ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
-                                    }`}
-                                  />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar scrollbar-none">
+                          {/* Missing Profile Requirements Alert Box - Only shown if creator profile has incomplete fields */}
+                          {getPendingProfileRequirements().length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -5 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-3 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
+                            >
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-start gap-2.5">
+                                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                  <div className="space-y-1 text-xs">
+                                    <p className="font-bold text-amber-950">
+                                      Action Required: Please complete profile details to apply
+                                    </p>
+                                    <p className="text-amber-800 text-[11px] leading-relaxed">
+                                      Fill in the fields below or update your profile:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                      {getPendingProfileRequirements().map((req, i) => (
+                                        <span
+                                          key={i}
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-amber-950 text-[11px] font-semibold"
+                                        >
+                                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                          {req}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
-                               )}
-                             </div>
-                            ))}
+
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    onClose()
+                                    router.push('/dashboard/profile')
+                                  }}
+                                  className="h-8 px-3 text-[11px] font-bold text-amber-900 border-amber-300 hover:bg-amber-100 bg-white shadow-2xs gap-1.5 cursor-pointer shrink-0 self-start sm:self-center"
+                                >
+                                  <User className="h-3.5 w-3.5 text-amber-700" />
+                                  <span>Go to Profile</span>
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {Array.from(new Set(missingFields.map(f => (f === 'city' ? 'state' : f)))).map((field) => (
+                            <div key={field}>
+                              {field === 'gender' ? (
+                                <div className="space-y-1.5 sm:space-y-2">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                    <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
+                                    <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
+                                  </label>
+                                  <Select
+                                    value={inlineData[field] || ""}
+                                    onValueChange={(val) => setInlineData(p => ({ ...p, [field]: val }))}
+                                  >
+                                    <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData[field] ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                      }`}>
+                                      <SelectValue placeholder="Select Gender" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white border border-border-subtle text-foreground">
+                                      <SelectItem value="Male" className="cursor-pointer">Male</SelectItem>
+                                      <SelectItem value="Female" className="cursor-pointer">Female</SelectItem>
+                                      <SelectItem value="Other" className="cursor-pointer">Other</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              ) : field === 'state' ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                  {/* State */}
+                                  <div className="space-y-1.5 sm:space-y-2">
+                                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                      <span className="break-words min-w-0 leading-normal">State</span>
+                                      <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
+                                    </label>
+                                    <Select
+                                      value={inlineData.state || ""}
+                                      onValueChange={(val) => setInlineData(p => ({ ...p, state: val, city: '' }))}
+                                    >
+                                      <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData.state ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                        }`}>
+                                        <SelectValue placeholder="Select State" />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+                                        {STATES.map(s => (
+                                          <SelectItem key={s} value={s} className="cursor-pointer">{s}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  {/* City */}
+                                  <div className="space-y-1.5 sm:space-y-2">
+                                    <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                      <span className="break-words min-w-0 leading-normal">City</span>
+                                      <span className="text-red-500 font-bold shrink-0 text-[10px]">*</span>
+                                    </label>
+                                    <Select
+                                      disabled={!inlineData.state && !user?.state}
+                                      value={inlineData.city || ""}
+                                      onValueChange={(val) => setInlineData(p => ({ ...p, city: val }))}
+                                    >
+                                      <SelectTrigger className={`w-full bg-white border text-foreground h-11 rounded-md focus:ring-primary-container ${hasAttemptedInlineSubmit && !inlineData.city ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                        }`}>
+                                        <SelectValue placeholder="Select City" />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-white border border-border-subtle text-foreground max-h-[300px]">
+                                        {(inlineData.state || user?.state) && INDIA_DATA[inlineData.state || user?.state!]?.map(c => (
+                                          <SelectItem key={c} value={c} className="cursor-pointer">{c}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5 sm:space-y-2">
+                                  <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1 flex items-start justify-between gap-2">
+                                    <span className="break-words min-w-0 leading-normal">{FIELD_LABELS[field] || field}</span>
+                                    <span className="text-red-500 font-bold shrink-0 text-[10px]">* (Required)</span>
+                                  </label>
+                                  <div className="relative">
+                                    {field.includes('account') || field.includes('ifsc') ? (
+                                      <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    ) : field.includes('instagram') ? (
+                                      <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    ) : field === 'followers' ? (
+                                      <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    ) : (
+                                      <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-secondary" />
+                                    )}
+                                    <Input
+                                      value={inlineData[field] === 0 ? '' : inlineData[field] || ''}
+                                      type={field === 'followers' ? 'number' : 'text'}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInlineData(p => ({ ...p, [field]: field === 'followers' ? Number(e.target.value) : e.target.value }))}
+                                      placeholder={`Enter ${FIELD_LABELS[field] || field}...`}
+                                      className={`w-full bg-white text-foreground h-11 pl-11 rounded-md focus-visible:ring-primary-container ${hasAttemptedInlineSubmit && (
+                                          field === 'followers'
+                                            ? (!inlineData[field] || Number(inlineData[field]) <= 0)
+                                            : (!inlineData[field] || String(inlineData[field]).trim() === '')
+                                        ) ? 'border-red-400 ring-1 ring-red-400' : 'border-border-subtle'
+                                        }`}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
 
 
-                       {/* Comments - Always shown */}
-                           <div className="border-t border-border-subtle pt-5 mt-2">
-                             <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                               <MessageSquare className="h-3.5 w-3.5" />
-                               Comments / Notes
-                             </p>
-                           </div>
-                           <div className="space-y-1.5 sm:space-y-2">
-                             <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
-                               Your Comments (Optional)
-                             </label>
-                             <textarea
-                               value={commentText}
-                               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
-                               placeholder="Add any comments, notes, or questions for the brand..."
-                               rows={4}
-                               className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
-                             />
-                           </div>
-
-
-                       {/* Custom Campaign Questions */}
-                       {hasCustomFields && (
-                         <>
-                           <div className="border-t border-border-subtle pt-5 mt-2">
-                             <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                               <FileText className="h-3.5 w-3.5" />
-                               Campaign Questions
-                             </p>
-                           </div>
-                           {campaign.form_fields!.map((field, idx) => renderCustomFormField(field, idx, true))}
-                         </>
-                       )}
-                     </div>
-
-                     <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
-                        {hasAttemptedInlineSubmit && getPendingInlineRequirements().length > 0 && (
-                          <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
-                            <span className="leading-tight break-words">
-                              Please complete: <strong className="font-bold text-amber-950">{getPendingInlineRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
-                            </span>
+                          {/* Comments - Always shown */}
+                          <div className="border-t border-border-subtle pt-5 mt-2">
+                            <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Comments / Notes
+                            </p>
                           </div>
-                        )}
-                        <div className="flex gap-4">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setShowProfileInline(false)}
-                            className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
-                          >
-                            Back
-                          </Button>
-                          <Button 
-                            onClick={handleSaveInline}
-                            disabled={savingProfile}
-                            className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${
-                              getPendingInlineRequirements().length > 0
-                                ? 'bg-primary-container/80 hover:bg-primary-container text-black'
-                                : 'bg-primary-container hover:bg-primary-container/90 text-black'
-                            }`}
-                          >
-                            {savingProfile ? (
-                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                            ) : getPendingInlineRequirements().length > 0 ? (
-                              'Complete & Apply'
-                            ) : (
-                              'Save & Apply'
-                            )}
-                          </Button>
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <label className="text-[10px] font-bold text-secondary uppercase tracking-widest px-1">
+                              Your Comments (Optional)
+                            </label>
+                            <textarea
+                              value={commentText}
+                              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCommentText(e.target.value)}
+                              placeholder="Add any comments, notes, or questions for the brand..."
+                              rows={4}
+                              className="w-full bg-white border border-border-subtle text-foreground text-sm rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-container resize-none placeholder:text-secondary"
+                            />
+                          </div>
+
+
+                          {/* Custom Campaign Questions */}
+                          {hasCustomFields && (
+                            <>
+                              <div className="border-t border-border-subtle pt-5 mt-2">
+                                <p className="text-[11px] font-bold text-primary uppercase tracking-widest mb-4 flex items-center gap-2">
+                                  <FileText className="h-3.5 w-3.5" />
+                                  Campaign Questions
+                                </p>
+                              </div>
+                              {orderedCampaignFormFields.map((field, idx) => renderCustomFormField(field, idx, true))}
+                            </>
+                          )}
+                        </div>
+
+                        <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
+                          {hasAttemptedInlineSubmit && getPendingInlineRequirements().length > 0 && (
+                            <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                              <span className="leading-tight break-words">
+                                Please complete: <strong className="font-bold text-amber-950">{getPendingInlineRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex gap-4">
+                            <Button
+                              variant="outline"
+                              onClick={() => setShowProfileInline(false)}
+                              className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
+                            >
+                              Back
+                            </Button>
+                            <Button
+                              onClick={handleSaveInline}
+                              disabled={savingProfile}
+                              className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${getPendingInlineRequirements().length > 0
+                                  ? 'bg-primary-container/80 hover:bg-primary-container text-black'
+                                  : 'bg-primary-container hover:bg-primary-container/90 text-black'
+                                }`}
+                            >
+                              {savingProfile ? (
+                                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                              ) : getPendingInlineRequirements().length > 0 ? (
+                                'Complete & Apply'
+                              ) : (
+                                'Save & Apply'
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </motion.div>
+                    )}
+                  </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Custom Form Fields View */}
               <AnimatePresence>
                 {showCustomForm && campaign.form_fields && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, x: 50 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 50 }}
@@ -1426,17 +1415,17 @@ export default function CampaignDetailModal({
                     className="absolute inset-0 z-20 bg-white flex flex-col pointer-events-auto"
                   >
                     <div className="p-4 sm:p-8 pb-4 border-b border-border-subtle">
-                       <h3 className="text-xl font-bold text-charcoal-surface flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-primary" />
-                          Application Form
-                       </h3>
-                       <p className="text-secondary text-sm mt-1">Fill in the details below to apply for <span className="text-charcoal-surface font-semibold">{campaign.brand_name}</span></p>
+                      <h3 className="text-xl font-bold text-charcoal-surface flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Application Form
+                      </h3>
+                      <p className="text-secondary text-sm mt-1">Fill in the details below to apply for <span className="text-charcoal-surface font-semibold">{campaign.brand_name}</span></p>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-5 no-scrollbar scrollbar-none">
                       {/* Missing custom requirements alert box */}
                       {hasAttemptedCustomSubmit && getPendingCustomRequirements().length > 0 && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: -5 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="p-3.5 rounded-lg bg-amber-50 border border-amber-200/90 text-amber-900 shadow-sm"
@@ -1455,45 +1444,44 @@ export default function CampaignDetailModal({
                         </motion.div>
                       )}
 
-                      {campaign.form_fields.map((field, idx) => renderCustomFormField(field, idx, false))}
+                      {orderedCampaignFormFields.map((field, idx) => renderCustomFormField(field, idx, false))}
                     </div>
 
                     <div className="p-4 sm:p-6 pt-3 border-t border-border-subtle flex flex-col gap-2.5 bg-white">
-                       {hasAttemptedCustomSubmit && getPendingCustomRequirements().length > 0 && (
-                         <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
-                           <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
-                           <span className="leading-tight break-words">
-                             Please complete: <strong className="font-bold text-amber-950">{getPendingCustomRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
-                           </span>
-                         </div>
-                       )}
-                       <div className="flex gap-4">
-                         <Button 
-                           variant="outline" 
-                           onClick={() => setShowCustomForm(false)}
-                           className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
-                         >
-                           <ArrowLeft className="mr-2 h-4 w-4" />
-                           Back
-                         </Button>
-                         <Button 
-                           onClick={handleCustomFormSubmit}
-                           disabled={submitting}
-                           className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${
-                             getPendingCustomRequirements().length > 0
-                               ? 'bg-primary-container/80 hover:bg-primary-container text-black'
-                               : 'bg-primary-container hover:bg-primary-container/90 text-black'
-                           }`}
-                         >
-                           {submitting ? (
-                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                           ) : getPendingCustomRequirements().length > 0 ? (
-                             'Complete & Submit'
-                           ) : (
-                             <><CheckCircle2 className="mr-2 h-4 w-4" /> Submit Application</>
-                           )}
-                         </Button>
-                       </div>
+                      {hasAttemptedCustomSubmit && getPendingCustomRequirements().length > 0 && (
+                        <div className="flex items-start gap-1.5 text-[11px] text-amber-800 font-medium px-1">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                          <span className="leading-tight break-words">
+                            Please complete: <strong className="font-bold text-amber-950">{getPendingCustomRequirements().map(r => r.length > 35 ? r.slice(0, 32).trim() + '...' : r).join(', ')}</strong>
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex gap-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowCustomForm(false)}
+                          className="flex-1 h-12 rounded-md text-secondary border-border-subtle cursor-pointer hover:bg-gray-muted font-bold"
+                        >
+                          <ArrowLeft className="mr-2 h-4 w-4" />
+                          Back
+                        </Button>
+                        <Button
+                          onClick={handleCustomFormSubmit}
+                          disabled={submitting}
+                          className={`flex-[2] h-12 rounded-md font-bold uppercase transition-all shadow-sm cursor-pointer ${getPendingCustomRequirements().length > 0
+                              ? 'bg-primary-container/80 hover:bg-primary-container text-black'
+                              : 'bg-primary-container hover:bg-primary-container/90 text-black'
+                            }`}
+                        >
+                          {submitting ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                          ) : getPendingCustomRequirements().length > 0 ? (
+                            'Complete & Submit'
+                          ) : (
+                            <><CheckCircle2 className="mr-2 h-4 w-4" /> Submit Application</>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1526,8 +1514,8 @@ export default function CampaignDetailModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 flex-wrap">
-                       <h2 className="text-xl sm:text-2xl font-bold text-charcoal-surface tracking-tight truncate">{campaign.brand_name}</h2>
-                       <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter truncate">ID: {campaign.campaign_code}</span>
+                      <h2 className="text-xl sm:text-2xl font-bold text-charcoal-surface tracking-tight truncate">{campaign.brand_name}</h2>
+                      <span className="text-[10px] font-mono text-secondary uppercase tracking-tighter truncate">ID: {campaign.campaign_code}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] sm:text-[11px] font-bold text-primary bg-primary-container/10 px-2.5 py-0.5 sm:py-1 rounded-full border border-primary-container/20">
@@ -1555,7 +1543,7 @@ export default function CampaignDetailModal({
 
               {/* Scrollable Body - Grid Layout */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-8 pt-4 space-y-6 no-scrollbar scrollbar-none">
-                
+
                 {/* Top Quick Stats */}
                 <div className="grid grid-cols-2 gap-4">
                   <DetailCard label="Status" value={campaign.status} icon={CheckCircle2} color="text-emerald-500" />
@@ -1563,26 +1551,26 @@ export default function CampaignDetailModal({
                 </div>
 
                 {/* Looking For / Deliverables */}
-                <DetailCard 
-                  label="Looking For" 
-                  value={campaign.deliverables} 
-                  icon={Sparkles} 
-                  color="text-amber-400" 
+                <DetailCard
+                  label="Looking For"
+                  value={campaign.deliverables}
+                  icon={Sparkles}
+                  color="text-amber-400"
                 />
 
                 {/* Gender & Requirements */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <DetailCard 
-                    label="Gender" 
-                    value={campaign.gender_required === 'Any' ? 'Open to All' : campaign.gender_required} 
-                    icon={Users} 
-                    color="text-pink-400" 
+                  <DetailCard
+                    label="Gender"
+                    value={campaign.gender_required === 'Any' ? 'Open to All' : campaign.gender_required}
+                    icon={Users}
+                    color="text-pink-400"
                   />
-                  <DetailCard 
-                    label="Location" 
-                    value={campaign.location || "PAN India"} 
-                    icon={MapPin} 
-                    color="text-red-400" 
+                  <DetailCard
+                    label="Location"
+                    value={campaign.location || "PAN India"}
+                    icon={MapPin}
+                    color="text-red-400"
                   />
                 </div>
 
@@ -1646,43 +1634,43 @@ export default function CampaignDetailModal({
 
                 <div className={`grid grid-cols-1 ${campaign.order_form && campaign.show_order_form !== false ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3.5`}>
                   {campaign.order_form && campaign.show_order_form !== false && (
-                    <DetailCard 
-                      label="Order Form" 
-                      value="📋 Order Details Required" 
-                      icon={ClipboardList} 
-                      color="text-emerald-400" 
+                    <DetailCard
+                      label="Order Form"
+                      value="📋 Order Details Required"
+                      icon={ClipboardList}
+                      color="text-emerald-400"
                     />
                   )}
-                  <DetailCard 
-                    label="Followers Req." 
-                    value={getFollowerRequirementLabel(campaign)} 
-                    icon={Sparkles} 
-                    color="text-amber-400" 
+                  <DetailCard
+                    label="Followers Req."
+                    value={getFollowerRequirementLabel(campaign)}
+                    icon={Sparkles}
+                    color="text-amber-400"
                   />
-                  <DetailCard 
-                    label="Collab Date" 
-                    value={campaign.collab_date || "Flexible"} 
-                    icon={CheckCircle2} 
-                    color="text-indigo-400" 
+                  <DetailCard
+                    label="Collab Date"
+                    value={campaign.collab_date || "Flexible"}
+                    icon={CheckCircle2}
+                    color="text-indigo-400"
                   />
                 </div>
 
                 {campaign.requirements && (
-                   <DetailCard 
-                     label="Requirements" 
-                     value={campaign.requirements} 
-                     icon={FileText} 
-                     color="text-indigo-400" 
-                   />
+                  <DetailCard
+                    label="Requirements"
+                    value={campaign.requirements}
+                    icon={FileText}
+                    color="text-indigo-400"
+                  />
                 )}
-                
+
                 {campaign.additional_info && (
-                   <DetailCard 
-                     label="Additional Info" 
-                     value={campaign.additional_info} 
-                     icon={AlertCircle} 
-                     color="text-slate-400" 
-                   />
+                  <DetailCard
+                    label="Additional Info"
+                    value={campaign.additional_info}
+                    icon={AlertCircle}
+                    color="text-slate-400"
+                  />
                 )}
 
                 {/* Links & Budget */}
@@ -1694,15 +1682,15 @@ export default function CampaignDetailModal({
                   return (
                     <div className={`grid grid-cols-1 ${validProductLinks.length > 0 ? 'md:grid-cols-2' : ''} gap-4`}>
                       {validProductLinks.length > 0 && (
-                        <DetailCard 
-                          label="Product / Website Link" 
+                        <DetailCard
+                          label="Product / Website Link"
                           value={
                             <div className="flex flex-col gap-1 mt-1">
                               {validProductLinks.map((link, i) => (
-                                <a 
-                                  key={i} 
-                                  href={link.startsWith('http') ? link : `https://${link}`} 
-                                  target="_blank" 
+                                <a
+                                  key={i}
+                                  href={link.startsWith('http') ? link : `https://${link}`}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-purple-400 hover:underline flex items-center gap-1.5 font-medium"
                                 >
@@ -1711,13 +1699,13 @@ export default function CampaignDetailModal({
                                 </a>
                               ))}
                             </div>
-                          } 
-                          icon={Link2} 
-                          color="text-purple-400" 
+                          }
+                          icon={Link2}
+                          color="text-purple-400"
                         />
                       )}
-                      <DetailCard 
-                        label="Budget" 
+                      <DetailCard
+                        label="Budget"
                         value={(() => {
                           const bt = (campaign.budget_type || '').toLowerCase()
                           const amt = campaign.budget_amount ? Number(campaign.budget_amount) : 0
@@ -1725,18 +1713,18 @@ export default function CampaignDetailModal({
                           const isHybrid = bt.includes('hybrid')
 
                           if (isPaid) {
-                            return amt > 0 
+                            return amt > 0
                               ? `💰 ₹${amt.toLocaleString('en-IN')} (${campaign.budget_type || 'Paid'})`
                               : `💰 ${campaign.budget_type || 'Paid Collaboration'}`
                           }
                           if (isHybrid) {
-                            return amt > 0 
+                            return amt > 0
                               ? `🔄 Hybrid (₹${amt.toLocaleString('en-IN')} + Barter)`
                               : '🔄 Hybrid Collaboration'
                           }
                           return '🤝 Barter Collaboration'
-                        })()} 
-                        icon={CreditCard} 
+                        })()}
+                        icon={CreditCard}
                         color="text-emerald-400"
                       />
                     </div>
@@ -1745,20 +1733,18 @@ export default function CampaignDetailModal({
 
                 {/* Already Applied / Under Process Status Banner */}
                 {campaign.applied && campaign.application_status !== 'Rejected' && (
-                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${
-                    (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                       ? 'bg-amber-50 border-amber-200'
                       : campaign.application_status === 'Approved'
-                      ? 'bg-emerald-50 border-emerald-200'
-                      : 'bg-blue-50 border-blue-200'
-                  }`}>
-                    <div className={`h-9 w-9 rounded-lg text-white flex items-center justify-center shrink-0 mt-0.5 ${
-                      (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : 'bg-blue-50 border-blue-200'
+                    }`}>
+                    <div className={`h-9 w-9 rounded-lg text-white flex items-center justify-center shrink-0 mt-0.5 ${(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                         ? 'bg-amber-500'
                         : campaign.application_status === 'Approved'
-                        ? 'bg-emerald-500'
-                        : 'bg-blue-500'
-                    }`}>
+                          ? 'bg-emerald-500'
+                          : 'bg-blue-500'
+                      }`}>
                       {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review') ? (
                         <Clock className="h-5 w-5" />
                       ) : (
@@ -1767,41 +1753,38 @@ export default function CampaignDetailModal({
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <h4 className={`text-xs font-black uppercase tracking-wider ${
-                          (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                        <h4 className={`text-xs font-black uppercase tracking-wider ${(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                             ? 'text-amber-950'
                             : campaign.application_status === 'Approved'
-                            ? 'text-emerald-950'
-                            : 'text-blue-950'
-                        }`}>
+                              ? 'text-emerald-950'
+                              : 'text-blue-950'
+                          }`}>
                           {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                             ? 'Application Under Process'
                             : campaign.application_status === 'Approved'
-                            ? 'Application Approved 🎉'
-                            : 'You Already Applied to this Campaign'}
+                              ? 'Application Approved 🎉'
+                              : 'You Already Applied to this Campaign'}
                         </h4>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border uppercase ${
-                          (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border uppercase ${(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                             ? 'bg-amber-100 text-amber-900 border-amber-300'
                             : campaign.application_status === 'Approved'
-                            ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                            : 'bg-blue-100 text-blue-900 border-blue-300'
-                        }`}>
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : 'bg-blue-100 text-blue-900 border-blue-300'
+                          }`}>
                           Status: {campaign.application_status || 'Applied'}
                         </span>
                       </div>
-                      <p className={`text-xs mt-1 leading-relaxed ${
-                        (campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
+                      <p className={`text-xs mt-1 leading-relaxed ${(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                           ? 'text-amber-800'
                           : campaign.application_status === 'Approved'
-                          ? 'text-emerald-700'
-                          : 'text-blue-800'
-                      }`}>
+                            ? 'text-emerald-700'
+                            : 'text-blue-800'
+                        }`}>
                         {(campaign.application_status === 'Under Process' || campaign.application_status === 'Under Review')
                           ? 'Your application is currently being reviewed by our brand and admin team.'
                           : campaign.application_status === 'Approved'
-                          ? 'Congratulations! Your profile has been approved for this campaign. Check your dashboard for deliverables.'
-                          : 'Your application is currently submitted. You can check updates and campaign progress from your dashboard.'}
+                            ? 'Congratulations! Your profile has been approved for this campaign. Check your dashboard for deliverables.'
+                            : 'Your application is currently submitted. You can check updates and campaign progress from your dashboard.'}
                       </p>
                     </div>
                   </div>
@@ -1852,11 +1835,10 @@ export default function CampaignDetailModal({
                             type="button"
                             key={p.id || p.username}
                             onClick={() => setSelectedProfileId(p.id || p.username)}
-                            className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                              isSelected
+                            className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${isSelected
                                 ? 'bg-white border-pink-500 shadow-sm ring-2 ring-pink-500/20'
                                 : 'bg-white/70 border-slate-200 hover:border-slate-300'
-                            }`}
+                              }`}
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
@@ -2001,23 +1983,20 @@ export default function CampaignDetailModal({
                               <div
                                 key={idx}
                                 onClick={() => setSelectedStoreOutlet(store)}
-                                className={`p-3 rounded-lg border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${
-                                  isSelected
+                                className={`p-3 rounded-lg border text-xs cursor-pointer transition-all flex items-start gap-2.5 ${isSelected
                                     ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
                                     : 'bg-white text-slate-800 border-purple-200 hover:bg-purple-50/50'
-                                }`}
+                                  }`}
                               >
-                                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
-                                  isSelected ? 'border-white bg-white text-purple-600' : 'border-purple-300 bg-white'
-                                }`}>
+                                <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-white bg-white text-purple-600' : 'border-purple-300 bg-white'
+                                  }`}>
                                   {isSelected && <div className="h-2 w-2 rounded-full bg-purple-600" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-1 flex-wrap">
                                     <span className="font-bold">{store.name}</span>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
-                                      isSelected ? 'bg-purple-700 text-purple-100' : 'bg-purple-100 text-purple-800'
-                                    }`}>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${isSelected ? 'bg-purple-700 text-purple-100' : 'bg-purple-100 text-purple-800'
+                                      }`}>
                                       {store.city}, {store.state}
                                     </span>
                                   </div>
@@ -2033,20 +2012,20 @@ export default function CampaignDetailModal({
                         </div>
                       </div>
                     )}
-                      <button 
-                        className="w-full flex items-start gap-3 p-4 rounded-md bg-gray-muted border border-border-subtle cursor-pointer group hover:bg-surface-container transition-colors text-left"
-                        onClick={() => setAgreementChecked(!agreementChecked)}
-                      >
-                        <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-primary-container border-primary-container' : 'bg-white border-border-subtle'}`}>
-                          {agreementChecked && <Check className="h-3.5 w-3.5 text-black font-extrabold" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-charcoal-surface">
-                            I have read all the requirements carefully. 
-                            <span className="text-error ml-1 font-bold">Backout not allowed.</span>
-                          </p>
-                        </div>
-                      </button>
+                    <button
+                      className="w-full flex items-start gap-3 p-4 rounded-md bg-gray-muted border border-border-subtle cursor-pointer group hover:bg-surface-container transition-colors text-left"
+                      onClick={() => setAgreementChecked(!agreementChecked)}
+                    >
+                      <div className={`mt-0.5 h-5 w-5 min-w-[20px] rounded-md border flex items-center justify-center transition-all ${agreementChecked ? 'bg-primary-container border-primary-container' : 'bg-white border-border-subtle'}`}>
+                        {agreementChecked && <Check className="h-3.5 w-3.5 text-black font-extrabold" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-charcoal-surface">
+                          I have read all the requirements carefully.
+                          <span className="text-error ml-1 font-bold">Backout not allowed.</span>
+                        </p>
+                      </div>
+                    </button>
                   </div>
                 )}
               </div>
@@ -2100,9 +2079,9 @@ export default function CampaignDetailModal({
                     <span className="truncate">
                       {campaign.applied && campaign.application_status === 'Rejected'
                         ? 'Re-Apply to Campaign'
-                        : !isLoggedIn 
-                        ? 'Apply Now' 
-                        : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
+                        : !isLoggedIn
+                          ? 'Apply Now'
+                          : (needsInlineForm ? 'Complete Application' : 'Instant Apply')
                       }
                     </span>
                     <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 shrink-0 transition-transform group-hover:translate-x-1" />
@@ -2113,92 +2092,92 @@ export default function CampaignDetailModal({
           </motion.div>
         )}
 
-      {/* ===== SUCCESS SCREEN ===== */}
-      {isOpen && isSuccess && campaign && (
-        <motion.div
-           initial={{ opacity: 0, scale: 0.95, y: 20 }}
-           animate={{ opacity: 1, scale: 1, y: 0 }}
-           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-           className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-charcoal-surface/40 backdrop-blur-sm"
-        >
-          <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-border-subtle bg-white shadow-xl flex flex-col p-6 text-foreground">
-            <div className="flex flex-col items-center justify-center text-center space-y-4 py-2">
-              <div className="relative">
-                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <CheckCircle className="h-8 w-8 text-white" />
+        {/* ===== SUCCESS SCREEN ===== */}
+        {isOpen && isSuccess && campaign && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-charcoal-surface/40 backdrop-blur-sm"
+          >
+            <div className="relative w-full max-w-lg overflow-hidden rounded-lg border border-border-subtle bg-white shadow-xl flex flex-col p-6 text-foreground">
+              <div className="flex flex-col items-center justify-center text-center space-y-4 py-2">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                  <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                    <CheckCircle className="h-8 w-8 text-white" />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-charcoal-surface tracking-tight">Application Sent! 🎉</h3>
-                <p className="text-secondary text-sm max-w-[280px] mx-auto leading-relaxed">
-                  Your application for <span className="text-primary font-semibold">{campaign.brand_name}</span> has been securely submitted.
-                </p>
-              </div>
 
-              <div className="w-full bg-gray-muted border border-border-subtle rounded-md p-4 text-left space-y-3 mt-2">
-                <div className="flex gap-3 items-start border-b border-border-subtle pb-3">
-                  <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-charcoal-surface mb-1">Increase Your Chances</p>
-                    <p className="text-xs text-secondary leading-relaxed">
-                      Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
-                    </p>
-                  </div>
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-bold text-charcoal-surface tracking-tight">Application Sent! 🎉</h3>
+                  <p className="text-secondary text-sm max-w-[280px] mx-auto leading-relaxed">
+                    Your application for <span className="text-primary font-semibold">{campaign.brand_name}</span> has been securely submitted.
+                  </p>
                 </div>
-                <div className="flex gap-3 items-start">
-                  <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-charcoal-surface mb-1">
-                      {adminMode ? 'Creator Application Confirmed' : "What's Next?"}
-                    </p>
-                    <p className="text-xs text-secondary leading-relaxed">
-                      {adminMode
-                        ? `This application was recorded for ${user?.full_name || 'the creator'}. It is now visible in their dashboard and in Virtual Profile > Applied.`
-                        : 'You will be notified once the brand reviews your application and makes a decision!'}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="w-full space-y-2 pt-2">
-                <Button
-                  onClick={() => {
-                    if (adminMode && user?.id) {
-                      window.location.href = `/admin/virtual-profile/${user.id}/applied`
-                    } else {
-                      window.location.href = '/dashboard/campaigns'
-                    }
-                  }}
-                  className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold"
-                >
-                  {adminMode ? 'View Creator Applied Campaigns' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsSuccess(false)
-                    onClose()
-                    if (onSuccess) {
-                      onSuccess()
-                    }
-                  }}
-                  className="w-full h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted"
-                >
-                  Close & Explore Campaigns
-                </Button>
+                <div className="w-full bg-gray-muted border border-border-subtle rounded-md p-4 text-left space-y-3 mt-2">
+                  <div className="flex gap-3 items-start border-b border-border-subtle pb-3">
+                    <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-charcoal-surface mb-1">Increase Your Chances</p>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        Brands prioritize influencers with complete profiles. Go to your dashboard and fill in all your details to stand out!
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-start">
+                    <div className="h-8 w-8 rounded-full bg-primary-container/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-charcoal-surface mb-1">
+                        {adminMode ? 'Creator Application Confirmed' : "What's Next?"}
+                      </p>
+                      <p className="text-xs text-secondary leading-relaxed">
+                        {adminMode
+                          ? `This application was recorded for ${user?.full_name || 'the creator'}. It is now visible in their dashboard and in Virtual Profile > Applied.`
+                          : 'You will be notified once the brand reviews your application and makes a decision!'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full space-y-2 pt-2">
+                  <Button
+                    onClick={() => {
+                      if (adminMode && user?.id) {
+                        window.location.href = `/admin/virtual-profile/${user.id}/applied`
+                      } else {
+                        window.location.href = '/dashboard/campaigns'
+                      }
+                    }}
+                    className="w-full h-11 rounded-md bg-primary-container hover:bg-primary-container/90 text-black font-bold"
+                  >
+                    {adminMode ? 'View Creator Applied Campaigns' : 'Go to Dashboard'} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setIsSuccess(false)
+                      onClose()
+                      if (onSuccess) {
+                        onSuccess()
+                      }
+                    }}
+                    className="w-full h-11 rounded-md text-secondary hover:text-charcoal-surface hover:bg-gray-muted"
+                  >
+                    Close & Explore Campaigns
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile OTP Modal */}
       <MobileOTPModal

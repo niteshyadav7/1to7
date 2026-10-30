@@ -90,18 +90,18 @@ const TARGET_FIELDS: FieldDefinition[] = [
     ]
   },
   {
-    key: 'city',
-    label: 'City',
-    required: false,
-    description: 'Current city or location',
-    synonyms: ['city', 'current city', 'which city are you from?', 'location', 'town']
-  },
-  {
     key: 'state',
     label: 'State',
     required: false,
     description: 'State or region',
     synonyms: ['state', 'current state', 'which state do you live in?', 'region']
+  },
+  {
+    key: 'city',
+    label: 'City',
+    required: false,
+    description: 'Current city or location',
+    synonyms: ['city', 'current city', 'which city are you from?', 'location', 'town']
   },
   {
     key: 'gender',
@@ -332,8 +332,8 @@ export function ApplicationImportModal({
       'Instagram profile link',
       'Email address',
       'How many followers do you have?',
-      'City',
       'State',
+      'City',
       'Gender',
       'Commercial quote (₹)',
       'Can you visit Mumbai store this Saturday?',
@@ -348,8 +348,8 @@ export function ApplicationImportModal({
         'https://instagram.com/rohan_creates',
         'rohan@example.com',
         '45.5k',
-        'Mumbai',
         'Maharashtra',
+        'Mumbai',
         'Male',
         '5000',
         'Yes, after 3 PM',

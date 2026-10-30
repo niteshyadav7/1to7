@@ -19,6 +19,7 @@ import {
   CANONICAL_FIELDS
 } from '@/lib/utils/profile-sync-utils'
 import { STATES, TOP_METRO_CITIES } from '@/lib/constants/india-data'
+import { orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 
 export interface FormField {
   id?: string
@@ -102,7 +103,7 @@ export default function FormFieldBuilder({
       filterable: true,
       aliases: [],
     }
-    onChange([...fields, newField])
+    onChange(orderFieldsStateBeforeCity([...fields, newField]))
   }
 
   const removeField = (index: number) => {

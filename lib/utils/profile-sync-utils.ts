@@ -31,19 +31,19 @@ export const CANONICAL_FIELDS: CanonicalFieldMapping[] = [
     ]
   },
   {
-    key: 'city',
-    label: 'City',
-    patterns: [
-      /^(city|town|current\s*city|living\s*city|district)$/i,
-      /\b(current\s*city|home\s*city)\b/i
-    ]
-  },
-  {
     key: 'state',
     label: 'State',
     patterns: [
       /^(state|province|region|state\s*name|state\s*\/\s*ut|select\s*state)$/i,
       /\bstate\s*\/\s*ut\b/i
+    ]
+  },
+  {
+    key: 'city',
+    label: 'City',
+    patterns: [
+      /^(city|town|current\s*city|living\s*city|district)$/i,
+      /\b(current\s*city|home\s*city)\b/i
     ]
   },
   {
@@ -245,17 +245,6 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
     canonicalKey: 'alt_mobile'
   },
   {
-    id: 'city',
-    label: 'Current City',
-    icon: '🏙️',
-    name: 'Current City',
-    type: 'dropdown',
-    required: true,
-    options: [...TOP_METRO_CITIES],
-    description: 'Auto-saves creator primary city (cascades with State in forms)',
-    canonicalKey: 'city'
-  },
-  {
     id: 'state',
     label: 'State',
     icon: '📍',
@@ -265,6 +254,17 @@ export const PROFILE_FIELD_PRESETS: ProfileFieldPreset[] = [
     options: [...STATES],
     description: 'Auto-saves creator primary state (All 36 Indian States & UTs)',
     canonicalKey: 'state'
+  },
+  {
+    id: 'city',
+    label: 'Current City',
+    icon: '🏙️',
+    name: 'Current City',
+    type: 'dropdown',
+    required: true,
+    options: [...TOP_METRO_CITIES],
+    description: 'Auto-saves creator primary city (cascades with State in forms)',
+    canonicalKey: 'city'
   },
   {
     id: 'pincode',

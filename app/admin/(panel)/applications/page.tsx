@@ -36,6 +36,7 @@ import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 import Papa from 'papaparse'
 import { DynamicQuestionFiltersBar } from '@/components/admin/applications/DynamicQuestionFiltersBar'
 import { FormField } from '@/components/admin/FormFieldBuilder'
+import { orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import {
   QuestionFilterCriteria,
   matchesQuestionFilter,
@@ -1352,7 +1353,7 @@ export default function AllApplicationsPage() {
         a.campaigns?.brand_name === selected || a.campaigns?.campaign_code === selected
       )
       if (localApp?.campaigns?.form_fields && localApp.campaigns.form_fields.length > 0) {
-        setSingleCampaignFields(localApp.campaigns.form_fields)
+        setSingleCampaignFields(orderFieldsStateBeforeCity(localApp.campaigns.form_fields))
       }
 
       // 2. Network enrichment with historical aliases & updated builder settings
@@ -1361,7 +1362,7 @@ export default function AllApplicationsPage() {
         .then(res => res.json())
         .then(data => {
           if (isMounted && data.campaign?.form_fields) {
-            setSingleCampaignFields(data.campaign.form_fields)
+            setSingleCampaignFields(orderFieldsStateBeforeCity(data.campaign.form_fields))
           }
         })
         .catch(() => {})

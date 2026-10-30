@@ -27,6 +27,7 @@ import { GhostActionModal } from '@/components/admin/ghost/GhostActionModal'
 import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
 import { DynamicQuestionFiltersBar } from '@/components/admin/applications/DynamicQuestionFiltersBar'
 import { FormField } from '@/components/admin/FormFieldBuilder'
+import { orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 import {
   QuestionFilterCriteria,
   matchesQuestionFilter,
@@ -441,13 +442,16 @@ export default function AdminApplicationsPage() {
         fetch(`/api/admin/applications/question-filters?campaign_id=${campaign_id}`).catch(() => null),
       ])
       const data = await res.json()
-      let camp = data.campaign || null
+      let camp = data.campaign ? {
+        ...data.campaign,
+        form_fields: orderFieldsStateBeforeCity(data.campaign.form_fields || []),
+      } : null
       if (filterRes && filterRes.ok) {
         const filterData = await filterRes.json().catch(() => ({}))
         if (filterData?.campaign?.form_fields) {
           camp = {
             ...(camp || {}),
-            form_fields: filterData.campaign.form_fields,
+            form_fields: orderFieldsStateBeforeCity(filterData.campaign.form_fields),
           }
         }
       }

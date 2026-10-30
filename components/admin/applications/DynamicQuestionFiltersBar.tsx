@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { FormField } from '@/components/admin/FormFieldBuilder'
 import { QuestionFilterCriteria, getApplicationQuestionAnswer } from '@/lib/utils/question-filter-utils'
+import { orderFieldsStateBeforeCity } from '@/lib/utils/location-utils'
 
 interface DynamicQuestionFiltersBarProps {
   fields: FormField[]
@@ -135,10 +136,11 @@ export function DynamicQuestionFiltersBar({
     )
   }).length
 
-  // Visible fields: filterable ones by default, or all if toggled
-  const filterableFields = fields.filter(f => f.filterable === true || /commercial|quote|budget|rate|charge|fee/i.test(f.name))
-  const otherFields = fields.filter(f => !filterableFields.some(ff => ff.name === f.name))
-  const displayedFields = showAllQuestions ? fields : (filterableFields.length > 0 ? filterableFields : fields)
+  // Visible fields: filterable ones by default, or all if toggled (State strictly before City)
+  const orderedFields = useMemo(() => orderFieldsStateBeforeCity(fields), [fields])
+  const filterableFields = orderedFields.filter(f => f.filterable === true || /commercial|quote|budget|rate|charge|fee/i.test(f.name))
+  const otherFields = orderedFields.filter(f => !filterableFields.some(ff => ff.name === f.name))
+  const displayedFields = showAllQuestions ? orderedFields : (filterableFields.length > 0 ? filterableFields : orderedFields)
 
   return (
     <div

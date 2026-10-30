@@ -138,20 +138,20 @@ export default function AdminAddressConfirmationPage() {
   // Smart Address Import Modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
-  const fetchAddresses = useCallback(async () => {
+  const fetchAddresses = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true)
+      if (!isSilent) setLoading(true)
       const res = await fetch('/api/admin/address-confirmation?limit=5000')
       const data = await res.json()
       if (res.ok && data.addresses) {
         setEntries(data.addresses)
-      } else {
+      } else if (!isSilent) {
         toast.error(data.error || 'Failed to fetch addresses')
       }
     } catch {
-      toast.error('Failed to load address confirmation entries')
+      if (!isSilent) toast.error('Failed to load address confirmation entries')
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
   }, [])
 
@@ -159,7 +159,7 @@ export default function AdminAddressConfirmationPage() {
     fetchAddresses()
   }, [fetchAddresses])
 
-  useRealtime({ table: 'applications', onChange: fetchAddresses })
+  useRealtime({ table: 'applications', onChange: () => fetchAddresses(true) })
 
   // Extract unique campaigns for filter
   const campaignOptions = useMemo(() => {
@@ -172,7 +172,17 @@ export default function AdminAddressConfirmationPage() {
     return Array.from(map.entries()).map(([id, label]) => ({ id, label }))
   }, [entries])
 
-  // Resolve status helper
+  // Check if an address object actually contains non-empty location details
+  const hasValidShippingAddress = (addr: any): boolean => {
+    if (!addr || typeof addr !== 'object') return false
+    return Boolean(
+      (addr.address_line1 && String(addr.address_line1).trim()) ||
+      (addr.city && String(addr.city).trim()) ||
+      (addr.pincode && String(addr.pincode).trim())
+    )
+  }
+
+  // Resolve status helper with strict non-empty object guards
   const getVerificationStatus = (entry: AddressEntry): 'Pending' | 'Approved' | 'Rejected' | 'Not Submitted' => {
     if (entry.address_status === 'Approved' || entry.form_data?.address_verified === true) {
       return 'Approved'
@@ -180,25 +190,72 @@ export default function AdminAddressConfirmationPage() {
     if (entry.address_status === 'Rejected' || entry.form_data?.address_status === 'Rejected') {
       return 'Rejected'
     }
-    if (entry.address_status === 'Pending' || entry.form_data?.address_confirmed === true || entry.form_data?.shipping_address) {
+    const addr = entry.form_data?.shipping_address
+    const hasAddr = hasValidShippingAddress(addr)
+    const isConfirmed = entry.form_data?.address_confirmed === true
+    if (entry.address_status === 'Pending' || isConfirmed || hasAddr) {
       return 'Pending'
     }
     return 'Not Submitted'
   }
 
-  // Filtered entries
+  // 1. Campaign-scoped entries: for top KPI cards & campaign selection status
+  const campaignScopedEntries = useMemo(() => {
+    if (selectedCampaignId === 'all') return entries
+    return entries.filter(e => e.campaigns?.id === selectedCampaignId)
+  }, [entries, selectedCampaignId])
+
+  // 2. Tab-scoped entries: filtered by campaign AND campaign selection status
+  const tabScopedEntries = useMemo(() => {
+    return campaignScopedEntries.filter(e => {
+      if (campaignStatusFilter !== 'all' && e.status !== campaignStatusFilter) return false
+      return true
+    })
+  }, [campaignScopedEntries, campaignStatusFilter])
+
+  // 3. Top KPI cards summary: accurately reflects the selected campaign
+  const kpiMetrics = useMemo(() => {
+    let brandDispatch = 0
+    let pending = 0
+    let approved = 0
+    let rejected = 0
+    let notSubmitted = 0
+
+    campaignScopedEntries.forEach(e => {
+      const st = getVerificationStatus(e)
+      if (e.status === 'Approved' && st === 'Approved') brandDispatch++
+      if (st === 'Pending') pending++
+      else if (st === 'Approved') approved++
+      else if (st === 'Rejected') rejected++
+      else notSubmitted++
+    })
+
+    return { total: campaignScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted }
+  }, [campaignScopedEntries])
+
+  // 4. Sub-tab badge counts: accurately reflects the active campaign & campaign status
+  const tabCounts = useMemo(() => {
+    let brandDispatch = 0
+    let pending = 0
+    let approved = 0
+    let rejected = 0
+    let notSubmitted = 0
+
+    tabScopedEntries.forEach(e => {
+      const st = getVerificationStatus(e)
+      if (e.status === 'Approved' && st === 'Approved') brandDispatch++
+      if (st === 'Pending') pending++
+      else if (st === 'Approved') approved++
+      else if (st === 'Rejected') rejected++
+      else notSubmitted++
+    })
+
+    return { total: tabScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted }
+  }, [tabScopedEntries])
+
+  // 5. Final filtered entries: tabScopedEntries narrowed by active status tab and search query
   const filteredEntries = useMemo(() => {
-    return entries.filter(entry => {
-      // Campaign filter
-      if (selectedCampaignId !== 'all' && entry.campaigns?.id !== selectedCampaignId) {
-        return false
-      }
-
-      // Campaign application status filter (Approved, Applied, Rejected, etc.)
-      if (campaignStatusFilter !== 'all' && entry.status !== campaignStatusFilter) {
-        return false
-      }
-
+    return tabScopedEntries.filter(entry => {
       // Status filter
       const vStatus = getVerificationStatus(entry)
       if (statusFilter === 'BrandDispatch') {
@@ -214,47 +271,46 @@ export default function AdminAddressConfirmationPage() {
         if (vStatus !== 'Rejected') return false
       }
 
-      // Search query
+      // Search query across name, handle, influencer ID, email, phone, campaign, and address details
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const matchName = entry.users?.full_name?.toLowerCase().includes(q)
         const matchHandle = entry.users?.instagram_username?.toLowerCase().includes(q)
-        const matchPhone = entry.users?.mobile?.includes(q)
+        const matchInfluencerId = entry.users?.influencer_id?.toLowerCase().includes(q)
+        const matchEmail = entry.users?.email?.toLowerCase().includes(q)
+        const matchPhone = String(entry.users?.mobile || '').includes(q)
         const matchCode = entry.campaigns?.campaign_code?.toLowerCase().includes(q)
         const matchBrand = entry.campaigns?.brand_name?.toLowerCase().includes(q)
         const addr = entry.form_data?.shipping_address
+        const matchRecipient = String(addr?.recipient_name || addr?.name || '').toLowerCase().includes(q)
+        const matchStreet = String(addr?.address_line1 || '').toLowerCase().includes(q) || String(addr?.address_line2 || '').toLowerCase().includes(q) || String(addr?.landmark || '').toLowerCase().includes(q)
         const matchCity = addr?.city?.toLowerCase()?.includes(q) || entry.users?.city?.toLowerCase()?.includes(q)
         const matchState = addr?.state?.toLowerCase()?.includes(q) || entry.users?.state?.toLowerCase()?.includes(q)
-        const matchPin = addr?.pincode?.includes(q) || entry.users?.pincode?.includes(q)
+        const matchPin = String(addr?.pincode || entry.users?.pincode || '').includes(q)
+        const matchAltPhone = String(addr?.alt_mobile || '').includes(q)
 
-        if (!matchName && !matchHandle && !matchPhone && !matchCode && !matchBrand && !matchCity && !matchState && !matchPin) {
+        if (!matchName && !matchHandle && !matchInfluencerId && !matchEmail && !matchPhone && !matchCode && !matchBrand && !matchRecipient && !matchStreet && !matchCity && !matchState && !matchPin && !matchAltPhone) {
           return false
         }
       }
 
       return true
     })
-  }, [entries, selectedCampaignId, campaignStatusFilter, statusFilter, searchQuery])
+  }, [tabScopedEntries, statusFilter, searchQuery])
 
-  // Summary Metrics
-  const metrics = useMemo(() => {
-    let brandDispatch = 0
-    let pending = 0
-    let approved = 0
-    let rejected = 0
-    let notSubmitted = 0
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() !== '' ||
+    selectedCampaignId !== 'all' ||
+    campaignStatusFilter !== 'all' ||
+    statusFilter !== 'All'
+  )
 
-    entries.forEach(e => {
-      const st = getVerificationStatus(e)
-      if (e.status === 'Approved' && st === 'Approved') brandDispatch++
-      if (st === 'Pending') pending++
-      else if (st === 'Approved') approved++
-      else if (st === 'Rejected') rejected++
-      else notSubmitted++
-    })
-
-    return { total: entries.length, brandDispatch, pending, approved, rejected, notSubmitted }
-  }, [entries])
+  const handleResetFilters = () => {
+    setSearchQuery('')
+    setSelectedCampaignId('all')
+    setCampaignStatusFilter('all')
+    setStatusFilter('All')
+  }
 
   // Pagination calculations
   const totalFiltered = filteredEntries.length
@@ -444,11 +500,11 @@ export default function AdminAddressConfirmationPage() {
         </div>
       </SetAdminHeader>
 
-      {/* KPI Cards Strip: 5 Responsive Cards with Final Brand Dispatch Priority */}
+      {/* KPI Cards Strip: 5 Responsive Cards with Scoped Campaign Logistics Health */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Total Tracked */}
         <div 
-          onClick={() => { setStatusFilter('All'); setCampaignStatusFilter('all') }}
+          onClick={() => setStatusFilter('All')}
           className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg cursor-pointer hover:bg-slate-800/40 transition-colors"
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
@@ -456,14 +512,16 @@ export default function AdminAddressConfirmationPage() {
             <Package className="h-4 w-4 text-indigo-400" />
           </div>
           <p className="text-2xl font-bold text-white">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.total}
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.total}
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">Barter applications</p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {selectedCampaignId !== 'all' ? 'Campaign applications' : 'Barter applications'}
+          </p>
         </div>
 
         {/* Ready for Brand Dispatch (Both Campaign Approved AND Address Verified) */}
         <div 
-          onClick={() => { setStatusFilter('BrandDispatch'); setCampaignStatusFilter('all') }}
+          onClick={() => setStatusFilter('BrandDispatch')}
           className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-all group ${
             statusFilter === 'BrandDispatch'
               ? 'border-emerald-400/60 bg-emerald-500/20 shadow-lg shadow-emerald-500/20'
@@ -478,14 +536,14 @@ export default function AdminAddressConfirmationPage() {
             <Sparkles className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
           </div>
           <p className="text-2xl font-black text-emerald-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.brandDispatch}
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.brandDispatch}
           </p>
           <p className="text-[11px] text-emerald-300/80 mt-1 font-semibold">Campaign + Address Approved</p>
         </div>
 
         {/* Address Verified */}
         <div 
-          onClick={() => { setStatusFilter('Approved'); setCampaignStatusFilter('all') }}
+          onClick={() => setStatusFilter('Approved')}
           className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
             statusFilter === 'Approved'
               ? 'border-teal-400/60 bg-teal-500/20'
@@ -497,14 +555,14 @@ export default function AdminAddressConfirmationPage() {
             <CheckCircle2 className="h-4 w-4 text-teal-400" />
           </div>
           <p className="text-2xl font-bold text-teal-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.approved}
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.approved}
           </p>
           <p className="text-[11px] text-teal-300/70 mt-1">Valid shipping addresses</p>
         </div>
 
         {/* Pending Review */}
         <div 
-          onClick={() => { setStatusFilter('Pending'); setCampaignStatusFilter('all') }}
+          onClick={() => setStatusFilter('Pending')}
           className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
             statusFilter === 'Pending'
               ? 'border-amber-400/60 bg-amber-500/20'
@@ -516,14 +574,14 @@ export default function AdminAddressConfirmationPage() {
             <Clock className="h-4 w-4 text-amber-400" />
           </div>
           <p className="text-2xl font-bold text-amber-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.pending}
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.pending}
           </p>
           <p className="text-[11px] text-amber-300/70 mt-1">Needs verification</p>
         </div>
 
         {/* Missing / Not Submitted */}
         <div 
-          onClick={() => { setStatusFilter('NotSubmitted'); setCampaignStatusFilter('all') }}
+          onClick={() => setStatusFilter('NotSubmitted')}
           className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
             statusFilter === 'NotSubmitted'
               ? 'border-slate-500 bg-slate-800/60'
@@ -535,7 +593,7 @@ export default function AdminAddressConfirmationPage() {
             <AlertCircle className="h-4 w-4 text-slate-400" />
           </div>
           <p className="text-2xl font-bold text-slate-300">
-            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : metrics.notSubmitted}
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.notSubmitted}
           </p>
           <p className="text-[11px] text-slate-500 mt-1">Missing creator address</p>
         </div>
@@ -544,15 +602,25 @@ export default function AdminAddressConfirmationPage() {
       {/* Control Bar: Search, Campaign Filter, Status Filter & Export Button */}
       <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg space-y-3">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search Input */}
+          {/* Search Input with Clear Button */}
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by creator name, Instagram handle, phone, city, or campaign code..."
-              className="pl-10 h-10 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 text-xs rounded-xl focus-visible:ring-emerald-500"
+              placeholder="Search by creator name, @handle, ID (HY18691), phone, street, city, pin..."
+              className="pl-10 pr-9 h-10 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 text-xs rounded-xl focus-visible:ring-emerald-500"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+                title="Clear search query"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -581,11 +649,25 @@ export default function AdminAddressConfirmationPage() {
               <option value="Rejected">Campaign: Rejected Only</option>
             </select>
 
+            {/* Reset Filters Shortcut */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-10 px-2.5 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-xl flex items-center gap-1.5 transition-colors"
+                title="Reset all search and filter dropdowns"
+              >
+                <X className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Reset Filters</span>
+              </Button>
+            )}
+
             {/* Refresh */}
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchAddresses}
+              onClick={() => fetchAddresses(false)}
               disabled={loading}
               className="h-10 px-3 bg-slate-950/60 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-xs cursor-pointer"
             >
@@ -602,10 +684,11 @@ export default function AdminAddressConfirmationPage() {
               <span>Import Addresses</span>
             </Button>
 
-            {/* Sprint 4: Courier Dispatch Exporter */}
+            {/* Courier Dispatch Exporter */}
             <Button
               onClick={handleExportCSV}
-              className={`h-10 px-4 font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer ml-auto lg:ml-0 ${
+              disabled={filteredEntries.length === 0}
+              className={`h-10 px-4 font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer ml-auto lg:ml-0 disabled:opacity-40 disabled:cursor-not-allowed ${
                 statusFilter === 'BrandDispatch'
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-400/40'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
@@ -626,15 +709,15 @@ export default function AdminAddressConfirmationPage() {
           </div>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 pt-1 border-t border-white/5 overflow-x-auto">
+        {/* Status Filter Tabs - Scrollbar Suppressed for Desktop */}
+        <div className="flex items-center gap-2 pt-1 border-t border-white/5 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {[
-            { id: 'All', label: 'All Submissions', count: entries.length },
-            { id: 'BrandDispatch', label: 'Final Brand Dispatch', count: metrics.brandDispatch, isPrimary: true, icon: Truck },
-            { id: 'Approved', label: 'Address Verified', count: metrics.approved },
-            { id: 'Pending', label: 'Pending Review', count: metrics.pending },
-            { id: 'NotSubmitted', label: 'Not Submitted', count: metrics.notSubmitted },
-            { id: 'Rejected', label: 'Changes Requested', count: metrics.rejected },
+            { id: 'All', label: 'All Submissions', count: tabCounts.total },
+            { id: 'BrandDispatch', label: 'Final Brand Dispatch', count: tabCounts.brandDispatch, isPrimary: true, icon: Truck },
+            { id: 'Approved', label: 'Address Verified', count: tabCounts.approved },
+            { id: 'Pending', label: 'Pending Review', count: tabCounts.pending },
+            { id: 'NotSubmitted', label: 'Not Submitted', count: tabCounts.notSubmitted },
+            { id: 'Rejected', label: 'Changes Requested', count: tabCounts.rejected },
           ].map(tab => {
             const isActive = statusFilter === tab.id
             const TabIcon = tab.icon
@@ -687,9 +770,22 @@ export default function AdminAddressConfirmationPage() {
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-400 text-center px-4">
             <MapPin className="h-10 w-10 text-slate-600" />
             <p className="text-sm font-bold text-slate-300">No address records found</p>
-            <p className="text-xs text-slate-500 max-w-sm">
-              {searchQuery ? 'Try adjusting your search query or campaign filter.' : 'Shortlisted creators who confirm delivery addresses will appear here.'}
+            <p className="text-xs text-slate-500 max-w-md">
+              {searchQuery
+                ? `No address records match "${searchQuery}" under the current filters.`
+                : 'No creator address records match the selected campaign and status filters.'}
             </p>
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetFilters}
+                className="mt-2 h-8 px-3 text-xs bg-slate-800/80 border-white/10 text-slate-200 hover:text-white hover:bg-slate-700 rounded-lg flex items-center gap-1.5 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+                Reset All Filters
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -708,7 +804,7 @@ export default function AdminAddressConfirmationPage() {
                 {paginatedEntries.map((entry) => {
                   const vStatus = getVerificationStatus(entry)
                   const addr = entry.form_data?.shipping_address || {}
-                  const hasSubmittedAddress = Boolean(entry.form_data?.address_confirmed || addr.address_line1)
+                  const hasSubmittedAddress = Boolean(entry.form_data?.address_confirmed || hasValidShippingAddress(addr))
                   const isProcessing = actionInProgressId === entry.id
 
                   return (
