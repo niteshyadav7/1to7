@@ -2132,13 +2132,13 @@ export default function AllApplicationsPage() {
         result = result.filter(a => a.status === 'Approved' && !a.is_archived && !a.users?.is_archived && !a.is_ghosted && !a.form_data?.backout_details)
         if (approvedSubFilter === 'address_shared') {
           result = result.filter(a => {
-            const addr = resolveApplicationAddress(a)
-            return addr && addr.address_line1
+            const { addr, fullText } = resolveApplicationAddress(a)
+            return Boolean((addr && addr.address_line1) || fullText)
           })
         } else if (approvedSubFilter === 'address_pending') {
           result = result.filter(a => {
-            const addr = resolveApplicationAddress(a)
-            return !addr || !addr.address_line1
+            const { addr, fullText } = resolveApplicationAddress(a)
+            return !((addr && addr.address_line1) || fullText)
           })
         }
       }
@@ -2625,18 +2625,23 @@ export default function AllApplicationsPage() {
             previous_status: app.status
           }
         }
-        return supabase
-          .from('applications')
-          .update({
+        return fetch(`/api/admin/applications/${app.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             status: 'Backout',
             form_data: mergedForm,
-            team_remark: `Backout: ${finalReason}`,
-            updated_at: nowIso
+            team_remark: `Backout: ${finalReason}`
           })
-          .eq('id', app.id)
+        })
       })
 
-      await Promise.all(updatePromises)
+      const responses = await Promise.all(updatePromises)
+      const failed = responses.filter(r => !r.ok)
+      if (failed.length > 0) {
+        throw new Error(`Failed to update ${failed.length} application(s)`)
+      }
+
       toast.success(`Marked ${backoutModalApps.length} creator${backoutModalApps.length > 1 ? 's' : ''} as Backout`)
       setBackoutModalApps(null)
       setSelectedIds(new Set())
@@ -2654,17 +2659,21 @@ export default function AllApplicationsPage() {
       const currForm = (targetApp.form_data && typeof targetApp.form_data === 'object') ? { ...targetApp.form_data } : {}
       delete currForm.backout_details
 
-      const { error } = await supabase
-        .from('applications')
-        .update({
+      const res = await fetch(`/api/admin/applications/${targetApp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           status: previousStatus,
           form_data: currForm,
-          team_remark: 'Reverted Backout — Restored to ' + previousStatus,
-          updated_at: new Date().toISOString()
+          team_remark: 'Reverted Backout — Restored to ' + previousStatus
         })
-        .eq('id', targetApp.id)
+      })
 
-      if (error) throw error
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to restore application')
+      }
+
       toast.success(`Restored ${targetApp.users?.full_name || 'creator'} back to ${previousStatus}`)
       fetchApplications()
     } catch (err: any) {
@@ -2859,8 +2868,8 @@ export default function AllApplicationsPage() {
         backout++
       } else if (a.status === 'Approved' && !a.is_archived && !a.users?.is_archived) {
         all++
-        const addr = resolveApplicationAddress(a)
-        if (addr && addr.address_line1) {
+        const { addr, fullText } = resolveApplicationAddress(a)
+        if ((addr && addr.address_line1) || fullText) {
           addressShared++
         } else {
           addressPending++
@@ -3769,8 +3778,9 @@ export default function AllApplicationsPage() {
 
                                 {app.status === 'Approved' && (
                                   (() => {
-                                    const addr = resolveApplicationAddress(app)
-                                    const hasAddr = Boolean(addr && addr.address_line1)
+                                    const { addr, fullText } = resolveApplicationAddress(app)
+                                    const hasAddr = Boolean((addr && addr.address_line1) || fullText)
+                                    const displayAddr = fullText || (addr ? `${addr.address_line1}, ${addr.city || ''} (${addr.pincode || ''})` : '')
                                     return (
                                       <span
                                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold border whitespace-nowrap ${
@@ -3778,7 +3788,7 @@ export default function AllApplicationsPage() {
                                             ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                                             : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                         }`}
-                                        title={hasAddr ? `Address: ${addr.address_line1}, ${addr.city || ''} (${addr.pincode || ''})` : 'Physical shipping address not shared yet'}
+                                        title={hasAddr ? `Address: ${displayAddr}` : 'Physical shipping address not shared yet'}
                                       >
                                         <MapPin className="h-2.5 w-2.5 shrink-0" />
                                         <span>{hasAddr ? 'Address Shared' : 'Address Pending'}</span>

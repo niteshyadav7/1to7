@@ -125,6 +125,7 @@ CASE 114: Viewport Collision in Dense Multi-Action Toolbars: Ergonomic Micro-Cop
 CASE 115: Automated High-Volume WhatsApp Outreach: Interactive Sequential Queue Runners vs. Headless CSV Ingestion for Bulk Senders (Prime Sender)
 CASE 116: Operational Accountability in Creator Archiving: Contextual Remarks, Preset Reason Categorization & Cascade Status Sync
 CASE 117: Post-Approval Funnel Disconnect: Sub-Pipeline Address Filtering (Shared vs Pending), Granular Backout Telemetry & Two-Way Reversion Architecture
+CASE 118: TypeScript Build Failures in Relational Address Resolvers & Scope Bleed in State Reversion (Direct Supabase Access vs Authorized REST API Encapsulation)
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5306,3 +5307,55 @@ S: In an influencer campaign desk, approved creators frequently drop out ('back 
 T: Architect an Approved sub-pipeline isolating Address Shared vs Pending and build a structured Backout state machine with audit reasons and reversion support.
 A: Engineered an approved sub-filter bar powered by dynamic address resolution; introduced a dedicated 'Backout' status with 1-tap categorization modals; and implemented atomic two-way state reversion.
 R: Eliminated address confirmation guesswork, automated WhatsApp outreach targeting for missing addresses, and gave campaign managers precise visibility into post-approval attrition.
+
+
+====================================================================================================
+CASE 118: TypeScript Build Failures in Relational Address Resolvers & Scope Bleed in State Reversion (Direct Supabase Access vs Authorized REST API Encapsulation)
+====================================================================================================
+CATEGORIES: Next.js / TypeScript / Turbopack / Production Reliability / API Abstraction
+INTERVIEW QUESTION:
+"During a production Next.js Turbopack build, the compilation phase succeeds but TypeScript checking halts with 'Property does not exist on type' and 'Cannot find name supabase'. Walk me through how structural type mismatches occur when refactoring utility functions, and why direct client-side database calls should be strictly decoupled into authorized REST API routes."
+
+[SITUATION]
+Following the introduction of the Approved sub-pipeline filter (Address Shared vs Pending) and the Backout modal state machine in `app/admin/(panel)/applications/page.tsx`, running `npm run build` halted during Next.js TypeScript validation:
+1. `Type error: Property 'address_line1' does not exist on type '{ addr: any; fullText: string; }'`.
+2. `Type error: Cannot find name 'supabase'`.
+
+[ROOT CAUSE]
+1. Return Signature Refactoring Disconnect:
+   The address resolver utility `resolveApplicationAddress(app)` had been previously refactored to return a composite object `{ addr: any, fullText: string }` to support freeform text addresses collected in custom campaign question forms.
+   Subsequent filter logic and badges called `const addr = resolveApplicationAddress(a); if (addr && addr.address_line1)` directly, treating the composite wrapper object as the raw address entity. TypeScript strictly caught the property mismatch on `{ addr, fullText }`.
+2. Client-Side Architectural Scope Bleed:
+   The newly introduced state-machine mutations `handleConfirmBackout` and `handleRevertBackout` attempted to call `supabase.from('applications').update(...)` directly inside the client component without an imported Supabase browser client. More importantly, client-side direct updates bypass server-side audit logs, session validation, and authorized role checks.
+
+[SOLUTION & ARCHITECTURE]
+1. Composite Address Destructuring & Truthiness Normalization:
+   Updated all invocations across `processedData`, `approvedCounts`, and the table status cell:
+   ```typescript
+   const { addr, fullText } = resolveApplicationAddress(a)
+   const hasAddr = Boolean((addr && addr.address_line1) || fullText)
+   ```
+   This ensures both structured relational addresses (`address_line1`, `city`, `pincode`) and legacy/freeform text answers (`fullText`) are properly recognized as valid shipping addresses.
+2. Encapsulated Server REST Endpoint Invocations:
+   Refactored `handleConfirmBackout` and `handleRevertBackout` to communicate exclusively through the authorized admin endpoint `PUT /api/admin/applications/[id]`:
+   ```typescript
+   const updatePromises = backoutModalApps.map(app => {
+     return fetch(`/api/admin/applications/${app.id}`, {
+       method: 'PUT',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         status: 'Backout',
+         form_data: mergedForm,
+         team_remark: `Backout: ${finalReason}`
+       })
+     })
+   })
+   const responses = await Promise.all(updatePromises)
+   ```
+   This preserves admin RBAC session validation, prevents client-side bundle leakage, and provides clear HTTP error feedback.
+
+[INTERVIEW STAR TAKEAWAY]
+S: A Next.js production build broke due to type mismatches in a composite address resolver and an uninstantiated client Supabase call.
+T: Fix the TypeScript compilation errors and enforce clean API architectural boundaries.
+A: Normalized address destructuring to accept both structured and freeform addresses, and replaced direct client database calls with authorized REST API routes.
+R: Restored zero-error Next.js production builds (`npm run build` exited with code 0 across 176 routes) with rock-solid type safety and clean security encapsulation.
