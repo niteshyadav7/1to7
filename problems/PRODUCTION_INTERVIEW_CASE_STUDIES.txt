@@ -4967,10 +4967,11 @@ Because links were rendered in a single flat vertical list:
    - When a query is active, categories containing matches automatically expand and highlight, while non-matching categories collapse cleanly.
    - Provided instant `Escape` or `X` button reset with zero state delay.
 
-3. Persistent Collapsible Accordions with Active Route Anchor:
+3. Persistent Collapsible Accordions & Explicit Toggle Precedence:
    - Added interactive category headers featuring category titles, permitted item counters, and smooth rotating chevrons (`ChevronDown` transitioning `-rotate-90` when collapsed).
-   - Enforced Active Route Precedence: If the user is currently viewing a page inside a category (e.g. `/admin/influencers` under `Creator & Talent Pool`), that category is guaranteed to stay expanded and displays an illuminated indigo status dot (`h-1.5 w-1.5 rounded-full bg-indigo-400`).
-   - Persisted manual collapse preferences across page reloads in `localStorage` under `admin_sidebar_collapsed_categories`.
+   - Resolved Boolean Precedence Trap: Initial implementation evaluated `isExpanded = isSearching || category.hasActiveLink || ...`. Because `category.hasActiveLink` was unconditionally true whenever an admin visited a page in that category (e.g. `/admin/dashboard`), clicking the category header failed to collapse because `true || anything === true`. Fixed by tracking clean `openCategories` state with route-transition auto-expansion and evaluating `isExpanded = isSearching || (openCategories[category.id] ?? true)`, allowing admins to explicitly collapse any category (even the active one) on demand.
+   - Preserved visual orientation: Even when collapsed, the category header displays an illuminated indigo status dot (`h-1.5 w-1.5 rounded-full bg-indigo-400`) indicating that the active page lives inside it.
+   - Persisted manual collapse preferences across page reloads in `localStorage` under `admin_sidebar_open_categories`.
 
 4. Strict RBAC & Dynamic Counter Preservation:
    - Filtered every link through `canAccessModule(link.moduleKey)` before category aggregation. If a category holds zero permitted links for a specific staff role, the entire category header is suppressed.

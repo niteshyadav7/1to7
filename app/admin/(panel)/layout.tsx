@@ -157,22 +157,51 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const { headerContent } = useAdminHeader()
   const { admin, loading, isSuperAdmin, canAccessModule } = useAdminPermissions()
 
-  // Sidebar search & category collapse state
+  // Sidebar search & category open/collapse state
   const [searchQuery, setSearchQuery] = useState('')
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
+    overview: true,
+    campaigns: true,
+    talent: true,
+    finance: true,
+    support: true,
+    system: true,
+  })
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const prevPathnameRef = useRef(pathname)
 
-  // Load category collapse preference from localStorage
+  // Load category open preference from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('admin_sidebar_collapsed_categories')
+      const saved = localStorage.getItem('admin_sidebar_open_categories')
       if (saved) {
-        setCollapsedCategories(JSON.parse(saved))
+        setOpenCategories((prev) => ({ ...prev, ...JSON.parse(saved) }))
       }
     } catch {
       // ignore
     }
   }, [])
+
+  // Auto-expand category when navigating to a new route
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname
+      const activeCat = sidebarCategories.find((c) =>
+        c.links.some((l) => isActive(l.href))
+      )
+      if (activeCat) {
+        setOpenCategories((prev) => {
+          const next = { ...prev, [activeCat.id]: true }
+          try {
+            localStorage.setItem('admin_sidebar_open_categories', JSON.stringify(next))
+          } catch {
+            // ignore
+          }
+          return next
+        })
+      }
+    }
+  }, [pathname])
 
   // Keyboard shortcut: '/' to focus search input, Escape to clear
   useEffect(() => {
@@ -193,10 +222,11 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleCategory = (categoryId: string) => {
-    setCollapsedCategories((prev) => {
-      const next = { ...prev, [categoryId]: !prev[categoryId] }
+    setOpenCategories((prev) => {
+      const current = prev[categoryId] ?? true
+      const next = { ...prev, [categoryId]: !current }
       try {
-        localStorage.setItem('admin_sidebar_collapsed_categories', JSON.stringify(next))
+        localStorage.setItem('admin_sidebar_open_categories', JSON.stringify(next))
       } catch {
         // ignore
       }
@@ -423,11 +453,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           ) : (
             processedCategories.map((category) => {
               const isSearching = normalizedQuery.length > 0
-              const isExpanded = isSearching || category.hasActiveLink || (
-                collapsedCategories[category.id] !== undefined
-                  ? !collapsedCategories[category.id]
-                  : (category.id === 'overview' || category.id === 'campaigns' || category.id === 'talent')
-              )
+              const isExpanded = isSearching || (openCategories[category.id] ?? true)
 
               return (
                 <div key={category.id} className="space-y-0.5">
