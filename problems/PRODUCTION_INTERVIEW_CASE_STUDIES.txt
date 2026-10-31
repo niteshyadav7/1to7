@@ -123,6 +123,7 @@ CASE 112: Navigation Cognitive Overload & Route Discoverability: High-Density Ca
 CASE 113: High-Velocity Creator Outreach: Multi-Surface Direct WhatsApp Communication Engine & Tab-Blocker Resilient Bulk Messaging Architecture
 CASE 114: Viewport Collision in Dense Multi-Action Toolbars: Ergonomic Micro-Copy, Compact Density & Upward-Projecting Ellipsis Overflow Popovers
 CASE 115: Automated High-Volume WhatsApp Outreach: Interactive Sequential Queue Runners vs. Headless CSV Ingestion for Bulk Senders (Prime Sender)
+CASE 116: Operational Accountability in Creator Archiving: Contextual Remarks, Preset Reason Categorization & Cascade Status Sync
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -5148,3 +5149,54 @@ S: Bulk WhatsApp outreach to 50+ applicants suffered from WhatsApp Web's single-
 T: Architect a hybrid bulk messaging solution supporting both an in-app sequential queue runner and 1-click automated CSV export for third-party broadcast tools.
 A: Engineered a client-side queue manager tracking messaged IDs with progress metrics and auto-advance CTAs, alongside a UTF-8 BOM CSV generator formatted specifically for extensions like Prime Sender with normalized 91-prefix phones and personalized copy.
 R: Reduced multi-creator outreach time by 80%, enabled hands-free broadcasting for large campaign rosters, and eliminated duplicate messaging errors.
+
+====================================================================================================
+CASE 116: Operational Accountability in Creator Archiving: Contextual Remarks, Preset Reason Categorization & Cascade Status Sync
+====================================================================================================
+CATEGORIES: Full-Stack Architecture / Next.js / Audit Trails / Operations Governance / Data Integrity
+INTERVIEW QUESTION:
+"When operators archive or deactivate accounts in a two-sided marketplace (e.g. archiving inactive creators among 35k users), binary yes/no confirmation dialogs lead to silent business context loss. How do you re-architect the deactivation workflow to capture granular categorization and custom audit remarks across both single-entity and bulk operations while ensuring relational cascade cancellation?"
+
+[SITUATION]
+In an influencer talent network of 35,000+ creators, campaign managers frequently need to archive creators who are dormant, unresponsive, charging excessive commercial rates, or delivering substandard work.
+Previously:
+1. Archiving a creator relied on a native browser `window.confirm()` dialog that provided no opportunity to log an operational reason or explanation.
+2. The archival API was called with a hardcoded fallback string (`"Archived via Applications desk"`), creating an audit blindspot where other team members could not determine why a creator was moved to the Archived pool.
+3. When searching or reviewing archived creators in the Archived tab, operators had to guess whether the deactivation was due to inactivity, commercial disputes, or poor content quality.
+
+[ROOT CAUSE]
+1. Absence of In-Modal Archival Reason Collection:
+   The UI lacked a structured modal form to collect operator intent prior to dispatching the deactivation mutation.
+2. Lack of Reason Normalization:
+   Without predefined categories, team members entered inconsistent remarks or omitted them entirely.
+3. Disconnected State Between User Roster & Campaign Applications:
+   Archiving an account requires synchronized updates to the user profile (`users.archive_reason`) and active campaign applications (`applications.archive_reason`, `applications.team_remark`) to ensure historical context is preserved everywhere.
+
+[SOLUTION & ARCHITECTURE]
+1. Dedicated Multi-Entity Archival Modal with Categorized Remarks:
+   Designed an amber-themed modal (`Archive Creator with Remarks`) triggered from:
+   - Row-level action menu (`ActionsDropdown`) in Applications.
+   - Bulk toolbar (`••• More -> Archive ({N})`) for batch selections.
+   - Creator profile card and action buttons in the Influencers Directory.
+2. Dual-Input Reason Architecture:
+   - One-tap preset category tags:
+     - `Inactive / dormant profile`
+     - `Low engagement / criteria mismatch`
+     - `Commercial rate too high`
+     - `Unresponsive to outreach`
+     - `Deliverable / quality issue`
+     - `Other / custom remark`
+   - Free-form textarea for detailed operational notes (e.g., *"Unresponsive to 3 consecutive campaign pitches since August"*).
+3. Synchronized Relational Propagation:
+   - The selected remark is submitted to `/api/admin/influencers/archive`.
+   - The backend atomically updates:
+     - `users.is_archived = true`, `users.archive_reason = cleanReason`, `users.archived_by = adminIdentity`.
+     - When "Cancel pending applications" is toggled, updates `applications.team_remark = "Archived Creator: " + cleanReason` and transitions pending statuses to `Rejected`.
+4. Surface Parity & Telemetry:
+   - The Archived tab and creator profiles reflect the exact reason on hover tooltips and remark cells, ending audit ambiguity.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Operators archived creators via generic browser alerts without capturing why an account was deactivated, leaving an audit blindspot across 35k creators.
+T: Architect an intuitive archival workflow with preset reason taxonomy and custom remarks for both single and bulk operations with relational state synchronization.
+A: Built a dedicated modal with 1-tap reason tags, customizable notes, and application cancellation toggles; routed reasons through atomic Supabase mutations; and populated audit remarks across profile and application desks.
+R: Eliminated all untracked creator deactivations, enabled transparent team collaboration, and provided clear historical context for re-activation decisions.

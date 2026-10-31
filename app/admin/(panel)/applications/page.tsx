@@ -1404,6 +1404,18 @@ export default function AllApplicationsPage() {
   const [whatsappModalApps, setWhatsappModalApps] = useState<Application[] | null>(null)
   const [whatsappCustomMessage, setWhatsappCustomMessage] = useState('')
   const [contactedWhatsAppIds, setContactedWhatsAppIds] = useState<Set<string>>(new Set())
+
+  // Archive Modal State
+  const [archiveModalData, setArchiveModalData] = useState<{
+    userIds: string[]
+    creatorNames: string[]
+    applicationIds: string[]
+    action: 'archive' | 'unarchive'
+  } | null>(null)
+  const [archiveReason, setArchiveReason] = useState('')
+  const [selectedPresetReason, setSelectedPresetReason] = useState('Inactive / dormant profile')
+  const [cancelActiveApplications, setCancelActiveApplications] = useState(true)
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false)
   const { open: bulkMoreOpen, setOpen: setBulkMoreOpen, popoverRef: bulkMoreRef } = usePopover()
 
   const handleOpenWhatsApp = (app: Application, customNote?: string) => {
@@ -2451,76 +2463,85 @@ export default function AllApplicationsPage() {
     }
   }
 
-  const handleArchiveCreator = async (targetApp: Application, action: 'archive' | 'unarchive') => {
+  const executeArchiveApi = async (
+    userIds: string[],
+    action: 'archive' | 'unarchive',
+    customReason: string,
+    cancelApps: boolean
+  ) => {
+    setArchiveSubmitting(true)
+    try {
+      const cleanReason = customReason.trim() || 'Marked as archived by operations team'
+      const res = await fetch('/api/admin/influencers/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds,
+          action,
+          reason: cleanReason,
+          cancel_applications: cancelApps
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update archive status')
+      toast.success(
+        action === 'archive'
+          ? `Archived ${userIds.length} creator${userIds.length > 1 ? 's' : ''}: "${cleanReason}"`
+          : `Restored ${userIds.length} creator${userIds.length > 1 ? 's' : ''} to active pool`
+      )
+      setArchiveModalData(null)
+      setSelectedIds(new Set())
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update archive status')
+    } finally {
+      setArchiveSubmitting(false)
+    }
+  }
+
+  const handleArchiveCreator = (targetApp: Application, action: 'archive' | 'unarchive') => {
     const userId = targetApp.users?.id
     if (!userId) {
       toast.error('Creator user ID not found')
       return
     }
 
-    const creatorName = targetApp.users?.full_name || 'this creator'
-    const confirmMsg = action === 'archive'
-      ? `Are you sure you want to archive ${creatorName}? They will be marked as inactive and moved to the Archived Creators pool.`
-      : `Restore ${creatorName} to the active creators pool?`
-
-    if (!confirm(confirmMsg)) return
-
-    try {
-      const res = await fetch('/api/admin/influencers/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds: [userId],
-          action,
-          reason: 'Archived via Applications desk',
-          cancel_applications: action === 'archive'
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to archive creator')
-      toast.success(data.message || (action === 'archive' ? `${creatorName} archived` : `${creatorName} restored`))
-      fetchApplications()
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update archive status')
+    if (action === 'unarchive') {
+      executeArchiveApi([userId], 'unarchive', '', false)
+      return
     }
+
+    setArchiveModalData({
+      userIds: [userId],
+      creatorNames: [targetApp.users?.full_name || 'Creator'],
+      applicationIds: [targetApp.id],
+      action: 'archive'
+    })
+    setSelectedPresetReason('Inactive / dormant profile')
+    setArchiveReason('')
+    setCancelActiveApplications(true)
   }
 
-  const handleBulkArchiveCreators = async () => {
+  const handleBulkArchiveCreators = () => {
     if (selectedIds.size === 0) return
-    const selectedApps = Array.from(selectedIds).map(id => applications.find(a => a.id === id)).filter(Boolean)
+    const selectedApps = Array.from(selectedIds).map(id => applications.find(a => a.id === id)).filter(Boolean) as Application[]
     const userIds = Array.from(new Set(selectedApps.map(a => a?.users?.id).filter(Boolean))) as string[]
+    const creatorNames = Array.from(new Set(selectedApps.map(a => a?.users?.full_name).filter(Boolean))) as string[]
 
     if (userIds.length === 0) {
       toast.error('No valid creators selected to archive')
       return
     }
 
-    if (!confirm(`Are you sure you want to archive ${userIds.length} creator(s)? They will be marked as inactive and moved to the Archived Creators pool.`)) {
-      return
-    }
-
-    setBulkUpdating(true)
-    try {
-      const res = await fetch('/api/admin/influencers/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds,
-          action: 'archive',
-          reason: 'Bulk archived via Applications desk',
-          cancel_applications: true
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to archive creators')
-      toast.success(data.message || `${userIds.length} creators archived`)
-      setSelectedIds(new Set())
-      fetchApplications()
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to archive creators')
-    } finally {
-      setBulkUpdating(false)
-    }
+    setArchiveModalData({
+      userIds,
+      creatorNames,
+      applicationIds: selectedApps.map(a => a.id),
+      action: 'archive'
+    })
+    setSelectedPresetReason('Inactive / dormant profile')
+    setArchiveReason('')
+    setCancelActiveApplications(true)
   }
 
   // ─── Resolve Application Address Helper ────────────────────
@@ -5561,7 +5582,151 @@ export default function AllApplicationsPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── Custom Scrollbar Styles ─────────────────────── */}
+            {/* ─── Archive Creator with Remarks Modal ────────────────── */}
+      <AnimatePresence>
+        {archiveModalData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                    <Archive className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      {archiveModalData.userIds.length > 1
+                        ? `Archive ${archiveModalData.userIds.length} Creators`
+                        : `Archive ${archiveModalData.creatorNames[0] || 'Creator'}`}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Mark as inactive and move to the Archived Creators pool
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setArchiveModalData(null)}
+                  disabled={archiveSubmitting}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Preset Reason Tags */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Select Reason / Category:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Inactive / dormant profile',
+                    'Low engagement / criteria mismatch',
+                    'Commercial rate too high',
+                    'Unresponsive to outreach',
+                    'Deliverable / quality issue',
+                    'Other / custom remark',
+                  ].map((preset) => {
+                    const isSelected = selectedPresetReason === preset
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPresetReason(preset)
+                          if (preset !== 'Other / custom remark') {
+                            setArchiveReason(preset)
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-slate-800/60 text-slate-400 border-white/5 hover:border-white/15 hover:text-white'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Remarks / Custom Note */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Archive Remarks / Reason:
+                </label>
+                <textarea
+                  value={archiveReason}
+                  onChange={(e) => setArchiveReason(e.target.value)}
+                  placeholder="e.g. Creator has not posted or responded to pitches for 3+ months..."
+                  rows={3}
+                  className="w-full text-xs bg-slate-950/70 border border-slate-700/60 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 resize-none"
+                />
+              </div>
+
+              {/* Cancel Applications Checkbox */}
+              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950/40 border border-white/5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={cancelActiveApplications}
+                  onChange={(e) => setCancelActiveApplications(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-amber-500 focus:ring-amber-500/30"
+                />
+                <span className="text-[11px] text-slate-300 leading-tight">
+                  Cancel & reject pending applications for {archiveModalData.userIds.length > 1 ? 'these creators' : 'this creator'} with this remark
+                </span>
+              </label>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setArchiveModalData(null)}
+                  disabled={archiveSubmitting}
+                  className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const finalReason = archiveReason.trim() || selectedPresetReason
+                    executeArchiveApi(
+                      archiveModalData.userIds,
+                      'archive',
+                      finalReason,
+                      cancelActiveApplications
+                    )
+                  }}
+                  disabled={archiveSubmitting}
+                  className="h-8 px-4 text-xs font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white rounded-lg shadow-md shadow-amber-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {archiveSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Archiving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-3.5 w-3.5" />
+                      <span>Confirm & Archive</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+{/* ─── Custom Scrollbar Styles ─────────────────────── */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           height: 6px;

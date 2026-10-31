@@ -1379,12 +1379,8 @@ export default function InfluencersDirectoryPage() {
   }
 
   // Handle Archive / Restore
-  const handleToggleArchive = async (user: Influencer, action: 'archive' | 'unarchive') => {
-    const confirmMsg = action === 'archive'
-      ? `Are you sure you want to archive ${user.full_name}? They will be marked as inactive and moved to the Archived Creators tab.`
-      : `Restore ${user.full_name} to the active creators pool?`
-    if (!confirm(confirmMsg)) return
-
+  const executeArchiveRequest = async (user: Influencer, action: 'archive' | 'unarchive', reason: string) => {
+    setArchiveSubmitting(true)
     try {
       const res = await fetch('/api/admin/influencers/archive', {
         method: 'POST',
@@ -1392,17 +1388,32 @@ export default function InfluencersDirectoryPage() {
         body: JSON.stringify({
           userIds: [user.id],
           action,
-          reason: 'Updated via Influencers directory',
+          reason: reason.trim() || 'Archived via Influencers directory',
           cancel_applications: action === 'archive'
         })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to update archive status')
-      toast.success(data.message || (action === 'archive' ? 'Creator archived' : 'Creator restored'))
+      toast.success(data.message || (action === 'archive' ? `${user.full_name} archived` : `${user.full_name} restored`))
+      setArchiveModalTarget(null)
       fetchInfluencers(true)
     } catch (err: any) {
       toast.error(err.message || 'Failed to update archive status')
+    } finally {
+      setArchiveSubmitting(false)
     }
+  }
+
+  const handleToggleArchive = async (user: Influencer, action: 'archive' | 'unarchive') => {
+    if (action === 'unarchive') {
+      if (!confirm(`Restore ${user.full_name} to the active creators pool?`)) return
+      executeArchiveRequest(user, 'unarchive', '')
+      return
+    }
+
+    setArchiveModalTarget(user)
+    setSelectedPresetReason('Inactive / dormant profile')
+    setArchiveReason('')
   }
 
   // Helpers
@@ -1449,6 +1460,12 @@ export default function InfluencersDirectoryPage() {
   const isInitialLoading = loading && influencers.length === 0
 
   const [addToSampleTarget, setAddToSampleTarget] = useState<Influencer | null>(null)
+
+  // Archive with remarks modal state
+  const [archiveModalTarget, setArchiveModalTarget] = useState<Influencer | null>(null)
+  const [archiveReason, setArchiveReason] = useState('')
+  const [selectedPresetReason, setSelectedPresetReason] = useState('Inactive / dormant profile')
+  const [archiveSubmitting, setArchiveSubmitting] = useState(false)
 
   return (
     <div className="space-y-5 pb-24 relative">
@@ -1517,6 +1534,123 @@ export default function InfluencersDirectoryPage() {
               fetchInfluencers(true)
             }}
           />
+        )}
+        {/* Archive Creator with Remarks Modal */}
+        {archiveModalTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                    <Archive className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Archive {archiveModalTarget.full_name}</h3>
+                    <p className="text-xs text-slate-400">Mark as inactive and move to the Archived Creators tab</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setArchiveModalTarget(null)}
+                  disabled={archiveSubmitting}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Preset Reason Tags */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Select Reason / Category:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Inactive / dormant profile',
+                    'Low engagement / criteria mismatch',
+                    'Commercial rate too high',
+                    'Unresponsive to outreach',
+                    'Deliverable / quality issue',
+                    'Other / custom remark',
+                  ].map((preset) => {
+                    const isSelected = selectedPresetReason === preset
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPresetReason(preset)
+                          if (preset !== 'Other / custom remark') {
+                            setArchiveReason(preset)
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-slate-800/60 text-slate-400 border-white/5 hover:border-white/15 hover:text-white'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Remarks Textarea */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Archive Remarks / Explanation:
+                </label>
+                <textarea
+                  value={archiveReason}
+                  onChange={(e) => setArchiveReason(e.target.value)}
+                  placeholder="e.g. Creator has been inactive for 6+ months or unresponsive..."
+                  rows={3}
+                  className="w-full text-xs bg-slate-950/70 border border-slate-700/60 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setArchiveModalTarget(null)}
+                  disabled={archiveSubmitting}
+                  className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const finalReason = archiveReason.trim() || selectedPresetReason
+                    executeArchiveRequest(archiveModalTarget, 'archive', finalReason)
+                  }}
+                  disabled={archiveSubmitting}
+                  className="h-8 px-4 text-xs font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white rounded-lg shadow-md shadow-amber-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {archiveSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Archiving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-3.5 w-3.5" />
+                      <span>Confirm & Archive</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
