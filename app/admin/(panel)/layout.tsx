@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Menu,
   ChevronRight,
+  ChevronDown,
   Sparkles,
   AlertTriangle,
   ClipboardList,
@@ -31,6 +32,8 @@ import {
   User,
   Instagram,
   MapPin,
+  Search,
+  X,
 } from 'lucide-react'
 import NotificationBell from '@/components/ui/NotificationBell'
 import { AdminHeaderProvider, useAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -47,29 +50,73 @@ interface NavLink {
   moduleKey: string
 }
 
-const allSidebarLinks: NavLink[] = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleKey: 'dashboard' },
-  { href: '/admin/stats', label: 'Platform Stats', icon: TrendingUp, moduleKey: 'analytics' },
-  { href: '/admin/poc-dashboard', label: 'POC Performance', icon: Award, moduleKey: 'poc_dashboard' },
-  { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
-  { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
-  { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
-  { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
-  { href: '/admin/completion-details', label: 'Completion Details', icon: FileCheck, moduleKey: 'applications' },
-  { href: '/admin/ghosted', label: 'Ghosted Creators', icon: ShieldAlert, moduleKey: 'applications' },
-  { href: '/admin/instagram-logs', label: 'Instagram Logs', icon: Instagram, moduleKey: 'applications' },
-  { href: '/admin/payments', label: 'Payment Desk', icon: CreditCard, moduleKey: 'payments' },
-  { href: '/admin/finance', label: 'Finance Payouts', icon: IndianRupee, moduleKey: 'payments' },
-  { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart, moduleKey: 'feedback' },
-  { href: '/admin/user-issues', label: 'User Issues', icon: AlertTriangle, moduleKey: 'user_issues' },
-  { href: '/admin/broadcasts', label: 'In-App Alerts', icon: Radio, moduleKey: 'broadcasts' },
-  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
-  { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
-  { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
-  { href: '/admin/categories', label: 'Categories & Niches', icon: Tags, moduleKey: 'influencers' },
-  { href: '/admin/staff', label: 'Employee Management', icon: UserCheck, moduleKey: 'staff' },
-  { href: '/admin/roles', label: 'Roles & Access', icon: Sliders, moduleKey: 'roles' },
+interface SidebarCategory {
+  id: string
+  name: string
+  links: NavLink[]
+}
+
+const sidebarCategories: SidebarCategory[] = [
+  {
+    id: 'overview',
+    name: 'Overview & Stats',
+    links: [
+      { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, moduleKey: 'dashboard' },
+      { href: '/admin/stats', label: 'Platform Stats', icon: TrendingUp, moduleKey: 'analytics' },
+      { href: '/admin/poc-dashboard', label: 'POC Performance', icon: Award, moduleKey: 'poc_dashboard' },
+      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, moduleKey: 'analytics' },
+    ],
+  },
+  {
+    id: 'campaigns',
+    name: 'Campaigns & Operations',
+    links: [
+      { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone, moduleKey: 'campaigns' },
+      { href: '/admin/applications', label: 'Applications', icon: Users, moduleKey: 'applications' },
+      { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
+      { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
+      { href: '/admin/completion-details', label: 'Completion Details', icon: FileCheck, moduleKey: 'applications' },
+    ],
+  },
+  {
+    id: 'talent',
+    name: 'Creator & Talent Pool',
+    links: [
+      { href: '/admin/influencers', label: 'Influencers', icon: Users, moduleKey: 'influencers' },
+      { href: '/admin/ghosted', label: 'Ghosted Creators', icon: ShieldAlert, moduleKey: 'applications' },
+      { href: '/admin/instagram-logs', label: 'Instagram Logs', icon: Instagram, moduleKey: 'applications' },
+      { href: '/admin/categories', label: 'Categories & Niches', icon: Tags, moduleKey: 'influencers' },
+      { href: '/admin/import', label: 'Import Sync', icon: FileUp, moduleKey: 'import' },
+    ],
+  },
+  {
+    id: 'finance',
+    name: 'Finance & Payments',
+    links: [
+      { href: '/admin/payments', label: 'Payment Desk', icon: CreditCard, moduleKey: 'payments' },
+      { href: '/admin/finance', label: 'Finance Payouts', icon: IndianRupee, moduleKey: 'payments' },
+    ],
+  },
+  {
+    id: 'support',
+    name: 'Support & Alerts',
+    links: [
+      { href: '/admin/user-issues', label: 'User Issues', icon: AlertTriangle, moduleKey: 'user_issues' },
+      { href: '/admin/feedback', label: 'User Feedback', icon: MessageSquareHeart, moduleKey: 'feedback' },
+      { href: '/admin/broadcasts', label: 'In-App Alerts', icon: Radio, moduleKey: 'broadcasts' },
+    ],
+  },
+  {
+    id: 'system',
+    name: 'System & Security',
+    links: [
+      { href: '/admin/staff', label: 'Employee Management', icon: UserCheck, moduleKey: 'staff' },
+      { href: '/admin/roles', label: 'Roles & Access', icon: Sliders, moduleKey: 'roles' },
+    ],
+  },
 ]
+
+const allSidebarLinks: NavLink[] = sidebarCategories.flatMap((c) => c.links)
 
 function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname === '/admin/dashboard') return 'dashboard'
@@ -109,6 +156,53 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
   const { headerContent } = useAdminHeader()
   const { admin, loading, isSuperAdmin, canAccessModule } = useAdminPermissions()
+
+  // Sidebar search & category collapse state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Load category collapse preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('admin_sidebar_collapsed_categories')
+      if (saved) {
+        setCollapsedCategories(JSON.parse(saved))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  // Keyboard shortcut: '/' to focus search input, Escape to clear
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
+        const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')
+        if (!isInput) {
+          e.preventDefault()
+          searchInputRef.current?.focus()
+        }
+      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        setSearchQuery('')
+        searchInputRef.current?.blur()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const toggleCategory = (categoryId: string) => {
+    setCollapsedCategories((prev) => {
+      const next = { ...prev, [categoryId]: !prev[categoryId] }
+      try {
+        localStorage.setItem('admin_sidebar_collapsed_categories', JSON.stringify(next))
+      } catch {
+        // ignore
+      }
+      return next
+    })
+  }
 
   // Sidebar dynamic badge counters (unresolved issues & pending feedback)
   const [sidebarCounters, setSidebarCounters] = useState<{
@@ -162,11 +256,50 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
     return pathname.startsWith(href)
   }
 
-  // Filter sidebar links based on dynamic access
-  const visibleLinks = allSidebarLinks.filter((link) => {
-    if (isSuperAdmin) return true
-    return canAccessModule(link.moduleKey)
-  })
+  // Filter categories and links based on RBAC permissions and user search query
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+
+  const processedCategories = useMemo(() => {
+    return sidebarCategories
+      .map((cat) => {
+        // 1. Filter by role access
+        const permittedLinks = cat.links.filter((link) => {
+          if (isSuperAdmin) return true
+          return canAccessModule(link.moduleKey)
+        })
+
+        // 2. Filter by search query
+        const matchingLinks = permittedLinks.filter((link) => {
+          if (!normalizedQuery) return true
+          return (
+            link.label.toLowerCase().includes(normalizedQuery) ||
+            cat.name.toLowerCase().includes(normalizedQuery) ||
+            link.href.toLowerCase().includes(normalizedQuery)
+          )
+        })
+
+        const hasActiveLink = matchingLinks.some((link) => isActive(link.href))
+
+        return {
+          ...cat,
+          links: matchingLinks,
+          totalPermitted: permittedLinks.length,
+          hasActiveLink,
+        }
+      })
+      .filter((cat) => cat.links.length > 0)
+  }, [isSuperAdmin, canAccessModule, normalizedQuery, pathname])
+
+  const totalMatchingLinks = useMemo(() => {
+    return processedCategories.reduce((acc, cat) => acc + cat.links.length, 0)
+  }, [processedCategories])
+
+  const visibleLinks = useMemo(() => {
+    return allSidebarLinks.filter((link) => {
+      if (isSuperAdmin) return true
+      return canAccessModule(link.moduleKey)
+    })
+  }, [isSuperAdmin, canAccessModule])
 
   // Check if current route is authorized
   const currentModuleKey = getModuleKeyFromPath(pathname)
@@ -191,7 +324,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         }`}
       >
         {/* Logo */}
-        <div className="p-5 border-b border-white/5">
+        <div className="p-5 border-b border-white/5 shrink-0">
           <Link href="/admin/dashboard" className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-500 shadow-lg shadow-indigo-500/20">
               <ShieldCheck className="h-4 w-4 text-white" />
@@ -207,7 +340,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         <Link
           href="/admin/profile"
           onClick={() => setSidebarOpen(false)}
-          className={`block p-4 border-b border-white/5 transition-all hover:bg-white/[0.04] group cursor-pointer ${
+          className={`block p-4 border-b border-white/5 transition-all hover:bg-white/[0.04] group cursor-pointer shrink-0 ${
             pathname === '/admin/profile' ? 'bg-indigo-500/10' : ''
           }`}
           suppressHydrationWarning
@@ -239,72 +372,163 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
 
-        {/* Dynamic Nav Links */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          {visibleLinks.map((link) => {
-            const active = isActive(link.href)
-
-            // Check for unaddressed counter badge
-            let counterCount = 0
-            let counterType: 'issues' | 'feedback' | null = null
-
-            if (link.href === '/admin/user-issues' && sidebarCounters.user_issues) {
-              counterCount = sidebarCounters.user_issues.unresolved
-              counterType = 'issues'
-            } else if (link.href === '/admin/feedback' && sidebarCounters.feedback) {
-              counterCount = sidebarCounters.feedback.unresolved
-              counterType = 'feedback'
-            }
-
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                prefetch={true}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 group cursor-pointer ${
-                  active
-                    ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5 translate-x-1'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5 hover:translate-x-0.5'
-                }`}
+        {/* Quick Search Input */}
+        <div className="p-3 pb-2 border-b border-white/5 shrink-0 bg-slate-900/60">
+          <div className="relative flex items-center">
+            <Search className="absolute left-2.5 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search routes... (/)"
+              className="w-full bg-slate-950/80 border border-white/10 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition-all shadow-inner"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 p-0.5 text-slate-400 hover:text-white rounded-md cursor-pointer transition-colors"
+                title="Clear search"
               >
-                <link.icon
-                  className={`h-4.5 w-4.5 transition-colors ${
-                    active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
-                  }`}
-                />
-                <span className="truncate">{link.label}</span>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <kbd className="absolute right-2 pointer-events-none text-[9px] font-mono text-slate-500 bg-white/5 px-1 py-0.5 rounded border border-white/5">
+                /
+              </kbd>
+            )}
+          </div>
+        </div>
 
-                {/* Unresolved Issues Counter Badge */}
-                {counterCount > 0 && counterType === 'issues' && (
-                  <span
-                    title={`${counterCount} unresolved user issue${counterCount > 1 ? 's' : ''}`}
-                    className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0 shadow-sm shadow-rose-500/10"
+        {/* Dynamic Nav Links Grouped by Category with Collapse/Expand */}
+        <nav className="flex-1 p-3 space-y-3 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {totalMatchingLinks === 0 ? (
+            <div className="py-8 px-2 text-center space-y-2">
+              <p className="text-xs text-slate-400 font-medium">No routes found matching</p>
+              <p className="text-xs font-mono text-indigo-300 break-all">&ldquo;{searchQuery}&rdquo;</p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer pt-1"
+              >
+                Clear filter
+              </button>
+            </div>
+          ) : (
+            processedCategories.map((category) => {
+              // Expanded if user is searching, or if it contains active child, or if not collapsed in state
+              const isSearching = normalizedQuery.length > 0
+              const isExpanded = isSearching || category.hasActiveLink || !collapsedCategories[category.id]
+
+              return (
+                <div key={category.id} className="space-y-1">
+                  {/* Category Header with Collapse/Expand Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(category.id)}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/[0.03] rounded-lg transition-colors group cursor-pointer select-none"
+                    title={isExpanded ? 'Click to collapse section' : 'Click to expand section'}
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
-                    {counterCount}
-                  </span>
-                )}
+                    <div className="flex items-center gap-2 min-w-0">
+                      {category.hasActiveLink && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/80 shrink-0" />
+                      )}
+                      <span
+                        className={`truncate tracking-wider ${
+                          category.hasActiveLink ? 'text-indigo-300 font-extrabold' : 'text-slate-400 group-hover:text-slate-300'
+                        }`}
+                      >
+                        {category.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      <span className="text-[9px] font-mono text-slate-600 group-hover:text-slate-500">
+                        {category.links.length}
+                      </span>
+                      <ChevronDown
+                        className={`h-3 w-3 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-0' : '-rotate-90'
+                        }`}
+                      />
+                    </div>
+                  </button>
 
-                {/* Pending Feedback Counter Badge */}
-                {counterCount > 0 && counterType === 'feedback' && (
-                  <span
-                    title={`${counterCount} pending feedback submission${counterCount > 1 ? 's' : ''}`}
-                    className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm shadow-amber-500/10"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    {counterCount}
-                  </span>
-                )}
+                  {/* Category Links */}
+                  {isExpanded && (
+                    <div className="space-y-0.5 pt-0.5">
+                      {category.links.map((link) => {
+                        const active = isActive(link.href)
 
-                {active && counterCount === 0 && <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />}
-              </Link>
-            )
-          })}
+                        // Check for unaddressed counter badge
+                        let counterCount = 0
+                        let counterType: 'issues' | 'feedback' | null = null
+
+                        if (link.href === '/admin/user-issues' && sidebarCounters.user_issues) {
+                          counterCount = sidebarCounters.user_issues.unresolved
+                          counterType = 'issues'
+                        } else if (link.href === '/admin/feedback' && sidebarCounters.feedback) {
+                          counterCount = sidebarCounters.feedback.unresolved
+                          counterType = 'feedback'
+                        }
+
+                        return (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            prefetch={true}
+                            onClick={() => setSidebarOpen(false)}
+                            className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 group cursor-pointer ${
+                              active
+                                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5 translate-x-1'
+                                : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5 hover:translate-x-0.5'
+                            }`}
+                          >
+                            <link.icon
+                              className={`h-4 w-4 transition-colors shrink-0 ${
+                                active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
+                              }`}
+                            />
+                            <span className="truncate">{link.label}</span>
+
+                            {/* Unresolved Issues Counter Badge */}
+                            {counterCount > 0 && counterType === 'issues' && (
+                              <span
+                                title={`${counterCount} unresolved user issue${counterCount > 1 ? 's' : ''}`}
+                                className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0 shadow-sm shadow-rose-500/10"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                {counterCount}
+                              </span>
+                            )}
+
+                            {/* Pending Feedback Counter Badge */}
+                            {counterCount > 0 && counterType === 'feedback' && (
+                              <span
+                                title={`${counterCount} pending feedback submission${counterCount > 1 ? 's' : ''}`}
+                                className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm shadow-amber-500/10"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                {counterCount}
+                              </span>
+                            )}
+
+                            {active && counterCount === 0 && (
+                              <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
         </nav>
 
         {/* Profile & Logout Footer */}
-        <div className="p-3 border-t border-white/5 space-y-1">
+        <div className="p-3 border-t border-white/5 space-y-1 shrink-0">
           <Link
             href="/admin/profile"
             onClick={() => setSidebarOpen(false)}
