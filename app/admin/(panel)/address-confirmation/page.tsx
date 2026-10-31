@@ -9,7 +9,8 @@ import {
   ExternalLink, Sparkles, AlertCircle, FileSpreadsheet,
   Check, X, RefreshCw, Truck, ShieldCheck,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Upload
+  Upload, CheckCheck, Tag, MessageSquare, AlertTriangle,
+  PackageCheck, UserX, PauseCircle, Edit2, Trash2
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -20,12 +21,15 @@ import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import Papa from 'papaparse'
 import AddressImportModal from './AddressImportModal'
 
-interface AddressEntry {
+export interface AddressEntry {
   id: string
   status: string
   address_status: string | null
   address_verified_at: string | null
   address_verified_by: string | null
+  team_remark?: string | null
+  team_remark_by?: string | null
+  team_remark_updated_at?: string | null
   form_data: Record<string, any>
   created_at: string
   updated_at: string
@@ -57,11 +61,26 @@ interface AddressEntry {
   }
 }
 
+export const PREDEFINED_REMARKS = [
+  { label: 'Sent to Brand', value: 'Sent to Brand', color: 'emerald', description: 'Address shared with brand' },
+  { label: 'Pending Brand Share', value: 'Pending Brand Share', color: 'amber', description: 'Verified, awaiting share' },
+  { label: 'Courier Dispatched', value: 'Courier Dispatched', color: 'purple', description: 'Dispatched by brand' },
+  { label: 'Delivered to Creator', value: 'Delivered to Creator', color: 'blue', description: 'Delivered to creator' },
+  { label: 'Address Incomplete / Invalid', value: 'Address Incomplete / Invalid', color: 'rose', description: 'Needs address correction' },
+  { label: 'Creator Unresponsive', value: 'Creator Unresponsive', color: 'slate', description: 'Creator not responding' },
+  { label: 'Hold by Brand', value: 'Hold by Brand', color: 'orange', description: 'On hold by brand' },
+] as const
+
 const pageSizes = [10, 25, 50, 100]
 
 function AddressSkeletonRow() {
   return (
     <tr className="border-b border-white/5 animate-pulse">
+      {/* Checkbox */}
+      <td className="py-3.5 px-3 align-top w-10">
+        <div className="h-4 w-4 rounded bg-slate-800 shimmer" />
+      </td>
+
       {/* Creator Profile */}
       <td className="py-3.5 px-4 align-top">
         <div className="flex items-start gap-2.5">
@@ -109,6 +128,14 @@ function AddressSkeletonRow() {
         <div className="h-6 w-24 rounded-full bg-slate-800/80 border border-white/5 shimmer" />
       </td>
 
+      {/* Brand Dispatch & Remarks */}
+      <td className="py-3.5 px-4 align-top">
+        <div className="space-y-1.5">
+          <div className="h-5 w-28 rounded-full bg-slate-800/80 shimmer" />
+          <div className="h-2.5 w-16 rounded bg-slate-800/40 shimmer" />
+        </div>
+      </td>
+
       {/* Verification Action */}
       <td className="py-3.5 px-4 align-top text-right">
         <div className="flex items-center justify-end gap-1.5">
@@ -127,13 +154,28 @@ export default function AdminAddressConfirmationPage() {
   const [statusFilter, setStatusFilter] = useState<'All' | 'BrandDispatch' | 'Approved' | 'Pending' | 'NotSubmitted' | 'Rejected'>('All')
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<string>('all')
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all')
+  const [remarkFilter, setRemarkFilter] = useState<string>('all')
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
 
+  // Multi-Selection State for Bulk Actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchUpdating, setBatchUpdating] = useState(false)
+
   // Rejection reason modal
   const [rejectModalEntry, setRejectModalEntry] = useState<AddressEntry | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
+
+  // Single Remark Modal
+  const [remarkModalEntry, setRemarkModalEntry] = useState<AddressEntry | null>(null)
+  const [selectedRemarkVal, setSelectedRemarkVal] = useState<string>('')
+  const [customRemarkNote, setCustomRemarkNote] = useState<string>('')
+
+  // Batch Remark Modal
+  const [isBatchRemarkModalOpen, setIsBatchRemarkModalOpen] = useState(false)
+  const [batchRemarkVal, setBatchRemarkVal] = useState<string>('Sent to Brand')
+  const [batchCustomNote, setBatchCustomNote] = useState<string>('')
 
   // Smart Address Import Modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
@@ -199,6 +241,61 @@ export default function AdminAddressConfirmationPage() {
     return 'Not Submitted'
   }
 
+  // Resolve remark badge styling & icon
+  const getRemarkBadge = (remark: string | null | undefined) => {
+    if (!remark) return null
+    switch (remark) {
+      case 'Sent to Brand':
+        return {
+          bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+          icon: CheckCheck,
+          label: 'Sent to Brand'
+        }
+      case 'Pending Brand Share':
+        return {
+          bg: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+          icon: Clock,
+          label: 'Pending Brand Share'
+        }
+      case 'Courier Dispatched':
+        return {
+          bg: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+          icon: Truck,
+          label: 'Courier Dispatched'
+        }
+      case 'Delivered to Creator':
+        return {
+          bg: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+          icon: PackageCheck,
+          label: 'Delivered to Creator'
+        }
+      case 'Address Incomplete / Invalid':
+        return {
+          bg: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+          icon: AlertTriangle,
+          label: 'Address Incomplete'
+        }
+      case 'Creator Unresponsive':
+        return {
+          bg: 'bg-slate-700/50 text-slate-300 border-slate-600/40',
+          icon: UserX,
+          label: 'Creator Unresponsive'
+        }
+      case 'Hold by Brand':
+        return {
+          bg: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+          icon: PauseCircle,
+          label: 'Hold by Brand'
+        }
+      default:
+        return {
+          bg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25',
+          icon: Tag,
+          label: remark
+        }
+    }
+  }
+
   // 1. Campaign-scoped entries: for top KPI cards & campaign selection status
   const campaignScopedEntries = useMemo(() => {
     if (selectedCampaignId === 'all') return entries
@@ -220,9 +317,12 @@ export default function AdminAddressConfirmationPage() {
     let approved = 0
     let rejected = 0
     let notSubmitted = 0
+    let sentToBrand = 0
 
     campaignScopedEntries.forEach(e => {
       const st = getVerificationStatus(e)
+      const rm = e.team_remark || e.form_data?.team_remark
+      if (rm === 'Sent to Brand') sentToBrand++
       if (e.status === 'Approved' && st === 'Approved') brandDispatch++
       if (st === 'Pending') pending++
       else if (st === 'Approved') approved++
@@ -230,7 +330,7 @@ export default function AdminAddressConfirmationPage() {
       else notSubmitted++
     })
 
-    return { total: campaignScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted }
+    return { total: campaignScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted, sentToBrand }
   }, [campaignScopedEntries])
 
   // 4. Sub-tab badge counts: accurately reflects the active campaign & campaign status
@@ -240,9 +340,12 @@ export default function AdminAddressConfirmationPage() {
     let approved = 0
     let rejected = 0
     let notSubmitted = 0
+    let sentToBrand = 0
 
     tabScopedEntries.forEach(e => {
       const st = getVerificationStatus(e)
+      const rm = e.team_remark || e.form_data?.team_remark
+      if (rm === 'Sent to Brand') sentToBrand++
       if (e.status === 'Approved' && st === 'Approved') brandDispatch++
       if (st === 'Pending') pending++
       else if (st === 'Approved') approved++
@@ -250,10 +353,10 @@ export default function AdminAddressConfirmationPage() {
       else notSubmitted++
     })
 
-    return { total: tabScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted }
+    return { total: tabScopedEntries.length, brandDispatch, pending, approved, rejected, notSubmitted, sentToBrand }
   }, [tabScopedEntries])
 
-  // 5. Final filtered entries: tabScopedEntries narrowed by active status tab and search query
+  // 5. Final filtered entries: tabScopedEntries narrowed by active status tab, remark filter, and search query
   const filteredEntries = useMemo(() => {
     return tabScopedEntries.filter(entry => {
       // Status filter
@@ -271,7 +374,19 @@ export default function AdminAddressConfirmationPage() {
         if (vStatus !== 'Rejected') return false
       }
 
-      // Search query across name, handle, influencer ID, email, phone, campaign, and address details
+      // Remark / Brand Status filter
+      const entryRemark = entry.team_remark || entry.form_data?.team_remark || ''
+      if (remarkFilter !== 'all') {
+        if (remarkFilter === 'NONE') {
+          if (entryRemark.trim() !== '') return false
+        } else if (remarkFilter === 'Sent to Brand') {
+          if (entryRemark !== 'Sent to Brand') return false
+        } else {
+          if (entryRemark !== remarkFilter) return false
+        }
+      }
+
+      // Search query across name, handle, influencer ID, email, phone, campaign, remark, and address details
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim()
         const matchName = entry.users?.full_name?.toLowerCase().includes(q)
@@ -281,6 +396,8 @@ export default function AdminAddressConfirmationPage() {
         const matchPhone = String(entry.users?.mobile || '').includes(q)
         const matchCode = entry.campaigns?.campaign_code?.toLowerCase().includes(q)
         const matchBrand = entry.campaigns?.brand_name?.toLowerCase().includes(q)
+        const matchRemark = (entry.team_remark || entry.form_data?.team_remark || '').toLowerCase().includes(q)
+        const matchRemarkBy = (entry.team_remark_by || entry.form_data?.team_remark_by || '').toLowerCase().includes(q)
         const addr = entry.form_data?.shipping_address
         const matchRecipient = String(addr?.recipient_name || addr?.name || '').toLowerCase().includes(q)
         const matchStreet = String(addr?.address_line1 || '').toLowerCase().includes(q) || String(addr?.address_line2 || '').toLowerCase().includes(q) || String(addr?.landmark || '').toLowerCase().includes(q)
@@ -289,19 +406,20 @@ export default function AdminAddressConfirmationPage() {
         const matchPin = String(addr?.pincode || entry.users?.pincode || '').includes(q)
         const matchAltPhone = String(addr?.alt_mobile || '').includes(q)
 
-        if (!matchName && !matchHandle && !matchInfluencerId && !matchEmail && !matchPhone && !matchCode && !matchBrand && !matchRecipient && !matchStreet && !matchCity && !matchState && !matchPin && !matchAltPhone) {
+        if (!matchName && !matchHandle && !matchInfluencerId && !matchEmail && !matchPhone && !matchCode && !matchBrand && !matchRecipient && !matchStreet && !matchCity && !matchState && !matchPin && !matchAltPhone && !matchRemark && !matchRemarkBy) {
           return false
         }
       }
 
       return true
     })
-  }, [tabScopedEntries, statusFilter, searchQuery])
+  }, [tabScopedEntries, statusFilter, remarkFilter, searchQuery])
 
   const hasActiveFilters = Boolean(
     searchQuery.trim() !== '' ||
     selectedCampaignId !== 'all' ||
     campaignStatusFilter !== 'all' ||
+    remarkFilter !== 'all' ||
     statusFilter !== 'All'
   )
 
@@ -309,7 +427,9 @@ export default function AdminAddressConfirmationPage() {
     setSearchQuery('')
     setSelectedCampaignId('all')
     setCampaignStatusFilter('all')
+    setRemarkFilter('all')
     setStatusFilter('All')
+    setSelectedIds(new Set())
   }
 
   // Pagination calculations
@@ -319,7 +439,7 @@ export default function AdminAddressConfirmationPage() {
   // Reset page to 1 when filters or page size change
   useEffect(() => {
     setPage(1)
-  }, [selectedCampaignId, campaignStatusFilter, statusFilter, searchQuery, pageSize])
+  }, [selectedCampaignId, campaignStatusFilter, statusFilter, remarkFilter, searchQuery, pageSize])
 
   // Clamp current page within bounds if data shrinks
   useEffect(() => {
@@ -335,6 +455,121 @@ export default function AdminAddressConfirmationPage() {
 
   const startIndex = totalFiltered === 0 ? 0 : (page - 1) * pageSize + 1
   const endIndex = Math.min(page * pageSize, totalFiltered)
+
+  // Multi-Selection helpers
+  const isAllPageSelected = paginatedEntries.length > 0 && paginatedEntries.every(e => selectedIds.has(e.id))
+  
+  const toggleSelectPage = () => {
+    const next = new Set(selectedIds)
+    if (isAllPageSelected) {
+      paginatedEntries.forEach(e => next.delete(e.id))
+    } else {
+      paginatedEntries.forEach(e => next.add(e.id))
+    }
+    setSelectedIds(next)
+  }
+
+  const toggleSelectRow = (id: string) => {
+    const next = new Set(selectedIds)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSelectedIds(next)
+  }
+
+  const selectAllFiltered = () => {
+    const next = new Set(filteredEntries.map(e => e.id))
+    setSelectedIds(next)
+    toast.success(`Selected all ${filteredEntries.length} filtered creator records`)
+  }
+
+  // Single Remark Save Handler
+  const handleSaveRemark = async (applicationId: string, remarkText: string | null) => {
+    setActionInProgressId(applicationId)
+    try {
+      const res = await fetch('/api/admin/address-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_id: applicationId,
+          action: 'update_remark',
+          remark: remarkText || '',
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update remark')
+
+      toast.success(remarkText ? `Remark saved: "${remarkText}"` : 'Remark cleared')
+      // Update local state immediately
+      setEntries(prev => prev.map(e => {
+        if (e.id === applicationId) {
+          return {
+            ...e,
+            team_remark: remarkText,
+            team_remark_by: 'You',
+            team_remark_updated_at: new Date().toISOString(),
+          }
+        }
+        return e
+      }))
+      setRemarkModalEntry(null)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update remark')
+    } finally {
+      setActionInProgressId(null)
+    }
+  }
+
+  // Quick 1-click Toggle / Set "Sent to Brand"
+  const handleQuickSetSentToBrand = async (entry: AddressEntry) => {
+    const isAlreadySent = (entry.team_remark || entry.form_data?.team_remark) === 'Sent to Brand'
+    const newRemark = isAlreadySent ? null : 'Sent to Brand'
+    await handleSaveRemark(entry.id, newRemark)
+  }
+
+  // Batch Remark Save Handler
+  const handleBatchSetRemark = async (remarkText: string | null) => {
+    if (selectedIds.size === 0) {
+      toast.error('No profiles selected')
+      return
+    }
+    setBatchUpdating(true)
+    const ids = Array.from(selectedIds)
+    try {
+      const res = await fetch('/api/admin/address-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_ids: ids,
+          action: 'batch_update_remark',
+          remark: remarkText || '',
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update batch remarks')
+
+      toast.success(`Updated ${ids.length} profile(s) with: "${remarkText || 'Cleared'}"!`)
+      // Update local state immediately
+      setEntries(prev => prev.map(e => {
+        if (selectedIds.has(e.id)) {
+          return {
+            ...e,
+            team_remark: remarkText,
+            team_remark_by: 'You',
+            team_remark_updated_at: new Date().toISOString(),
+          }
+        }
+        return e
+      }))
+      setSelectedIds(new Set())
+      setIsBatchRemarkModalOpen(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update batch remarks')
+    } finally {
+      setBatchUpdating(false)
+    }
+  }
 
   // Approve Address Action
   const handleApprove = async (entry: AddressEntry) => {
@@ -390,7 +625,7 @@ export default function AdminAddressConfirmationPage() {
     }
   }
 
-  // Sprint 4: Export to CSV (Courier standard: Delhivery / Shiprocket / BlueDart format + Dynamic Custom Fields)
+  // Sprint 4: Export to CSV (Courier standard: Delhivery / Shiprocket / BlueDart format + Dynamic Custom Fields + Remarks)
   const handleExportCSV = () => {
     if (filteredEntries.length === 0) {
       toast.error('No address records available to export')
@@ -430,6 +665,8 @@ export default function AdminAddressConfirmationPage() {
       const remarks = addr.delivery_remarks || addr.delivery_notes || ''
 
       const fullStreet = [line1, line2, landmark].filter(Boolean).join(', ')
+      const remarkVal = entry.team_remark || entry.form_data?.team_remark || ''
+      const isSentToBrand = remarkVal === 'Sent to Brand'
 
       const baseRow: Record<string, any> = {
         'Sr. No': index + 1,
@@ -452,7 +689,11 @@ export default function AdminAddressConfirmationPage() {
         'Delivery Remarks': remarks,
         'Address Verification Status': getVerificationStatus(entry),
         'Verified Date': entry.address_verified_at ? new Date(entry.address_verified_at).toLocaleDateString('en-IN') : 'N/A',
-        'Ready for Brand Dispatch': (entry.status === 'Approved' && getVerificationStatus(entry) === 'Approved') ? 'YES' : 'NO'
+        'Ready for Brand Dispatch': (entry.status === 'Approved' && getVerificationStatus(entry) === 'Approved') ? 'YES' : 'NO',
+        'Brand Shared Status': isSentToBrand ? 'Sent to Brand' : (remarkVal ? remarkVal : 'Pending Share'),
+        'Dispatch Remark': remarkVal || 'N/A',
+        'Remark Updated By': entry.team_remark_by || entry.form_data?.team_remark_by || 'N/A',
+        'Remark Updated Date': entry.team_remark_updated_at ? new Date(entry.team_remark_updated_at).toLocaleDateString('en-IN') : 'N/A'
       }
 
       // Append dynamic custom order / courier specifications as separate columns
@@ -649,6 +890,23 @@ export default function AdminAddressConfirmationPage() {
               <option value="Rejected">Campaign: Rejected Only</option>
             </select>
 
+            {/* Dispatch Remark / Brand Status Dropdown Filter */}
+            <select
+              value={remarkFilter}
+              onChange={(e) => setRemarkFilter(e.target.value)}
+              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-semibold text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="all">Remarks: All</option>
+              <option value="Sent to Brand">🚀 Sent to Brand ({tabCounts.sentToBrand})</option>
+              <option value="Pending Brand Share">⏳ Pending Brand Share</option>
+              <option value="Courier Dispatched">📦 Courier Dispatched</option>
+              <option value="Delivered to Creator">✅ Delivered to Creator</option>
+              <option value="Address Incomplete / Invalid">⚠️ Address Incomplete</option>
+              <option value="Creator Unresponsive">📵 Creator Unresponsive</option>
+              <option value="Hold by Brand">⏸️ Hold by Brand</option>
+              <option value="NONE">⚪ No Remark Added</option>
+            </select>
+
             {/* Reset Filters Shortcut */}
             {hasActiveFilters && (
               <Button
@@ -751,11 +1009,13 @@ export default function AdminAddressConfirmationPage() {
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
                 <tr>
+                  <th className="py-3 px-3 w-10"></th>
                   <th className="py-3 px-4">Creator Profile</th>
                   <th className="py-3 px-4">Campaign</th>
                   <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
                   <th className="py-3 px-4">Contact Phone</th>
-                  <th className="py-3 px-4">Approval & Address Status</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 min-w-[190px]">Brand Dispatch & Remarks</th>
                   <th className="py-3 px-4 text-right">Verification Action</th>
                 </tr>
               </thead>
@@ -789,14 +1049,38 @@ export default function AdminAddressConfirmationPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
+            {paginatedEntries.some(e => selectedIds.has(e.id)) && selectedIds.size < filteredEntries.length && (
+              <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2 text-xs text-emerald-300 flex items-center justify-between">
+                <span>
+                  <span className="font-bold">{selectedIds.size}</span> profile(s) selected on this page.
+                </span>
+                <button
+                  type="button"
+                  onClick={selectAllFiltered}
+                  className="font-bold underline hover:text-emerald-200 cursor-pointer"
+                >
+                  Select all {filteredEntries.length} records matching current filters
+                </button>
+              </div>
+            )}
             <table className="w-full text-left text-xs">
               <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
                 <tr>
+                  <th className="py-3 px-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={isAllPageSelected}
+                      onChange={toggleSelectPage}
+                      className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500"
+                      title={isAllPageSelected ? 'Deselect all on this page' : 'Select all on this page'}
+                    />
+                  </th>
                   <th className="py-3 px-4">Creator Profile</th>
                   <th className="py-3 px-4">Campaign</th>
                   <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
                   <th className="py-3 px-4">Contact Phone</th>
                   <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 min-w-[190px]">Brand Dispatch & Remarks</th>
                   <th className="py-3 px-4 text-right">Verification Action</th>
                 </tr>
               </thead>
@@ -809,6 +1093,16 @@ export default function AdminAddressConfirmationPage() {
 
                   return (
                     <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
+                      {/* Checkbox */}
+                      <td className="py-3.5 px-3 align-top w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(entry.id)}
+                          onChange={() => toggleSelectRow(entry.id)}
+                          className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500 mt-1"
+                        />
+                      </td>
+
                       {/* Creator Profile */}
                       <td className="py-3.5 px-4 align-top">
                         <div className="flex items-start gap-2.5">
@@ -978,6 +1272,93 @@ export default function AdminAddressConfirmationPage() {
                             </div>
                           )}
                         </div>
+                      </td>
+
+                      {/* Brand Dispatch & Remarks */}
+                      <td className="py-3.5 px-4 align-top">
+                        {(() => {
+                          const currentRemark = entry.team_remark || entry.form_data?.team_remark || null
+                          const isSentToBrand = currentRemark === 'Sent to Brand'
+                          const badge = getRemarkBadge(currentRemark)
+                          const BadgeIcon = badge?.icon || Tag
+
+                          return (
+                            <div className="space-y-1.5 max-w-[200px]">
+                              {currentRemark ? (
+                                <div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badge?.bg}`}
+                                      title={`Remark: ${currentRemark}`}
+                                    >
+                                      <BadgeIcon className="h-3 w-3 shrink-0" />
+                                      <span className="truncate max-w-[130px]">{badge?.label || currentRemark}</span>
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {entry.team_remark_by && (
+                                      <span className="text-[10px] text-slate-400 truncate max-w-[110px]" title={`By ${entry.team_remark_by}`}>
+                                        By {entry.team_remark_by}
+                                        {entry.team_remark_updated_at ? ` • ${new Date(entry.team_remark_updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRemarkModalEntry(entry)
+                                        setSelectedRemarkVal(currentRemark)
+                                        setCustomRemarkNote(PREDEFINED_REMARKS.some(p => p.value === currentRemark) ? '' : currentRemark)
+                                      }}
+                                      className="text-[10px] font-semibold text-slate-400 hover:text-white flex items-center gap-0.5 transition-colors cursor-pointer"
+                                      title="Edit or change remark"
+                                    >
+                                      <Edit2 className="h-2.5 w-2.5" /> Edit
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleQuickSetSentToBrand(entry)}
+                                    disabled={actionInProgressId === entry.id}
+                                    className="h-6 px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                                    title="Quick 1-click mark: Address sent to brand"
+                                  >
+                                    <CheckCheck className="h-2.5 w-2.5" />
+                                    Mark Sent
+                                  </Button>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setRemarkModalEntry(entry)
+                                        setSelectedRemarkVal('')
+                                        setCustomRemarkNote('')
+                                      }}
+                                      className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
+                                    >
+                                      <Tag className="h-2.5 w-2.5 text-indigo-400" /> + Add Remark
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* If remark is NOT 'Sent to Brand' but already has another remark, show 1-click 'Mark Sent' shortcut */}
+                              {currentRemark && !isSentToBrand && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickSetSentToBrand(entry)}
+                                  className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer font-semibold pt-0.5"
+                                >
+                                  <CheckCheck className="h-2.5 w-2.5" /> Mark as Sent
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </td>
 
                       {/* Verification Action */}
@@ -1178,6 +1559,264 @@ export default function AdminAddressConfirmationPage() {
           </div>
         </div>
       )}
+
+      {/* Single Remark & Brand Dispatch Modal */}
+      {remarkModalEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Tag className="h-4 w-4 text-emerald-400" />
+                Dispatch Remark & Brand Status
+              </h3>
+              <button
+                onClick={() => setRemarkModalEntry(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 space-y-1">
+              <p className="text-xs text-slate-300">
+                Creator: <span className="font-bold text-white">{remarkModalEntry.users?.full_name}</span>{' '}
+                <span className="text-[11px] text-slate-400 font-mono">({remarkModalEntry.users?.influencer_id})</span>
+              </p>
+              <p className="text-xs text-slate-400">
+                Campaign: <span className="font-semibold text-emerald-400">{remarkModalEntry.campaigns?.brand_name}</span>{' '}
+                <span className="text-[10px] font-mono text-slate-400">({remarkModalEntry.campaigns?.campaign_code})</span>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                <span>Select Predefined Remark:</span>
+                <span className="text-[10px] text-slate-500 font-normal">Click a chip below</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {PREDEFINED_REMARKS.map((p) => {
+                  const isSelected = selectedRemarkVal === p.value
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRemarkVal(p.value)
+                        setCustomRemarkNote('')
+                      }}
+                      className={`text-xs px-2.5 py-1.5 rounded-xl font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400'
+                          : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border-white/10'
+                      }`}
+                    >
+                      {p.value === 'Sent to Brand' && <CheckCheck className="h-3 w-3" />}
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400">
+                Custom Remark / Courier Note (Optional):
+              </label>
+              <textarea
+                rows={2}
+                value={customRemarkNote}
+                onChange={(e) => {
+                  setCustomRemarkNote(e.target.value)
+                  if (e.target.value.trim()) setSelectedRemarkVal('')
+                }}
+                placeholder="Type custom note, AWB number, or instructions..."
+                className="w-full p-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+              {remarkModalEntry.team_remark ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleSaveRemark(remarkModalEntry.id, null)}
+                  disabled={actionInProgressId === remarkModalEntry.id}
+                  className="h-8 px-2.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove Remark
+                </Button>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRemarkModalEntry(null)}
+                  className="bg-transparent border-white/10 text-slate-300 hover:bg-slate-800 text-xs rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const finalVal = customRemarkNote.trim() || selectedRemarkVal || ''
+                    handleSaveRemark(remarkModalEntry.id, finalVal || null)
+                  }}
+                  disabled={actionInProgressId === remarkModalEntry.id || (!selectedRemarkVal && !customRemarkNote.trim())}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md"
+                >
+                  {actionInProgressId === remarkModalEntry.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    'Save Remark'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Remark Modal */}
+      {isBatchRemarkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Tag className="h-4 w-4 text-emerald-400" />
+                Set Remark for {selectedIds.size} Creator(s)
+              </h3>
+              <button
+                onClick={() => setIsBatchRemarkModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Apply a standardized remark to all <span className="font-bold text-emerald-400">{selectedIds.size}</span> selected creator records:
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300">Predefined Remarks:</label>
+              <div className="flex flex-wrap gap-1.5">
+                {PREDEFINED_REMARKS.map((p) => {
+                  const isSelected = batchRemarkVal === p.value
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => {
+                        setBatchRemarkVal(p.value)
+                        setBatchCustomNote('')
+                      }}
+                      className={`text-xs px-2.5 py-1.5 rounded-xl font-medium border transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/25 ring-1 ring-emerald-400'
+                          : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border-white/10'
+                      }`}
+                    >
+                      {p.value === 'Sent to Brand' && <CheckCheck className="h-3 w-3" />}
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-400">
+                Or Custom Note (Optional):
+              </label>
+              <textarea
+                rows={2}
+                value={batchCustomNote}
+                onChange={(e) => {
+                  setBatchCustomNote(e.target.value)
+                  if (e.target.value.trim()) setBatchRemarkVal('')
+                }}
+                placeholder="Type custom note for selected profiles..."
+                className="w-full p-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsBatchRemarkModalOpen(false)}
+                className="bg-transparent border-white/10 text-slate-300 hover:bg-slate-800 text-xs rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={batchUpdating || (!batchRemarkVal && !batchCustomNote.trim())}
+                onClick={() => {
+                  const finalVal = batchCustomNote.trim() || batchRemarkVal || ''
+                  handleBatchSetRemark(finalVal)
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md"
+              >
+                {batchUpdating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  `Update ${selectedIds.size} Records`
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-emerald-500/40 shadow-2xl shadow-black/80 rounded-2xl px-5 py-3 flex items-center gap-3 backdrop-blur-md"
+          >
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              {selectedIds.size} profile{selectedIds.size > 1 ? 's' : ''} selected
+            </span>
+            <div className="h-4 w-px bg-white/20" />
+            <Button
+              size="sm"
+              disabled={batchUpdating}
+              onClick={() => handleBatchSetRemark('Sent to Brand')}
+              className="h-8 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+            >
+              {batchUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
+              Mark as "Sent to Brand"
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={batchUpdating}
+              onClick={() => {
+                setBatchRemarkVal('Sent to Brand')
+                setBatchCustomNote('')
+                setIsBatchRemarkModalOpen(true)
+              }}
+              className="h-8 px-3 bg-slate-800 hover:bg-slate-700 border-white/10 text-slate-200 hover:text-white font-medium text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+            >
+              <Tag className="h-3.5 w-3.5 text-indigo-400" />
+              Set Other Remark...
+            </Button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-slate-400 hover:text-white px-2 py-1 transition-colors cursor-pointer"
+            >
+              Clear
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Intelligent Address Import Modal */}
       <AddressImportModal

@@ -113,6 +113,8 @@ CASE 102: Split-Identity Ingestion Collision & PostgreSQL 23505 Unique Constrain
 CASE 103: Multi-Filter Count Desynchronization, Global vs Scoped Metrics Drift & Ghost Zero-State in Admin Logistics Desk
 CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Over Dependent City Questions Across Application Modals and Form Builders
 CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Deduplicated In-Modal Progressive Profiling with Cross-Campaign Auto-Fill
+CASE 106: Campaign Ghosting Blindspots in POC Performance Matrix: Disaggregating Ghosted Creators from Active Pending Pipelines & Zero-Latency Multi-Tier Visibility
+CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined Remark Categorization, Fast Multi-Select Batch Ingestion & Dynamic CSV Specification Alignment
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4624,3 +4626,91 @@ S: Duplicate questions and a forced redirect to the profile page made creators a
 T: Ask each question once, keep users inside the modal, and reuse answers across campaigns.
 A: Built a canonical-field deduplication step, two-way state sync between the form sections, and a write-back sync to the profile with pre-fill fallbacks. Added unit tests for follower and address sync.
 R: Each question is now asked once, there is no redirect, and later campaigns open pre-filled. All 320 tests pass.
+
+
+================================================================================
+CASE 106: Campaign Ghosting Blindspots in POC Performance Matrix: Disaggregating Ghosted Creators from Active Pending Pipelines & Zero-Latency Multi-Tier Visibility
+Category: SQL Aggregation / Operational Governance / UI Metrics Consistency
+================================================================================
+
+Interview Question:
+"In an operations desk tracking campaign deliverables, 99 creators were approved and 97 completed, leaving 2 uncompleted. One creator was flagged as 'ghosted' (unresponsive/abandoned), but the dashboard blindly reported '2 pending', masking creator default risks from management. How would you architect real-time ghosting disaggregation across relational aggregations, drill-down sub-tables, and matrix filters?"
+
+[SITUATION]
+In the Admin POC Performance dashboard (/admin/poc-dashboard), the Campaign Matrix table showed campaigns like Deconstruct (CAM-F10022C201) with 99 applications approved, 97 completed, and "2 pending". In reality, 1 creator was marked ghosted (is_ghosted = true) due to prolonged non-responsiveness and 1 creator was active pending deliverables. Operations leaders could not distinguish active follow-up pipelines from non-recoverable ghosted creators without clicking into individual campaign Chittha drawers.
+
+[ROOT CAUSE]
+1. Relational SQL Aggregation Blindspot:
+   In /api/admin/poc-dashboard/campaigns/route.ts, pending_count was calculated via:
+   `COUNT(app.id) FILTER (WHERE app.status NOT IN ('Applied', 'Rejected', ...) AND app.status != 'Completed' AND app.completion_submitted_at IS NULL)`
+   without checking `app.is_ghosted`. It lumped ghosted creators directly into active pending deliverables.
+2. Missing Metric Field in API Contracts:
+   CampaignPocSummary lacked a `ghostedCount` property, and top summary KPIs omitted total ghosted counts across all campaigns.
+3. UI Metric Collision & Missing Filters:
+   In PocCampaignMatrix.tsx and the POC Desk drawer in poc-dashboard/page.tsx, the Approved column rendered `approvedCount - completedCount` as pending. The table lacked a ghosted pill badge, and the status dropdown lacked a "Ghosted" filter.
+
+[SOLUTION & ARCHITECTURE]
+1. PostgreSQL SQL Disaggregation:
+   Updated /api/admin/poc-dashboard/campaigns/route.ts and /api/admin/poc-dashboard/route.ts to filter and project:
+   - `COUNT(app.id) FILTER (WHERE ... AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count`
+   - `COUNT(app.id) FILTER (WHERE app.is_ghosted = true) AS ghosted_count`
+   Fallback subtraction also factors in ghosted creators: `Math.max(0, approvedCount - completedCount - ghostedCount)`.
+2. Multi-Tier UI Badging & Matrix Indicators:
+   - In PocCampaignMatrix.tsx, added a prominent `👻 {campaign.ghostedCount} Ghosted` badge pill next to the campaign code and category in the Campaign & Brand column.
+   - In the Approved column, split the status stack into: Total Approved, `{pendingCount} pending` (amber), and `👻 {ghostedCount} ghosted` (rose badge).
+   - In top KPI cards, updated Pipeline Creators to show `({totalApproved} approved, {totalGhosted} ghosted)`.
+3. Quick-Filter & Global Search Integration:
+   - Added `<option value="ghosted">👻 Has Ghosted</option>` in both the matrix status dropdown and the main dashboard header dropdown.
+   - Enhanced real-time search to match the keyword `"ghost"`, instantly isolating campaigns with ghosted creators.
+4. Chittha Drawer & Team Accordion Synchronization:
+   - In PocCampaignCreatorsChittha.tsx and its backing API, excluded ghosted creators from `pending` counters (`!isGhosted && !isCompleted`), maintaining mathematical invariants: Approved (99) = Completed (97) + Pending (1) + Ghosted (1).
+
+[INTERVIEW STAR TAKEAWAY]
+S: Operations dashboards lumped ghosted creators into active pending deliverables, hiding operational risk and causing inaccurate completion forecasts.
+T: Separate active pending deliverables from ghosted creators across SQL queries, KPI headers, campaign matrices, and status filters.
+A: Refined PostgreSQL FILTER clauses to exclude ghosted applications from pending_count while computing a dedicated ghosted_count. Exposed distinct visual badge pills, status filter options, and search matching in React components. Synchronized the Chittha drawer and team accordions so all metrics balance cleanly.
+R: Operations teams instantly see `1 pending` and `👻 1 ghosted` for campaigns like Deconstruct (99 total: 97 completed, 1 pending, 1 ghosted). Tests (320/320) and production build passed with zero errors.
+
+
+================================================================================
+CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined Remark Categorization, Fast Multi-Select Batch Ingestion & Dynamic CSV Specification Alignment
+Category: Logistics Governance / Operational State Tracking / Bulk Data Ingestion / UX Standardization
+================================================================================
+
+Interview Question:
+"In an influencer campaign logistics desk handling thousands of creator shipping addresses, operations admins verified addresses but had zero visibility into which verified addresses had already been handed off to the brand client for courier dispatch versus which were still sitting in limbo. Unstructured remarks caused spelling drift that broke filtering, and updating 50 creators one-by-one was an operational bottleneck. How would you design a standardized label and predefined remark system with bulk multi-selection and export integration?"
+
+[SITUATION]
+In the 1to7 Address Confirmation Desk (/admin/address-confirmation), admins verified creator delivery addresses for brand campaigns. Over 1,740 addresses were tracked with statuses like "Address Verified" and "Final Brand Dispatch". However, once addresses were verified, the operations team exported them and handed them to the client brands (via email/WhatsApp). There was no indicator or status column showing which creators' addresses had already been shared with the brand. Freeform remarks led to inconsistent strings ("sent to client", "shared", "brand share done") that prevented filtering, and operations had no way to batch-update addresses upon dispatch.
+
+[ROOT CAUSE]
+1. Data Projection Omission:
+   The backend API /api/admin/address-confirmation omitted `a.team_remark`, `a.team_remark_by`, and `a.team_remark_updated_at` from the SELECT projection, although these columns were already indexed in `public.applications`.
+2. Lack of Standardization & Filter Drift:
+   Freeform text remarks prevented reliable status filtering. Without a standardized enum/preset list (e.g., 'Sent to Brand', 'Pending Brand Share', 'Courier Dispatched'), admins could not filter for profiles requiring brand follow-up.
+3. Repetitive Single-Row Operations:
+   Batch exporting a 50-row courier spreadsheet required 50 individual manual updates to mark records as handed off to the brand.
+4. Export Disconnect:
+   The Courier and Brand Dispatch CSV export sheets lacked brand hand-off status and remark audit columns.
+
+[SOLUTION & ARCHITECTURE]
+1. Relational Projection & Batch Mutation Engine:
+   - Updated `/api/admin/address-confirmation/route.ts` to include `a.team_remark`, `a.team_remark_by`, and `a.team_remark_updated_at` in the query and full-text search.
+   - Added support for both single-application `update_remark` and high-performance batch updates:
+     `UPDATE public.applications SET team_remark = $1, team_remark_by = $2, team_remark_updated_at = $3, form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(...) WHERE id = ANY($5::uuid[])`
+2. Predefined Remark Taxonomy & Semiotic Badging:
+   - Established standard presets: `Sent to Brand`, `Pending Brand Share`, `Courier Dispatched`, `Delivered to Creator`, `Address Incomplete / Invalid`, `Creator Unresponsive`, and `Hold by Brand`.
+   - Built a dynamic badge resolver rendering semiotic color-coded pills (Emerald for Sent to Brand, Amber for Pending Share, Purple for Courier Dispatched, Rose for Invalid).
+   - Inlined a 1-click `Mark Sent` shortcut for approved profiles, saving clicks.
+3. Multi-Select Batch Action Floating Dock:
+   - Added row-level checkboxes, page-level select-all, and a "Select all {N} filtered records" helper.
+   - Built an animated floating bulk action dock triggered when `selectedIds.size > 0` allowing 1-click `Mark as "Sent to Brand"` or custom preset assignment across all selected profiles.
+4. Filter Bar & CSV Export Alignment:
+   - Added a dedicated "Remarks / Brand Status" dropdown filter to instantly isolate `Sent to Brand`, `Pending Brand Share`, or unremarked profiles.
+   - Updated `handleExportCSV` to write `Brand Shared Status`, `Dispatch Remark`, `Remark Updated By`, and `Remark Updated Date` to exported courier spreadsheets.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Operations teams could not distinguish which verified addresses were handed to the brand from those still pending, causing duplicate shipments and communication blindspots.
+T: Introduce standardized predefined remarks, a visual brand-sent label, 1-click batch assignment, and synchronized CSV reporting.
+A: Projected existing indexed remark columns in PostgreSQL, built an atomic batch update endpoint using `ANY($1::uuid[])`, created a predefined remark taxonomy with semiotic badge rendering, integrated a floating multi-select bulk action dock, and synchronized CSV exports.
+R: Operations can mark 50+ addresses as "Sent to Brand" in a single click, filter by exact brand hand-off state with zero spelling drift, and export audit-ready courier sheets.

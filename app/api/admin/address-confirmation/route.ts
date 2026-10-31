@@ -22,6 +22,9 @@ export async function GET(request: Request) {
         a.address_status,
         a.address_verified_at,
         a.address_verified_by,
+        a.team_remark,
+        a.team_remark_by,
+        a.team_remark_updated_at,
         a.form_data,
         a.partial_payment,
         a.final_payment,
@@ -94,6 +97,8 @@ export async function GET(request: Request) {
         OR LOWER(COALESCE(u.mobile, '')) LIKE $${pIdx}
         OR LOWER(COALESCE(c.brand_name, '')) LIKE $${pIdx}
         OR LOWER(COALESCE(c.campaign_code, '')) LIKE $${pIdx}
+        OR LOWER(COALESCE(a.team_remark, '')) LIKE $${pIdx}
+        OR LOWER(COALESCE(a.team_remark_by, '')) LIKE $${pIdx}
         OR LOWER(COALESCE(a.form_data->'shipping_address'->>'city', '')) LIKE $${pIdx}
         OR LOWER(COALESCE(a.form_data->'shipping_address'->>'state', '')) LIKE $${pIdx}
         OR LOWER(COALESCE(a.form_data->'shipping_address'->>'pincode', '')) LIKE $${pIdx}
@@ -119,15 +124,106 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const admin = await getAdminFromRequest()
-    if (!admin || (!hasActionPermission(admin, 'applications', 'update') && !hasActionPermission(admin, 'order_details', 'update'))) {
-      return NextResponse.json({ error: 'Unauthorized: Permission to update address verification is denied' }, { status: 403 })
+    if (!admin || (!hasActionPermission(admin, 'applications', 'update') && !hasActionPermission(admin, 'applications', 'edit') && !hasActionPermission(admin, 'order_details', 'update'))) {
+      return NextResponse.json({ error: 'Unauthorized: Permission to update address verification or remarks is denied' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { application_id, action, reason } = body
+    const { application_id, application_ids, action, reason, remark } = body
 
-    if (!application_id || !action) {
-      return NextResponse.json({ error: 'application_id and action are required' }, { status: 400 })
+    if (!action) {
+      return NextResponse.json({ error: 'action is required' }, { status: 400 })
+    }
+
+    const adminName = admin.name || admin.full_name || admin.email || 'Admin'
+    const nowIso = new Date().toISOString()
+
+    // 1. Batch Update Remarks Action
+    if (action === 'batch_update_remark') {
+      if (!Array.isArray(application_ids) || application_ids.length === 0) {
+        return NextResponse.json({ error: 'application_ids array is required for batch_update_remark' }, { status: 400 })
+      }
+
+      const trimmedRemark = typeof remark === 'string' && remark.trim().length > 0 ? remark.trim() : null
+      const remarkBy = trimmedRemark ? adminName : null
+      const remarkAt = trimmedRemark ? nowIso : null
+
+      const updateRes = await pool.query(`
+        UPDATE public.applications
+        SET 
+          team_remark = $1,
+          team_remark_by = $2,
+          team_remark_updated_at = $3,
+          form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
+            'team_remark', $1,
+            'team_remark_by', $2,
+            'team_remark_updated_at', $3
+          ),
+          updated_at = $4
+        WHERE id = ANY($5::uuid[])
+        RETURNING id, team_remark, team_remark_by, team_remark_updated_at
+      `, [
+        trimmedRemark,
+        remarkBy,
+        remarkAt,
+        nowIso,
+        application_ids
+      ])
+
+      return NextResponse.json({
+        success: true,
+        message: `Updated remark for ${updateRes.rowCount} creator profile(s)!`,
+        updatedCount: updateRes.rowCount,
+        remark: trimmedRemark,
+      })
+    }
+
+    // 2. Single Update Remark Action
+    if (action === 'update_remark') {
+      if (!application_id) {
+        return NextResponse.json({ error: 'application_id is required for update_remark' }, { status: 400 })
+      }
+
+      const trimmedRemark = typeof remark === 'string' && remark.trim().length > 0 ? remark.trim() : null
+      const remarkBy = trimmedRemark ? adminName : null
+      const remarkAt = trimmedRemark ? nowIso : null
+
+      const updateRes = await pool.query(`
+        UPDATE public.applications
+        SET 
+          team_remark = $1,
+          team_remark_by = $2,
+          team_remark_updated_at = $3,
+          form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
+            'team_remark', $1,
+            'team_remark_by', $2,
+            'team_remark_updated_at', $3
+          ),
+          updated_at = $4
+        WHERE id = $5
+        RETURNING id, team_remark, team_remark_by, team_remark_updated_at, form_data
+      `, [
+        trimmedRemark,
+        remarkBy,
+        remarkAt,
+        nowIso,
+        application_id
+      ])
+
+      if (updateRes.rows.length === 0) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: trimmedRemark ? `Remark updated: "${trimmedRemark}"` : 'Remark cleared.',
+        application: updateRes.rows[0],
+      })
+    }
+
+    // 3. Approve or Reject Address Action
+    if (!application_id) {
+      return NextResponse.json({ error: 'application_id is required' }, { status: 400 })
     }
 
     // Fetch existing application
@@ -138,7 +234,6 @@ export async function POST(request: Request) {
 
     const currentApp = appRes.rows[0]
     const currentFd = currentApp.form_data || {}
-    const nowIso = new Date().toISOString()
 
     let newStatus = currentApp.status
     let newAddressStatus = ''
@@ -165,7 +260,7 @@ export async function POST(request: Request) {
         address_rejection_reason: reason || 'Address incomplete or unreachable. Please update and re-submit.',
       }
     } else {
-      return NextResponse.json({ error: 'Invalid action. Must be approve or reject.' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid action. Must be approve, reject, update_remark, or batch_update_remark.' }, { status: 400 })
     }
 
     const updateRes = await pool.query(`

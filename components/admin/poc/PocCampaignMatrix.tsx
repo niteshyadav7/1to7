@@ -37,6 +37,7 @@ interface PocCampaignMatrixProps {
     totalApplications: number
     totalApproved: number
     totalCompleted: number
+    totalGhosted?: number
     totalPaid: number
     overallCompletionRate: number
   }
@@ -103,13 +104,15 @@ export function PocCampaignMatrix({
     }
 
     // 2. Status Filter
-    if (selectedStatusFilter !== 'all') {
+    if (selectedStatusFilter === 'ghosted') {
+      result = result.filter(c => (c.ghostedCount || 0) > 0)
+    } else if (selectedStatusFilter !== 'all') {
       result = result.filter(
         c => c.status.toLowerCase() === selectedStatusFilter.toLowerCase()
       )
     }
 
-    // 3. Search Query (brand, code, platform, category, POC names)
+    // 3. Search Query (brand, code, platform, category, POC names, ghosted)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim()
       result = result.filter(c => {
@@ -120,7 +123,8 @@ export function PocCampaignMatrix({
         const matchPocs = c.assignedPocs?.some(poc =>
           poc.name.toLowerCase().includes(q) || poc.email.toLowerCase().includes(q)
         )
-        return matchBrand || matchCode || matchPlatform || matchCategory || matchPocs
+        const matchGhost = q.includes('ghost') && (c.ghostedCount || 0) > 0
+        return matchBrand || matchCode || matchPlatform || matchCategory || matchPocs || matchGhost
       })
     }
 
@@ -205,16 +209,24 @@ export function PocCampaignMatrix({
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-indigo-400" /> Pipeline Creators
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 font-bold border border-indigo-500/20">
-              Applications
-            </span>
+            <div className="flex items-center gap-1.5">
+              {(summary?.totalGhosted || 0) > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 font-bold border border-rose-500/30 flex items-center gap-1">
+                  👻 {summary?.totalGhosted} ghosted
+                </span>
+              )}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 font-bold border border-indigo-500/20">
+                Applications
+              </span>
+            </div>
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-black text-white">
               {(summary?.totalApplications || 0).toLocaleString()}
             </span>
             <span className="text-xs text-slate-400 font-medium">
-              ({summary?.totalApproved || 0} approved)
+              ({summary?.totalApproved || 0} approved
+              {(summary?.totalGhosted || 0) > 0 ? `, ${summary?.totalGhosted} ghosted` : ''})
             </span>
           </div>
           <div className="w-full bg-slate-800/80 h-1.5 rounded-full mt-3 overflow-hidden">
@@ -314,12 +326,13 @@ export function PocCampaignMatrix({
               <select
                 value={selectedStatusFilter}
                 onChange={e => setSelectedStatusFilter(e.target.value)}
-                className="h-8.5 px-2 rounded-xl text-xs font-semibold bg-slate-950/70 border border-white/10 text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-28 shrink-0"
+                className="h-8.5 px-2 rounded-xl text-xs font-semibold bg-slate-950/70 border border-white/10 text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-32 shrink-0"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active Only</option>
                 <option value="draft">Draft Only</option>
                 <option value="completed">Completed</option>
+                <option value="ghosted">👻 Has Ghosted</option>
               </select>
             </div>
           </div>
@@ -411,13 +424,22 @@ export function PocCampaignMatrix({
                               <p className="font-bold text-white group-hover:text-blue-300 transition-colors truncate max-w-[140px]">
                                 {campaign.brandName}
                               </p>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
                                 <span className="text-[10px] text-slate-400 font-mono">
                                   {campaign.campaignCode}
                                 </span>
                                 <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 border border-white/5">
                                   {campaign.category}
                                 </span>
+                                {campaign.ghostedCount > 0 && (
+                                  <span
+                                    className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1 shadow-2xs"
+                                    title={`${campaign.ghostedCount} creator(s) marked ghosted in this campaign`}
+                                  >
+                                    <span>👻</span>
+                                    <span>{campaign.ghostedCount} Ghosted</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -474,11 +496,22 @@ export function PocCampaignMatrix({
                         {/* Approved */}
                         <td className="py-2.5 px-2 text-right font-bold text-blue-400 whitespace-nowrap">
                           <div>{campaign.approvedCount}</div>
-                          {(campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount)) > 0 && (
-                            <div className="text-[10px] font-normal text-amber-400/90 font-mono">
-                              {campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount)} pending
-                            </div>
-                          )}
+                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                            {(campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount - (campaign.ghostedCount || 0))) > 0 && (
+                              <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                                {campaign.pendingCount ?? Math.max(0, campaign.approvedCount - campaign.completedCount - (campaign.ghostedCount || 0))} pending
+                              </div>
+                            )}
+                            {campaign.ghostedCount > 0 && (
+                              <div
+                                className="text-[10px] font-bold text-rose-400 font-mono flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/25 shadow-2xs"
+                                title={`${campaign.ghostedCount} creator(s) ghosted`}
+                              >
+                                <span>👻</span>
+                                <span>{campaign.ghostedCount} ghosted</span>
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         {/* Completed */}

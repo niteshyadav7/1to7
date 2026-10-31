@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
         approvedCount++
         if (isCompleted) {
           completedCount++
-        } else {
+        } else if (!isGhosted) {
           pendingCount++
         }
       } else if (isUnderReview) {

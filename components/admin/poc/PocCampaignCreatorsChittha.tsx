@@ -108,11 +108,12 @@ export function PocCampaignCreatorsChittha({
         // All Approved creators
         list = list.filter(c => !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status))
       } else if (selectedStatus === 'pending') {
-        // Pending Deliverables: Approved creators who have NOT completed yet
+        // Pending Deliverables: Approved creators who have NOT completed yet and NOT ghosted
         list = list.filter(c => 
           !['Applied', 'Rejected', 'Under Process', 'Under Review'].includes(c.status) &&
           c.status !== 'Completed' &&
-          !c.completionSubmittedAt
+          !c.completionSubmittedAt &&
+          !c.isGhosted
         )
       } else if (selectedStatus === 'completed') {
         list = list.filter(c => c.status === 'Completed' || Boolean(c.completionSubmittedAt))

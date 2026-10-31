@@ -567,12 +567,13 @@ export default function PocDashboardPage() {
                     <select
                       value={campaignStatusFilter}
                       onChange={e => setCampaignStatusFilter(e.target.value)}
-                      className="h-8 px-2 rounded-lg text-xs font-semibold bg-slate-950/70 border border-white/10 text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-24 shrink-0"
+                      className="h-8 px-2 rounded-lg text-xs font-semibold bg-slate-950/70 border border-white/10 text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer w-28 shrink-0"
                     >
                       <option value="all">All Status</option>
                       <option value="active">Active</option>
                       <option value="draft">Draft</option>
                       <option value="completed">Completed</option>
+                      <option value="ghosted">👻 Has Ghosted</option>
                     </select>
                   </div>
                 )}
@@ -871,8 +872,16 @@ export default function PocDashboardPage() {
                                                           />
                                                           <span>{c.brandName}</span>
                                                         </div>
-                                                        <div className="text-[10px] text-slate-400 font-mono pl-4.5">
-                                                          {c.campaignCode}
+                                                        <div className="text-[10px] text-slate-400 font-mono pl-4.5 flex items-center gap-1.5 flex-wrap">
+                                                          <span>{c.campaignCode}</span>
+                                                          {(c.ghostedCount || 0) > 0 && (
+                                                            <span
+                                                              className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold"
+                                                              title={`${c.ghostedCount} ghosted`}
+                                                            >
+                                                              👻 {c.ghostedCount} Ghosted
+                                                            </span>
+                                                          )}
                                                         </div>
                                                       </td>
                                                       <td className="py-2.5 px-3 text-slate-300">
@@ -896,11 +905,22 @@ export default function PocDashboardPage() {
                                                       </td>
                                                       <td className="py-2.5 px-3 text-right font-bold text-blue-400 whitespace-nowrap">
                                                         <div>{c.approvedCount}</div>
-                                                        {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)) > 0 && (
-                                                          <div className="text-[10px] font-normal text-amber-400/90 font-mono">
-                                                            {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)} pending
-                                                          </div>
-                                                        )}
+                                                        <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                                          {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount - (c.ghostedCount || 0))) > 0 && (
+                                                            <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                                                              {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount - (c.ghostedCount || 0))} pending
+                                                            </div>
+                                                          )}
+                                                          {(c.ghostedCount || 0) > 0 && (
+                                                            <div
+                                                              className="text-[10px] font-bold text-rose-400 font-mono flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/25"
+                                                              title={`${c.ghostedCount} creator(s) ghosted`}
+                                                            >
+                                                              <span>👻</span>
+                                                              <span>{c.ghostedCount} ghosted</span>
+                                                            </div>
+                                                          )}
+                                                        </div>
                                                       </td>
                                                       <td className="py-2.5 px-3 text-right font-bold text-emerald-400">
                                                         {c.completedCount}
@@ -1153,7 +1173,17 @@ export default function PocDashboardPage() {
                         <td className="py-3 px-4">
                           <div>
                             <p className="font-bold text-white">{c.brandName}</p>
-                            <p className="text-[10px] text-slate-500 font-mono">{c.campaignCode}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-slate-500 font-mono">{c.campaignCode}</span>
+                              {(c.ghostedCount || 0) > 0 && (
+                                <span
+                                  className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold"
+                                  title={`${c.ghostedCount} ghosted`}
+                                >
+                                  👻 {c.ghostedCount} Ghosted
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-3 px-4 text-slate-300">{c.platform}</td>
@@ -1173,11 +1203,22 @@ export default function PocDashboardPage() {
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-blue-400 whitespace-nowrap">
                           <div>{c.approvedCount}</div>
-                          {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)) > 0 && (
-                            <div className="text-[10px] font-normal text-amber-400/90 font-mono">
-                              {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount)} pending
-                            </div>
-                          )}
+                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                            {(c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount - (c.ghostedCount || 0))) > 0 && (
+                              <div className="text-[10px] font-normal text-amber-400/90 font-mono">
+                                {c.pendingCount ?? Math.max(0, c.approvedCount - c.completedCount - (c.ghostedCount || 0))} pending
+                              </div>
+                            )}
+                            {(c.ghostedCount || 0) > 0 && (
+                              <div
+                                className="text-[10px] font-bold text-rose-400 font-mono flex items-center gap-1 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/25"
+                                title={`${c.ghostedCount} creator(s) ghosted`}
+                              >
+                                <span>👻</span>
+                                <span>{c.ghostedCount} ghosted</span>
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-emerald-400">
                           {c.completedCount}
@@ -1269,7 +1310,9 @@ export default function PocDashboardPage() {
                         <td className="py-3 px-4">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              creator.status === 'Approved'
+                              creator.isGhosted
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                : creator.status === 'Approved'
                                 ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
                                 : creator.status === 'Completed' || creator.status === 'Paid'
                                 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
@@ -1278,7 +1321,7 @@ export default function PocDashboardPage() {
                                 : 'bg-slate-800 text-slate-400 border-white/10'
                             }`}
                           >
-                            {creator.status}
+                            {creator.isGhosted ? '👻 Ghosted' : creator.status}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-slate-400 text-[11px]">

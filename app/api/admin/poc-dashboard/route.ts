@@ -128,8 +128,10 @@ export async function GET(request: Request) {
         c.is_live,
         c.created_at,
         COUNT(app.id) AS total_applications,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) AS approved_count,
-        COUNT(app.id) FILTER (WHERE app.completion_submitted_at IS NOT NULL) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review')) AS approved_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count,
+        COUNT(app.id) FILTER (WHERE app.is_ghosted = true) AS ghosted_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS total_paid
       FROM public.campaigns c
       LEFT JOIN public.applications app 
@@ -149,6 +151,8 @@ export async function GET(request: Request) {
       const totalApps = parseInt(row.total_applications) || 0
       const approved = parseInt(row.approved_count) || 0
       const completed = parseInt(row.completed_count) || 0
+      const ghosted = parseInt(row.ghosted_count) || 0
+      const pending = parseInt(row.pending_count) || Math.max(0, approved - completed - ghosted)
       const totalPaid = parseFloat(row.total_paid) || 0
       const completionRate =
         approved > 0 ? Math.round((completed / approved) * 1000) / 10 : 0
@@ -166,6 +170,8 @@ export async function GET(request: Request) {
         totalApplications: totalApps,
         approvedCount: approved,
         completedCount: completed,
+        ghostedCount: ghosted,
+        pendingCount: pending,
         completionRate,
         totalPaid,
       }
@@ -233,6 +239,7 @@ export async function GET(request: Request) {
       SELECT 
         app.id AS application_id,
         app.status,
+        app.is_ghosted,
         app.created_at,
         app.live_date,
         COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0) AS payout,
@@ -267,6 +274,7 @@ export async function GET(request: Request) {
       instagramUsername: r.instagram_username || null,
       mobile: r.mobile || null,
       status: r.status,
+      isGhosted: Boolean(r.is_ghosted),
       appliedAt: r.created_at,
       liveDate: r.live_date || null,
       payout: parseFloat(r.payout) || 0,
