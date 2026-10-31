@@ -1403,6 +1403,7 @@ export default function AllApplicationsPage() {
   const [ghostHistoryApp, setGhostHistoryApp] = useState<Application | null>(null)
   const [whatsappModalApps, setWhatsappModalApps] = useState<Application[] | null>(null)
   const [whatsappCustomMessage, setWhatsappCustomMessage] = useState('')
+  const [contactedWhatsAppIds, setContactedWhatsAppIds] = useState<Set<string>>(new Set())
   const { open: bulkMoreOpen, setOpen: setBulkMoreOpen, popoverRef: bulkMoreRef } = usePopover()
 
   const handleOpenWhatsApp = (app: Application, customNote?: string) => {
@@ -5314,13 +5315,14 @@ export default function AllApplicationsPage() {
             {/* ─── Bulk WhatsApp Outreach Modal ──────────────────────── */}
       <AnimatePresence>
         {whatsappModalApps && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl flex flex-col max-h-[85vh]"
+              className="w-full max-w-xl rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl flex flex-col max-h-[88vh]"
             >
+              {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-white/5">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
@@ -5329,7 +5331,7 @@ export default function AllApplicationsPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">WhatsApp Outreach</h3>
+                    <h3 className="text-base font-bold text-white">Bulk WhatsApp Outreach</h3>
                     <p className="text-xs text-slate-400">
                       Reach out directly to {whatsappModalApps.length} selected creator{whatsappModalApps.length > 1 ? 's' : ''}
                     </p>
@@ -5340,6 +5342,7 @@ export default function AllApplicationsPage() {
                   onClick={() => {
                     setWhatsappModalApps(null)
                     setWhatsappCustomMessage('')
+                    setContactedWhatsAppIds(new Set())
                   }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
                 >
@@ -5350,7 +5353,7 @@ export default function AllApplicationsPage() {
               {/* Optional Custom Note */}
               <div className="mt-4 space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">
-                  Custom message note (optional):
+                  Custom message note (appended to message):
                 </label>
                 <textarea
                   value={whatsappCustomMessage}
@@ -5361,20 +5364,76 @@ export default function AllApplicationsPage() {
                 />
               </div>
 
+              {/* Bulk Queue Quick Runner Banner */}
+              {(() => {
+                const validApps = whatsappModalApps.filter(a => !!getCreatorWhatsAppPhone(a))
+                const nextUncontacted = validApps.find(a => !contactedWhatsAppIds.has(a.id))
+                const sentCount = contactedWhatsAppIds.size
+                const totalCount = validApps.length
+
+                return (
+                  <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex flex-wrap items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          Queue Progress: <span className="text-emerald-400">{sentCount} / {totalCount}</span> Sent
+                        </p>
+                        <p className="text-[10.5px] text-slate-400">
+                          {nextUncontacted
+                            ? `Next: ${nextUncontacted.users?.full_name || 'Creator'} (${nextUncontacted.campaigns?.brand_name || 'Campaign'})`
+                            : 'All selected creators with phone numbers contacted!'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {nextUncontacted && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            handleOpenWhatsApp(nextUncontacted, whatsappCustomMessage)
+                            setContactedWhatsAppIds(prev => new Set(prev).add(nextUncontacted.id))
+                          }}
+                          className="h-7.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/30 cursor-pointer"
+                        >
+                          <svg className="h-3.5 w-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                          </svg>
+                          <span>Send Next ({sentCount + 1}/{totalCount}) →</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Creator List */}
-              <div className="mt-4 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-64">
+              <div className="mt-3 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-56">
                 {whatsappModalApps.map((item) => {
                   const phone = getCreatorWhatsAppPhone(item)
                   const name = item.users?.full_name || 'Creator'
                   const brand = item.campaigns?.brand_name || 'Campaign'
+                  const isContacted = contactedWhatsAppIds.has(item.id)
 
                   return (
                     <div
                       key={item.id}
-                      className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5 flex items-center justify-between gap-3 hover:border-emerald-500/20 transition-all"
+                      className={`p-2.5 rounded-xl bg-slate-950/40 border transition-all flex items-center justify-between gap-3 ${
+                        isContacted
+                          ? 'border-emerald-500/40 bg-emerald-500/5'
+                          : 'border-white/5 hover:border-emerald-500/20'
+                      }`}
                     >
                       <div className="min-w-0">
-                        <p className="text-xs font-bold text-white truncate">{name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-white truncate">{name}</p>
+                          {isContacted && (
+                            <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              Sent ✓
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-slate-400 truncate">
                           {brand} · {item.status} · {phone ? `+91 ${phone}` : <span className="text-amber-400">No phone</span>}
                         </p>
@@ -5395,15 +5454,22 @@ export default function AllApplicationsPage() {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleOpenWhatsApp(item, whatsappCustomMessage)}
+                          onClick={() => {
+                            handleOpenWhatsApp(item, whatsappCustomMessage)
+                            setContactedWhatsAppIds(prev => new Set(prev).add(item.id))
+                          }}
                           disabled={!phone}
-                          className="h-7 px-2.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-1 disabled:opacity-40"
+                          className={`h-7 px-2.5 text-[11px] font-bold rounded-lg flex items-center gap-1 disabled:opacity-40 ${
+                            isContacted
+                              ? 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                          }`}
                           title={phone ? `Open WhatsApp chat with ${name}` : 'No phone number available'}
                         >
                           <svg className="h-3 w-3 fill-current shrink-0" viewBox="0 0 24 24">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                           </svg>
-                          Chat
+                          <span>{isContacted ? 'Re-open' : 'Chat'}</span>
                         </Button>
                       </div>
                     </div>
@@ -5411,34 +5477,81 @@ export default function AllApplicationsPage() {
                 })}
               </div>
 
-              {/* Modal Footer */}
-              <div className="mt-5 pt-3 border-t border-white/5 flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const phones = whatsappModalApps
-                      .map(a => getCreatorWhatsAppPhone(a))
-                      .filter(Boolean)
-                      .join('\n')
-                    if (phones) {
-                      navigator.clipboard.writeText(phones)
-                      toast.success(`Copied ${phones.split('\n').length} phone numbers to clipboard!`)
-                    } else {
-                      toast.error('No valid phone numbers found to copy.')
-                    }
-                  }}
-                  className="h-8 text-xs border-slate-700 hover:bg-slate-800 text-slate-300"
-                >
-                  Copy All Numbers
-                </Button>
+              {/* Modal Footer with Prime Sender CSV Export & Actions */}
+              <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Download CSV for Prime Sender / Bulk WhatsApp Tools */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!whatsappModalApps || whatsappModalApps.length === 0) return
+                      const rows = whatsappModalApps.map(app => {
+                        const phone = getCreatorWhatsAppPhone(app)
+                        return {
+                          'Phone': phone ? `91${phone}` : '',
+                          'Name': app.users?.full_name || 'Creator',
+                          'Brand': app.campaigns?.brand_name || '',
+                          'Status': app.status || 'Applied',
+                          'Message': getWhatsAppApplicationMessage(app, whatsappCustomMessage)
+                        }
+                      }).filter(r => r.Phone)
+
+                      if (rows.length === 0) {
+                        toast.error('No valid phone numbers found to export.')
+                        return
+                      }
+
+                      const csv = '\uFEFF' + Papa.unparse(rows)
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `1to7_bulk_whatsapp_${new Date().toISOString().slice(0, 10)}.csv`
+                      document.body.appendChild(a)
+                      a.click()
+                      document.body.removeChild(a)
+                      URL.revokeObjectURL(url)
+                      toast.success(`Exported ${rows.length} contacts for Prime Sender / Bulk WhatsApp!`)
+                    }}
+                    className="h-7.5 px-2.5 text-[11px] font-semibold border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg flex items-center gap-1.5"
+                    title="Export CSV formatted for automated bulk senders (Prime Sender, WAPlus, etc.)"
+                  >
+                    <Download className="h-3 w-3" />
+                    <span>Export CSV (Prime Sender)</span>
+                  </Button>
+
+                  {/* Copy All Numbers */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const phones = whatsappModalApps
+                        .map(a => getCreatorWhatsAppPhone(a))
+                        .filter(Boolean)
+                        .join('\n')
+                      if (phones) {
+                        navigator.clipboard.writeText(phones)
+                        toast.success(`Copied ${phones.split('\n').length} phone numbers to clipboard!`)
+                      } else {
+                        toast.error('No valid phone numbers found to copy.')
+                      }
+                    }}
+                    className="h-7.5 px-2 text-[11px] border-slate-700 hover:bg-slate-800 text-slate-300 rounded-lg"
+                    title="Copy all 10-digit mobile numbers as newline list"
+                  >
+                    Copy Numbers
+                  </Button>
+                </div>
+
                 <Button
                   size="sm"
                   onClick={() => {
                     setWhatsappModalApps(null)
                     setWhatsappCustomMessage('')
+                    setContactedWhatsAppIds(new Set())
                   }}
-                  className="h-8 px-4 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg"
+                  className="h-7.5 px-3.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg cursor-pointer"
                 >
                   Done
                 </Button>
@@ -5448,7 +5561,7 @@ export default function AllApplicationsPage() {
         )}
       </AnimatePresence>
 
-{/* ─── Custom Scrollbar Styles ─────────────────────── */}
+      {/* ─── Custom Scrollbar Styles ─────────────────────── */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           height: 6px;
