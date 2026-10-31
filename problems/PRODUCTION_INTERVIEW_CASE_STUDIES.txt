@@ -121,6 +121,7 @@ CASE 110: Multi-Instagram Profile Disconnect, Inverted Fallback Precedence & Aut
 CASE 111: Dormant Creator Pool Segmentation: Dual-Surface In-Place Creator Archiving, Preserved Profile Data & Active Roster Telemetry
 CASE 112: Navigation Cognitive Overload & Route Discoverability: High-Density Category Grouping, Real-Time Route Filtering & Persistent Collapsible Sidebar UX
 CASE 113: High-Velocity Creator Outreach: Multi-Surface Direct WhatsApp Communication Engine & Tab-Blocker Resilient Bulk Messaging Architecture
+CASE 114: Viewport Collision in Dense Multi-Action Toolbars: Ergonomic Micro-Copy, Compact Density & Upward-Projecting Ellipsis Overflow Popovers
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -5041,3 +5042,55 @@ S: Campaign managers spent excessive manual time copying contact details to What
 T: Architect a high-velocity, multi-surface WhatsApp outreach feature supporting single-click row messaging, context menu actions, and popup-blocker-safe bulk outreach with phone schema normalization.
 A: Built a robust 10-digit phone extractor resolving polymorphic schema keys; generated contextual pre-filled messages; added 1-click row buttons and context menu options; and solved browser popup blocking by routing bulk actions through a dedicated modal with sequential chat triggers and bulk phone clipboard exports.
 R: Reduced outreach initiation time from 60s to <2s per creator, eliminated popup blocking issues, and provided campaign teams with an intuitive, unified WhatsApp communication desk.
+
+====================================================================================================
+CASE 114: Viewport Collision in Dense Multi-Action Toolbars: Ergonomic Micro-Copy, Compact Density & Upward-Projecting Ellipsis Overflow Popovers
+====================================================================================================
+CATEGORIES: Frontend Architecture / Next.js / UX Engineering / Responsive Layouts / Component Design
+INTERVIEW QUESTION:
+"When an enterprise data table's floating bulk-action toolbar accumulates 9+ operational actions (approvals, status transitions, batch external link openers, communications, and destructive resets), it easily overflows laptop viewports and collides with screen-edge UI badges. How do you re-architect the toolbar layout to guarantee full responsiveness, ergonomic micro-copy, and zero-clipping overflow menus without removing any administrative capabilities?"
+
+[SITUATION]
+Following the introduction of 1-click WhatsApp outreach, Instagram bulk review, and creator archiving, the floating bottom bulk action toolbar in the Admin Applications desk expanded to 9 distinct buttons:
+`[Selected (19)] | APPROVE | UNDER PROCESS | FORWARD TO BRAND ADMIN | OPEN INSTAGRAM (19) | WHATSAPP (19) | ALLOW RE-APPLY | GHOST | ARCHIVE (19) | RESET`.
+On standard 1366x768 and 1440x900 laptop displays:
+1. The toolbar's total width exceeded 1050px, extending past the right edge of the browser viewport.
+2. The last two buttons (`ARCHIVE` and `RESET`) were visually clipped and overlapped with bottom-corner floating badges (such as support widgets and avatars).
+3. Buttons with lengthy uppercase text strings (`FORWARD TO BRAND ADMIN` alone was 23 characters) consumed excessive horizontal footprint without adding communicative value.
+
+[ROOT CAUSE]
+1. Flat Unbounded Action Projection:
+   Every bulk action—regardless of whether it was a high-frequency approval or an infrequent destructive reset—was rendered as a top-level horizontal button.
+2. Verbose Micro-Copy & Inflexible Padding:
+   Labels used repetitive words (e.g. "FORWARD TO BRAND ADMIN", "OPEN INSTAGRAM") and large horizontal paddings (`px-3`, `h-7.5`), unnecessarily inflating button footprints by 40-50%.
+3. Absence of Upward-Opening Overflow Popover:
+   Standard dropdown menus typically project downward (`top-full mt-2`). For a toolbar anchored at the bottom edge of the viewport (`fixed bottom-5`), downward projection causes instant screen clipping. A dedicated upward popover (`bottom-full mb-2`) with outside-click handling was required.
+
+[SOLUTION & ARCHITECTURE]
+1. High-Density Micro-Copy Optimization:
+   Streamlined button labels to clear, concise title-case verbs without losing context:
+   - `APPROVE` -> `Approve`
+   - `UNDER PROCESS` -> `Process` (tooltip: "Mark as Under Process")
+   - `FORWARD TO BRAND ADMIN` -> `Forward` (tooltip: "Forward selected applications to Brand Admin")
+   - `OPEN INSTAGRAM (N)` -> `Insta (N)`
+   - `WHATSAPP (N)` -> `WhatsApp (N)`
+   - `ALLOW RE-APPLY` -> `Re-Apply`
+   Reduced font sizing to `text-[10px] font-bold` and adjusted heights to `h-7` with tight `px-2` padding.
+
+2. Primary vs. Secondary Action Triage:
+   - Kept high-frequency operational triggers immediately visible on the toolbar: Approve, Process, Forward, Insta, WhatsApp, and Re-Apply.
+   - Grouped administrative, infrequent, and destructive actions under a dedicated Ellipsis (`•••` / `MoreHorizontal`) button.
+
+3. Upward-Projecting Glass Popover (`bottom-full mb-2 right-0`):
+   - Integrated `usePopover()` hook for effortless click-outside dismissal and keyboard accessibility.
+   - Designed a high-contrast dark glass popover (`bg-slate-900/98 border-white/15 backdrop-blur-2xl shadow-2xl`) containing:
+     - 👻 `Ghost Creator(s)`
+     - 📦 `Archive (N)`
+     - 🗑️ `Reset / Delete` (separated with a visual divider)
+   - Reduced total toolbar horizontal footprint from >1050px to ~585px—a 45% reduction—guaranteeing 200px+ of breathing room on standard screens.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Adding new bulk operations caused a floating admin action bar to horizontally overflow standard laptop screens and collide with corner widgets.
+T: Re-architect the bulk toolbar to fit seamlessly on all screen resolutions without sacrificing action accessibility or UI clarity.
+A: Streamlined button micro-copy to concise title-case verbs; tightened density to `h-7 text-[10px]`; and built an upward-projecting Ellipsis (`•••`) popover with click-outside listener housing secondary and destructive actions.
+R: Reduced toolbar width by 45% (from >1050px to ~585px), completely eliminated viewport overflow and badge collisions, and delivered a compact, professional B2B user experience.

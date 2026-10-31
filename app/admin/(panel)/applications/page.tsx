@@ -1403,6 +1403,7 @@ export default function AllApplicationsPage() {
   const [ghostHistoryApp, setGhostHistoryApp] = useState<Application | null>(null)
   const [whatsappModalApps, setWhatsappModalApps] = useState<Application[] | null>(null)
   const [whatsappCustomMessage, setWhatsappCustomMessage] = useState('')
+  const { open: bulkMoreOpen, setOpen: setBulkMoreOpen, popoverRef: bulkMoreRef } = usePopover()
 
   const handleOpenWhatsApp = (app: Application, customNote?: string) => {
     const phone = getCreatorWhatsAppPhone(app)
@@ -4459,31 +4460,32 @@ export default function AllApplicationsPage() {
             <div className="w-px h-5 bg-white/15 shrink-0" />
 
             {/* Buttons in a Single Aligned Row */}
-            <div className="flex items-center gap-1.5 shrink-0 overflow-x-auto no-scrollbar scrollbar-none">
-              {/* 1. APPROVE (Primary Action - Green) */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* 1. APPROVE */}
               <Button
                 size="sm"
                 onClick={() => handleBulkAction('Approved')}
                 disabled={bulkUpdating}
-                className="h-7.5 px-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-[10.5px] shadow-sm shadow-emerald-500/20 border-none cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
+                className="h-7 px-2.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-[10px] shadow-sm shadow-emerald-500/20 border-none cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shrink-0"
               >
                 {bulkUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                <span>APPROVE</span>
+                <span>Approve</span>
               </Button>
 
-              {/* 2. UNDER PROCESS (Amber) */}
+              {/* 2. UNDER PROCESS */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleBulkAction('Under Process')}
                 disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
+                className="h-7 px-2 rounded-lg border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 font-bold text-[10px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                title="Mark as Under Process"
               >
                 <Clock className="h-3 w-3" />
-                <span>UNDER PROCESS</span>
+                <span>Process</span>
               </Button>
 
-              {/* 3. FORWARD TO BRAND ADMIN (Purple) */}
+              {/* 3. FORWARD */}
               <Button
                 variant="outline"
                 size="sm"
@@ -4492,13 +4494,14 @@ export default function AllApplicationsPage() {
                   setShowSentToBrandModal(true)
                 }}
                 disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-purple-500/30 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
+                className="h-7 px-2 rounded-lg border-purple-500/30 text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 font-bold text-[10px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                title="Forward selected applications to Brand Admin"
               >
                 <Share2 className="h-3 w-3" />
-                <span>FORWARD TO BRAND ADMIN</span>
+                <span>Forward</span>
               </Button>
 
-              {/* 4. OPEN INSTAGRAM (Pink) */}
+              {/* 4. INSTAGRAM */}
               <Button
                 variant="outline"
                 size="sm"
@@ -4511,14 +4514,14 @@ export default function AllApplicationsPage() {
                   )
                   openInstagramProfilesInBulk(handles)
                 }}
-                className="h-7.5 px-2.5 rounded-lg border-pink-500/30 text-pink-300 bg-pink-500/10 hover:bg-pink-500/20 font-bold text-[10.5px] cursor-pointer transition-all active:scale-95 flex items-center gap-1"
+                className="h-7 px-2 rounded-lg border-pink-500/30 text-pink-300 bg-pink-500/10 hover:bg-pink-500/20 font-bold text-[10px] cursor-pointer transition-all active:scale-95 flex items-center gap-1 shrink-0"
                 title="Open selected creators' Instagram profiles in separate tabs"
               >
                 <Instagram className="h-3 w-3 text-pink-400" />
-                <span>OPEN INSTAGRAM ({selectedIds.size})</span>
+                <span>Insta ({selectedIds.size})</span>
               </Button>
 
-              {/* WHATSAPP (Emerald) */}
+              {/* 5. WHATSAPP */}
               <Button
                 variant="outline"
                 size="sm"
@@ -4531,16 +4534,16 @@ export default function AllApplicationsPage() {
                   }
                 }}
                 disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shadow-sm"
-                title="Send WhatsApp message regarding selected application"
+                className="h-7 px-2 rounded-lg border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold text-[10px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shadow-sm shrink-0"
+                title="Send WhatsApp message regarding selected application(s)"
               >
                 <svg className="h-3 w-3 fill-current text-emerald-400 shrink-0" viewBox="0 0 24 24">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                 </svg>
-                <span>WHATSAPP ({selectedIds.size})</span>
+                <span>WhatsApp ({selectedIds.size})</span>
               </Button>
 
-              {/* 5. ALLOW RE-APPLY (Rose) */}
+              {/* 6. ALLOW RE-APPLY */}
               <Button
                 variant="outline"
                 size="sm"
@@ -4555,63 +4558,98 @@ export default function AllApplicationsPage() {
                   setSendRejectEmail(true)
                 }}
                 disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
+                className="h-7 px-2 rounded-lg border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-[10px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shrink-0"
                 title="Reject selected applications and allow creators to re-apply with feedback"
               >
                 <RotateCcw className="h-3 w-3" />
-                <span>ALLOW RE-APPLY</span>
+                <span>Re-Apply</span>
               </Button>
 
-              {/* 5. GHOST (Rose) */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const selectedApps = Array.from(selectedIds).map(id => {
-                    const app = applications.find(a => a.id === id)
-                    return {
-                      applicationId: id,
-                      creatorName: app?.users?.full_name || 'Creator',
-                      instagramUsername: app?.users?.instagram_username,
-                      brandName: app?.campaigns?.brand_name,
-                      campaignCode: app?.campaigns?.campaign_code,
-                    }
-                  })
-                  setBulkGhostCreators(selectedApps)
-                }}
-                disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-rose-500/30 text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
-                title="Mark selected creators as ghosted with proof"
-              >
-                <span className="text-[11px]">👻</span>
-                <span>GHOST</span>
-              </Button>
+              {/* 7. MORE / ELLIPSIS MENU */}
+              <div className="relative shrink-0" ref={bulkMoreRef}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkMoreOpen(!bulkMoreOpen)}
+                  disabled={bulkUpdating}
+                  className="h-7 px-2 rounded-lg border-white/20 text-slate-200 bg-white/5 hover:bg-white/15 font-bold text-[10px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                  title="More actions (Ghost, Archive, Reset)"
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">More</span>
+                </Button>
 
-              {/* 6. ARCHIVE CREATORS (Amber) */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkArchiveCreators}
-                disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
-                title="Archive selected creators and mark them as inactive"
-              >
-                <Archive className="h-3 w-3 text-amber-400" />
-                <span>ARCHIVE ({selectedIds.size})</span>
-              </Button>
+                {/* Upward Popover */}
+                <AnimatePresence>
+                  {bulkMoreOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full right-0 mb-2 w-48 rounded-xl bg-slate-900/98 border border-white/15 shadow-2xl backdrop-blur-2xl p-1 z-[60] flex flex-col gap-0.5 ring-1 ring-white/10"
+                    >
+                      <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 border-b border-white/5">
+                        More Actions
+                      </div>
 
-              {/* 7. RESET (Red / Delete) */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={bulkUpdating}
-                className="h-7.5 px-2.5 rounded-lg border-red-500/30 text-red-400 bg-red-500/10 hover:bg-red-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
-                title="Reset/Delete selected applications"
-              >
-                <Trash2 className="h-3 w-3" />
-                <span>RESET</span>
-              </Button>
+                      {/* GHOST */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkMoreOpen(false)
+                          const selectedApps = Array.from(selectedIds).map(id => {
+                            const app = applications.find(a => a.id === id)
+                            return {
+                              applicationId: id,
+                              creatorName: app?.users?.full_name || 'Creator',
+                              instagramUsername: app?.users?.instagram_username,
+                              brandName: app?.campaigns?.brand_name,
+                              campaignCode: app?.campaigns?.campaign_code,
+                            }
+                          })
+                          setBulkGhostCreators(selectedApps)
+                        }}
+                        disabled={bulkUpdating}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <span className="text-sm">👻</span>
+                        <span>Ghost Creator(s)</span>
+                      </button>
+
+                      {/* ARCHIVE */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkMoreOpen(false)
+                          handleBulkArchiveCreators()
+                        }}
+                        disabled={bulkUpdating}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-amber-300 hover:bg-amber-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Archive className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <span>Archive ({selectedIds.size})</span>
+                      </button>
+
+                      <div className="my-0.5 border-t border-white/5" />
+
+                      {/* RESET / DELETE */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkMoreOpen(false)
+                          handleBulkDelete()
+                        }}
+                        disabled={bulkUpdating}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-red-400 hover:bg-red-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                        <span>Reset / Delete</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </motion.div>
         )}
