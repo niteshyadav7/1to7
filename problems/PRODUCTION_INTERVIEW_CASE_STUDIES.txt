@@ -124,6 +124,7 @@ CASE 113: High-Velocity Creator Outreach: Multi-Surface Direct WhatsApp Communic
 CASE 114: Viewport Collision in Dense Multi-Action Toolbars: Ergonomic Micro-Copy, Compact Density & Upward-Projecting Ellipsis Overflow Popovers
 CASE 115: Automated High-Volume WhatsApp Outreach: Interactive Sequential Queue Runners vs. Headless CSV Ingestion for Bulk Senders (Prime Sender)
 CASE 116: Operational Accountability in Creator Archiving: Contextual Remarks, Preset Reason Categorization & Cascade Status Sync
+CASE 117: Post-Approval Funnel Disconnect: Sub-Pipeline Address Filtering (Shared vs Pending), Granular Backout Telemetry & Two-Way Reversion Architecture
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5248,3 +5249,60 @@ S: Operators saw a persistent "No Internet Connection" banner in active admin da
 T: Diagnose why the network provider misreported active internet connections and architect a resilient, false-positive-proof client connectivity detection engine.
 A: Re-architected `NetworkStatusProvider` with dual-tier fallback reachability testing (Cloudflare no-cors edge check), debounced visibility/offline event handlers, consecutive failure thresholds, background auto-recovery polling, and user dismiss controls.
 R: Completely eliminated false-positive offline banners, prevented tab-switch connection alerts, and provided an accurate, self-healing network status UX.
+
+
+====================================================================================================
+CASE 117: Post-Approval Funnel Disconnect: Sub-Pipeline Address Filtering (Shared vs Pending), Granular Backout Telemetry & Two-Way Reversion Architecture
+====================================================================================================
+CATEGORIES: Full-Stack Architecture / Next.js / Operations Pipeline / Logistics Governance / State Machines
+INTERVIEW QUESTION:
+"In an influencer campaign operations desk, 'Approved' is not a terminal state—creators must provide physical shipping addresses for product sampling, and a significant percentage drop out post-approval ('Backout'). If operators only have a flat status filter, how do you architect a sub-pipeline within the Approved status that tracks Address Shared vs Address Pending and introduces a first-class Backout state machine with audit remarks and instant reversion?"
+
+[SITUATION]
+Once creators are marked `Approved` for barter or product-sampling campaigns, campaign managers face two critical operational bottlenecks:
+1. Address Blindspot:
+   Operators could not tell at a glance which approved creators had submitted their delivery addresses versus which were still pending follow-up. This caused shipment delays or required manually opening individual profile rows to check address fields.
+2. The Post-Approval "Backout" Void:
+   Creators frequently back out after being approved (due to schedule conflicts, refusing barter terms, or disagreeing on deliverable timelines).
+   Previously, managers had no clean way to handle this. If left in `Approved`, they distorted client reporting and campaign delivery commitments. If moved to `Rejected`, the platform lost the business intelligence that the creator was vetted and selected, but voluntarily dropped out.
+
+[ROOT CAUSE]
+1. Flat Status Taxonomy:
+   The applications lifecycle treated `Approved` as an undifferentiated state rather than a multi-stage logistics sub-pipeline.
+2. Absence of a Dedicated Post-Approval Drop-off State (`Backout`):
+   The platform lacked a structured transition for voluntary creator drop-offs after approval, creating audit ambiguity between operator rejections and creator-initiated cancellations.
+3. Lack of Fast Address Resolution:
+   Shipping addresses in barter campaigns can reside in `form_data.shipping_address`, custom sub-forms (`form_data.*_details`), or the creator's saved profile addresses. Without a reactive resolution pass, calculating real-time address readiness was impossible.
+
+[SOLUTION & ARCHITECTURE]
+1. Approved Sub-Pipeline Segmented Filter Hub:
+   When operators navigate to the `Approved` tab, the UI displays a dedicated emerald sub-pipeline bar:
+   - `All Approved`: Total active approved roster.
+   - `📍 Address Shared`: Resolves delivery addresses via `resolveApplicationAddress(app)`; filters applicants ready for immediate courier dispatch.
+   - `⏳ Address Pending`: Isolates creators missing delivery details, providing a direct prompt to trigger 1-click WhatsApp follow-up.
+   - `🚫 Backout`: Isolates approved creators who dropped out.
+
+2. First-Class "Backout" Status & Categorized Modal:
+   - Added `Backout` to top-level `statusFilters`, `statusColors` (rose), and `statusDots`.
+   - Multi-Surface Trigger: Accessible via row-level action menu (`ActionsDropdown`) and bulk toolbar (`••• More -> Mark as Backout (N)`).
+   - Categorized Reason Modal: Collects one-tap preset categories:
+     - `Declined barter / changed mind`
+     - `Schedule / timeline conflict`
+     - `Commercial / rate dispute`
+     - `Unresponsive after approval`
+     - `Sample delivery refused / returned`
+     - `Other / custom remark`
+   - Appends detailed audit trail: `form_data.backout_details: { reason, marked_at, marked_by, previous_status }` and `team_remark = "Backout: " + reason`.
+
+3. Two-Way Reversion State Machine (`handleRevertBackout`):
+   If a creator changes their mind or resolves a scheduling conflict, operators can 1-click **"Revert Backout (Restore)"**. The system reads `previous_status` from `backout_details`, restores `Approved`, and logs an audit trail without losing historical form data.
+
+4. Row Indicators & Micro-Badges:
+   - Inside the Status column, approved rows display inline pills: `📍 Address Shared` (emerald) or `⏳ Address Pending` (amber).
+   - Backout rows display a dedicated `🚫 Backout` badge with hover tooltips revealing the exact recorded reason.
+
+[INTERVIEW STAR TAKEAWAY]
+S: In an influencer campaign desk, approved creators frequently drop out ('back out') or lack shipping addresses, causing reporting inaccuracies and logistics delays.
+T: Architect an Approved sub-pipeline isolating Address Shared vs Pending and build a structured Backout state machine with audit reasons and reversion support.
+A: Engineered an approved sub-filter bar powered by dynamic address resolution; introduced a dedicated 'Backout' status with 1-tap categorization modals; and implemented atomic two-way state reversion.
+R: Eliminated address confirmation guesswork, automated WhatsApp outreach targeting for missing addresses, and gave campaign managers precise visibility into post-approval attrition.

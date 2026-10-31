@@ -14,7 +14,7 @@ import {
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
   Pencil, Save, Upload, Share2, MessageSquareText, History,
   Sparkles, List, Type, FileImage, Copy, Link2, Building2,
-  Archive, ArchiveRestore
+  Archive, ArchiveRestore, UserMinus
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -149,6 +149,7 @@ const statusColors: Record<string, string> = {
   'Under Process': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   'Under Review': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   'Approved': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+  'Backout': 'bg-rose-500/15 text-rose-300 border-rose-500/30',
   'Rejected': 'bg-red-500/15 text-red-400 border-red-500/25',
   'Completed': 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
@@ -162,6 +163,7 @@ const statusDots: Record<string, string> = {
   'Under Process': 'bg-amber-400',
   'Under Review': 'bg-amber-400',
   'Approved': 'bg-emerald-400',
+  'Backout': 'bg-rose-400',
   'Rejected': 'bg-red-400',
   'Completed': 'bg-purple-400',
   'Payment Initiated': 'bg-amber-400',
@@ -170,7 +172,7 @@ const statusDots: Record<string, string> = {
   'Archived': 'bg-slate-400',
 }
 
-const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted', 'Archived']
+const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Backout', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted', 'Archived']
 
 const followerRanges = [
   { label: '< 1K', min: 0, max: 999 },
@@ -816,6 +818,8 @@ function ActionsDropdown({
   onGhostHistory,
   onArchiveCreator,
   onSendWhatsApp,
+  onMarkBackout,
+  onRevertBackout,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -830,6 +834,8 @@ function ActionsDropdown({
   onGhostHistory?: (app: Application) => void
   onArchiveCreator?: (app: Application, action: 'archive' | 'unarchive') => void
   onSendWhatsApp?: (app: Application) => void
+  onMarkBackout?: (app: Application) => void
+  onRevertBackout?: (app: Application) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -1046,6 +1052,35 @@ function ActionsDropdown({
                 </svg>
                 <span>Send WhatsApp Message</span>
               </button>
+
+              {/* Backout / Revert Backout Action */}
+              {app.status === 'Backout' || app.form_data?.backout_details ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onRevertBackout?.(app)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                  title="Revert backout and restore creator to Approved"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span>Revert Backout (Restore)</span>
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onMarkBackout?.(app)
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                  title="Mark creator as Backout with reason"
+                >
+                  <UserMinus className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                  <span>Mark as Backout</span>
+                </button>
+              )}
 
               {/* Archive / Unarchive Action */}
               {app.users?.is_archived || app.is_archived ? (
@@ -1433,6 +1468,13 @@ export default function AllApplicationsPage() {
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('Applied')
+  const [approvedSubFilter, setApprovedSubFilter] = useState<'all' | 'address_shared' | 'address_pending' | 'backout'>('all')
+
+  // Backout Modal State
+  const [backoutModalApps, setBackoutModalApps] = useState<Application[] | null>(null)
+  const [backoutReason, setBackoutReason] = useState('')
+  const [selectedBackoutPreset, setSelectedBackoutPreset] = useState('Declined barter / changed mind')
+  const [backoutSubmitting, setBackoutSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ column: 'date', direction: 'desc' })
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -2081,10 +2123,29 @@ export default function AllApplicationsPage() {
       result = result.filter(a => a.is_ghosted)
     } else if (activeStatus === 'Archived') {
       result = result.filter(a => a.is_archived || a.users?.is_archived)
+    } else if (activeStatus === 'Backout') {
+      result = result.filter(a => a.status === 'Backout' || a.form_data?.backout_details)
+    } else if (activeStatus === 'Approved') {
+      if (approvedSubFilter === 'backout') {
+        result = result.filter(a => a.status === 'Backout' || a.form_data?.backout_details)
+      } else {
+        result = result.filter(a => a.status === 'Approved' && !a.is_archived && !a.users?.is_archived && !a.is_ghosted && !a.form_data?.backout_details)
+        if (approvedSubFilter === 'address_shared') {
+          result = result.filter(a => {
+            const addr = resolveApplicationAddress(a)
+            return addr && addr.address_line1
+          })
+        } else if (approvedSubFilter === 'address_pending') {
+          result = result.filter(a => {
+            const addr = resolveApplicationAddress(a)
+            return !addr || !addr.address_line1
+          })
+        }
+      }
     } else if (activeStatus === 'All') {
       // keep all
     } else {
-      result = result.filter(a => a.status === activeStatus && !a.is_archived && !a.users?.is_archived)
+      result = result.filter(a => a.status === activeStatus && !a.is_archived && !a.users?.is_archived && a.status !== 'Backout' && !a.form_data?.backout_details)
     }
 
     // Brand Shared filter
@@ -2544,6 +2605,89 @@ export default function AllApplicationsPage() {
     setCancelActiveApplications(true)
   }
 
+  // ─── Backout Handlers ──────────────────────────────────────
+  const handleConfirmBackout = async () => {
+    if (!backoutModalApps || backoutModalApps.length === 0) return
+    setBackoutSubmitting(true)
+    try {
+      const finalReason = backoutReason.trim() || selectedBackoutPreset
+      const nowIso = new Date().toISOString()
+      const adminIdentity = admin?.email || admin?.name || 'Operations Admin'
+
+      const updatePromises = backoutModalApps.map(app => {
+        const currForm = (app.form_data && typeof app.form_data === 'object') ? app.form_data : {}
+        const mergedForm = {
+          ...currForm,
+          backout_details: {
+            reason: finalReason,
+            marked_at: nowIso,
+            marked_by: adminIdentity,
+            previous_status: app.status
+          }
+        }
+        return supabase
+          .from('applications')
+          .update({
+            status: 'Backout',
+            form_data: mergedForm,
+            team_remark: `Backout: ${finalReason}`,
+            updated_at: nowIso
+          })
+          .eq('id', app.id)
+      })
+
+      await Promise.all(updatePromises)
+      toast.success(`Marked ${backoutModalApps.length} creator${backoutModalApps.length > 1 ? 's' : ''} as Backout`)
+      setBackoutModalApps(null)
+      setSelectedIds(new Set())
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to mark backout')
+    } finally {
+      setBackoutSubmitting(false)
+    }
+  }
+
+  const handleRevertBackout = async (targetApp: Application) => {
+    try {
+      const previousStatus = targetApp.form_data?.backout_details?.previous_status || 'Approved'
+      const currForm = (targetApp.form_data && typeof targetApp.form_data === 'object') ? { ...targetApp.form_data } : {}
+      delete currForm.backout_details
+
+      const { error } = await supabase
+        .from('applications')
+        .update({
+          status: previousStatus,
+          form_data: currForm,
+          team_remark: 'Reverted Backout — Restored to ' + previousStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetApp.id)
+
+      if (error) throw error
+      toast.success(`Restored ${targetApp.users?.full_name || 'creator'} back to ${previousStatus}`)
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to revert backout')
+    }
+  }
+
+  const handleBulkBackout = () => {
+    if (selectedIds.size === 0) return
+    const selectedApps = Array.from(selectedIds)
+      .map(id => applications.find(a => a.id === id))
+      .filter(Boolean) as Application[]
+
+    if (selectedApps.length === 0) {
+      toast.error('No valid applications selected')
+      return
+    }
+
+    setBackoutModalApps(selectedApps)
+    setSelectedBackoutPreset('Declined barter / changed mind')
+    setBackoutReason('')
+  }
+
   // ─── Resolve Application Address Helper ────────────────────
   const resolveApplicationAddress = (app: Application) => {
     let addr: any = null
@@ -2692,8 +2836,39 @@ export default function AllApplicationsPage() {
       if (a.is_archived || a.users?.is_archived) {
         counts['Archived'] = (counts['Archived'] || 0) + 1
       }
+      if (a.status === 'Backout' || a.form_data?.backout_details) {
+        counts['Backout'] = (counts['Backout'] || 0) + 1
+      }
     })
     return counts
+  }, [applications, searchQuery])
+
+  // Sub-counts for the Approved pipeline
+  const approvedCounts = useMemo(() => {
+    let all = 0
+    let addressShared = 0
+    let addressPending = 0
+    let backout = 0
+
+    const pool = searchQuery.trim()
+      ? applications.filter(a => matchesApplicationSearch(a, searchQuery))
+      : applications
+
+    pool.forEach(a => {
+      if (a.status === 'Backout' || a.form_data?.backout_details) {
+        backout++
+      } else if (a.status === 'Approved' && !a.is_archived && !a.users?.is_archived) {
+        all++
+        const addr = resolveApplicationAddress(a)
+        if (addr && addr.address_line1) {
+          addressShared++
+        } else {
+          addressPending++
+        }
+      }
+    })
+
+    return { all, addressShared, addressPending, backout }
   }, [applications, searchQuery])
 
   // ─── Detect matches in other statuses when current tab has 0 matches ─
@@ -2805,6 +2980,91 @@ export default function AllApplicationsPage() {
           </button>
         </div>
       </div>
+
+      {/* ─── Approved Sub-Pipeline Filters (Address Shared / Pending / Backout) ─── */}
+      {activeStatus === 'Approved' && (
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 px-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Approved Pipeline:
+            </span>
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setApprovedSubFilter('all')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  approvedSubFilter === 'all'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span>All Approved</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/20 font-mono">
+                  {approvedCounts.all}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setApprovedSubFilter('address_shared')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  approvedSubFilter === 'address_shared'
+                    ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 shadow-sm'
+                    : 'text-emerald-300/80 hover:text-emerald-200 hover:bg-emerald-500/10'
+                }`}
+                title="Creators who have shared their physical delivery address"
+              >
+                <MapPin className="h-3 w-3 text-emerald-400" />
+                <span>Address Shared</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-950/60 text-emerald-300 font-mono">
+                  {approvedCounts.addressShared}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setApprovedSubFilter('address_pending')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  approvedSubFilter === 'address_pending'
+                    ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40 shadow-sm'
+                    : 'text-amber-300/80 hover:text-amber-200 hover:bg-amber-500/10'
+                }`}
+                title="Creators whose delivery address is still missing"
+              >
+                <Clock className="h-3 w-3 text-amber-400" />
+                <span>Address Pending</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-950/60 text-amber-300 font-mono">
+                  {approvedCounts.addressPending}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setApprovedSubFilter('backout')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  approvedSubFilter === 'backout'
+                    ? 'bg-rose-500/30 text-rose-200 border border-rose-400/40 shadow-sm'
+                    : 'text-rose-300/80 hover:text-rose-200 hover:bg-rose-500/10'
+                }`}
+                title="Creators who backed out after being approved"
+              >
+                <UserMinus className="h-3 w-3 text-rose-400" />
+                <span>Backout</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-950/60 text-rose-300 font-mono">
+                  {approvedCounts.backout}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {approvedSubFilter === 'address_pending' && (
+            <p className="text-[11px] text-amber-300/90 font-medium px-2">
+              💡 Tip: Select pending creators and click <span className="font-bold text-white">WhatsApp</span> below to request their shipping address.
+            </p>
+          )}
+        </div>
+      )}
 
       {activeStatus === 'Ghosted' && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
@@ -3506,6 +3766,36 @@ export default function AllApplicationsPage() {
                                     <span>Ghosted</span>
                                   </span>
                                 )}
+
+                                {app.status === 'Approved' && (
+                                  (() => {
+                                    const addr = resolveApplicationAddress(app)
+                                    const hasAddr = Boolean(addr && addr.address_line1)
+                                    return (
+                                      <span
+                                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold border whitespace-nowrap ${
+                                          hasAddr
+                                            ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                            : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                        }`}
+                                        title={hasAddr ? `Address: ${addr.address_line1}, ${addr.city || ''} (${addr.pincode || ''})` : 'Physical shipping address not shared yet'}
+                                      >
+                                        <MapPin className="h-2.5 w-2.5 shrink-0" />
+                                        <span>{hasAddr ? 'Address Shared' : 'Address Pending'}</span>
+                                      </span>
+                                    )
+                                  })()
+                                )}
+
+                                {(app.status === 'Backout' || app.form_data?.backout_details) && (
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/35 whitespace-nowrap"
+                                    title={app.form_data?.backout_details?.reason ? `Backout: ${app.form_data.backout_details.reason}` : 'Creator backed out after approval'}
+                                  >
+                                    <UserMinus className="h-2.5 w-2.5 text-rose-400 shrink-0" />
+                                    <span>Backout</span>
+                                  </span>
+                                )}
                               </div>
                               {String(app.campaigns?.budget_type || '').toLowerCase().includes('variable') && (
                                 app.form_data?.negotiation?.status === 'pending_peer_approval' ? (
@@ -3657,6 +3947,12 @@ export default function AllApplicationsPage() {
                               onGhostHistory={(targetApp) => setGhostHistoryApp(targetApp)}
                               onArchiveCreator={handleArchiveCreator}
                                onSendWhatsApp={handleOpenWhatsApp}
+                               onMarkBackout={(app) => {
+                                 setBackoutModalApps([app])
+                                 setSelectedBackoutPreset('Declined barter / changed mind')
+                                 setBackoutReason('')
+                               }}
+                               onRevertBackout={handleRevertBackout}
                             />
                           </td>
                         )}
@@ -4637,6 +4933,20 @@ export default function AllApplicationsPage() {
                       >
                         <span className="text-sm">👻</span>
                         <span>Ghost Creator(s)</span>
+                      </button>
+
+                      {/* BACKOUT */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkMoreOpen(false)
+                          handleBulkBackout()
+                        }}
+                        disabled={bulkUpdating}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-rose-300 hover:bg-rose-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <UserMinus className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                        <span>Mark as Backout ({selectedIds.size})</span>
                       </button>
 
                       {/* ARCHIVE */}
@@ -5717,6 +6027,129 @@ export default function AllApplicationsPage() {
                     <>
                       <Archive className="h-3.5 w-3.5" />
                       <span>Confirm & Archive</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Mark Backout Modal ─────────────────────────────────── */}
+      <AnimatePresence>
+        {backoutModalApps && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400">
+                    <UserMinus className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">
+                      {backoutModalApps.length > 1
+                        ? `Mark ${backoutModalApps.length} Creators as Backout`
+                        : `Mark as Backout: ${backoutModalApps[0].users?.full_name || 'Creator'}`}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Record post-approval creator drop-off with specific reason
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBackoutModalApps(null)}
+                  disabled={backoutSubmitting}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Preset Reason Tags */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Select Backout Reason:
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Declined barter / changed mind',
+                    'Schedule / timeline conflict',
+                    'Commercial / rate dispute',
+                    'Unresponsive after approval',
+                    'Sample delivery refused / returned',
+                    'Other / custom remark',
+                  ].map((preset) => {
+                    const isSelected = selectedBackoutPreset === preset
+                    return (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBackoutPreset(preset)
+                          if (preset !== 'Other / custom remark') {
+                            setBackoutReason(preset)
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                            : 'bg-slate-800/60 text-slate-400 border-white/5 hover:border-white/15 hover:text-white'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Remarks */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Backout Remarks / Details:
+                </label>
+                <textarea
+                  value={backoutReason}
+                  onChange={(e) => setBackoutReason(e.target.value)}
+                  placeholder="e.g. Creator stated they are travelling and cannot submit video deliverables on time..."
+                  rows={3}
+                  className="w-full text-xs bg-slate-950/70 border border-slate-700/60 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/50 resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBackoutModalApps(null)}
+                  disabled={backoutSubmitting}
+                  className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmBackout}
+                  disabled={backoutSubmitting}
+                  className="h-8 px-4 text-xs font-bold bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-lg shadow-md shadow-rose-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {backoutSubmitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserMinus className="h-3.5 w-3.5" />
+                      <span>Confirm Backout</span>
                     </>
                   )}
                 </Button>
