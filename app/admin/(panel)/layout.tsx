@@ -476,8 +476,8 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                         {category.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                      <span className="text-[8.5px] font-mono text-slate-600 group-hover:text-slate-500">
+                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                      <span className="text-[8.5px] font-mono font-bold text-amber-400 bg-amber-400/10 px-1 py-0.2 rounded border border-amber-400/20 group-hover:text-amber-300 group-hover:border-amber-400/30">
                         {category.links.length}
                       </span>
                       <ChevronDown
