@@ -323,47 +323,52 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Logo */}
-        <div className="p-5 border-b border-white/5 shrink-0">
-          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-500 shadow-lg shadow-indigo-500/20">
-              <ShieldCheck className="h-4 w-4 text-white" />
+        {/* Compact Logo */}
+        <div className="px-3.5 py-2.5 border-b border-white/5 shrink-0 flex items-center justify-between">
+          <Link href="/admin/dashboard" className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-500 shadow-md shadow-indigo-500/20 shrink-0">
+              <ShieldCheck className="h-3.5 w-3.5 text-white" />
             </div>
-            <div>
-              <span className="text-lg font-bold text-white">Admin</span>
-              <span className="text-[10px] text-indigo-400 block -mt-1 font-medium">1to7 Media</span>
+            <div className="leading-tight">
+              <span className="text-sm font-bold text-white block">Admin</span>
+              <span className="text-[9px] text-indigo-400 font-medium block -mt-0.5">1to7 Media</span>
             </div>
           </Link>
+          <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+            v2.0
+          </span>
         </div>
 
-        {/* Admin Info & Role Badge - Clickable to /admin/profile */}
+        {/* Compact Admin Info & Role Badge - Clickable to /admin/profile */}
         <Link
           href="/admin/profile"
           onClick={() => setSidebarOpen(false)}
-          className={`block p-4 border-b border-white/5 transition-all hover:bg-white/[0.04] group cursor-pointer shrink-0 ${
+          className={`block px-3.5 py-2 border-b border-white/5 transition-all hover:bg-white/[0.04] group cursor-pointer shrink-0 ${
             pathname === '/admin/profile' ? 'bg-indigo-500/10' : ''
           }`}
           suppressHydrationWarning
         >
-          <div className="flex items-center gap-3" suppressHydrationWarning>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-bold text-white shadow-md group-hover:scale-105 transition-transform" suppressHydrationWarning>
+          <div className="flex items-center gap-2.5" suppressHydrationWarning>
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-xs font-bold text-white shadow-sm group-hover:scale-105 transition-transform" suppressHydrationWarning>
               {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
             <div className="flex-1 min-w-0" suppressHydrationWarning>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors" suppressHydrationWarning>{admin?.name || 'Admin'}</p>
-                <User className="h-3.5 w-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors shrink-0" />
+                <p className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors" suppressHydrationWarning>
+                  {admin?.name || 'Admin'}
+                </p>
+                <User className="h-3 w-3 text-slate-500 group-hover:text-indigo-400 transition-colors shrink-0" />
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5" suppressHydrationWarning>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]" suppressHydrationWarning>
+              <div className="flex items-center gap-1 mt-0.5" suppressHydrationWarning>
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[110px]" suppressHydrationWarning>
                   {admin?.roleDisplayName || (isSuperAdmin ? 'Super Admin' : admin?.role || 'Staff')}
                 </span>
                 {admin?.phone ? (
-                  <span className="text-[10px] text-emerald-400 font-mono" title={`Phone linked: ${admin.phone}`}>
+                  <span className="text-[9px] text-emerald-400 font-mono" title={`Phone linked: ${admin.phone}`}>
                     📞
                   </span>
                 ) : (
-                  <span className="text-[9px] text-amber-400/80 font-medium" title="Add phone in profile">
+                  <span className="text-[8.5px] text-amber-400/80 font-medium" title="Add phone in profile">
                     +Phone
                   </span>
                 )}
@@ -372,29 +377,29 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
 
-        {/* Quick Search Input */}
-        <div className="p-3 pb-2 border-b border-white/5 shrink-0 bg-slate-900/60">
+        {/* Compact Quick Search Input */}
+        <div className="px-2.5 py-1.5 border-b border-white/5 shrink-0 bg-slate-900/60">
           <div className="relative flex items-center">
-            <Search className="absolute left-2.5 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+            <Search className="absolute left-2.5 h-3 w-3 text-slate-500 pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search routes... (/)"
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition-all shadow-inner"
+              className="w-full bg-slate-950/80 border border-white/10 rounded-lg pl-7 pr-6 py-1 text-[11px] text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/60 focus:border-indigo-500/50 transition-all shadow-inner h-7"
             />
             {searchQuery ? (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 p-0.5 text-slate-400 hover:text-white rounded-md cursor-pointer transition-colors"
+                className="absolute right-1.5 p-0.5 text-slate-400 hover:text-white rounded cursor-pointer transition-colors"
                 title="Clear search"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
               </button>
             ) : (
-              <kbd className="absolute right-2 pointer-events-none text-[9px] font-mono text-slate-500 bg-white/5 px-1 py-0.5 rounded border border-white/5">
+              <kbd className="absolute right-1.5 pointer-events-none text-[8.5px] font-mono text-slate-500 bg-white/5 px-1 py-0.5 rounded border border-white/5">
                 /
               </kbd>
             )}
@@ -402,35 +407,38 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Dynamic Nav Links Grouped by Category with Collapse/Expand */}
-        <nav className="flex-1 p-3 space-y-3 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="flex-1 px-2 py-2 space-y-1.5 overflow-y-auto no-scrollbar scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none]">
           {totalMatchingLinks === 0 ? (
-            <div className="py-8 px-2 text-center space-y-2">
+            <div className="py-6 px-2 text-center space-y-1.5">
               <p className="text-xs text-slate-400 font-medium">No routes found matching</p>
               <p className="text-xs font-mono text-indigo-300 break-all">&ldquo;{searchQuery}&rdquo;</p>
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer pt-1"
+                className="inline-flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer pt-0.5"
               >
                 Clear filter
               </button>
             </div>
           ) : (
             processedCategories.map((category) => {
-              // Expanded if user is searching, or if it contains active child, or if not collapsed in state
               const isSearching = normalizedQuery.length > 0
-              const isExpanded = isSearching || category.hasActiveLink || !collapsedCategories[category.id]
+              const isExpanded = isSearching || category.hasActiveLink || (
+                collapsedCategories[category.id] !== undefined
+                  ? !collapsedCategories[category.id]
+                  : (category.id === 'overview' || category.id === 'campaigns' || category.id === 'talent')
+              )
 
               return (
-                <div key={category.id} className="space-y-1">
+                <div key={category.id} className="space-y-0.5">
                   {/* Category Header with Collapse/Expand Toggle */}
                   <button
                     type="button"
                     onClick={() => toggleCategory(category.id)}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/[0.03] rounded-lg transition-colors group cursor-pointer select-none"
+                    className="w-full flex items-center justify-between px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200 hover:bg-white/[0.03] rounded-md transition-colors group cursor-pointer select-none"
                     title={isExpanded ? 'Click to collapse section' : 'Click to expand section'}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       {category.hasActiveLink && (
                         <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/80 shrink-0" />
                       )}
@@ -442,12 +450,12 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                         {category.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                      <span className="text-[9px] font-mono text-slate-600 group-hover:text-slate-500">
+                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                      <span className="text-[8.5px] font-mono text-slate-600 group-hover:text-slate-500">
                         {category.links.length}
                       </span>
                       <ChevronDown
-                        className={`h-3 w-3 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
+                        className={`h-2.5 w-2.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-200 ${
                           isExpanded ? 'rotate-0' : '-rotate-90'
                         }`}
                       />
@@ -456,7 +464,7 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
 
                   {/* Category Links */}
                   {isExpanded && (
-                    <div className="space-y-0.5 pt-0.5">
+                    <div className="space-y-0.5">
                       {category.links.map((link) => {
                         const active = isActive(link.href)
 
@@ -478,14 +486,14 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                             href={link.href}
                             prefetch={true}
                             onClick={() => setSidebarOpen(false)}
-                            className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 group cursor-pointer ${
+                            className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 group cursor-pointer ${
                               active
-                                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5 translate-x-1'
+                                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-sm shadow-indigo-500/5 translate-x-0.5'
                                 : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5 hover:translate-x-0.5'
                             }`}
                           >
                             <link.icon
-                              className={`h-4 w-4 transition-colors shrink-0 ${
+                              className={`h-3.5 w-3.5 transition-colors shrink-0 ${
                                 active ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
                               }`}
                             />
@@ -495,9 +503,9 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                             {counterCount > 0 && counterType === 'issues' && (
                               <span
                                 title={`${counterCount} unresolved user issue${counterCount > 1 ? 's' : ''}`}
-                                className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0 shadow-sm shadow-rose-500/10"
+                                className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 shrink-0 shadow-sm shadow-rose-500/10"
                               >
-                                <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                                <span className="h-1 w-1 rounded-full bg-rose-400 animate-pulse" />
                                 {counterCount}
                               </span>
                             )}
@@ -506,15 +514,15 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
                             {counterCount > 0 && counterType === 'feedback' && (
                               <span
                                 title={`${counterCount} pending feedback submission${counterCount > 1 ? 's' : ''}`}
-                                className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm shadow-amber-500/10"
+                                className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 shadow-sm shadow-amber-500/10"
                               >
-                                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                <span className="h-1 w-1 rounded-full bg-amber-400 animate-pulse" />
                                 {counterCount}
                               </span>
                             )}
 
                             {active && counterCount === 0 && (
-                              <ChevronRight className="ml-auto h-4 w-4 text-indigo-400 shrink-0" />
+                              <ChevronRight className="ml-auto h-3 w-3 text-indigo-400 shrink-0" />
                             )}
                           </Link>
                         )
@@ -527,38 +535,37 @@ function AdminPanelInner({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        {/* Profile & Logout Footer */}
-        <div className="p-3 border-t border-white/5 space-y-1 shrink-0">
+        {/* Compact Profile & Logout Footer */}
+        <div className="p-2 border-t border-white/5 space-y-0.5 shrink-0">
           <Link
             href="/admin/profile"
             onClick={() => setSidebarOpen(false)}
-            className={`flex items-center gap-3 w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-2.5 w-full rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all cursor-pointer ${
               pathname === '/admin/profile'
-                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-md shadow-indigo-500/5'
+                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 shadow-sm shadow-indigo-500/5'
                 : 'text-slate-400 hover:bg-white/5 hover:text-white'
             }`}
           >
-            <User className="h-4.5 w-4.5 text-indigo-400" />
+            <User className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
             <span>My Profile</span>
             {admin?.phone ? (
-              <span className="ml-auto text-[10px] text-emerald-400 font-mono font-medium">Linked</span>
+              <span className="ml-auto text-[9px] text-emerald-400 font-mono font-medium">Linked</span>
             ) : (
-              <span className="ml-auto text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-semibold">
-                Add Phone
+              <span className="ml-auto text-[8.5px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1 py-0.5 rounded font-semibold">
+                +Phone
               </span>
             )}
           </Link>
           <button
             type="button"
             onClick={() => setShowLogoutDialog(true)}
-            className="flex items-center gap-3 w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
+            className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer"
           >
-            <LogOut className="h-4.5 w-4.5" />
-            Sign Out
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0 lg:pl-64">
         {/* Top Bar (mobile) */}
