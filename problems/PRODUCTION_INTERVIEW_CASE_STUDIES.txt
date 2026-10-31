@@ -116,6 +116,7 @@ CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Dedup
 CASE 106: Campaign Ghosting Blindspots in POC Performance Matrix: Disaggregating Ghosted Creators from Active Pending Pipelines & Zero-Latency Multi-Tier Visibility
 CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined Remark Categorization, Fast Multi-Select Batch Ingestion & Dynamic CSV Specification Alignment
 CASE 108: Turbopack Lexical Scope Collision & Build-Time Halt: Duplicate Const Declaration Trap in Complex React Filter Hooks
+CASE 109: Vacuous Deliverable Proof Verification & Uncontrolled Campaign Completion Bypass: Dynamic Campaign-Scoped Completion Form Engine & Strict Link Enforcement
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4752,3 +4753,56 @@ S: Adding a new status filter tab alongside an existing dropdown filter caused T
 T: Eliminate the duplicate declaration, unify variable scoping within the filter pipeline, and verify zero AST/transpilation diagnostics.
 A: Hoisted the normalized `entryRemark` resolution once at the top of the record filter callback and removed the downstream redeclaration, ensuring single-source-of-truth variable evaluation.
 R: Next.js Turbopack compiled cleanly with 0 diagnostics, and all multi-attribute filtering (tabs, dropdowns, full-text search) executed without runtime or build errors.
+
+
+====================================================================================================
+CASE 109: Vacuous Deliverable Proof Verification & Uncontrolled Campaign Completion Bypass: Dynamic Campaign-Scoped Completion Form Engine & Strict Link Enforcement
+====================================================================================================
+CATEGORIES: Next.js 16 / PostgreSQL / Business Logic / Form Validation / Full-Stack Governance
+Interview Question:
+"In an influencer campaign lifecycle where creators are paid upon deliverable submission, how do you prevent creators from bypassing mandatory proof requirements (e.g. submitting without live post URLs)? Furthermore, how do you architect a dynamic, campaign-scoped form builder that allows admins to customize deliverable requirements per brand while maintaining strict database integrity and backward compatibility?"
+
+[SITUATION]
+In the 1to7 Influencer Platform, creators whose applications were approved are tasked with publishing sponsored content (e.g., Instagram Reels, Stories, or YouTube videos) and submitting completion proof in their dashboard (/dashboard/approved -> ApprovedCampaignModal).
+Operations teams reported that multiple creators were successfully submitting completion forms without providing their live post/reel URL. The deliverables table in the admin desk showed missing URLs, leading to administrative overhead where brand managers had to manually chase creators on WhatsApp to obtain the content link. Additionally, different brand campaigns required distinct completion deliverables (e.g., some required live links, some required story screenshots, comments count, or brand collaboration tag status), but the completion form was entirely hardcoded with no campaign-level controls.
+
+[ROOT CAUSE]
+1. Vacuous OR Validation Condition:
+   In ApprovedCampaignModal.tsx line 290 and API endpoint /api/dashboard/applications/[id]/completion line 34:
+   `if (!deliverable_link && !supporting_document)`
+   The logical validation was structured as an OR guard rather than an AND guard. If a creator attached ANY image/document into the "Proof Screenshot" field, the condition evaluated to false, allowing `deliverable_link` to be completely empty.
+2. Complete Absence of Campaign-Level Completion Controls:
+   While the campaign creation and edit portals supported custom application fields (form_fields), order details fields (order_form_fields), and custom payment request fields (payment_form_fields), there was no campaign-level schema or UI for "Completion Form Settings". The completion form in the creator portal was completely static and hardcoded.
+
+[SOLUTION & ARCHITECTURE]
+1. Relational Schema Migration (Zero-Downtime DDL):
+   Added 3 campaign-level columns to public.campaigns:
+   - `require_deliverable_link` BOOLEAN DEFAULT TRUE: Mandates that creators must provide a live URL before submitting.
+   - `require_analytics_proof` BOOLEAN DEFAULT FALSE: Configures whether insights/analytics screenshots are mandatory or optional.
+   - `completion_form_fields` JSONB DEFAULT '[]'::jsonb: Stores dynamic deliverable questionnaire schema (text, numbers, dropdowns, images, dates).
+   Integrated idempotent DDL into `lib/db.ts` `ensurePocMigration()` and created `supabase/migration_campaign_completion_form.sql`.
+
+2. Admin Campaign Suite Integration (/admin/campaigns/[id] & /admin/campaigns/create):
+   - Added a dedicated "Completion Form & Deliverables Control" card in both create and edit views.
+   - Integrated intuitive toggles for "Live Deliverable Link Required?" (Default: Mandatory) and "Insights Screenshot Proof Required?".
+   - Embedded `FormFieldBuilder` allowing admins to add custom campaign-specific deliverable questions (e.g., "Story Link", "Collaboration Tag Status", "Comments Count", "Product in Frame Screenshot").
+   - Whitelisted new fields in the admin campaign update API (`/api/admin/campaigns/[id]/route.ts` and `app/api/admin/campaigns/route.ts`).
+
+3. Strict Creator-Facing Enforcing Pipeline (ApprovedCampaignModal.tsx):
+   - Read campaign configuration `require_deliverable_link`, `require_analytics_proof`, and `completion_form_fields`.
+   - Replaced loose OR validation with strict, campaign-aware validation:
+     a) If `require_deliverable_link !== false`, verified that `deliverable_link` is non-empty and starts with `http://` or `https://`.
+     b) If `require_analytics_proof === true`, verified that `proofUrl` is attached.
+     c) Validated all mandatory custom fields defined in `completion_form_fields`.
+   - Rendered visual Semiotic Badges ("Mandatory" vs "Optional") and dynamically generated inputs (text, number, dropdown, textarea, file upload) bound to `custom_responses`.
+
+4. Backend Guardrail & Multi-Attempt History Integrity:
+   - Updated `/api/dashboard/applications/[id]/completion/route.ts` to fetch campaign deliverable requirements and strictly reject non-compliant payloads with 400 Bad Request before updating application state.
+   - Maintained `custom_responses` in `applications.form_data.completion_submission` and archived them in `completion_history` across revision attempts.
+   - Exposed custom responses in `/admin/completion-details` review and edit modals.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Creators were submitting campaign completions without providing live post URLs, bypassing proof requirements and forcing manual manager outreach, while campaigns lacked customization for deliverable types.
+T: Prevent empty URL submissions, enforce strict validation, and build a dynamic campaign-scoped completion form engine configurable by admins.
+A: Migrated `campaigns` table with `require_deliverable_link`, `require_analytics_proof`, and `completion_form_fields` JSONB; embedded `FormFieldBuilder` into Admin Campaign create/edit portals; enforced campaign-level validation in both the client modal and backend completion API; and dynamically rendered custom deliverables inputs.
+R: 100% of live campaign submissions now enforce valid deliverable links by default, admins have full granular control over proof rules per campaign, and custom requirements are collected seamlessly without code changes.

@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft, Loader2, Save, Megaphone, FileSliders, ClipboardList, Sparkle,
   Percent, IndianRupee, Wallet, CreditCard, Lock, Unlock, Users, Clock,
-  FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle, History, Calendar
+  FileText, UserCheck, ShieldCheck, AlertTriangle, AlertCircle, History, Calendar, CheckSquare, Link2
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { Input } from '@/components/ui/input'
@@ -76,6 +76,9 @@ interface CampaignData {
   completion_days?: number
   completion_deadline?: string
   enforce_completion_deadline?: boolean
+  require_deliverable_link?: boolean
+  require_analytics_proof?: boolean
+  completion_form_fields?: FormField[]
   is_test_mode?: boolean
   test_user_ids?: string[]
   test_creators?: PilotCreator[]
@@ -122,6 +125,8 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
+    require_deliverable_link: true,
+    require_analytics_proof: false,
     brief_document_url: '',
     is_test_mode: false,
     test_user_ids: [] as string[],
@@ -131,6 +136,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
   const [customFields, setCustomFields] = useState<FormField[]>([])
   const [orderFormFields, setOrderFormFields] = useState<FormField[]>([])
   const [paymentFormFields, setPaymentFormFields] = useState<FormField[]>([])
+  const [completionFormFields, setCompletionFormFields] = useState<FormField[]>([])
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   useEffect(() => {
@@ -183,6 +189,8 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         completion_days: data.campaign.completion_days ? String(data.campaign.completion_days) : '7',
         completion_deadline: data.campaign.completion_deadline ? data.campaign.completion_deadline.split('T')[0] : '',
         enforce_completion_deadline: data.campaign.enforce_completion_deadline !== false,
+        require_deliverable_link: data.campaign.require_deliverable_link !== false,
+        require_analytics_proof: Boolean(data.campaign.require_analytics_proof),
         brief_document_url: data.campaign.brief_document_url || '',
         is_test_mode: Boolean(data.campaign.is_test_mode),
         test_user_ids: Array.isArray(data.campaign.test_user_ids) ? data.campaign.test_user_ids : [],
@@ -192,6 +200,7 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
       setCustomFields(orderFieldsStateBeforeCity(data.campaign.form_fields || []))
       setOrderFormFields(data.campaign.order_form_fields || [])
       setPaymentFormFields(data.campaign.payment_form_fields || [])
+      setCompletionFormFields(data.campaign.completion_form_fields || [])
     } catch {
       toast.error('Failed to load campaign')
     } finally {
@@ -235,6 +244,9 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
         completion_days: formData.completion_days ? parseInt(formData.completion_days, 10) || 7 : 7,
         completion_deadline: formData.completion_deadline || null,
         enforce_completion_deadline: formData.enforce_completion_deadline !== false,
+        require_deliverable_link: formData.require_deliverable_link !== false,
+        require_analytics_proof: Boolean(formData.require_analytics_proof),
+        completion_form_fields: completionFormFields.filter(f => f.name.trim()),
       }
 
       const res = await fetch(`/api/admin/campaigns/${id}`, {
@@ -1152,6 +1164,102 @@ export default function AdminEditCampaignPage({ params }: { params: Promise<{ id
           <div className="p-6">
             <p className="text-xs text-slate-500 mb-4">Define extra fields that influencers must fill when applying. These appear in the application form.</p>
             <FormFieldBuilder fields={customFields} onChange={setCustomFields} />
+          </div>
+        </div>
+
+        {/* Completion Form & Deliverables Control */}
+        <div className="rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-lg overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-white/5 bg-gradient-to-r from-blue-500/5 to-transparent">
+            <CheckSquare className="h-4 w-4 text-blue-400" />
+            <h3 className="text-sm font-semibold text-white">Completion Form & Deliverables Control</h3>
+            <span className="text-[10px] text-slate-500 ml-auto">{completionFormFields.length} custom field{completionFormFields.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="p-6 space-y-5">
+            {/* Require Deliverable Live Link Toggle */}
+            <div className="space-y-1.5 pb-2 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  Live Deliverable Link Required?
+                </Label>
+                <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/25">
+                  Content Proof
+                </span>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, require_deliverable_link: true })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    formData.require_deliverable_link !== false
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-sm shadow-blue-500/10'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  🔗 Mandatory — Creator MUST submit Live Post / Reel URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, require_deliverable_link: false })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    formData.require_deliverable_link === false
+                      ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  ⚪ Optional — Submission allowed without live link
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                When enabled, creators cannot submit completion without providing their live Instagram / YouTube content URL.
+              </p>
+            </div>
+
+            {/* Require Analytics Proof Toggle */}
+            <div className="space-y-1.5 pb-2 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                  Insights & Analytics Screenshot Proof Required?
+                </Label>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, require_analytics_proof: true })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    formData.require_analytics_proof
+                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  📸 Mandatory — Screenshot proof required
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, require_analytics_proof: false })}
+                  className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                    !formData.require_analytics_proof
+                      ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                      : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  ⚪ Optional Proof — Creators can attach if available
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                If enabled, creators must upload insights/reach analytics screenshot before submitting.
+              </p>
+            </div>
+
+            {/* Custom Completion Form Fields */}
+            <div className="space-y-3">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                Custom Completion Form Fields (Optional)
+              </Label>
+              <p className="text-xs text-slate-500">
+                Define extra deliverable fields that influencers must fill when completing the campaign (e.g. Story Link, Collaboration Tag Confirmation, Views Count).
+              </p>
+              <FormFieldBuilder fields={completionFormFields} onChange={setCompletionFormFields} />
+            </div>
           </div>
         </div>
 

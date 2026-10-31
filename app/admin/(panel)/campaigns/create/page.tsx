@@ -8,7 +8,7 @@ import {
   FileSliders, ClipboardList, Wallet, CreditCard, Sparkles,
   Percent, IndianRupee, Layers, CheckCircle2, AlertCircle,
   RotateCcw, ShieldCheck, Lock, Unlock, Users, Clock, FileText,
-  Copy, CopyPlus, ClipboardPaste, Sparkle, Calendar
+  Copy, CopyPlus, ClipboardPaste, Sparkle, Calendar, CheckSquare
 } from 'lucide-react'
 import FormFieldBuilder, { FormField } from '@/components/admin/FormFieldBuilder'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
@@ -66,6 +66,8 @@ export default function AdminCreateCampaignPage() {
     completion_days: '7',
     completion_deadline: '',
     enforce_completion_deadline: true,
+    require_deliverable_link: true,
+    require_analytics_proof: false,
     brief_document_url: '',
     is_test_mode: false,
     test_user_ids: [] as string[],
@@ -84,6 +86,7 @@ export default function AdminCreateCampaignPage() {
     { name: 'Payment Proof Screenshot (UPI/Bank)', type: 'image', required: true, options: [] }
   ])
   const [paymentFormFields, setPaymentFormFields] = useState<FormField[]>([])
+  const [completionFormFields, setCompletionFormFields] = useState<FormField[]>([])
 
   // Helper to populate all form fields from another campaign
   const populateFromCampaign = (source: any) => {
@@ -124,6 +127,8 @@ export default function AdminCreateCampaignPage() {
       completion_days: source.completion_days ? String(source.completion_days) : '7',
       completion_deadline: source.completion_deadline || '',
       enforce_completion_deadline: source.enforce_completion_deadline !== false,
+      require_deliverable_link: source.require_deliverable_link !== false,
+      require_analytics_proof: Boolean(source.require_analytics_proof),
       brief_document_url: source.brief_document_url || '',
       is_test_mode: Boolean(source.is_test_mode),
       test_user_ids: Array.isArray(source.test_user_ids) ? source.test_user_ids : [],
@@ -139,6 +144,9 @@ export default function AdminCreateCampaignPage() {
     }
     if (Array.isArray(source.payment_form_fields) && source.payment_form_fields.length > 0) {
       setPaymentFormFields(source.payment_form_fields)
+    }
+    if (Array.isArray(source.completion_form_fields) && source.completion_form_fields.length > 0) {
+      setCompletionFormFields(source.completion_form_fields)
     }
 
     toast.success(`Loaded all specifications from "${source.brand_name}"! You can now customize and publish.`)
@@ -183,6 +191,7 @@ export default function AdminCreateCampaignPage() {
         form_fields: customFields,
         order_form_fields: orderFormFields,
         payment_form_fields: paymentFormFields,
+        completion_form_fields: completionFormFields,
       }
       const str = JSON.stringify(payload, null, 2)
       navigator.clipboard.writeText(str)
@@ -235,6 +244,7 @@ export default function AdminCreateCampaignPage() {
           if (parsed.customFields) setCustomFields(parsed.customFields)
           if (parsed.orderFormFields) setOrderFormFields(parsed.orderFormFields)
           if (parsed.paymentFormFields) setPaymentFormFields(parsed.paymentFormFields)
+          if (parsed.completionFormFields) setCompletionFormFields(parsed.completionFormFields)
           if (parsed.savedAt) setLastSavedTime(parsed.savedAt)
           toast.info('Restored your saved campaign draft!')
         }
@@ -254,6 +264,7 @@ export default function AdminCreateCampaignPage() {
           customFields,
           orderFormFields,
           paymentFormFields,
+          completionFormFields,
           savedAt: now,
         }
         localStorage.setItem(DRAFT_KEY, JSON.stringify(draftPayload))
@@ -262,7 +273,7 @@ export default function AdminCreateCampaignPage() {
         // ignore
       }
     }
-  }, [formData, customFields, orderFormFields, paymentFormFields])
+  }, [formData, customFields, orderFormFields, paymentFormFields, completionFormFields])
 
   const clearDraft = () => {
     localStorage.removeItem(DRAFT_KEY)
@@ -298,6 +309,8 @@ export default function AdminCreateCampaignPage() {
       completion_days: '7',
       completion_deadline: '',
       enforce_completion_deadline: true,
+      require_deliverable_link: true,
+      require_analytics_proof: false,
       brief_document_url: '',
       is_test_mode: false,
       test_user_ids: [],
@@ -340,6 +353,9 @@ export default function AdminCreateCampaignPage() {
         show_order_form: formData.show_order_form,
         address_required: formData.address_required,
         payment_form_fields: paymentFormFields.filter(f => f.name.trim()),
+        require_deliverable_link: formData.require_deliverable_link !== false,
+        require_analytics_proof: Boolean(formData.require_analytics_proof),
+        completion_form_fields: completionFormFields.filter(f => f.name.trim()),
       }
 
       const res = await fetch('/api/admin/campaigns', {
@@ -1318,6 +1334,100 @@ export default function AdminCreateCampaignPage() {
                 <span className="text-[11px] text-slate-400 shrink-0">{customFields.length} field(s)</span>
               </div>
               <FormFieldBuilder fields={customFields} onChange={setCustomFields} />
+            </div>
+
+            {/* Completion Form & Deliverables Control */}
+            <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/15 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                <Label className="text-slate-300 text-xs font-semibold uppercase tracking-wider flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-blue-400" />
+                  Completion Form & Deliverables Control
+                </Label>
+                <span className="text-[11px] text-slate-400">{completionFormFields.length} custom field(s)</span>
+              </div>
+
+              {/* Require Deliverable Live Link Toggle */}
+              <div className="space-y-1.5 pb-2 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Live Deliverable Link Required?
+                  </Label>
+                  <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/25">
+                    Content Proof
+                  </span>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, require_deliverable_link: true })}
+                    className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                      formData.require_deliverable_link !== false
+                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-sm shadow-blue-500/10'
+                        : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    🔗 Mandatory — Live Link Required
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, require_deliverable_link: false })}
+                    className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                      formData.require_deliverable_link === false
+                        ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                        : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    ⚪ Optional — No link needed
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  When enabled, creators cannot submit completion without providing their live Instagram / YouTube content URL.
+                </p>
+              </div>
+
+              {/* Require Analytics Proof Toggle */}
+              <div className="space-y-1.5 pb-2 border-b border-white/5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                    Insights & Analytics Screenshot Proof Required?
+                  </Label>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, require_analytics_proof: true })}
+                    className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                      formData.require_analytics_proof
+                        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                        : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    📸 Mandatory — Screenshot proof required
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, require_analytics_proof: false })}
+                    className={`flex-1 h-11 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer border flex items-center justify-center gap-2 ${
+                      !formData.require_analytics_proof
+                        ? 'bg-slate-800/80 text-slate-300 border-white/15'
+                        : 'bg-slate-950/50 text-slate-400 border-white/10 hover:border-white/20'
+                    }`}
+                  >
+                    ⚪ Optional Proof — Creators can attach if available
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Completion Fields */}
+              <div className="space-y-2">
+                <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider">
+                  Custom Completion Form Fields (Optional)
+                </Label>
+                <p className="text-xs text-slate-500">
+                  Add campaign-specific deliverable questions or proofs (e.g. Story Link, Collaboration Tag Status, Views/Impressions).
+                </p>
+                <FormFieldBuilder fields={completionFormFields} onChange={setCompletionFormFields} />
+              </div>
             </div>
 
             {/* Custom Payment Fields Builder */}

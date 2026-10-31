@@ -594,7 +594,7 @@ export default function CompletionDetailsPage() {
   // ─── Edit Submission Modal Open & Save ──────────────────
   const openEditModal = (app: CompletionEntry) => {
     const comp = getCompletionDetails(app)
-    const customResponses: Record<string, any> = {}
+    const customResponses: Record<string, any> = { ...(comp.custom_responses || {}) }
     if (app.form_data) {
       Object.entries(app.form_data).forEach(([k, v]) => {
         if (!INTERNAL_FORM_KEYS.has(k) && !k.startsWith('_') && typeof v !== 'object') {

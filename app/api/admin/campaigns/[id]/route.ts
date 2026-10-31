@@ -157,6 +157,7 @@ export async function PUT(
       'order_form', 'order_form_fields', 'show_order_form', 'payment_form_fields',
       'address_required',
       'completion_days', 'completion_deadline', 'enforce_completion_deadline',
+      'require_deliverable_link', 'require_analytics_proof', 'completion_form_fields',
       'display_order', 'brief_document_url',
       'is_test_mode', 'test_user_ids', 'test_creators',
       'poc_admin_ids', 'manager_phone'

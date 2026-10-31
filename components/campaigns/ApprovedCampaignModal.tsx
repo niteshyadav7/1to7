@@ -93,6 +93,9 @@ interface Application {
     completion_days?: number | null
     completion_deadline?: string | null
     enforce_completion_deadline?: boolean
+    require_deliverable_link?: boolean | null
+    require_analytics_proof?: boolean | null
+    completion_form_fields?: any[] | null
     payment_form_fields?: any[]
     custom_fields?: any[]
     form_fields?: any[]
@@ -127,6 +130,8 @@ export default function ApprovedCampaignModal({
   const [proofUrl, setProofUrl] = useState('')
   const [uploadingProof, setUploadingProof] = useState(false)
   const [submittingCompletion, setSubmittingCompletion] = useState(false)
+  const [customResponses, setCustomResponses] = useState<Record<string, any>>({})
+  const [uploadingCustomFiles, setUploadingCustomFiles] = useState<Record<string, boolean>>({})
 
   // Payment Form & Partial & Appeal State
   const [showPaymentForm, setShowPaymentForm] = useState(false)
@@ -157,6 +162,7 @@ export default function ApprovedCampaignModal({
       setViewsCount(sub.views_count || '')
       setCompletionNotes(sub.notes || '')
       setProofUrl(sub.supporting_document || '')
+      setCustomResponses(sub.custom_responses || {})
     } else if (application?.form_data?.payment_request?.live_date) {
       setLiveDate(application.form_data.payment_request.live_date)
       setProofUrl(application.form_data.payment_request.supporting_document || '')
@@ -197,6 +203,7 @@ export default function ApprovedCampaignModal({
     setViewsCount('')
     setProofUrl('')
     setCompletionNotes('')
+    setCustomResponses({})
     toast.info('Form cleared for a fresh refill. Enter your new deliverable details.')
   }
 
@@ -216,6 +223,30 @@ export default function ApprovedCampaignModal({
       setPartialReason('')
     }
   }, [showPartialModal, application, totalAmount, received])
+
+  
+  const handleCustomFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB limit')
+      return
+    }
+    setUploadingCustomFiles(prev => ({ ...prev, [fieldName]: true }))
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setCustomResponses(prev => ({ ...prev, [fieldName]: data.url }))
+      toast.success(`${fieldName} uploaded successfully`)
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed')
+    } finally {
+      setUploadingCustomFiles(prev => ({ ...prev, [fieldName]: false }))
+    }
+  }
 
   const handleProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -287,9 +318,39 @@ export default function ApprovedCampaignModal({
       return
     }
 
-    if (!deliverableLink && !proofUrl) {
+    const isLinkRequired = application.campaigns?.require_deliverable_link !== false
+    const isProofRequired = Boolean(application.campaigns?.require_analytics_proof)
+
+    if (isLinkRequired && (!deliverableLink || !deliverableLink.trim())) {
+      toast.error('Please provide your live post / reel URL. It is mandatory for this campaign.')
+      return
+    }
+
+    if (deliverableLink.trim() && !/^https?:\/\/.+/i.test(deliverableLink.trim())) {
+      toast.error('Please enter a valid live URL starting with http:// or https://')
+      return
+    }
+
+    if (isProofRequired && !proofUrl) {
+      toast.error('Please upload an insights / analytics screenshot proof. It is mandatory for this campaign.')
+      return
+    }
+
+    if (!deliverableLink.trim() && !proofUrl) {
       toast.error('Please provide at least a live link or screenshot proof')
       return
+    }
+
+    // Validate custom fields
+    const customFields = application.campaigns?.completion_form_fields || []
+    for (const f of customFields) {
+      if (f.required) {
+        const val = customResponses[f.name]
+        if (val === undefined || val === null || val === '') {
+          toast.error(`"${f.name}" is required`)
+          return
+        }
+      }
     }
 
     if (appliedHandle && !confirmHandleCheckbox) {
@@ -1190,10 +1251,25 @@ export default function ApprovedCampaignModal({
 
                       {/* Deliverable Live Link */}
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          <Link2 className="h-4 w-4 text-indigo-600" />
-                          Live Content Link (Instagram Reel / Post / YouTube URL)
-                        </label>
+                        {(() => {
+                          const isLinkRequired = application.campaigns?.require_deliverable_link !== false
+                          return (
+                            <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <Link2 className="h-4 w-4 text-indigo-600" />
+                                Live Content Link (Instagram Reel / Post / YouTube URL)
+                                {isLinkRequired && <span className="text-red-500">*</span>}
+                              </span>
+                              {isLinkRequired ? (
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                  Mandatory
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-slate-400">Optional</span>
+                              )}
+                            </label>
+                          )
+                        })()}
                         <Input
                           type="url"
                           value={deliverableLink}
@@ -1220,10 +1296,23 @@ export default function ApprovedCampaignModal({
 
                       {/* Analytics Screenshot Upload */}
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          <UploadCloud className="h-4 w-4 text-indigo-600" />
-                          Insights & Analytics Screenshot Proof
-                        </label>
+                        {(() => {
+                          const isProofRequired = Boolean(application.campaigns?.require_analytics_proof)
+                          return (
+                            <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <UploadCloud className="h-4 w-4 text-indigo-600" />
+                                Insights & Analytics Screenshot Proof
+                                {isProofRequired && <span className="text-red-500">*</span>}
+                              </span>
+                              {isProofRequired && (
+                                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                  Mandatory
+                                </span>
+                              )}
+                            </label>
+                          )
+                        })()}
 
                         {proofUrl ? (
                           <div className="relative rounded-2xl border border-slate-200 overflow-hidden bg-slate-100 p-2 flex items-center justify-between">
@@ -1277,6 +1366,114 @@ export default function ApprovedCampaignModal({
                           className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
                         />
                       </div>
+
+                      {/* Dynamic Custom Deliverables Fields */}
+                      {Array.isArray(application.campaigns?.completion_form_fields) && application.campaigns.completion_form_fields.length > 0 && (
+                        <div className="space-y-3 pt-3 border-t border-slate-200">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="h-4 w-4 text-indigo-600" />
+                            <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                              Campaign Deliverable Requirements
+                            </p>
+                          </div>
+                          <div className="space-y-3.5">
+                            {application.campaigns.completion_form_fields.map((field: any, idx: number) => {
+                              const fieldVal = customResponses[field.name] || ''
+                              const isUploading = Boolean(uploadingCustomFiles[field.name])
+
+                              return (
+                                <div key={idx} className="space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                                    <span>
+                                      {field.name} {field.required && <span className="text-red-500">*</span>}
+                                    </span>
+                                    {field.required ? (
+                                      <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                        Required
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] text-slate-400">Optional</span>
+                                    )}
+                                  </label>
+
+                                  {field.type === 'textarea' ? (
+                                    <textarea
+                                      value={fieldVal}
+                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                      placeholder={`Enter ${field.name}...`}
+                                      rows={2}
+                                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                                      required={field.required}
+                                    />
+                                  ) : field.type === 'dropdown' ? (
+                                    <select
+                                      value={fieldVal}
+                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl h-12 px-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                                      required={field.required}
+                                    >
+                                      <option value="">Select an option...</option>
+                                      {(field.options || []).map((opt: string, i: number) => (
+                                        <option key={i} value={opt}>{opt}</option>
+                                      ))}
+                                    </select>
+                                  ) : field.type === 'image' ? (
+                                    <div>
+                                      {fieldVal ? (
+                                        <div className="relative rounded-2xl border border-slate-200 overflow-hidden bg-slate-100 p-2 flex items-center justify-between">
+                                          <div className="flex items-center gap-3">
+                                            <img src={fieldVal} alt={field.name} className="h-14 w-20 object-cover rounded-lg border border-slate-200" />
+                                            <div>
+                                              <p className="text-xs font-bold text-slate-800">Uploaded</p>
+                                              <a href={fieldVal} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1">
+                                                <ExternalLink className="h-3 w-3" /> View image
+                                              </a>
+                                            </div>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => setCustomResponses(p => ({ ...p, [field.name]: '' }))}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-2xl border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 transition-all cursor-pointer">
+                                          {isUploading ? (
+                                            <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
+                                          ) : (
+                                            <>
+                                              <UploadCloud className="h-5 w-5 text-indigo-600 mb-1" />
+                                              <span className="text-xs font-semibold text-slate-700">Upload {field.name}</span>
+                                            </>
+                                          )}
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            disabled={isUploading}
+                                            onChange={(e) => handleCustomFileUpload(e, field.name)}
+                                          />
+                                        </label>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <Input
+                                      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                      value={fieldVal}
+                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                      placeholder={`Enter ${field.name}...`}
+                                      className="bg-slate-50 border-slate-200 text-slate-900 h-12 rounded-xl focus:ring-indigo-500 text-xs"
+                                      required={field.required}
+                                    />
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Submit Button */}
                       <Button

@@ -386,6 +386,34 @@ export async function ensurePocMigration(): Promise<void> {
         ) THEN
           ALTER TABLE public.applications ADD COLUMN is_commercial_pitch BOOLEAN DEFAULT false;
         END IF;
+
+        -- 12. Campaign Completion Form Control & Dynamic Deliverables
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'require_deliverable_link'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN require_deliverable_link BOOLEAN DEFAULT true;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'require_analytics_proof'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN require_analytics_proof BOOLEAN DEFAULT false;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+            AND table_name = 'campaigns' 
+            AND column_name = 'completion_form_fields'
+        ) THEN
+          ALTER TABLE public.campaigns ADD COLUMN completion_form_fields JSONB DEFAULT '[]'::jsonb;
+        END IF;
       END $$;
     `)
     global._pocMigrationDone = true

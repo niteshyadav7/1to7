@@ -45,6 +45,9 @@ export async function GET() {
           budget_type,
           deliverables,
           completion_days,
+          require_deliverable_link,
+          require_analytics_proof,
+          completion_form_fields,
           collab_date,
           manager_phone
         )

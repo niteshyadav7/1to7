@@ -31,9 +31,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Live date is required' }, { status: 400 })
     }
 
-    if (!deliverable_link && !supporting_document) {
-      return NextResponse.json({ error: 'At least one deliverable live link or proof document is required' }, { status: 400 })
-    }
+    // Link and document requirements will be evaluated against campaignConfig below
 
     // Verify application ownership and fetch campaign timeline settings
     const { data: application, error: fetchErr } = await supabase
@@ -47,7 +45,10 @@ export async function PUT(
           id,
           brand_name,
           campaign_code,
-          completion_days
+          completion_days,
+          require_deliverable_link,
+          require_analytics_proof,
+          completion_form_fields
         ),
         users (
           instagram_username
@@ -73,6 +74,35 @@ export async function PUT(
     const maturation = checkLiveDateMaturation(live_date, minMaturationDays)
     if (!maturation.canSubmit) {
       return NextResponse.json({ error: maturation.message }, { status: 400 })
+    }
+
+    // ─── CAMPAIGN-LEVEL COMPLETION FORM REQUIREMENTS ───
+    const isLinkRequired = campaignConfig?.require_deliverable_link !== false
+    const isProofRequired = Boolean(campaignConfig?.require_analytics_proof)
+
+    if (isLinkRequired && (!deliverable_link || !String(deliverable_link).trim())) {
+      return NextResponse.json({ error: 'Live deliverable link is strictly required for this campaign' }, { status: 400 })
+    }
+
+    if (isProofRequired && (!supporting_document || !String(supporting_document).trim())) {
+      return NextResponse.json({ error: 'Analytics / Insights screenshot proof is strictly required for this campaign' }, { status: 400 })
+    }
+
+    if (!deliverable_link && !supporting_document) {
+      return NextResponse.json({ error: 'At least one deliverable live link or proof document is required' }, { status: 400 })
+    }
+
+    // Validate required custom completion fields
+    const completionFormFields = campaignConfig?.completion_form_fields || []
+    if (Array.isArray(completionFormFields) && completionFormFields.length > 0) {
+      for (const f of completionFormFields) {
+        if (f.required) {
+          const answer = custom_responses?.[f.name]
+          if (answer === undefined || answer === null || answer === '') {
+            return NextResponse.json({ error: `"${f.name}" is required` }, { status: 400 })
+          }
+        }
+      }
     }
 
     // ─── INSTAGRAM PROFILE CONSISTENCY VERIFICATION ───
