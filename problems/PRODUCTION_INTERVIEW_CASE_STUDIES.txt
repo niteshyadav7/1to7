@@ -115,6 +115,7 @@ CASE 104: UI Cascading Hierarchy Inversion: Enforcing State-First Precedence Ove
 CASE 105: Duplicate Profile/Campaign Questions & "Go to Profile" Drop-off: Deduplicated In-Modal Progressive Profiling with Cross-Campaign Auto-Fill
 CASE 106: Campaign Ghosting Blindspots in POC Performance Matrix: Disaggregating Ghosted Creators from Active Pending Pipelines & Zero-Latency Multi-Tier Visibility
 CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined Remark Categorization, Fast Multi-Select Batch Ingestion & Dynamic CSV Specification Alignment
+CASE 108: Turbopack Lexical Scope Collision & Build-Time Halt: Duplicate Const Declaration Trap in Complex React Filter Hooks
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4714,3 +4715,40 @@ S: Operations teams could not distinguish which verified addresses were handed t
 T: Introduce standardized predefined remarks, a visual brand-sent label, 1-click batch assignment, and synchronized CSV reporting.
 A: Projected existing indexed remark columns in PostgreSQL, built an atomic batch update endpoint using `ANY($1::uuid[])`, created a predefined remark taxonomy with semiotic badge rendering, integrated a floating multi-select bulk action dock, and synchronized CSV exports.
 R: Operations can mark 50+ addresses as "Sent to Brand" in a single click, filter by exact brand hand-off state with zero spelling drift, and export audit-ready courier sheets.
+
+
+====================================================================================================
+CASE 108: Turbopack Lexical Scope Collision & Build-Time Halt: Duplicate Const Declaration Trap in Complex React Filter Hooks
+====================================================================================================
+CATEGORIES: Next.js 16 / Turbopack / TypeScript AST / Lexical Scoping / Production Compilation
+Interview Question:
+"During iterative development of a multi-attribute data filtering pipeline in a React Next.js application, Turbopack suddenly halted compilation with 'Ecmascript file had an error: The name x is defined multiple times'. How does ECMAScript lexical block scoping trigger this in SWC/Turbopack, how did it happen, and what best practices prevent variable collision in complex useMemo filter pipelines?"
+
+[SITUATION]
+After enhancing the Admin Address Confirmation desk with brand dispatch tracking and multi-tier filtering (status filter, campaign filter, predefined remark filter, and search text), Next.js 16 with Turbopack crashed with a fatal build error on `/admin/address-confirmation`:
+`Ecmascript file had an error: ./app/admin/(panel)/address-confirmation/page.tsx (369:13): The name 'entryRemark' is defined multiple times`.
+The compilation error completely blocked the admin dashboard from rendering in development and staging.
+
+[ROOT CAUSE]
+In ECMAScript (ES6+), `const` and `let` declarations are strictly block-scoped and cannot be redeclared within the same lexical scope block `{ ... }`.
+In `app/admin/(panel)/address-confirmation/page.tsx`, within `useMemo(() => tabScopedEntries.filter(entry => { ... }))`:
+1. Line 352 introduced `const entryRemark = entry.team_remark || entry.form_data?.team_remark || ''` to evaluate whether an entry belonged to the newly added `'SentToBrand'` status tab.
+2. Down at line 369, the existing remark filter block also declared `const entryRemark = entry.team_remark || entry.form_data?.team_remark || ''`.
+3. Because both declarations lived inside the same closure scope of the `.filter(entry => { ... })` callback, the SWC ECMAScript parser halted with a fatal duplicate identifier syntax error.
+
+[SOLUTION & ARCHITECTURE]
+1. Lexical Scope Consolidation:
+   - Removed the duplicate `const entryRemark` declaration at line 369.
+   - Hoisted the single `const entryRemark` computation to the top of the item evaluation block so that:
+     a) Status tab filter (`statusFilter === 'SentToBrand'`)
+     b) Dedicated dropdown remark filter (`remarkFilter !== 'all'`)
+     c) Text search filter (`matchRemark`)
+     all cleanly share the identical, canonical extracted string without redundant evaluation or variable collision.
+2. Verification:
+   - Validated syntax and AST parsing with TypeScript transpile check, reporting 0 diagnostics and restoring instant hot reloading under Turbopack.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Adding a new status filter tab alongside an existing dropdown filter caused Turbopack to halt compilation due to a duplicate `const` declaration in the same closure.
+T: Eliminate the duplicate declaration, unify variable scoping within the filter pipeline, and verify zero AST/transpilation diagnostics.
+A: Hoisted the normalized `entryRemark` resolution once at the top of the record filter callback and removed the downstream redeclaration, ensuring single-source-of-truth variable evaluation.
+R: Next.js Turbopack compiled cleanly with 0 diagnostics, and all multi-attribute filtering (tabs, dropdowns, full-text search) executed without runtime or build errors.

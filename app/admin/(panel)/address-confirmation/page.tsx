@@ -77,24 +77,24 @@ function AddressSkeletonRow() {
   return (
     <tr className="border-b border-white/5 animate-pulse">
       {/* Checkbox */}
-      <td className="py-3.5 px-3 align-top w-10">
+      <td className="py-3 px-3 align-top w-10">
         <div className="h-4 w-4 rounded bg-slate-800 shimmer" />
       </td>
 
-      {/* Creator Profile */}
-      <td className="py-3.5 px-4 align-top">
+      {/* Creator Profile & Contact */}
+      <td className="py-3 px-4 align-top">
         <div className="flex items-start gap-2.5">
           <div className="h-8 w-8 rounded-full bg-slate-800 shrink-0 shimmer" />
           <div className="space-y-1.5 pt-0.5">
             <div className="h-3.5 w-28 rounded bg-slate-800 shimmer" />
-            <div className="h-2.5 w-16 rounded bg-slate-800/60 shimmer" />
+            <div className="h-2.5 w-20 rounded bg-slate-800/60 shimmer" />
             <div className="h-2.5 w-24 rounded bg-slate-800/40 shimmer" />
           </div>
         </div>
       </td>
 
       {/* Campaign */}
-      <td className="py-3.5 px-4 align-top">
+      <td className="py-3 px-4 align-top">
         <div className="space-y-1.5">
           <div className="h-3.5 w-24 rounded bg-slate-800 shimmer" />
           <div className="h-4 w-20 rounded bg-slate-800/80 border border-white/5 shimmer" />
@@ -103,33 +103,21 @@ function AddressSkeletonRow() {
       </td>
 
       {/* Delivery Address */}
-      <td className="py-3.5 px-4 align-top">
-        <div className="space-y-1.5 max-w-[320px]">
+      <td className="py-3 px-4 align-top">
+        <div className="space-y-1.5 max-w-[280px]">
           <div className="h-3.5 w-36 rounded bg-slate-800 shimmer" />
-          <div className="h-3 w-56 rounded bg-slate-800/70 shimmer" />
-          <div className="h-3 w-40 rounded bg-slate-800/50 shimmer" />
-          <div className="flex gap-1.5 pt-1">
-            <div className="h-4 w-20 rounded bg-slate-800/60 shimmer" />
-            <div className="h-4 w-24 rounded bg-slate-800/60 shimmer" />
-          </div>
-        </div>
-      </td>
-
-      {/* Contact Phone */}
-      <td className="py-3.5 px-4 align-top">
-        <div className="space-y-1.5">
-          <div className="h-3.5 w-28 rounded bg-slate-800 shimmer" />
-          <div className="h-2.5 w-20 rounded bg-slate-800/50 shimmer" />
+          <div className="h-3 w-52 rounded bg-slate-800/70 shimmer" />
+          <div className="h-3 w-36 rounded bg-slate-800/50 shimmer" />
         </div>
       </td>
 
       {/* Status */}
-      <td className="py-3.5 px-4 align-top">
+      <td className="py-3 px-4 align-top">
         <div className="h-6 w-24 rounded-full bg-slate-800/80 border border-white/5 shimmer" />
       </td>
 
       {/* Brand Dispatch & Remarks */}
-      <td className="py-3.5 px-4 align-top">
+      <td className="py-3 px-4 align-top">
         <div className="space-y-1.5">
           <div className="h-5 w-28 rounded-full bg-slate-800/80 shimmer" />
           <div className="h-2.5 w-16 rounded bg-slate-800/40 shimmer" />
@@ -137,7 +125,7 @@ function AddressSkeletonRow() {
       </td>
 
       {/* Verification Action */}
-      <td className="py-3.5 px-4 align-top text-right">
+      <td className="py-3 px-4 align-top text-right">
         <div className="flex items-center justify-end gap-1.5">
           <div className="h-8 w-16 rounded-lg bg-slate-800 shimmer" />
           <div className="h-8 w-16 rounded-lg bg-slate-800/60 shimmer" />
@@ -151,7 +139,7 @@ export default function AdminAddressConfirmationPage() {
   const [entries, setEntries] = useState<AddressEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | 'BrandDispatch' | 'Approved' | 'Pending' | 'NotSubmitted' | 'Rejected'>('All')
+  const [statusFilter, setStatusFilter] = useState<'All' | 'SentToBrand' | 'BrandDispatch' | 'Approved' | 'Pending' | 'NotSubmitted' | 'Rejected'>('All')
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<string>('all')
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('all')
   const [remarkFilter, setRemarkFilter] = useState<string>('all')
@@ -361,7 +349,10 @@ export default function AdminAddressConfirmationPage() {
     return tabScopedEntries.filter(entry => {
       // Status filter
       const vStatus = getVerificationStatus(entry)
-      if (statusFilter === 'BrandDispatch') {
+      const entryRemark = entry.team_remark || entry.form_data?.team_remark || ''
+      if (statusFilter === 'SentToBrand') {
+        if (entryRemark !== 'Sent to Brand') return false
+      } else if (statusFilter === 'BrandDispatch') {
         // Both Campaign Approved AND Address Verified
         if (entry.status !== 'Approved' || vStatus !== 'Approved') return false
       } else if (statusFilter === 'Pending') {
@@ -375,7 +366,6 @@ export default function AdminAddressConfirmationPage() {
       }
 
       // Remark / Brand Status filter
-      const entryRemark = entry.team_remark || entry.form_data?.team_remark || ''
       if (remarkFilter !== 'all') {
         if (remarkFilter === 'NONE') {
           if (entryRemark.trim() !== '') return false
@@ -741,12 +731,16 @@ export default function AdminAddressConfirmationPage() {
         </div>
       </SetAdminHeader>
 
-      {/* KPI Cards Strip: 5 Responsive Cards with Scoped Campaign Logistics Health */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {/* KPI Cards Strip: 6 Responsive Cards with Scoped Campaign Logistics Health */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {/* Total Tracked */}
         <div 
           onClick={() => setStatusFilter('All')}
-          className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg cursor-pointer hover:bg-slate-800/40 transition-colors"
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-colors ${
+            statusFilter === 'All'
+              ? 'border-indigo-400/60 bg-indigo-500/20'
+              : 'border-white/5 bg-slate-900/60 hover:bg-slate-800/40'
+          }`}
         >
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-[11px] font-semibold uppercase tracking-wider">Total Tracked</span>
@@ -758,6 +752,30 @@ export default function AdminAddressConfirmationPage() {
           <p className="text-[11px] text-slate-400 mt-1">
             {selectedCampaignId !== 'all' ? 'Campaign applications' : 'Barter applications'}
           </p>
+        </div>
+
+        {/* Sent to Brand (Primary Request: Track Shared Addresses) */}
+        <div 
+          onClick={() => {
+            setStatusFilter('SentToBrand')
+          }}
+          className={`rounded-2xl border p-4 backdrop-blur-lg cursor-pointer transition-all group ${
+            statusFilter === 'SentToBrand'
+              ? 'border-emerald-400/60 bg-emerald-500/20 shadow-lg shadow-emerald-500/20'
+              : 'border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10'
+          }`}
+        >
+          <div className="flex items-center justify-between text-emerald-300 mb-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1 text-emerald-300">
+              <CheckCheck className="h-3.5 w-3.5 text-emerald-400" />
+              Sent to Brand
+            </span>
+            <Sparkles className="h-4 w-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+          </div>
+          <p className="text-2xl font-black text-emerald-300">
+            {loading ? <span className="inline-block h-7 w-14 rounded-lg bg-slate-800 shimmer align-middle" /> : kpiMetrics.sentToBrand}
+          </p>
+          <p className="text-[11px] text-emerald-300/80 mt-1 font-semibold">Shared with client brand</p>
         </div>
 
         {/* Ready for Brand Dispatch (Both Campaign Approved AND Address Verified) */}
@@ -840,36 +858,37 @@ export default function AdminAddressConfirmationPage() {
         </div>
       </div>
 
-      {/* Control Bar: Search, Campaign Filter, Status Filter & Export Button */}
-      <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-4 backdrop-blur-lg space-y-3">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search Input with Clear Button */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by creator name, @handle, ID (HY18691), phone, street, city, pin..."
-              className="pl-10 pr-9 h-10 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 text-xs rounded-xl focus-visible:ring-emerald-500"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors"
-                title="Clear search query"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+      {/* Control Bar: Search, Filters & Action Buttons */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-3.5 backdrop-blur-lg space-y-3">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+          {/* Left Group: Search Input & Dropdowns */}
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+            {/* Search Input */}
+            <div className="relative min-w-[220px] flex-1 max-w-sm">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search creators, ID, handle, phone, city..."
+                className="pl-10 pr-9 h-10 bg-slate-950/60 border-white/10 !text-white placeholder:text-slate-500 text-xs rounded-xl focus-visible:ring-emerald-500 w-full"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+                  title="Clear search query"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
             {/* Campaign Select */}
             <select
               value={selectedCampaignId}
               onChange={(e) => setSelectedCampaignId(e.target.value)}
-              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-[180px] truncate cursor-pointer"
             >
               <option value="all">All Campaigns ({campaignOptions.length})</option>
               {campaignOptions.map(c => (
@@ -881,20 +900,20 @@ export default function AdminAddressConfirmationPage() {
             <select
               value={campaignStatusFilter}
               onChange={(e) => setCampaignStatusFilter(e.target.value)}
-              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="all">Campaign: All Statuses</option>
-              <option value="Approved">Campaign: Approved Only</option>
-              <option value="Applied">Campaign: Applied Only</option>
+              <option value="Approved">Campaign: Approved</option>
+              <option value="Applied">Campaign: Applied</option>
               <option value="Under Process">Campaign: Under Process</option>
-              <option value="Rejected">Campaign: Rejected Only</option>
+              <option value="Rejected">Campaign: Rejected</option>
             </select>
 
             {/* Dispatch Remark / Brand Status Dropdown Filter */}
             <select
               value={remarkFilter}
               onChange={(e) => setRemarkFilter(e.target.value)}
-              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-semibold text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="h-10 px-3 rounded-xl bg-slate-950/60 border border-white/10 text-xs font-medium text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="all">Remarks: All</option>
               <option value="Sent to Brand">🚀 Sent to Brand ({tabCounts.sentToBrand})</option>
@@ -913,14 +932,17 @@ export default function AdminAddressConfirmationPage() {
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="h-10 px-2.5 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-xl flex items-center gap-1.5 transition-colors"
+                className="h-10 px-2.5 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
                 title="Reset all search and filter dropdowns"
               >
                 <X className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Reset Filters</span>
+                <span className="hidden sm:inline">Reset</span>
               </Button>
             )}
+          </div>
 
+          {/* Right Group: Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0 justify-end">
             {/* Refresh */}
             <Button
               variant="outline"
@@ -928,6 +950,7 @@ export default function AdminAddressConfirmationPage() {
               onClick={() => fetchAddresses(false)}
               disabled={loading}
               className="h-10 px-3 bg-slate-950/60 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-xs cursor-pointer"
+              title="Refresh addresses"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
             </Button>
@@ -936,7 +959,7 @@ export default function AdminAddressConfirmationPage() {
             <Button
               onClick={() => setIsImportModalOpen(true)}
               variant="outline"
-              className="h-10 px-3.5 bg-slate-950/60 border-emerald-500/30 text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/10 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm"
+              className="h-10 px-3.5 bg-slate-950/60 border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-sm"
             >
               <Upload className="h-4 w-4 text-emerald-400" />
               <span>Import Addresses</span>
@@ -946,7 +969,7 @@ export default function AdminAddressConfirmationPage() {
             <Button
               onClick={handleExportCSV}
               disabled={filteredEntries.length === 0}
-              className={`h-10 px-4 font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer ml-auto lg:ml-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`h-10 px-4 font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                 statusFilter === 'BrandDispatch'
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/25 ring-2 ring-emerald-400/40'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
@@ -955,12 +978,12 @@ export default function AdminAddressConfirmationPage() {
               {statusFilter === 'BrandDispatch' ? (
                 <>
                   <Truck className="h-4 w-4" />
-                  Export Brand Dispatch Sheet ({filteredEntries.length})
+                  <span>Export Brand Dispatch ({filteredEntries.length})</span>
                 </>
               ) : (
                 <>
                   <FileSpreadsheet className="h-4 w-4" />
-                  Export Courier Sheet ({filteredEntries.length})
+                  <span>Export Courier Sheet ({filteredEntries.length})</span>
                 </>
               )}
             </Button>
@@ -968,16 +991,17 @@ export default function AdminAddressConfirmationPage() {
         </div>
 
         {/* Status Filter Tabs - Scrollbar Suppressed for Desktop */}
-        <div className="flex items-center gap-2 pt-1 border-t border-white/5 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex items-center gap-2 pt-2 border-t border-white/5 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {[
             { id: 'All', label: 'All Submissions', count: tabCounts.total },
+            { id: 'SentToBrand', label: 'Sent to Brand', count: tabCounts.sentToBrand, isSent: true, icon: CheckCheck },
             { id: 'BrandDispatch', label: 'Final Brand Dispatch', count: tabCounts.brandDispatch, isPrimary: true, icon: Truck },
             { id: 'Approved', label: 'Address Verified', count: tabCounts.approved },
             { id: 'Pending', label: 'Pending Review', count: tabCounts.pending },
             { id: 'NotSubmitted', label: 'Not Submitted', count: tabCounts.notSubmitted },
             { id: 'Rejected', label: 'Changes Requested', count: tabCounts.rejected },
           ].map(tab => {
-            const isActive = statusFilter === tab.id
+            const isActive = tab.id === 'SentToBrand' ? statusFilter === 'SentToBrand' : statusFilter === tab.id
             const TabIcon = tab.icon
             return (
               <button
@@ -985,13 +1009,15 @@ export default function AdminAddressConfirmationPage() {
                 onClick={() => setStatusFilter(tab.id as any)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   isActive
-                    ? tab.isPrimary
+                    ? (tab as any).isSent
                       ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
-                      : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                      : tab.isPrimary
+                        ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
+                        : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                     : 'bg-slate-950/40 text-slate-400 hover:text-slate-200 border border-white/5'
                 }`}
               >
-                {TabIcon && <TabIcon className="h-3.5 w-3.5 text-emerald-400" />}
+                {TabIcon && <TabIcon className={`h-3.5 w-3.5 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />}
                 {tab.label}
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-400'}`}>
                   {loading ? <span className="inline-block w-4 h-2 rounded bg-white/20 shimmer align-middle" /> : tab.count}
@@ -1010,13 +1036,12 @@ export default function AdminAddressConfirmationPage() {
               <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-3 w-10"></th>
-                  <th className="py-3 px-4">Creator Profile</th>
-                  <th className="py-3 px-4">Campaign</th>
-                  <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
-                  <th className="py-3 px-4">Contact Phone</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 min-w-[190px]">Brand Dispatch & Remarks</th>
-                  <th className="py-3 px-4 text-right">Verification Action</th>
+                  <th className="py-3 px-4 min-w-[200px]">Creator & Contact</th>
+                  <th className="py-3 px-4 min-w-[150px]">Campaign</th>
+                  <th className="py-3 px-4 min-w-[260px]">Delivery Address</th>
+                  <th className="py-3 px-4 min-w-[150px]">Status</th>
+                  <th className="py-3 px-4 min-w-[170px]">Brand Dispatch & Remarks</th>
+                  <th className="py-3 px-4 text-right min-w-[150px] shrink-0">Verification Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1075,13 +1100,12 @@ export default function AdminAddressConfirmationPage() {
                       title={isAllPageSelected ? 'Deselect all on this page' : 'Select all on this page'}
                     />
                   </th>
-                  <th className="py-3 px-4">Creator Profile</th>
-                  <th className="py-3 px-4">Campaign</th>
-                  <th className="py-3 px-4 min-w-[280px]">Delivery Address</th>
-                  <th className="py-3 px-4">Contact Phone</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 min-w-[190px]">Brand Dispatch & Remarks</th>
-                  <th className="py-3 px-4 text-right">Verification Action</th>
+                  <th className="py-3 px-4 min-w-[200px]">Creator & Contact</th>
+                  <th className="py-3 px-4 min-w-[150px]">Campaign</th>
+                  <th className="py-3 px-4 min-w-[260px]">Delivery Address</th>
+                  <th className="py-3 px-4 min-w-[150px]">Status</th>
+                  <th className="py-3 px-4 min-w-[170px]">Brand Dispatch & Remarks</th>
+                  <th className="py-3 px-4 text-right min-w-[150px] shrink-0">Verification Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1094,7 +1118,7 @@ export default function AdminAddressConfirmationPage() {
                   return (
                     <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
                       {/* Checkbox */}
-                      <td className="py-3.5 px-3 align-top w-10">
+                      <td className="py-3 px-3 align-top w-10">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(entry.id)}
@@ -1103,8 +1127,8 @@ export default function AdminAddressConfirmationPage() {
                         />
                       </td>
 
-                      {/* Creator Profile */}
-                      <td className="py-3.5 px-4 align-top">
+                      {/* Creator Profile & Contact Phone */}
+                      <td className="py-3 px-4 align-top">
                         <div className="flex items-start gap-2.5">
                           <div className="h-8 w-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
                             {entry.users?.profile_photo || entry.users?.instagram_profile_pic ? (
@@ -1118,26 +1142,35 @@ export default function AdminAddressConfirmationPage() {
                               (entry.users?.full_name || 'C').charAt(0).toUpperCase()
                             )}
                           </div>
-                          <div>
-                            <p className="font-bold text-white text-xs">{entry.users?.full_name || 'Unnamed'}</p>
-                            <p className="text-[11px] text-slate-400 font-mono">{entry.users?.influencer_id || 'ID N/A'}</p>
-                            {entry.users?.instagram_username && (
-                              <a
-                                href={getInstagramUrl(entry.users.instagram_username)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[11px] font-semibold text-[#f50057] hover:underline flex items-center gap-1 mt-0.5"
-                              >
-                                <Instagram className="h-3 w-3" />
-                                {getInstagramDisplayHandle(entry.users.instagram_username)}
-                              </a>
-                            )}
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="font-bold text-white text-xs truncate max-w-[160px]">{entry.users?.full_name || 'Unnamed'}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                              <span className="text-slate-400 font-mono">{entry.users?.influencer_id || 'ID N/A'}</span>
+                              {entry.users?.instagram_username && (
+                                <a
+                                  href={getInstagramUrl(entry.users.instagram_username)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-semibold text-[#f50057] hover:underline flex items-center gap-0.5"
+                                >
+                                  <Instagram className="h-2.5 w-2.5" />
+                                  {getInstagramDisplayHandle(entry.users.instagram_username)}
+                                </a>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-300 flex items-center gap-1 pt-0.5">
+                              <Phone className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
+                              <span>{addr.mobile || entry.users?.mobile || 'N/A'}</span>
+                              {addr.alt_mobile && (
+                                <span className="text-slate-500 text-[10px]">({addr.alt_mobile})</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
 
                       {/* Campaign */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-3 px-4 align-top">
                         <span className="font-bold text-white block text-xs">{entry.campaigns?.brand_name || 'Brand'}</span>
                         <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 inline-block mt-0.5">
                           {entry.campaigns?.campaign_code}
@@ -1150,7 +1183,7 @@ export default function AdminAddressConfirmationPage() {
                       </td>
 
                       {/* Delivery Address */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-3 px-4 align-top">
                         {hasSubmittedAddress ? (
                           <div className="space-y-1">
                             <p className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
@@ -1195,19 +1228,8 @@ export default function AdminAddressConfirmationPage() {
                         )}
                       </td>
 
-                      {/* Contact Phone */}
-                      <td className="py-3.5 px-4 align-top font-mono text-xs">
-                        <p className="text-slate-200 font-bold flex items-center gap-1.5">
-                          <Phone className="h-3 w-3 text-emerald-400" />
-                          {addr.mobile || entry.users?.mobile || 'N/A'}
-                        </p>
-                        {addr.alt_mobile && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">Alt: {addr.alt_mobile}</p>
-                        )}
-                      </td>
-
                       {/* Status */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-3 px-4 align-top">
                         <div className="space-y-1.5">
                           {/* Campaign Application Status */}
                           <div>
@@ -1275,7 +1297,7 @@ export default function AdminAddressConfirmationPage() {
                       </td>
 
                       {/* Brand Dispatch & Remarks */}
-                      <td className="py-3.5 px-4 align-top">
+                      <td className="py-3 px-4 align-top">
                         {(() => {
                           const currentRemark = entry.team_remark || entry.form_data?.team_remark || null
                           const isSentToBrand = currentRemark === 'Sent to Brand'
@@ -1283,26 +1305,17 @@ export default function AdminAddressConfirmationPage() {
                           const BadgeIcon = badge?.icon || Tag
 
                           return (
-                            <div className="space-y-1.5 max-w-[200px]">
+                            <div className="space-y-1">
                               {currentRemark ? (
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1.5">
                                     <span
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${badge?.bg}`}
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${badge?.bg}`}
                                       title={`Remark: ${currentRemark}`}
                                     >
                                       <BadgeIcon className="h-3 w-3 shrink-0" />
-                                      <span className="truncate max-w-[130px]">{badge?.label || currentRemark}</span>
+                                      <span className="truncate max-w-[120px]">{badge?.label || currentRemark}</span>
                                     </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 mt-1">
-                                    {entry.team_remark_by && (
-                                      <span className="text-[10px] text-slate-400 truncate max-w-[110px]" title={`By ${entry.team_remark_by}`}>
-                                        By {entry.team_remark_by}
-                                        {entry.team_remark_updated_at ? ` • ${new Date(entry.team_remark_updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
-                                      </span>
-                                    )}
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1310,51 +1323,56 @@ export default function AdminAddressConfirmationPage() {
                                         setSelectedRemarkVal(currentRemark)
                                         setCustomRemarkNote(PREDEFINED_REMARKS.some(p => p.value === currentRemark) ? '' : currentRemark)
                                       }}
-                                      className="text-[10px] font-semibold text-slate-400 hover:text-white flex items-center gap-0.5 transition-colors cursor-pointer"
-                                      title="Edit or change remark"
+                                      className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-white/5 transition-colors cursor-pointer"
+                                      title="Edit remark"
                                     >
-                                      <Edit2 className="h-2.5 w-2.5" /> Edit
+                                      <Edit2 className="h-3 w-3" />
                                     </button>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleQuickSetSentToBrand(entry)}
-                                    disabled={actionInProgressId === entry.id}
-                                    className="h-6 px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
-                                    title="Quick 1-click mark: Address sent to brand"
-                                  >
-                                    <CheckCheck className="h-2.5 w-2.5" />
-                                    Mark Sent
-                                  </Button>
-                                  <div>
+
+                                  {entry.team_remark_by && (
+                                    <p className="text-[10px] text-slate-500 truncate max-w-[130px]" title={`By ${entry.team_remark_by}`}>
+                                      By {entry.team_remark_by}
+                                      {entry.team_remark_updated_at ? ` • ${new Date(entry.team_remark_updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
+                                    </p>
+                                  )}
+
+                                  {!isSentToBrand && (
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setRemarkModalEntry(entry)
-                                        setSelectedRemarkVal('')
-                                        setCustomRemarkNote('')
-                                      }}
-                                      className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
+                                      onClick={() => handleQuickSetSentToBrand(entry)}
+                                      className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer pt-0.5"
                                     >
-                                      <Tag className="h-2.5 w-2.5 text-indigo-400" /> + Add Remark
+                                      <CheckCheck className="h-2.5 w-2.5" /> Mark Sent to Brand
                                     </button>
-                                  </div>
+                                  )}
                                 </div>
-                              )}
-
-                              {/* If remark is NOT 'Sent to Brand' but already has another remark, show 1-click 'Mark Sent' shortcut */}
-                              {currentRemark && !isSentToBrand && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuickSetSentToBrand(entry)}
-                                  className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer font-semibold pt-0.5"
-                                >
-                                  <CheckCheck className="h-2.5 w-2.5" /> Mark as Sent
-                                </button>
+                              ) : (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickSetSentToBrand(entry)}
+                                    disabled={actionInProgressId === entry.id}
+                                    className="h-7 px-2.5 text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                                    title="Quick 1-click mark: Address sent to brand"
+                                  >
+                                    <CheckCheck className="h-3 w-3 text-emerald-400" />
+                                    Mark Sent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRemarkModalEntry(entry)
+                                      setSelectedRemarkVal('')
+                                      setCustomRemarkNote('')
+                                    }}
+                                    className="h-7 px-2 text-[11px] text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                    title="Add custom or predefined remark"
+                                  >
+                                    <Tag className="h-3 w-3 text-slate-400" />
+                                    Remark
+                                  </button>
+                                </div>
                               )}
                             </div>
                           )
