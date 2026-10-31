@@ -815,6 +815,7 @@ function ActionsDropdown({
   onGhostAction,
   onGhostHistory,
   onArchiveCreator,
+  onSendWhatsApp,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -828,6 +829,7 @@ function ActionsDropdown({
   onGhostAction?: (app: Application, actionType: 'ghost' | 'unghost') => void
   onGhostHistory?: (app: Application) => void
   onArchiveCreator?: (app: Application, action: 'archive' | 'unarchive') => void
+  onSendWhatsApp?: (app: Application) => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -1028,6 +1030,22 @@ function ActionsDropdown({
                   Mark Ghosted
                 </button>
               )}
+
+              {/* Direct WhatsApp Action */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onSendWhatsApp?.(app)
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                title="Send WhatsApp message regarding this application"
+              >
+                <svg className="h-3.5 w-3.5 fill-current text-emerald-400 shrink-0" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                <span>Send WhatsApp Message</span>
+              </button>
 
               {/* Archive / Unarchive Action */}
               {app.users?.is_archived || app.is_archived ? (
@@ -1334,6 +1352,41 @@ function matchesApplicationSearch(a: Application, query: string): boolean {
   return false
 }
 
+// ─── WhatsApp Helpers ─────────────────────────────────────
+function getCreatorWhatsAppPhone(a: Application): string | null {
+  const candidates = [
+    a.form_data?.whatsapp_number,
+    a.form_data?.order_details?.whatsapp,
+    a.users?.mobile,
+    a.form_data?.phone,
+    a.form_data?.mobile,
+    a.form_data?.contact_number,
+    a.form_data?.calling_number,
+    a.manager_phone,
+  ]
+  for (const c of candidates) {
+    if (!c) continue
+    const digits = String(c).replace(/\D/g, '')
+    if (digits.length >= 10) {
+      return digits.slice(-10)
+    }
+  }
+  return null
+}
+
+function getWhatsAppApplicationMessage(app: Application, customNote?: string): string {
+  const name = app.users?.full_name || 'Creator'
+  const brand = app.campaigns?.brand_name || 'Campaign'
+  const campaignCode = app.campaigns?.campaign_code ? ` (${app.campaigns.campaign_code})` : ''
+  const status = app.status || 'Applied'
+
+  if (customNote && customNote.trim()) {
+    return `Hi ${name}! 👋\n\nReaching out from *1to7 Media* regarding your application for the *${brand}*${campaignCode} campaign.\n\n${customNote.trim()}\n\nThank you!`
+  }
+
+  return `Hi ${name}! 👋\n\nReaching out from *1to7 Media* regarding your application for the *${brand}*${campaignCode} campaign.\n\nCurrent Status: *${status}*\n\nPlease let us know if you're available and have any questions!\n\nThank you!`
+}
+
 // ─── Main Component ────────────────────────────────────────
 export default function AllApplicationsPage() {
   const { admin } = useAdminPermissions()
@@ -1348,6 +1401,21 @@ export default function AllApplicationsPage() {
   } | null>(null)
   const [bulkGhostCreators, setBulkGhostCreators] = useState<TargetCreatorItem[]>([])
   const [ghostHistoryApp, setGhostHistoryApp] = useState<Application | null>(null)
+  const [whatsappModalApps, setWhatsappModalApps] = useState<Application[] | null>(null)
+  const [whatsappCustomMessage, setWhatsappCustomMessage] = useState('')
+
+  const handleOpenWhatsApp = (app: Application, customNote?: string) => {
+    const phone = getCreatorWhatsAppPhone(app)
+    const message = getWhatsAppApplicationMessage(app, customNote)
+    if (!phone) {
+      navigator.clipboard.writeText(message)
+      toast.error('No valid 10-digit phone found for this creator. Message copied to clipboard.')
+      return
+    }
+    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`
+    window.open(url, '_blank')
+    toast.success(`Opening WhatsApp for ${app.users?.full_name || 'creator'}...`)
+  }
 
   // Table state
   const [activeStatus, setActiveStatus] = useState('Applied')
@@ -3249,9 +3317,24 @@ export default function AllApplicationsPage() {
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-white truncate max-w-[110px]" title={user?.full_name}>
-                                  {user?.full_name || 'Unknown'}
-                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-xs font-bold text-white truncate max-w-[110px]" title={user?.full_name}>
+                                    {user?.full_name || 'Unknown'}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenWhatsApp(app)
+                                    }}
+                                    className="p-0.5 rounded text-emerald-400 hover:text-white hover:bg-emerald-500/25 transition-all cursor-pointer shrink-0"
+                                    title={`Send WhatsApp message to ${user?.full_name || 'creator'}`}
+                                  >
+                                    <svg className="h-3 w-3 fill-current" viewBox="0 0 24 24">
+                                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                    </svg>
+                                  </button>
+                                </div>
                                 <p className="text-[10px] text-slate-500 font-mono truncate">
                                   {user?.influencer_id}
                                 </p>
@@ -3550,6 +3633,7 @@ export default function AllApplicationsPage() {
                               onGhostAction={(targetApp, actionType) => setGhostModalApp({ app: targetApp, actionType })}
                               onGhostHistory={(targetApp) => setGhostHistoryApp(targetApp)}
                               onArchiveCreator={handleArchiveCreator}
+                               onSendWhatsApp={handleOpenWhatsApp}
                             />
                           </td>
                         )}
@@ -4434,6 +4518,28 @@ export default function AllApplicationsPage() {
                 <span>OPEN INSTAGRAM ({selectedIds.size})</span>
               </Button>
 
+              {/* WHATSAPP (Emerald) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const selectedApps = processedData.filter(a => selectedIds.has(a.id))
+                  if (selectedApps.length === 1) {
+                    handleOpenWhatsApp(selectedApps[0])
+                  } else {
+                    setWhatsappModalApps(selectedApps)
+                  }
+                }}
+                disabled={bulkUpdating}
+                className="h-7.5 px-2.5 rounded-lg border-emerald-500/30 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold text-[10.5px] cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1 shadow-sm"
+                title="Send WhatsApp message regarding selected application"
+              >
+                <svg className="h-3 w-3 fill-current text-emerald-400 shrink-0" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                <span>WHATSAPP ({selectedIds.size})</span>
+              </Button>
+
               {/* 5. ALLOW RE-APPLY (Rose) */}
               <Button
                 variant="outline"
@@ -5167,7 +5273,144 @@ export default function AllApplicationsPage() {
 
 
 
-      {/* ─── Custom Scrollbar Styles ─────────────────────── */}
+            {/* ─── Bulk WhatsApp Outreach Modal ──────────────────────── */}
+      <AnimatePresence>
+        {whatsappModalApps && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between pb-4 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                    <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">WhatsApp Outreach</h3>
+                    <p className="text-xs text-slate-400">
+                      Reach out directly to {whatsappModalApps.length} selected creator{whatsappModalApps.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWhatsappModalApps(null)
+                    setWhatsappCustomMessage('')
+                  }}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Optional Custom Note */}
+              <div className="mt-4 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Custom message note (optional):
+                </label>
+                <textarea
+                  value={whatsappCustomMessage}
+                  onChange={(e) => setWhatsappCustomMessage(e.target.value)}
+                  placeholder="e.g. Please share your delivery address or contact number for sample shipment."
+                  rows={2}
+                  className="w-full text-xs bg-slate-950/60 border border-slate-700/60 rounded-xl p-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 resize-none"
+                />
+              </div>
+
+              {/* Creator List */}
+              <div className="mt-4 flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar max-h-64">
+                {whatsappModalApps.map((item) => {
+                  const phone = getCreatorWhatsAppPhone(item)
+                  const name = item.users?.full_name || 'Creator'
+                  const brand = item.campaigns?.brand_name || 'Campaign'
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-slate-950/40 border border-white/5 flex items-center justify-between gap-3 hover:border-emerald-500/20 transition-all"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{name}</p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          {brand} · {item.status} · {phone ? `+91 ${phone}` : <span className="text-amber-400">No phone</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const msg = getWhatsAppApplicationMessage(item, whatsappCustomMessage)
+                            navigator.clipboard.writeText(msg)
+                            toast.success(`Message for ${name} copied!`)
+                          }}
+                          className="h-7 px-2 text-[11px] text-slate-300 hover:text-white hover:bg-white/10"
+                          title="Copy message to clipboard"
+                        >
+                          Copy
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenWhatsApp(item, whatsappCustomMessage)}
+                          disabled={!phone}
+                          className="h-7 px-2.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center gap-1 disabled:opacity-40"
+                          title={phone ? `Open WhatsApp chat with ${name}` : 'No phone number available'}
+                        >
+                          <svg className="h-3 w-3 fill-current shrink-0" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                          </svg>
+                          Chat
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-5 pt-3 border-t border-white/5 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const phones = whatsappModalApps
+                      .map(a => getCreatorWhatsAppPhone(a))
+                      .filter(Boolean)
+                      .join('\n')
+                    if (phones) {
+                      navigator.clipboard.writeText(phones)
+                      toast.success(`Copied ${phones.split('\n').length} phone numbers to clipboard!`)
+                    } else {
+                      toast.error('No valid phone numbers found to copy.')
+                    }
+                  }}
+                  className="h-8 text-xs border-slate-700 hover:bg-slate-800 text-slate-300"
+                >
+                  Copy All Numbers
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setWhatsappModalApps(null)
+                    setWhatsappCustomMessage('')
+                  }}
+                  className="h-8 px-4 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white rounded-lg"
+                >
+                  Done
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+{/* ─── Custom Scrollbar Styles ─────────────────────── */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           height: 6px;
