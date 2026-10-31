@@ -50,6 +50,10 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
   const hasMounted = useRef(false)
   const restoredTimerRef = useRef<NodeJS.Timeout | null>(null)
   const slowTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const offlineDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const consecutiveFailuresRef = useRef<number>(0)
+  const autoRetryTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastCheckTimeRef = useRef<number>(0)
 
   // Detect whether running in local development environment
   const isLocalEnvironment = useCallback(() => {
@@ -61,6 +65,27 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
       host === '0.0.0.0' ||
       host.endsWith('.local')
     )
+  }, [])
+
+  // Lightweight fallback ping to verify real external internet reachability
+  // Used to prevent false-positives when local Next.js dev server or internal API route is slow
+  const pingExternal = useCallback(async (): Promise<boolean> => {
+    if (typeof window === 'undefined') return true
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 3500)
+      // Ping Cloudflare trace or generate_204 with no-cors to test genuine external internet reachability
+      await fetch('https://cloudflare.com/cdn-cgi/trace', {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      return true
+    } catch {
+      return false
+    }
   }, [])
 
   // User manual dismissal handler persisted in sessionStorage
@@ -89,12 +114,21 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
 
   // Active ping function to check internet connectivity & response latency
   const checkConnection = useCallback(async (): Promise<boolean> => {
+    // If the browser natively reports offline, verify immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      consecutiveFailuresRef.current += 1
+      setIsOnline(false)
+      setShowOfflineBanner(true)
+      return false
+    }
+
     setIsChecking(true)
     const startTime = performance.now()
     try {
-      // Use no-cache fetch to our health endpoint with a 6-second timeout
+      // 8.5s in dev, 6s in prod to tolerate dev-server HMR compile delays
+      const timeoutLimit = isLocalEnvironment() ? 8500 : 6000
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 6000)
+      const timeoutId = setTimeout(() => controller.abort(), timeoutLimit)
 
       const res = await fetch(`/api/health?t=${Date.now()}`, {
         method: 'GET',
@@ -104,13 +138,14 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
 
       clearTimeout(timeoutId)
       const duration = performance.now() - startTime
+      lastCheckTimeRef.current = Date.now()
 
       if (res.ok) {
+        consecutiveFailuresRef.current = 0
         setIsOnline(true)
         setShowOfflineBanner(false)
 
         // Only mark as slow if latency is genuinely critical (> 4500ms) AND not on localhost.
-        // Localhost compilation/SSR spikes do not indicate bad internet connection.
         if (duration > 4500 && !isLocalEnvironment()) {
           setIsSlow(true)
           if (!slowDismissed) setShowSlowBanner(true)
@@ -120,19 +155,64 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
         }
         return true
       } else {
+        // Internal endpoint gave non-200. Check if user actually has outside internet.
+        const externalAlive = await pingExternal()
+        if (externalAlive) {
+          // Internet is active! Origin server is just compiling or briefly returning 50x.
+          consecutiveFailuresRef.current = 0
+          setIsOnline(true)
+          setShowOfflineBanner(false)
+          return true
+        }
+
+        consecutiveFailuresRef.current += 1
+        if (consecutiveFailuresRef.current >= 2) {
+          setIsOnline(false)
+          setShowOfflineBanner(true)
+          return false
+        }
+        return true
+      }
+    } catch {
+      // Fetch threw or timed out. Check if machine actually has active internet reachability
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const externalAlive = await pingExternal()
+        if (externalAlive) {
+          // External internet works; server compilation or cold start caused local timeout
+          consecutiveFailuresRef.current = 0
+          setIsOnline(true)
+          setShowOfflineBanner(false)
+          return true
+        }
+      }
+
+      consecutiveFailuresRef.current += 1
+      // Require at least 2 consecutive failures or native navigator.onLine === false before declaring offline
+      if (consecutiveFailuresRef.current >= 2 || (typeof navigator !== 'undefined' && !navigator.onLine)) {
         setIsOnline(false)
         setShowOfflineBanner(true)
         return false
       }
-    } catch {
-      // If fetch failed completely or timed out
-      setIsOnline(false)
-      setShowOfflineBanner(true)
-      return false
+      return true
     } finally {
       setIsChecking(false)
     }
-  }, [slowDismissed, isLocalEnvironment])
+  }, [slowDismissed, isLocalEnvironment, pingExternal])
+
+  // Auto-recovery polling: When offline banner is visible, periodically attempt to restore in background
+  useEffect(() => {
+    if (showOfflineBanner) {
+      if (autoRetryTimerRef.current) clearInterval(autoRetryTimerRef.current)
+      autoRetryTimerRef.current = setInterval(() => {
+        checkConnection()
+      }, 7000)
+    } else {
+      if (autoRetryTimerRef.current) clearInterval(autoRetryTimerRef.current)
+    }
+    return () => {
+      if (autoRetryTimerRef.current) clearInterval(autoRetryTimerRef.current)
+    }
+  }, [showOfflineBanner, checkConnection])
 
   // Monitor Network Information API & event listeners
   useEffect(() => {
@@ -140,6 +220,8 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
     setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
     const handleOnline = () => {
+      if (offlineDebounceTimerRef.current) clearTimeout(offlineDebounceTimerRef.current)
+      consecutiveFailuresRef.current = 0
       setIsOnline(true)
       setShowOfflineBanner(false)
       setShowRestoredBanner(true)
@@ -149,15 +231,21 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
         setShowRestoredBanner(false)
       }, 3500)
 
-      // Verify connection via ping
+      // Verify connection via ping quietly
       checkConnection()
     }
 
     const handleOffline = () => {
-      setIsOnline(false)
-      setShowRestoredBanner(false)
-      setShowOfflineBanner(true)
-      setShowSlowBanner(false)
+      // Debounce offline notification to avoid false alarms from brief OS/NIC renegotiation
+      if (offlineDebounceTimerRef.current) clearTimeout(offlineDebounceTimerRef.current)
+      offlineDebounceTimerRef.current = setTimeout(() => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          setIsOnline(false)
+          setShowRestoredBanner(false)
+          setShowOfflineBanner(true)
+          setShowSlowBanner(false)
+        }
+      }, 2500)
     }
 
     // Inspect Network Information API if supported
@@ -181,7 +269,6 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
           }
 
           // Strict threshold: Slow 2G, 2G, or 3G with extreme latency (>2500ms), or severe bandwidth (<0.1 Mbps)
-          // Chrome idle connections often report downlink < 0.35 Mbps even on 4G; do not flag 4G as slow.
           const isNetworkSlow =
             type === 'slow-2g' ||
             type === '2g' ||
@@ -196,7 +283,6 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
           } else {
             setIsSlow(false)
             setShowSlowBanner(false)
-            // Note: Never reset slowDismissed here to prevent banner popping back up in the same session
           }
         }
       }
@@ -213,16 +299,28 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
       }
     }
 
-    // Periodic heartbeat check every 30 seconds when window is active
+    // Periodic heartbeat check every 45 seconds when window is active (skip on localhost if online)
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
+        if (isLocalEnvironment() && navigator.onLine) {
+          return // Avoid spamming local dev server
+        }
         checkConnection()
       }
-    }, 30000)
+    }, 45000)
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        checkConnection()
+        // Debounce 1.5s after returning to tab so OS can resume Wi-Fi / TLS handshakes
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            const now = Date.now()
+            // Only ping if at least 30s has passed since last check
+            if (now - lastCheckTimeRef.current > 30000) {
+              checkConnection()
+            }
+          }
+        }, 1500)
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -230,6 +328,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      if (offlineDebounceTimerRef.current) clearTimeout(offlineDebounceTimerRef.current)
       if (typeof navigator !== 'undefined' && 'connection' in navigator) {
         const conn = (navigator as any).connection
         if (conn) {
@@ -240,6 +339,7 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (restoredTimerRef.current) clearTimeout(restoredTimerRef.current)
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current)
+      if (autoRetryTimerRef.current) clearInterval(autoRetryTimerRef.current)
     }
   }, [checkConnection, slowDismissed, isLocalEnvironment])
 
@@ -284,14 +384,23 @@ export function NetworkStatusProvider({ children }: { children: React.ReactNode 
                   </div>
                 </div>
 
-                <button
-                  onClick={() => checkConnection()}
-                  disabled={isChecking}
-                  className="shrink-0 flex items-center gap-1.5 bg-white text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-60"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin' : ''}`} />
-                  <span>{isChecking ? 'Checking...' : 'Retry'}</span>
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => checkConnection()}
+                    disabled={isChecking}
+                    className="shrink-0 flex items-center gap-1.5 bg-white text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin' : ''}`} />
+                    <span>{isChecking ? 'Checking...' : 'Retry'}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowOfflineBanner(false)}
+                    title="Dismiss"
+                    className="p-1.5 rounded-xl hover:bg-white/20 text-white/90 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
