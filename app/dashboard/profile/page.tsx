@@ -209,9 +209,21 @@ export default function ProfilePage() {
 
   const [formData, setFormData] = useState(() => {
     const initSrc: any = authUser || {}
+    let initFollowers = 0
+    let initUsername = initSrc.instagram_username || ''
+    if (Array.isArray(initSrc.instagram_profiles) && initSrc.instagram_profiles.length > 0) {
+      const primary = initSrc.instagram_profiles.find((p: any) => p.is_primary) || initSrc.instagram_profiles[0]
+      if (primary) {
+        initFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+        if (primary.username) initUsername = primary.username
+      }
+    } else if (initSrc.followers) {
+      initFollowers = typeof initSrc.followers === 'number' ? initSrc.followers : (parseInt(initSrc.followers || '0', 10) || 0)
+    }
+
     return {
       full_name: initSrc.full_name || '',
-      instagram_username: initSrc.instagram_username || '',
+      instagram_username: initUsername,
       instagram_profile_pic: initSrc.instagram_profile_pic || '',
       gender: initSrc.gender || '',
       category: initSrc.category || '',
@@ -219,7 +231,7 @@ export default function ProfilePage() {
       state: initSrc.state || '',
       city: initSrc.city || '',
       pincode: initSrc.pincode || '',
-      followers: initSrc.followers || 0,
+      followers: initFollowers,
       dob: initSrc.dob || '',
       alt_mobile: initSrc.alt_mobile || '',
       tshirt_size: initSrc.tshirt_size || '',
@@ -423,8 +435,9 @@ export default function ProfilePage() {
         const updatedProfiles = data.profiles || []
         setInstagramProfiles(updatedProfiles)
         const primary = updatedProfiles.find((p: any) => p.is_primary) || updatedProfiles[0]
-        if (primary && primary.followers) {
-          setFormData(prev => ({ ...prev, followers: primary.followers }))
+        if (primary && primary.followers !== undefined && primary.followers !== null) {
+          const count = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+          setFormData(prev => ({ ...prev, followers: count, instagram_username: primary.username }))
         }
         toast.success('Instagram profile updated successfully')
       } else {
@@ -444,8 +457,9 @@ export default function ProfilePage() {
         const updatedProfiles = data.profiles || []
         setInstagramProfiles(updatedProfiles)
         const primary = updatedProfiles.find((p: any) => p.is_primary) || updatedProfiles[0]
-        if (primary && primary.followers) {
-          setFormData(prev => ({ ...prev, followers: primary.followers }))
+        if (primary && primary.followers !== undefined && primary.followers !== null) {
+          const count = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+          setFormData(prev => ({ ...prev, followers: count, instagram_username: primary.username }))
         }
         toast.success('Instagram profile linked successfully!')
       }
@@ -461,6 +475,22 @@ export default function ProfilePage() {
   }
 
   const handleSetPrimaryProfile = async (profileId: string) => {
+    // 1. Optimistic immediate switch in local UI state
+    const target = instagramProfiles.find(p => p.id === profileId)
+    if (target) {
+      const updatedList = instagramProfiles.map(p => ({
+        ...p,
+        is_primary: p.id === profileId
+      }))
+      setInstagramProfiles(updatedList)
+      const count = typeof target.followers === 'number' ? target.followers : (parseInt(target.followers as any || '0', 10) || 0)
+      setFormData(prev => ({
+        ...prev,
+        followers: count,
+        instagram_username: target.username
+      }))
+    }
+
     try {
       const res = await fetch('/api/dashboard/instagram-accounts', {
         method: 'PUT',
@@ -469,12 +499,23 @@ export default function ProfilePage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to set primary profile')
-      setInstagramProfiles(data.profiles || [])
-      toast.success('Primary Instagram profile updated')
+      const updatedProfiles = data.profiles || []
+      setInstagramProfiles(updatedProfiles)
+      const primary = updatedProfiles.find((p: any) => p.is_primary) || updatedProfiles[0]
+      if (primary && primary.followers !== undefined && primary.followers !== null) {
+        const count = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+        setFormData(prev => ({
+          ...prev,
+          followers: count,
+          instagram_username: primary.username
+        }))
+      }
+      toast.success(`Switched primary profile to @${primary?.username || 'Instagram'} (${(primary?.followers || 0).toLocaleString('en-IN')} Followers)`)
       await fetchProfile()
       await refreshUserProfile()
     } catch (err: any) {
       toast.error(err.message || 'Failed to update primary profile')
+      await fetchProfile()
     }
   }
 
@@ -815,18 +856,23 @@ export default function ProfilePage() {
           ]
         }
 
-        // Extract effective followers from user.followers or primary linked Instagram profile
-        let effectiveFollowers = typeof data.user.followers === 'number' && data.user.followers > 0 ? data.user.followers : 0
-        if (!effectiveFollowers && Array.isArray(data.user.instagram_profiles) && data.user.instagram_profiles.length > 0) {
+        // Extract effective followers strictly from primary linked Instagram profile (no stale defaults)
+        let effectiveFollowers = 0
+        let effectiveUsername = data.user.instagram_username || ''
+
+        if (Array.isArray(data.user.instagram_profiles) && data.user.instagram_profiles.length > 0) {
           const primary = data.user.instagram_profiles.find((p: any) => p.is_primary) || data.user.instagram_profiles[0]
-          if (primary && typeof primary.followers === 'number' && primary.followers > 0) {
-            effectiveFollowers = primary.followers
+          if (primary) {
+            effectiveFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+            if (primary.username) effectiveUsername = primary.username
           }
+        } else if (typeof data.user.followers === 'number' && data.user.followers > 0) {
+          effectiveFollowers = data.user.followers
         }
 
         const initialForm = {
           full_name: data.user.full_name || '',
-          instagram_username: data.user.instagram_username || '',
+          instagram_username: effectiveUsername,
           instagram_profile_pic: data.user.instagram_profile_pic || '',
           gender: data.user.gender || '',
           category: savedCategory,
@@ -886,9 +932,21 @@ export default function ProfilePage() {
 
   // Core save handler supporting both auto-save and manual triggers
   const performSave = async (dataToSave = formData, isAutoSave = false) => {
+    let resolvedFollowers = dataToSave.followers
+    let resolvedUsername = extractInstagramUsername(dataToSave.instagram_username)
+
+    if (instagramProfiles.length > 0) {
+      const primary = instagramProfiles.find(p => p.is_primary) || instagramProfiles[0]
+      if (primary) {
+        resolvedFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers as any || '0', 10) || 0)
+        resolvedUsername = primary.username
+      }
+    }
+
     const payload = {
       ...dataToSave,
-      instagram_username: extractInstagramUsername(dataToSave.instagram_username)
+      followers: resolvedFollowers,
+      instagram_username: resolvedUsername
     }
     const payloadStr = JSON.stringify(payload)
 
@@ -1617,24 +1675,44 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Followers Count */}
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
                         <Label className="text-slate-700 text-xs font-bold uppercase tracking-wider">Followers Count</Label>
-                        {formData.followers > 0 && (
-                          <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            Synced with Instagram
+                        {instagramProfiles.length > 0 ? (
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                            <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                            <span>Synced with @{instagramProfiles.find(p => p.is_primary)?.username || instagramProfiles[0]?.username}</span>
                           </span>
-                        )}
+                        ) : formData.followers > 0 ? (
+                          <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            Manual Count
+                          </span>
+                        ) : null}
                       </div>
                       <div className="relative">
                         <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           type="number"
-                          value={formData.followers === 0 ? '' : formData.followers}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })}
-                          placeholder="Enter Followers count"
-                          className="pl-9 bg-slate-50/50 border border-slate-200 text-slate-900 h-10 text-xs focus-visible:ring-[#f50057] rounded-lg placeholder:text-slate-400 focus:bg-white transition-all"
+                          value={formData.followers}
+                          readOnly={instagramProfiles.length > 0}
+                          disabled={instagramProfiles.length > 0}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            if (instagramProfiles.length === 0) {
+                              setFormData({ ...formData, followers: parseInt(e.target.value) || 0 })
+                            }
+                          }}
+                          placeholder="0"
+                          className={`pl-9 border h-10 text-xs rounded-lg transition-all ${
+                            instagramProfiles.length > 0
+                              ? 'bg-slate-100/90 border-slate-200 text-slate-800 font-bold cursor-not-allowed select-none'
+                              : 'bg-slate-50/50 border-slate-200 text-slate-900 focus-visible:ring-[#f50057] placeholder:text-slate-400 focus:bg-white'
+                          }`}
                         />
                       </div>
+                      {instagramProfiles.length > 0 && (
+                        <p className="text-[10px] text-slate-500">
+                          Auto-synced with active Instagram profile. Switching primary account above automatically updates this count.
+                        </p>
+                      )}
                     </div>
                   </div>
 

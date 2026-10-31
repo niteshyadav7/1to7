@@ -48,14 +48,17 @@ export async function GET() {
       }, { status: 404 })
     }
 
-    // Self-heal followers count if 0 or null but primary Instagram profile has followers
-    if ((!user.followers || user.followers === 0) && Array.isArray(user.instagram_profiles) && user.instagram_profiles.length > 0) {
+    // Synchronize followers count with primary Instagram profile whenever profiles exist
+    if (Array.isArray(user.instagram_profiles) && user.instagram_profiles.length > 0) {
       const primary = user.instagram_profiles.find((p: any) => p.is_primary) || user.instagram_profiles[0]
-      if (primary && typeof primary.followers === 'number' && primary.followers > 0) {
-        user.followers = primary.followers
-        user.instagram_followers_count = primary.followers
-        // Persist to database in background
-        supabase.from('users').update({ followers: primary.followers, instagram_followers_count: primary.followers }).eq('id', user.id).then(() => {})
+      if (primary && primary.followers !== undefined && primary.followers !== null) {
+        const correctFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers, 10) || 0)
+        if (user.followers !== correctFollowers || user.instagram_followers_count !== correctFollowers) {
+          user.followers = correctFollowers
+          user.instagram_followers_count = correctFollowers
+          // Persist to database in background
+          supabase.from('users').update({ followers: correctFollowers, instagram_followers_count: correctFollowers }).eq('id', user.id).then(() => {})
+        }
       }
     }
 
@@ -109,6 +112,16 @@ export async function PUT(request: Request) {
     for (const key of allowedFields) {
       if (body[key] !== undefined) {
         updateData[key] = body[key]
+      }
+    }
+
+    // Ensure followers count mirrors the primary Instagram profile if accounts are linked (prevents stale form overwrite)
+    if (Array.isArray(currentUser.instagram_profiles) && currentUser.instagram_profiles.length > 0) {
+      const primary = currentUser.instagram_profiles.find((p: any) => p.is_primary) || currentUser.instagram_profiles[0]
+      if (primary && primary.followers !== undefined && primary.followers !== null) {
+        const correctFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers, 10) || 0)
+        updateData.followers = correctFollowers
+        updateData.instagram_followers_count = correctFollowers
       }
     }
 

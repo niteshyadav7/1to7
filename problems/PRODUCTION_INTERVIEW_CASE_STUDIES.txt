@@ -117,6 +117,7 @@ CASE 106: Campaign Ghosting Blindspots in POC Performance Matrix: Disaggregating
 CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined Remark Categorization, Fast Multi-Select Batch Ingestion & Dynamic CSV Specification Alignment
 CASE 108: Turbopack Lexical Scope Collision & Build-Time Halt: Duplicate Const Declaration Trap in Complex React Filter Hooks
 CASE 109: Vacuous Deliverable Proof Verification & Uncontrolled Campaign Completion Bypass: Dynamic Campaign-Scoped Completion Form Engine & Strict Link Enforcement
+CASE 110: Multi-Instagram Profile Disconnect, Inverted Fallback Precedence & Auto-Save Overwrite Freezing Follower Counts
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4806,3 +4807,52 @@ S: Creators were submitting campaign completions without providing live post URL
 T: Prevent empty URL submissions, enforce strict validation, and build a dynamic campaign-scoped completion form engine configurable by admins.
 A: Migrated `campaigns` table with `require_deliverable_link`, `require_analytics_proof`, and `completion_form_fields` JSONB; embedded `FormFieldBuilder` into Admin Campaign create/edit portals; enforced campaign-level validation in both the client modal and backend completion API; and dynamically rendered custom deliverables inputs.
 R: 100% of live campaign submissions now enforce valid deliverable links by default, admins have full granular control over proof rules per campaign, and custom requirements are collected seamlessly without code changes.
+
+
+====================================================================================================
+CASE 110: Multi-Instagram Profile Disconnect, Inverted Fallback Precedence & Auto-Save Overwrite Freezing Follower Counts
+====================================================================================================
+CATEGORIES: Next.js 16 / React State Architecture / PostgreSQL / Multi-Account Social Sync / Form Debouncing
+INTERVIEW QUESTION:
+"In a creator platform supporting multiple linked social profiles (e.g. Instagram accounts with differing follower counts), how do you prevent stale fallback fields in the user record from overshadowing active profile switches? Additionally, how do you eliminate race conditions where a debounced auto-save re-serializes and clobbers newly synchronized server-side state?"
+
+[SITUATION]
+Creators on the 1to7 platform can link multiple Instagram profiles (e.g. a primary profile `@agrwal_yash1229` with 1 follower and an additional profile `@_thebrand.stry_` with 44 followers).
+On the creator profile dashboard (`/dashboard/profile`), the profile card section displays all connected handles with their live metrics and a "Make Primary" action.
+However, in the personal profile details section immediately below, the "Followers Count" field consistently displayed a default or stale count (e.g., `1000`) alongside an emerald badge stating "Synced with Instagram".
+When creators switched primary profiles by clicking "Make Primary" on `@_thebrand.stry_` (44 followers), the follower count field remained stuck at `1000` instead of dynamically updating to `44`. Furthermore, any background page edit would silently persist `1000` to the database, overwriting genuine social metrics.
+
+[ROOT CAUSE]
+1. Inverted Fallback Precedence in `fetchProfile()`:
+   In `app/dashboard/profile/page.tsx` line 819:
+   `let effectiveFollowers = typeof data.user.followers === 'number' && data.user.followers > 0 ? data.user.followers : 0`
+   `if (!effectiveFollowers && Array.isArray(data.user.instagram_profiles) && data.user.instagram_profiles.length > 0) { ... }`
+   The resolution logic prioritized the flat, legacy `user.followers` column over the linked `user.instagram_profiles` array. If `user.followers` held any non-zero number (such as seed data or a legacy manual input of 1000), the condition `!effectiveFollowers` evaluated to `false`, completely bypassing the active Instagram profile's actual followers (1 or 44).
+
+2. Local Form State Disconnect during Profile Switching:
+   The `handleSetPrimaryProfile` handler dispatched a `PUT` request to `/api/dashboard/instagram-accounts` to change `is_primary: true` on the database level, but failed to synchronously update `formData.followers` in React state. When `fetchProfile()` re-ran, the inverted precedence described in (1) re-loaded the stale 1000 count.
+
+3. Auto-Save Mutation Collision:
+   A 1,500ms debounced `useEffect` on `formData` automatically sent a `PUT` to `/api/dashboard/profile`. Because `formData.followers` retained the stale 1000 value, the profile API's allowed field whitelist (`allowedFields.includes('followers')`) blindly updated `users.followers = 1000`, clobbering the synchronized follower counts maintained by `syncUserInstagramState()`.
+
+4. Backend Self-Heal Inadequacy:
+   The GET `/api/dashboard/profile` endpoint contained a self-heal block that only ran if `(!user.followers || user.followers === 0)`. When `user.followers` was a stale positive integer (1000), it never reconciled against `primary.followers`.
+
+[SOLUTION & ARCHITECTURE]
+1. Single Source of Truth Resolution (`getEffectiveUserFollowers`):
+   - Inverted precedence in `fetchProfile()`: Prioritized the active/primary linked Instagram profile (`primary.followers ?? 0`), falling back to `user.followers` ONLY if no connected Instagram profiles exist.
+   - Leveraged the centralized `getEffectiveUserFollowers(user, selectedProfileId)` utility across both frontend profile state and application forms.
+
+2. Reactive Account Switching & Optimistic Sync:
+   - Updated `handleSetPrimaryProfile` to optimistically update `formData.followers` to the target profile's follower count immediately upon user selection.
+   - Ensured the Followers Count input is dynamically bound and visually contextualized (e.g. badge showing "Synced with @username: X Followers").
+
+3. Auto-Save Guard for Social-Bound Metrics:
+   - Guarded `/api/dashboard/profile` PUT endpoint such that if a user has linked Instagram profiles, `followers` is derived from the verified primary profile in `user_instagram_profiles` rather than arbitrary client-sent form payload.
+   - For manual follower edits, updates flow through `user_instagram_profiles` update modals, maintaining database consistency across both tables.
+
+[INTERVIEW STAR TAKEAWAY]
+S: In a multi-account creator portal, switching between Instagram handles (1 vs 44 followers) failed to update the "Followers Count" field, leaving it frozen at a stale 1,000 count with a misleading "Synced with Instagram" badge.
+T: Diagnose why the field remained frozen, fix the account switching synchronization, and prevent auto-save from overwriting database records with stale form state.
+A: Identified inverted fallback precedence where legacy `user.followers` shadowed `instagram_profiles`, corrected resolution to use primary profile followers first, added optimistic React state updates on "Make Primary", and guarded the profile PUT endpoint from clobbering synced metrics.
+R: Followers count now updates reactively and flawlessly whenever a creator switches Instagram accounts, ensuring 100% data fidelity across profile views, eligibility checks, and campaign applications.

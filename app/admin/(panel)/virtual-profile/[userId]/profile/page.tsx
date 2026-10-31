@@ -280,18 +280,20 @@ export default function AdminVirtualProfileEditPage() {
           )
         }
 
-        let effectiveFollowers =
-          typeof data.user.followers === 'number' && data.user.followers > 0 ? data.user.followers : 0
+        let effectiveFollowers = 0
+        let effectiveUsername = data.user.instagram_username || ''
         if (
-          !effectiveFollowers &&
           Array.isArray(data.user.instagram_profiles) &&
           data.user.instagram_profiles.length > 0
         ) {
           const primary =
             data.user.instagram_profiles.find((p: any) => p.is_primary) || data.user.instagram_profiles[0]
-          if (primary && typeof primary.followers === 'number' && primary.followers > 0) {
-            effectiveFollowers = primary.followers
+          if (primary) {
+            effectiveFollowers = typeof primary.followers === 'number' ? primary.followers : (parseInt(primary.followers || '0', 10) || 0)
+            if (primary.username) effectiveUsername = primary.username
           }
+        } else if (typeof data.user.followers === 'number' && data.user.followers > 0) {
+          effectiveFollowers = data.user.followers
         }
 
         const initialForm: ProfileFormData = {
