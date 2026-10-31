@@ -414,6 +414,29 @@ export async function ensurePocMigration(): Promise<void> {
         ) THEN
           ALTER TABLE public.campaigns ADD COLUMN completion_form_fields JSONB DEFAULT '[]'::jsonb;
         END IF;
+
+        -- 18. is_archived columns on users and applications for inactive/dormant segmentation
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'is_archived'
+        ) THEN
+          ALTER TABLE public.users ADD COLUMN is_archived BOOLEAN DEFAULT FALSE;
+          ALTER TABLE public.users ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE public.users ADD COLUMN archived_by TEXT;
+          ALTER TABLE public.users ADD COLUMN archive_reason TEXT;
+          CREATE INDEX IF NOT EXISTS idx_users_is_archived ON public.users (is_archived);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_schema = 'public' AND table_name = 'applications' AND column_name = 'is_archived'
+        ) THEN
+          ALTER TABLE public.applications ADD COLUMN is_archived BOOLEAN DEFAULT FALSE;
+          ALTER TABLE public.applications ADD COLUMN archived_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE public.applications ADD COLUMN archived_by TEXT;
+          ALTER TABLE public.applications ADD COLUMN archive_reason TEXT;
+          CREATE INDEX IF NOT EXISTS idx_applications_is_archived ON public.applications (is_archived);
+        END IF;
       END $$;
     `)
     global._pocMigrationDone = true

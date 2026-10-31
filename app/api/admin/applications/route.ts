@@ -51,6 +51,9 @@ export async function GET(request: Request) {
       completion_submitted_at,
       is_ghosted,
       ghosted_at,
+      is_archived,
+      archived_at,
+      archive_reason,
       team_remark,
       team_remark_by,
       team_remark_updated_at,
@@ -84,7 +87,10 @@ export async function GET(request: Request) {
         instagram_account_type,
         instagram_biography,
         instagram_website,
-        instagram_profiles
+        instagram_profiles,
+        is_archived,
+        archived_at,
+        archive_reason
       ),
       campaigns (
         id,

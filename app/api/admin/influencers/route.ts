@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || ''
     const gender = searchParams.get('gender') || ''
     const category = searchParams.get('category') || ''
+    const tab = searchParams.get('tab') || 'active' // 'active' | 'archived' | 'all'
     const rawSort = searchParams.get('sort') || 'influencer_seq_num'
     const sortOrder = searchParams.get('order') || 'desc'
 
@@ -31,6 +32,13 @@ export async function GET(request: Request) {
     let query = supabase
       .from('users')
       .select('*', { count: 'exact' }) // Get count for pagination
+
+    // Filter by Active vs Archived status
+    if (tab === 'archived') {
+      query = query.eq('is_archived', true)
+    } else if (tab === 'active') {
+      query = query.or('is_archived.is.null,is_archived.eq.false')
+    }
 
     if (search) {
       // Create an explicit search term for ILIKE matches (including category/niche and languages)
@@ -109,15 +117,28 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get global stats (total count, verified email count, etc)
-    const { count: totalInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true })
-    const { count: verifiedInfluencers } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_email_verified', true)
+    // Get global stats (total count, active, archived, verified email count)
+    const [
+      { count: totalCount },
+      { count: archivedCount },
+      { count: verifiedCount }
+    ] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_archived', true),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_email_verified', true)
+    ])
+
+    const totalInfluencers = totalCount || 0
+    const archivedInfluencers = archivedCount || 0
+    const activeInfluencers = Math.max(0, totalInfluencers - archivedInfluencers)
 
     return NextResponse.json({
       influencers: enrichedInfluencers,
       stats: {
-        total: totalInfluencers || 0,
-        verified: verifiedInfluencers || 0,
+        total: totalInfluencers,
+        active: activeInfluencers,
+        archived: archivedInfluencers,
+        verified: verifiedCount || 0,
       },
       pagination: {
         total: count || 0,

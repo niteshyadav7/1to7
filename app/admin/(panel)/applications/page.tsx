@@ -13,7 +13,8 @@ import {
   FileSpreadsheet, FileJson, UserCheck, UserX, Clock,
   RotateCcw, Trash2, RefreshCw, Store, ExternalLink, ShieldCheck, AlertTriangle,
   Pencil, Save, Upload, Share2, MessageSquareText, History,
-  Sparkles, List, Type, FileImage, Copy, Link2, Building2
+  Sparkles, List, Type, FileImage, Copy, Link2, Building2,
+  Archive, ArchiveRestore
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -67,6 +68,9 @@ interface UserInfo {
   instagram_website?: string
   instagram_profiles?: any[]
   shipping_addresses?: any[]
+  is_archived?: boolean | null
+  archived_at?: string | null
+  archive_reason?: string | null
 }
 
 interface CampaignInfo {
@@ -91,6 +95,9 @@ interface Application {
   completion_submitted_at?: string | null
   is_ghosted?: boolean | null
   ghosted_at?: string | null
+  is_archived?: boolean | null
+  archived_at?: string | null
+  archive_reason?: string | null
   team_remark?: string | null
   team_remark_by?: string | null
   team_remark_updated_at?: string | null
@@ -147,6 +154,7 @@ const statusColors: Record<string, string> = {
   'Payment Initiated': 'bg-amber-500/15 text-amber-400 border-amber-500/25',
   'Payment Approved': 'bg-blue-500/15 text-blue-400 border-blue-500/25',
   'Payment Requested': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+  'Archived': 'bg-slate-500/20 text-slate-300 border-slate-500/30',
 }
 
 const statusDots: Record<string, string> = {
@@ -159,9 +167,10 @@ const statusDots: Record<string, string> = {
   'Payment Initiated': 'bg-amber-400',
   'Payment Approved': 'bg-blue-400',
   'Payment Requested': 'bg-cyan-400',
+  'Archived': 'bg-slate-400',
 }
 
-const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted']
+const statusFilters = ['All', 'Applied', 'Under Process', 'Approved', 'Payment Requested', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Approved', 'Ghosted', 'Archived']
 
 const followerRanges = [
   { label: '< 1K', min: 0, max: 999 },
@@ -805,6 +814,7 @@ function ActionsDropdown({
   onEditRemark,
   onGhostAction,
   onGhostHistory,
+  onArchiveCreator,
 }: {
   app: Application
   onStatusChange: (id: string, status: string) => void
@@ -817,6 +827,7 @@ function ActionsDropdown({
   onEditRemark?: (app: Application) => void
   onGhostAction?: (app: Application, actionType: 'ghost' | 'unghost') => void
   onGhostHistory?: (app: Application) => void
+  onArchiveCreator?: (app: Application, action: 'archive' | 'unarchive') => void
 }) {
   const { open, setOpen, popoverRef } = usePopover()
 
@@ -1015,6 +1026,35 @@ function ActionsDropdown({
                 >
                   <span className="text-sm">👻</span>
                   Mark Ghosted
+                </button>
+              )}
+
+              {/* Archive / Unarchive Action */}
+              {app.users?.is_archived || app.is_archived ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onArchiveCreator?.(app, 'unarchive')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
+                  title="Restore creator to active pool"
+                >
+                  <ArchiveRestore className="h-3.5 w-3.5 text-amber-400" />
+                  Unarchive Creator
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(false)
+                    onArchiveCreator?.(app, 'archive')
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300/90 hover:bg-amber-500/15"
+                  title="Archive creator as inactive and move to Archived tab"
+                >
+                  <Archive className="h-3.5 w-3.5 text-amber-400" />
+                  Archive Creator
                 </button>
               )}
 
@@ -1957,8 +1997,12 @@ export default function AllApplicationsPage() {
     // Status filter
     if (activeStatus === 'Ghosted') {
       result = result.filter(a => a.is_ghosted)
-    } else if (activeStatus !== 'All') {
-      result = result.filter(a => a.status === activeStatus)
+    } else if (activeStatus === 'Archived') {
+      result = result.filter(a => a.is_archived || a.users?.is_archived)
+    } else if (activeStatus === 'All') {
+      // keep all
+    } else {
+      result = result.filter(a => a.status === activeStatus && !a.is_archived && !a.users?.is_archived)
     }
 
     // Brand Shared filter
@@ -2337,6 +2381,78 @@ export default function AllApplicationsPage() {
     }
   }
 
+  const handleArchiveCreator = async (targetApp: Application, action: 'archive' | 'unarchive') => {
+    const userId = targetApp.users?.id
+    if (!userId) {
+      toast.error('Creator user ID not found')
+      return
+    }
+
+    const creatorName = targetApp.users?.full_name || 'this creator'
+    const confirmMsg = action === 'archive'
+      ? `Are you sure you want to archive ${creatorName}? They will be marked as inactive and moved to the Archived Creators pool.`
+      : `Restore ${creatorName} to the active creators pool?`
+
+    if (!confirm(confirmMsg)) return
+
+    try {
+      const res = await fetch('/api/admin/influencers/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds: [userId],
+          action,
+          reason: 'Archived via Applications desk',
+          cancel_applications: action === 'archive'
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to archive creator')
+      toast.success(data.message || (action === 'archive' ? `${creatorName} archived` : `${creatorName} restored`))
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update archive status')
+    }
+  }
+
+  const handleBulkArchiveCreators = async () => {
+    if (selectedIds.size === 0) return
+    const selectedApps = Array.from(selectedIds).map(id => applications.find(a => a.id === id)).filter(Boolean)
+    const userIds = Array.from(new Set(selectedApps.map(a => a?.users?.id).filter(Boolean))) as string[]
+
+    if (userIds.length === 0) {
+      toast.error('No valid creators selected to archive')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to archive ${userIds.length} creator(s)? They will be marked as inactive and moved to the Archived Creators pool.`)) {
+      return
+    }
+
+    setBulkUpdating(true)
+    try {
+      const res = await fetch('/api/admin/influencers/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds,
+          action: 'archive',
+          reason: 'Bulk archived via Applications desk',
+          cancel_applications: true
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to archive creators')
+      toast.success(data.message || `${userIds.length} creators archived`)
+      setSelectedIds(new Set())
+      fetchApplications()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to archive creators')
+    } finally {
+      setBulkUpdating(false)
+    }
+  }
+
   // ─── Resolve Application Address Helper ────────────────────
   const resolveApplicationAddress = (app: Application) => {
     let addr: any = null
@@ -2481,6 +2597,9 @@ export default function AllApplicationsPage() {
       counts[a.status] = (counts[a.status] || 0) + 1
       if (a.is_ghosted) {
         counts['Ghosted'] = (counts['Ghosted'] || 0) + 1
+      }
+      if (a.is_archived || a.users?.is_archived) {
+        counts['Archived'] = (counts['Archived'] || 0) + 1
       }
     })
     return counts
@@ -3430,6 +3549,7 @@ export default function AllApplicationsPage() {
                               onDeleteApp={handleDeleteApplication}
                               onGhostAction={(targetApp, actionType) => setGhostModalApp({ app: targetApp, actionType })}
                               onGhostHistory={(targetApp) => setGhostHistoryApp(targetApp)}
+                              onArchiveCreator={handleArchiveCreator}
                             />
                           </td>
                         )}
@@ -4361,7 +4481,20 @@ export default function AllApplicationsPage() {
                 <span>GHOST</span>
               </Button>
 
-              {/* 6. RESET (Red / Delete) */}
+              {/* 6. ARCHIVE CREATORS (Amber) */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkArchiveCreators}
+                disabled={bulkUpdating}
+                className="h-9 px-3.5 rounded-xl border-amber-500/30 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 font-bold text-xs cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1.5"
+                title="Archive selected creators and mark them as inactive"
+              >
+                <Archive className="h-3.5 w-3.5 text-amber-400" />
+                <span>ARCHIVE ({selectedIds.size})</span>
+              </Button>
+
+              {/* 7. RESET (Red / Delete) */}
               <Button
                 variant="outline"
                 size="sm"

@@ -118,6 +118,7 @@ CASE 107: Brand Dispatch Tracking Blindspots in Address Confirmation: Predefined
 CASE 108: Turbopack Lexical Scope Collision & Build-Time Halt: Duplicate Const Declaration Trap in Complex React Filter Hooks
 CASE 109: Vacuous Deliverable Proof Verification & Uncontrolled Campaign Completion Bypass: Dynamic Campaign-Scoped Completion Form Engine & Strict Link Enforcement
 CASE 110: Multi-Instagram Profile Disconnect, Inverted Fallback Precedence & Auto-Save Overwrite Freezing Follower Counts
+CASE 111: Dormant Creator Pool Segmentation: Dual-Surface In-Place Creator Archiving, Preserved Profile Data & Active Roster Telemetry
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
 
@@ -4856,3 +4857,71 @@ S: In a multi-account creator portal, switching between Instagram handles (1 vs 
 T: Diagnose why the field remained frozen, fix the account switching synchronization, and prevent auto-save from overwriting database records with stale form state.
 A: Identified inverted fallback precedence where legacy `user.followers` shadowed `instagram_profiles`, corrected resolution to use primary profile followers first, added optimistic React state updates on "Make Primary", and guarded the profile PUT endpoint from clobbering synced metrics.
 R: Followers count now updates reactively and flawlessly whenever a creator switches Instagram accounts, ensuring 100% data fidelity across profile views, eligibility checks, and campaign applications.
+
+
+====================================================================================================
+CASE 111: Dormant Creator Pool Segmentation: Dual-Surface In-Place Creator Archiving, Preserved Profile Data & Active Roster Telemetry
+====================================================================================================
+CATEGORIES: Full-Stack Architecture / Next.js 16 / PostgreSQL Schema Migration / Talent Operations / State Segmentation
+INTERVIEW QUESTION:
+"In a high-volume two-sided marketplace with 35,000+ registered talent profiles where only a subset is actively engaging with campaigns, how do you architect a soft-archival system that cleanly segregates active talent from dormant profiles across both operational inbound queues (applications) and master directories (influencers), while preserving full profile history for future reactivation and preventing data loss or operational clutter?"
+
+[SITUATION]
+The 1to7 Influencer Marketing Platform manages over 35,000 registered creators. Over time, a significant portion of this roster became dormant, unresponsive, or inactive across campaigns.
+Operations managers faced two major operational roadblocks:
+1. Operational Inbound Queue Pollution (`/admin/applications`): Campaign application queues and brand forwarding workflows were cluttered with inactive/dormant applicants. Managers lacked a fast mechanism to retire dormant applicants without losing their submission history or permanently deleting user accounts.
+2. Talent Roster Opacity & Metric Skew (`/admin/influencers`): The primary influencer directory displayed all 35,000 creators in an undifferentiated pool. Key executive telemetry (active roster size, contactable creators, deliverable readiness) was diluted by tens of thousands of dormant accounts, and there was no way to export targeted sub-rosters of inactive creators for secondary re-engagement campaigns.
+The business required a dual-surface archival system where creators could be archived directly from incoming campaign applications or via the master directory, segregated into dedicated tabs with rich profile cards (HY ID, Contact, Social Metrics, Badges, Location, Join Date), exported on demand, and restored anytime.
+
+[ROOT CAUSE]
+1. Lack of User-Level Archival Semantics in Database Schema:
+   While the system possessed `is_ghosted` flags for accountability enforcement on deliverable fraud, the database had no state modeling for dormancy or archival (`is_archived`). Admins were forced to either leave dormant users mixed in with active rosters or permanently delete them, losing valuable contact, shipping, and social profile data.
+2. Single-Surface Operational Asymmetry:
+   Archival intent originates at two distinct operational moments:
+   - When reviewing incoming applications for specific campaigns (inbound evaluation).
+   - When auditing the macro creator database (directory governance).
+   Implementing an archive button on only one surface would create workflow friction, forcing managers to jump across pages to flag users.
+3. Metric Invalidation & Aggregation Drift:
+   Previous analytics aggregated total counts (`COUNT(*)`) without segmenting active vs. archived creators. Adding client-side filtering alone would cause severe pagination skew and incorrect summary counts across the admin desk.
+
+[SOLUTION & ARCHITECTURE]
+1. Zero-Downtime Database Migration & Schema Indexing:
+   - Added `is_archived BOOLEAN NOT NULL DEFAULT FALSE`, `archived_at TIMESTAMPTZ`, `archived_by TEXT`, and `archive_reason TEXT` to both `public.users` and `public.applications`.
+   - Created partial B-Tree composite indexes:
+     `CREATE INDEX IF NOT EXISTS idx_users_is_archived ON public.users(is_archived, created_at DESC)`
+     `CREATE INDEX IF NOT EXISTS idx_applications_is_archived ON public.applications(is_archived, created_at DESC)`
+   - Integrated migration block into `lib/db.ts` to guarantee automated deployment across production environments.
+
+2. Atomic Archival Micro-Service (`/api/admin/influencers/archive`):
+   - Created endpoint supporting both single-user and bulk operations (`userIds: string[]`, `action: 'archive' | 'unarchive'`, `reason: string`, `cancel_applications: boolean`).
+   - Implemented cascading consistency: when archiving a creator with `cancel_applications: true`, all pending/in-review campaign applications are automatically updated to `is_archived = true` with audit timestamps, preventing orphaned applicants from appearing in brand forwarding queues.
+   - Restoring a creator (`action: 'unarchive'`) clears `is_archived = false`, restoring them to the active talent roster immediately.
+
+3. Parallel Count Aggregation & Multi-Tab Query Engine:
+   - Enhanced `/api/admin/influencers` to accept `tab=active | archived | all` parameter.
+   - Refactored stats calculation to run concurrent SQL queries via `Promise.all`:
+     `total: COUNT(*)`, `active: COUNT(*) WHERE is_archived = false`, `archived: COUNT(*) WHERE is_archived = true`, and `verified: COUNT(*) WHERE is_email_verified = true`.
+   - Ensured zero latency impact during pagination.
+
+4. Dual-Surface Operational Integration:
+   - Applications Desk (`/admin/applications`):
+     - Added dedicated "Archived" status tab with live count badge.
+     - Added row-level "Archive Creator" and "Unarchive Creator" actions in the `ActionsDropdown`.
+     - Integrated bulk "ARCHIVE (N)" action button in the multi-select batch toolbar.
+     - Excluded archived applicants from active status tabs ('Applied', 'Negotiate Deal', 'Shortlisted', etc.) to keep active campaign desks pristine.
+   - Influencers Directory (`/admin/influencers`):
+     - Added segment tabs (`Active Creators`, `Archived Creators`, `All Creators`) with real-time count badges.
+     - Added responsive top summary cards: Total Registered, Active Pool, Archived / Inactive, and Verified Emails.
+     - Maintained high-density table layout matching production design (Avatar, HY ID, Completion %, Contact, Social Handles, Followers, Badges, Location, Join Date).
+     - Added interactive "Archive" / "Restore" action buttons and amber "📦 Archived" badges with hover tooltips showing archive timestamp and reason.
+     - Added 1-click Archive/Restore action inside the creator `ProfileModal`.
+
+5. Segment-Aware CSV Export Engine (`/api/admin/influencers/export`):
+   - Updated export engine to pass the active segment tab filter (`tab=archived`).
+   - Generates compliant UTF-8 BOM CSVs containing full creator dossiers (HY ID, Name, Email, Mobile, Instagram Handle, Live Followers, City, State, Bank Status, Join Date, and Archive Date/Reason) for specialized re-engagement operations.
+
+[INTERVIEW STAR TAKEAWAY]
+S: The platform had 35,000 registered creators with no way to identify or separate inactive/dormant accounts from active talent, cluttering inbound application queues and skewing business telemetry.
+T: Architect a soft-archival system across applications and master influencer directories with dedicated tabs, rich tabular presentation, bulk operations, and segment-filtered CSV exports, preserving all user data for future reactivation.
+A: Migrated PostgreSQL schemas with indexed `is_archived` flags; built an atomic cascading archive/unarchive API; updated directory and application endpoints with parallel SQL aggregations and segment tab routing; integrated dual-surface controls (row actions, bulk bars, modal buttons, status badges); and added segment-aware CSV export.
+R: Operations teams can now segregate dormant creators with 1 tap, reducing active queue noise while retaining 100% of historical data, and executives have clear, real-time metrics on the truly active 35k creator pool.

@@ -37,6 +37,7 @@ export async function GET(request: Request) {
     const rawSort = searchParams.get('sort') || 'influencer_seq_num'
     const sortOrder = searchParams.get('order') || 'desc'
     const preset = searchParams.get('preset') || 'all' // 'all', 'contact', 'shipping', 'finance'
+    const tab = searchParams.get('tab') // 'active', 'archived', 'all'
     const countOnly = searchParams.get('count_only') === 'true'
 
     // Range parameters
@@ -118,6 +119,18 @@ export async function GET(request: Request) {
 
       if (profileStrengthMin !== null && !isNaN(profileStrengthMin)) {
         baseQuery = baseQuery.gte('profile_strength', profileStrengthMin)
+      }
+
+      if (tab === 'archived') {
+        baseQuery = baseQuery.eq('is_archived', true)
+      } else if (tab === 'active') {
+        baseQuery = baseQuery.or('is_archived.is.null,is_archived.eq.false')
+      }
+    } else {
+      if (tab === 'archived') {
+        baseQuery = baseQuery.eq('is_archived', true)
+      } else if (tab === 'active') {
+        baseQuery = baseQuery.or('is_archived.is.null,is_archived.eq.false')
       }
     }
 
