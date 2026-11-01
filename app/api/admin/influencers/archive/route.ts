@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
             archived_at: nowIso,
             archived_by: adminIdentity,
             archive_reason: cleanReason,
-            status: 'Rejected',
+            status: 'Archived',
             team_remark: `Archived Creator: ${cleanReason}`
           })
           .in('user_id', targetUserIds)

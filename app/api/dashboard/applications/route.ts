@@ -76,6 +76,8 @@ export async function GET(request: Request) {
         )
       `)
       .eq('user_id', payload.id)
+      .or('is_archived.is.null,is_archived.eq.false')
+      .neq('status', 'Archived')
       .order('created_at', { ascending: false })
 
     if (statusFilter) {

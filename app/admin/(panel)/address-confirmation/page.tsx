@@ -10,7 +10,7 @@ import {
   Check, X, RefreshCw, Truck, ShieldCheck,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   Upload, CheckCheck, Tag, MessageSquare, AlertTriangle,
-  PackageCheck, UserX, PauseCircle, Edit2, Trash2
+  PackageCheck, UserX, PauseCircle, Edit2, Trash2, Calendar
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -227,6 +227,25 @@ export default function AdminAddressConfirmationPage() {
       return 'Pending'
     }
     return 'Not Submitted'
+  }
+
+  // Format timestamp for address filled & verified dates
+  const formatAddressTimestamp = (dateStr?: string | null): string => {
+    if (!dateStr) return ''
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return ''
+      return d.toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })
+    } catch {
+      return ''
+    }
   }
 
   // Resolve remark badge styling & icon
@@ -658,6 +677,14 @@ export default function AdminAddressConfirmationPage() {
       const remarkVal = entry.team_remark || entry.form_data?.team_remark || ''
       const isSentToBrand = remarkVal === 'Sent to Brand'
 
+      const submittedAt = entry.form_data?.address_confirmed_at ||
+                          entry.form_data?.shipping_address?.confirmed_at ||
+                          entry.form_data?.address_submitted_at ||
+                          (entry.form_data?.address_confirmed ? entry.updated_at : null) ||
+                          (entry.form_data?.shipping_address ? entry.created_at : null)
+      const verifiedAt = entry.address_verified_at || entry.form_data?.address_verified_at
+      const verifiedBy = entry.form_data?.address_verified_by_admin || (entry.address_verified_by ? 'Admin' : null)
+
       const baseRow: Record<string, any> = {
         'Sr. No': index + 1,
         'Application ID': entry.id,
@@ -677,8 +704,10 @@ export default function AdminAddressConfirmationPage() {
         'State': state,
         'Pincode': pincode,
         'Delivery Remarks': remarks,
+        'Address Filled Date': submittedAt ? formatAddressTimestamp(submittedAt) : 'N/A',
         'Address Verification Status': getVerificationStatus(entry),
-        'Verified Date': entry.address_verified_at ? new Date(entry.address_verified_at).toLocaleDateString('en-IN') : 'N/A',
+        'Address Verified Date': verifiedAt ? formatAddressTimestamp(verifiedAt) : 'N/A',
+        'Address Verified By': verifiedBy || 'N/A',
         'Ready for Brand Dispatch': (entry.status === 'Approved' && getVerificationStatus(entry) === 'Approved') ? 'YES' : 'NO',
         'Brand Shared Status': isSentToBrand ? 'Sent to Brand' : (remarkVal ? remarkVal : 'Pending Share'),
         'Dispatch Remark': remarkVal || 'N/A',
@@ -1114,6 +1143,13 @@ export default function AdminAddressConfirmationPage() {
                   const addr = entry.form_data?.shipping_address || {}
                   const hasSubmittedAddress = Boolean(entry.form_data?.address_confirmed || hasValidShippingAddress(addr))
                   const isProcessing = actionInProgressId === entry.id
+                  const submittedAt = entry.form_data?.address_confirmed_at ||
+                                      entry.form_data?.shipping_address?.confirmed_at ||
+                                      entry.form_data?.address_submitted_at ||
+                                      (entry.form_data?.address_confirmed ? entry.updated_at : null) ||
+                                      (entry.form_data?.shipping_address ? entry.created_at : null)
+                  const verifiedAt = entry.address_verified_at || entry.form_data?.address_verified_at
+                  const verifiedBy = entry.form_data?.address_verified_by_admin || (entry.address_verified_by ? 'Admin' : null)
 
                   return (
                     <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
@@ -1219,6 +1255,17 @@ export default function AdminAddressConfirmationPage() {
                                 ))}
                               </div>
                             )}
+
+                            {/* Address Submitted / Filled Timestamp */}
+                            {submittedAt && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-2 pt-1.5 border-t border-white/5">
+                                <Calendar className="h-3 w-3 text-cyan-400 shrink-0" />
+                                <span>Filled:</span>
+                                <span className="font-semibold text-slate-200">
+                                  {formatAddressTimestamp(submittedAt)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="text-slate-500 italic text-xs flex items-center gap-1.5">
@@ -1256,16 +1303,35 @@ export default function AdminAddressConfirmationPage() {
                           {/* Address Verification Status */}
                           <div>
                             {vStatus === 'Approved' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                                Address: Verified
-                              </span>
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                  Address: Verified
+                                </span>
+                                {verifiedAt && (
+                                  <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium mt-1">
+                                    <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                                    <span>Verified: {formatAddressTimestamp(verifiedAt)}</span>
+                                  </div>
+                                )}
+                                {verifiedBy && (
+                                  <p className="text-[9px] text-slate-400 pl-3.5 leading-tight">
+                                    by {verifiedBy}
+                                  </p>
+                                )}
+                              </div>
                             ) : vStatus === 'Rejected' ? (
-                              <div>
+                              <div className="space-y-0.5">
                                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
                                   <XCircle className="h-3 w-3 text-rose-400" />
                                   Address: Update Req.
                                 </span>
+                                {entry.form_data?.address_rejected_at && (
+                                  <div className="flex items-center gap-1 text-[10px] text-rose-400 font-medium mt-1">
+                                    <Clock className="h-2.5 w-2.5 shrink-0" />
+                                    <span>Requested: {formatAddressTimestamp(entry.form_data.address_rejected_at)}</span>
+                                  </div>
+                                )}
                                 {entry.form_data?.address_rejection_reason && (
                                   <p className="text-[10px] text-rose-300/80 mt-1 max-w-[150px] line-clamp-2">
                                     {entry.form_data.address_rejection_reason}
@@ -1273,10 +1339,18 @@ export default function AdminAddressConfirmationPage() {
                                 )}
                               </div>
                             ) : vStatus === 'Pending' ? (
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-                                <Clock className="h-3 w-3 text-amber-400" />
-                                Address: Pending Review
-                              </span>
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                                  <Clock className="h-3 w-3 text-amber-400" />
+                                  Address: Pending Review
+                                </span>
+                                {submittedAt && (
+                                  <div className="flex items-center gap-1 text-[10px] text-amber-300/80 font-medium mt-1">
+                                    <Calendar className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                                    <span>Filled: {formatAddressTimestamp(submittedAt)}</span>
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
                                 Address: Not Submitted

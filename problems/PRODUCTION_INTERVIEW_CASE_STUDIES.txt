@@ -126,6 +126,12 @@ CASE 115: Automated High-Volume WhatsApp Outreach: Interactive Sequential Queue 
 CASE 116: Operational Accountability in Creator Archiving: Contextual Remarks, Preset Reason Categorization & Cascade Status Sync
 CASE 117: Post-Approval Funnel Disconnect: Sub-Pipeline Address Filtering (Shared vs Pending), Granular Backout Telemetry & Two-Way Reversion Architecture
 CASE 118: TypeScript Build Failures in Relational Address Resolvers & Scope Bleed in State Reversion (Direct Supabase Access vs Authorized REST API Encapsulation)
+CASE 119: Table Cell Overflow Clipping & Dropdown Inversion Trap: React Portals, Dynamic Viewport Collision Avoidance & Unbounded Action Menus in Data Grids
+CASE 120: PostgreSQL Polymorphic Parameter Type Invalidation (42P08): Indeterminate Data Type in jsonb_build_object Dynamic Upserts
+CASE 121: Shadow Custom Form Field Collision & Canonical Value Severing: Ghosted Creator False-Positive and Redundant "Content Live Date" Validation Failure in Completion Submissions
+CASE 122: Entity Blast Radius Inversion in Creator Archival: Application-Scoped State Isolation, Zero Creator-Profile Bleed, and Dynamic Multi-Mode Archival Engine (Hold, Re-Apply, Clean Wipe)
+CASE 123: Domain Model Semantic Alignment: Decoupling Application-Level Archival from Talent Pool Profiles, Eliminating Phantom Entity Status Badges & Directory Segmentation Drift
+CASE 124: Logistics Telemetry Ambiguity: Eliminating Operations Disputes via Dual-Timestamp Tracking (Address Filled vs Admin Verified) & CSV Dispatch Export Parity
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5359,3 +5365,319 @@ S: A Next.js production build broke due to type mismatches in a composite addres
 T: Fix the TypeScript compilation errors and enforce clean API architectural boundaries.
 A: Normalized address destructuring to accept both structured and freeform addresses, and replaced direct client database calls with authorized REST API routes.
 R: Restored zero-error Next.js production builds (`npm run build` exited with code 0 across 176 routes) with rock-solid type safety and clean security encapsulation.
+
+
+====================================================================================================
+CASE 119: Table Cell Overflow Clipping & Dropdown Inversion Trap: React Portals, Dynamic Viewport Collision Avoidance & Unbounded Action Menus in Data Grids
+====================================================================================================
+CATEGORIES: Frontend Architecture / React / CSS Stacking Context / UI/UX / Enterprise Data Grids
+INTERVIEW QUESTION:
+"In modern high-density data grids, action dropdown menus rendered inside table cells frequently get clipped or cause weird vertical scrollbars when tables contain only a few rows. Walk me through the CSS specifications causing this clipping, why relative/absolute positioning fails inside scrollable containers, and how to architect a rock-solid solution using React Portals and dynamic collision detection."
+
+[SITUATION]
+On the All Applications Admin Portal (`/admin/applications`), admins filtering for a specific creator or campaign with only 1 or 2 rows reported a critical usability blocker:
+1. Clicking the three-dots (`...`) action menu on a table row popped open a dropdown that showed only the first two options ("Under Process" and "Approve").
+2. The remaining 10+ critical operations (Allow Re-Apply, Mark Completed, Initiate Payment, Forward to Brand Admin, Add Remark, Mark Ghosted, WhatsApp Message, Mark as Backout, Archive Creator, and Reset/Delete) were completely invisible and sliced off at the bottom border.
+3. When admins attempted to scroll down with the mouse wheel to view the hidden actions, the table header and first row scrolled upwards out of view into the overflow container while the dropdown remained clipped and stuck.
+
+[ROOT CAUSE]
+1. CSS Spec Overflow-X vs Overflow-Y Coupling:
+   The table wrapper was styled with `overflow-x-auto` to allow horizontal scrolling across dynamic custom question columns, while the outer table card had `overflow-hidden rounded-2xl`. According to W3C CSS specifications, when `overflow-x` is set to `auto` or `scroll`, browsers are required to compute `overflow-y` to `auto` as well (it cannot remain `visible`).
+2. DOM Stacking & Clipping Boundaries:
+   The `ActionsDropdown` popover was rendered as an in-DOM child with `position: absolute; top-full; right-0` inside the table cell `<td>`. Because the dropdown height was ~450px and a 2-row table is only ~110px tall, the dropdown overflowed the table height by 340px. The browser clipped it at the boundary of `overflow-hidden`, and forced the `overflow-x-auto` container to gain a vertical scrollbar. Scrolling down scrolled the table content up, but could never break out of the parent clipping boundary.
+
+[SOLUTION & ARCHITECTURE]
+1. Portaled Rendering to `document.body`:
+   Decoupled the menu's DOM hierarchy from the table by rendering it via `createPortal(..., document.body)` with `position: fixed` and `z-[9999]`. This completely bypasses any parent `overflow-hidden`, `overflow-x-auto`, or table stacking contexts.
+2. Dynamic Viewport Coordinate & Collision Calculation:
+   Implemented a reactive positioning hook using `triggerRef.current.getBoundingClientRect()`:
+   - Measured available space below (`spaceBelow = window.innerHeight - rect.bottom`) vs space above (`spaceAbove = rect.top`).
+   - If space below is constrained (`spaceBelow < 340 && spaceAbove > spaceBelow`), the menu automatically inverts and projects UPWARDS (`bottom: window.innerHeight - rect.top + 6`).
+   - Otherwise, it projects downwards (`top: rect.bottom + 6`).
+   - Calculated `rightOffset = Math.max(12, window.innerWidth - rect.right)` to maintain exact alignment with the trigger button while preventing viewport overflow.
+3. Ergonomic Self-Contained Internal Scrollability:
+   Added `maxHeight: Math.min(520, ...)` and `overflow-y-auto overscroll-contain [scrollbar-width:thin]` to ensure that even on compact displays (e.g., 768px laptop screens), the menu never overflows the screen and provides smooth internal scrolling without affecting the underlying page or table.
+4. Reactive Event Capture & Outside Dismissal:
+   Bound `window.addEventListener('scroll', updatePosition, true)` with event capturing (`capture: true`) so that scrolling any parent container (including the table or window) dynamically updates the fixed position or closes the menu if the trigger scrolls off-screen. Outside clicks and the `Escape` key cleanly dismiss the menu.
+
+[INTERVIEW STAR TAKEAWAY]
+S: In an admin applications data grid, action menus in small result sets (1-2 rows) were clipped by table overflow boundaries, hiding 10+ essential management actions.
+T: Eliminate clipping and unwanted vertical table scrolling without compromising horizontal responsiveness.
+A: Refactored the in-cell dropdown to render via React Portals into `document.body` with fixed viewport coordinates, bidirectional auto-flipping (collision detection), and independent internal scrolling.
+R: Restored 100% visibility for all 12+ actions across all table sizes and viewport heights, eliminated artificial table scrollbars, and maintained zero TypeScript errors.
+
+
+====================================================================================================
+CASE 120: PostgreSQL Polymorphic Parameter Type Invalidation (42P08): Indeterminate Data Type in jsonb_build_object Dynamic Upserts
+====================================================================================================
+CATEGORIES: Database / PostgreSQL / API 500 / Node-Postgres / Parameterized Query Type Resolution
+INTERVIEW QUESTION:
+"When executing a parameterized UPDATE statement in PostgreSQL via node-postgres, why does passing a parameter into polymorphic functions like jsonb_build_object trigger error 42P08 'could not determine data type of parameter $1', even when the parameter is also assigned to a strongly typed column? How do you architect bulletproof parameterized queries across relational columns and JSONB payloads?"
+
+[SITUATION]
+In the Admin Address Confirmation Desk (`/admin/address-confirmation`), when campaign managers attempted to record or update a dispatch remark (e.g. selecting "Delivered to Creator", "Sent to Brand", or entering an AWB number in the "Dispatch Remark & Brand Status" modal and clicking "SAVE REMARK"), the request failed with an HTTP 500 red toast error:
+`could not determine data type of parameter $1`
+This completely blocked campaign managers from saving shipment tracking updates, courier notes, and brand delivery statuses.
+
+[ROOT CAUSE]
+In `POST /api/admin/address-confirmation`, the update query dual-updated both the normalized relational columns (`team_remark`, `team_remark_by`, `team_remark_updated_at`) and the legacy JSON document (`form_data`):
+```sql
+UPDATE public.applications
+SET 
+  team_remark = $1,
+  team_remark_by = $2,
+  team_remark_updated_at = $3,
+  form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
+    'team_remark', $1,
+    'team_remark_by', $2,
+    'team_remark_updated_at', $3
+  ),
+  updated_at = $4
+WHERE id = $5
+```
+1. Polymorphic Function Type Ambiguity:
+   `jsonb_build_object` accepts `VARIADIC "any"`. Under PostgreSQL's query analysis specification, when a parameter `$1` is passed to a polymorphic function that accepts `"any"`, PostgreSQL cannot deduce its concrete type.
+2. Parameter Type Deduction Failure:
+   Even though `$1` was also assigned to `team_remark` (a `TEXT` column), PostgreSQL's statement planner resolves parameter signatures across all argument contexts prior to plan execution. When an untyped parameter appears as an argument to a polymorphic function without an explicit cast or driver OID, PostgreSQL immediately aborts with error `42P08` (`INDETERMINATE_DATATYPE`).
+3. Null Parameter Handling:
+   When clearing a remark (`null`), `pg` sends untyped nulls, completely blinding PostgreSQL's type inference engine.
+
+[SOLUTION & ARCHITECTURE]
+1. Explicit SQL Type Coercion across Query Parameters:
+   Enforced strict, unambiguous type casting for all parameter positions in both single (`update_remark`) and batch (`batch_update_remark`) endpoints:
+   ```sql
+   UPDATE public.applications
+   SET 
+     team_remark = $1::text,
+     team_remark_by = $2::text,
+     team_remark_updated_at = $3::timestamptz,
+     form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
+       'team_remark', $1::text,
+       'team_remark_by', $2::text,
+       'team_remark_updated_at', $3::text
+     ),
+     updated_at = $4::timestamptz
+   WHERE id = $5::uuid
+   RETURNING id, team_remark, team_remark_by, team_remark_updated_at, form_data
+   ```
+2. Hardened UUID Sanitization:
+   Enforced `$5::uuid` on application IDs and `$3::uuid` on `address_verified_by` with regex validation (`/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i`), preventing malformed string errors when non-UUID admin IDs are passed.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Admins encountered HTTP 500 errors ("could not determine data type of parameter $1") when saving dispatch remarks and logistics notes.
+T: Diagnose why PostgreSQL failed to infer parameter types in an update query and eliminate runtime failures.
+A: Identified that passing untyped parameters to the polymorphic function `jsonb_build_object` triggers PostgreSQL error 42P08; enforced explicit type casting (`$1::text`, `$2::text`, `$3::timestamptz`, `$5::uuid`) on all statement parameters.
+R: Restored instant saving for all dispatch remarks, batch status updates, and courier notes with zero database errors.
+
+
+====================================================================================================
+CASE 121: Shadow Custom Form Field Collision & Canonical Value Severing: Ghosted Creator False-Positive and Redundant "Content Live Date" Validation Failure in Completion Submissions
+====================================================================================================
+CATEGORIES: Form Engine Architecture / Dynamic Custom Questions / Canonical Field Normalization / UX Cognitive Friction
+INTERVIEW QUESTION:
+"When dynamic user-configurable form engines allow admins to append custom questions, what happens when an admin defines a question whose semantic label matches a built-in canonical field (e.g. 'Content Live Date')? How do you prevent ghost validation rejections, payload severing, and false-positive bug reports where users enter correct data but get rejected?"
+
+[SITUATION]
+Creators attempting to submit deliverables on the Creator Approved Campaign Desk (`/dashboard/approved`) inside `ApprovedCampaignModal` encountered an immediate validation blocker:
+1. The creator filled in the primary date picker `Content Live Date *`, verified analytics, pasted the deliverable live URL, and clicked "SUBMIT CAMPAIGN COMPLETION".
+2. The UI threw a red toast error: `"Content Live Date" is required`, completely preventing submission.
+3. The team suspected creator account ghosting or date validation logic issues (`checkLiveDateMaturation`), because creators were visibly selecting valid live dates on active, non-future dates.
+
+[ROOT CAUSE]
+Audit of PostgreSQL database state and form submission pipelines revealed two interacting architectural issues:
+1. Shadow Custom Question Definition in `campaigns.completion_form_fields`:
+   In campaign `CAM-MVF425OZ-COPY-695` ("test"), an admin testing custom completion requirements added a custom form field:
+   `{ "id": "fld_1793485934003_11yf7", "name": "Content Live Date", "type": "text", "required": true }`
+   The admin did not realize `ApprovedCampaignModal` ALREADY includes a dedicated, primary Content Live Date calendar picker (`liveDate`).
+2. Field State Decoupling & Payload Omission:
+   - In `ApprovedCampaignModal.tsx`, the primary date picker updated local state `liveDate`.
+   - Dynamic custom fields were tracked separately in `customResponses`.
+   - When the form was submitted, custom field validation iterated over `completion_form_fields` and checked `customResponses[f.name]`.
+   - Because `customResponses["Content Live Date"]` was empty (the creator had filled the built-in calendar picker instead), validation halted with `toast.error('"Content Live Date" is required')`.
+   - Furthermore, the HTTP PUT request body did not pass `custom_responses`, meaning the backend completion route would have also rejected the submission with `"${f.name}" is required`.
+3. Ghosting Disproven:
+   Database inspection confirmed creator Yash Agrawal (`7417432115`) had `is_ghosted = false` on both `applications` and `users`. Ghosting played zero role; the blockage was 100% caused by canonical-to-custom field collision.
+
+[SOLUTION & ARCHITECTURE]
+1. Canonical Auto-Bridging & Redundant Field Exemption:
+   Updated `ApprovedCampaignModal.tsx` and `app/api/dashboard/applications/[id]/completion/route.ts` to automatically map canonical built-in inputs to any matching custom form questions:
+   - If a custom question contains `live date`, `content live`, or `live_date` and `liveDate` is present, it is automatically populated: `finalCustomResponses[f.name] = liveDate`.
+   - Similarly mapped `deliverable_link`, `views_count`, and `supporting_document` (analytics proof) so custom questions never duplicate primary inputs.
+2. Intelligent Dynamic Field Rendering (Deduplication):
+   Filtered out duplicate questions from rendering in the dynamic custom deliverables section of `ApprovedCampaignModal.tsx`:
+   ```tsx
+   const customFieldsToRender = (application.campaigns?.completion_form_fields || []).filter((field: any) => {
+     const fLower = (field.name || '').toLowerCase()
+     return !(fLower.includes('live date') || fLower.includes('content live') || fLower === 'live_date')
+   })
+   ```
+   Creators now see a clean single calendar picker instead of confusing duplicate text boxes.
+3. Payload Completeness & Database Sanitization:
+   - Added `custom_responses: finalCustomResponses` to the `PUT /api/dashboard/applications/[id]/completion` submission payload.
+   - Cleared the redundant duplicate custom field from `CAM-MVF425OZ-COPY-695` in PostgreSQL.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Creators submitting completion forms were blocked by '"Content Live Date" is required' despite selecting valid dates, leading the team to suspect ghosting or date algorithm bugs.
+T: Identify the root cause across the database and frontend/backend validation pipelines and ensure permanent resolution.
+A: Discovered a duplicate custom question ('Content Live Date') in campaign settings that clashed with the built-in datepicker; eliminated ghosting false-positives; built bidirectional canonical auto-bridging and UI deduplication across client and server.
+R: Unblocked completion submissions immediately, prevented duplicate form rendering, and eliminated payload dropping with 100% TypeScript type safety.
+
+
+====================================================================================================
+CASE 122: Entity Blast Radius Inversion in Creator Archival: Application-Scoped State Isolation, Zero Creator-Profile Bleed, and Dynamic Multi-Mode Archival Engine (Hold, Re-Apply, Clean Wipe)
+CASE 123: Domain Model Semantic Alignment: Decoupling Application-Level Archival from Talent Pool Profiles, Eliminating Phantom Entity Status Badges & Directory Segmentation Drift
+CASE 124: Logistics Telemetry Ambiguity: Eliminating Operations Disputes via Dual-Timestamp Tracking (Address Filled vs Admin Verified) & CSV Dispatch Export Parity
+====================================================================================================
+CATEGORIES: Database Isolation / Blast Radius Prevention / Dynamic Multi-Mode State Transitions / Granular Access Control / UX Visibility Guard
+INTERVIEW QUESTION:
+"When an administrative user triggers an 'Archive' action on a single line-item in an entity child table (e.g. an application in a specific campaign), what architectural flaws can cause state mutations to cascade into the parent entity (the creator account) and across unrelated sibling records? How do you isolate operational blast radius and design a dynamic multi-action archival engine (Hold, Re-apply, Clean Reset)?"
+
+[SITUATION]
+Operations admins managing the Applications desk (`/admin/applications`) wanted the ability to archive inactive or paused campaign slots. When an admin clicked "Archive" on creator Yash Agrawal's application for campaign "Plum":
+1. Immediately, ALL of Yash Agrawal's applications across other campaigns (such as "Lumov Health") were unexpectedly flipped from `Applied` to `Rejected`.
+2. The creator's entire user profile in `users` was flagged `is_archived = true`, removing him from the active influencer talent pool.
+3. Even though the application was marked archived in the database, it remained visible in the creator's mobile/desktop dashboard under "Applied Campaigns", violating the requirement that archived campaign applications must be completely hidden from creator front-end visibility.
+
+[ROOT CAUSE]
+1. Accidental User-Wide Query Scope (`user_id` instead of `application_id`):
+   When the single-row or bulk action "Archive" was clicked in `/admin/applications`, the client extracted `targetApp.users.id` and dispatched a request to `/api/admin/influencers/archive`.
+   That endpoint executed:
+   ```ts
+   // Profile Mutation:
+   await supabase.from('users').update({ is_archived: true, ... }).in('id', targetUserIds)
+   // Unscoped Sibling Mutation:
+   await supabase.from('applications')
+     .update({ is_archived: true, status: 'Rejected', ... })
+     .in('user_id', targetUserIds) // ⚠️ CRITICAL FLAW: Affected EVERY application across ALL campaigns for that user!
+   ```
+2. Semantic State Collapsing (`status = 'Rejected'`):
+   By hardcoding `status = 'Rejected'` during archival, the backend collapsed two completely distinct operational semantics:
+   - Rejected: Creator applied but was not chosen by the brand (should allow re-application or review).
+   - Archived: Internal admin queue hold/pause (should be completely hidden from creator).
+3. Missing Creator-Side Filter Guard:
+   `/api/dashboard/applications` fetched all records by `user_id` without filtering `is_archived`. Similarly, the client-side `appliedPageApps` filter in `app/dashboard/campaigns/page.tsx` lacked an `is_archived` exclusion check.
+
+[SOLUTION & ARCHITECTURE]
+1. Application-Scoped Dedicated API (`/api/admin/applications/archive`):
+   Created an isolated endpoint that strictly targets `applicationIds: string[]`. It never mutates the `users` table (`users.is_archived` remains untouched) and never touches sibling applications of the same user.
+2. Dynamic Multi-Mode Archival Options:
+   Replaced the rigid dialog with a dynamic 3-option action selector:
+   - Mode 1: Hold / Archive (Default & Recommended):
+     Sets `is_archived = true`, saves pre-archive status in `form_data._pre_archive_status`, sets `status = 'Archived'`. Moves application strictly to Admin's "Archived" queue.
+   - Mode 2: Allow Re-Apply:
+     Sets `status = 'Rejected'`, `is_archived = false`, injects `form_data.rejection_reason = cleanReason` and `form_data.allow_reapply = true`. The creator sees the rejection explanation and a 1-click "Re-Apply to Campaign" button.
+   - Mode 3: Reset / Clean Wipe:
+     Deletes the application row completely (`DELETE FROM applications WHERE id IN (...)`). Creator sees the campaign afresh on the explore page with "Apply Now" enabled.
+3. Zero-Visibility Creator Dashboard Guard:
+   - Backend: Added `.or('is_archived.is.null,is_archived.eq.false').neq('status', 'Archived')` to `/api/dashboard/applications/route.ts`.
+   - Frontend: Filtered out `app.is_archived || app.status === 'Archived'` in both `app/dashboard/campaigns/page.tsx` and `app/dashboard/approved/page.tsx`.
+4. Dedicated "Archived Creators" Sidebar Hub:
+   Added a separate navigation entry in `app/admin/(panel)/layout.tsx` under `Creator & Talent Pool` pointing to `/admin/archived-creators`. Built a dedicated dashboard for reviewing archived creator profiles with search and 1-click "Restore to Active Pool" capability.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Archiving a single campaign application inadvertently archived the creator's whole user profile and marked all their unrelated campaign applications as 'Rejected', while still leaving archived records visible to the creator.
+T: Isolate the archival blast radius strictly to the selected application, hide archived applications completely from creator view, provide dynamic operational modes (Hold, Re-apply, Reset), and give admins a dedicated Archived Creators hub.
+A: Built `/api/admin/applications/archive` with strict ID scoping; created a dynamic 3-mode selector (Hold, Re-apply, Reset); added backend and frontend zero-visibility guards for creators; and added a dedicated `/admin/archived-creators` hub on the sidebar.
+R: 100% blast radius isolation with zero side-effects on sibling campaigns, full creator privacy, dynamic operational flexibility, and zero TypeScript compilation errors.
+
+
+====================================================================================================
+CASE 123: Domain Model Semantic Alignment: Decoupling Application-Level Archival from Talent Pool Profiles, Eliminating Phantom Entity Status Badges & Directory Segmentation Drift
+====================================================================================================
+CATEGORIES: Domain Model Refactoring / UI Semantic Consistency / Entity Responsibility Alignment / Clean Architecture
+INTERVIEW QUESTION:
+"In an influencer marketing platform, why is it an anti-pattern to show account-level 'Archived' status badges, tabs, and action buttons in a global creator directory when archival is strictly an application-level lifecycle state? How do you audit and realign your UI/UX and API layers with the true business domain?"
+
+[SITUATION]
+While reviewing the Influencer Directory (`/admin/influencers`), the leadership observed:
+1. Every creator in the table displayed a row-level `[Archive]` action button alongside `[Ghost]` and `[Sample]`.
+2. The top metrics row featured an `ARCHIVED / INACTIVE: 0 (0% archived)` stat card.
+3. The directory offered segmented tabs: `[Active Creators]`, `[Archived Creators (0)]`, and `[All]`.
+4. The sidebar under `Creator & Talent Pool` displayed an `Archived Creators` link.
+Leadership raised an immediate architectural objection: "We do NOT archive creators on a profile basis; archiving is strictly application-wise per campaign. Why is this showing on the influencer directory?"
+
+[ROOT CAUSE]
+1. Concept Drift in Legacy Schema:
+   An early schema prototype introduced an `is_archived` boolean flag on the `users` table, conflating the user account with individual campaign applications. In reality, all 35,065 registered creators remain permanent members of the platform's talent pool.
+2. Leakage of Subordinate Domain Semantics into Parent Directory:
+   Because the `users` table had `is_archived`, developer implementations erroneously added:
+   - Row-level `[Archive]` trigger in `InfluencersDirectoryPage`.
+   - `[Archive Creator]` action and status badge in `ProfileModal`.
+   - `active` vs `archived` segment tabs and API query parameters.
+3. Cognitive Overhead and False Inactivity:
+   Displaying `0% archived` and `Archived Creators (0)` gave the false impression that creator profiles could be deactivated or archived, causing confusion between pausing a creator's application for a specific campaign (e.g. Plum) versus deactivating their entire creator account.
+
+[SOLUTION & ARCHITECTURE]
+1. Clean UI/UX Purge from Influencer Directory (`/admin/influencers`):
+   - Removed row-level `[Archive]` action buttons and badges from the table and `ProfileModal`.
+   - Removed the `Active vs Archived Segment Tabs` (`[Active Creators]`, `[Archived Creators]`, `[All]`); all creators are simply presented as active talent pool members.
+   - Replaced the confusing `ARCHIVED / INACTIVE` card with an actionable business metric: `Instagram Linked` (`stats.withInstagram`), providing visibility into creators with linked social profiles.
+   - Purged the `archiveModalTarget` dialog and associated state handlers.
+2. Sidebar Navigation Correction:
+   - Removed `Archived Creators` from `app/admin/(panel)/layout.tsx` under `Creator & Talent Pool`.
+   - Deleted the obsolete `app/admin/(panel)/archived-creators/` route.
+3. API Normalization (`/api/admin/influencers`):
+   - Removed default `tab === 'active'` filtering so queries return all registered creators.
+   - Updated stats payload to return `{ total, active: total, withInstagram, verified }`.
+4. Application-Level Archival Strict Confinement:
+   - Confined all archival workflows exclusively to the Applications Desk (`/admin/applications`), where admins manage campaign-specific application lifecycles with dynamic Hold, Re-apply, or Clean Reset options.
+
+[INTERVIEW STAR TAKEAWAY]
+S: The Influencer Directory displayed profile-level 'Archive' buttons, stat cards, and tabs, contradicting the business rule that archiving applies strictly to campaign applications, not creator profiles.
+T: Realog the domain model: purge profile-level archiving UI, eliminate confusing 0% archived cards, remove sidebar clutter, and ensure archival exists exclusively in the applications desk.
+A: Removed the Archive buttons, badges, and segmented tabs from the Influencer Directory; replaced the dead metric card with 'Instagram Linked'; pruned the sidebar; and confined application-wise archival to `/admin/applications`.
+R: 100% domain semantic alignment, zero cognitive confusion for operations teams, cleaner creator management UI, and 0 TypeScript compilation errors.
+
+
+====================================================================================================
+CASE 124: Logistics Telemetry Ambiguity: Eliminating Operations Disputes via Dual-Timestamp Tracking (Address Filled vs Admin Verified) & CSV Dispatch Export Parity
+====================================================================================================
+CATEGORIES: Logistics Workflow / Data Integrity / Timestamp Telemetry / CSV Export Parity / Operations UX
+INTERVIEW QUESTION:
+"In e-commerce and influencer marketing logistics pipelines, why does tracking a single generic 'status' without granular event timestamps (when submitted vs when approved) create severe operational disputes and delivery blindspots? How would you design a dual-timestamp telemetry system across relational tables, JSONB metadata, and data grid exports?"
+
+[SITUATION]
+In the Admin Address Confirmation Desk (`/admin/address-confirmation` / `/admin/address`), campaign managers and operations leads experienced repeated confusion and back-and-forth disputes regarding creator delivery addresses:
+1. Operational ambiguity: When an address showed as "Address: Verified" or "Address: Pending Review", there was no indication of *when* the creator actually filled and submitted the delivery address, nor *when* or *by whom* it was verified.
+2. Inability to gauge turnaround time: Managers could not tell if an unverified creator submitted their address 5 minutes ago or 5 days ago, hindering SLA enforcement.
+3. Logistics CSV export deficiency: When exporting courier delivery manifests via "EXPORT COURIER SHEET", the exported CSV only contained raw address fields and verification status without the submission or verification timestamps or the verifying admin's identity, preventing client reconciliation when courier parcels went missing or were delayed.
+Leadership issued an explicit directive: "Add timestamps/dates showing when the user filled the address and when admin verified it to avoid any confusion for managers and operations."
+
+[ROOT CAUSE]
+1. Lack of Event Telemetry in UI Rendering:
+   While the PostgreSQL database and application JSONB payload (`form_data`) captured submission events (`address_confirmed_at`, `shipping_address.confirmed_at`, or `created_at`) and verification columns (`address_verified_at`, `form_data.address_verified_by_admin`), the data grid in `AdminAddressConfirmationPage` did not project these timestamps into the table cells.
+2. Silent Fallback Inconsistencies for Legacy Data:
+   Older applications imported from legacy Google Forms had shipping addresses stored directly in `form_data.shipping_address` or created during application submission without an explicit modern `address_confirmed_at` key. Without a robust fallback cascade (`confirmed_at -> updated_at -> created_at`), legacy rows would render blank or "N/A" timestamps.
+3. Export Manifest Schema Drift:
+   The client-side `exportToCourierCsv` utility generated spreadsheet headers reflecting only the current address strings, completely omitting the audit timestamps required for courier partner coordination.
+
+[SOLUTION & ARCHITECTURE]
+1. Multi-Tiered Timestamp Resolution Cascade:
+   Implemented a resilient timestamp resolution cascade in `app/admin/(panel)/address-confirmation/page.tsx` for both table rendering and CSV exports:
+   ```typescript
+   const submittedAt = entry.form_data?.address_confirmed_at ||
+                       entry.form_data?.shipping_address?.confirmed_at ||
+                       entry.form_data?.address_submitted_at ||
+                       (entry.form_data?.address_confirmed ? entry.updated_at : null) ||
+                       (entry.form_data?.shipping_address ? entry.created_at : null)
+   const verifiedAt = entry.address_verified_at || entry.form_data?.address_verified_at
+   const verifiedBy = entry.form_data?.address_verified_by_admin || (entry.address_verified_by ? 'Admin' : null)
+   ```
+2. High-Density UI Projection in Table Grid:
+   - **Delivery Address Cell**: Added an inline calendar badge (`Filled: 30 Oct 2026, 12:51 PM`) directly below the address card, providing instant operational context.
+   - **Verification Status Cell**:
+     - For `Address: Verified`: Displayed a green checkmark with `Verified: 27 Oct 2026, 03:38 PM` and `by Super Admin`.
+     - For `Address: Pending Review`: Displayed an amber clock with `Filled: [Date & Time]` so managers instantly see queue wait times.
+     - For `Address: Update Req.`: Displayed a rose clock with `Requested: [Date & Time]` and the rejection reason.
+3. Courier Export Manifest Parity:
+   Updated `exportToCourierCsv` to append three new audit columns to every exported CSV:
+   - `'Address Filled Date'`
+   - `'Address Verified Date'`
+   - `'Address Verified By'`
+   ensuring 100% telemetry parity between the live UI and downloaded spreadsheets.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Campaign managers suffered from operational confusion and dispute over delivery addresses because the address desk lacked visible timestamps for when creators submitted addresses and when admins verified them.
+T: Architect a dual-timestamp telemetry system displaying exact filled and verified dates and admin attribution across both the data grid and exported courier spreadsheets.
+A: Implemented a resilient fallback timestamp resolution cascade covering both modern and legacy Google Form imports, projected filled and verified timestamps into the UI with date/time formatting, and added audit columns to courier CSV exports.
+R: Eliminated all operational confusion and management disputes, gave operations immediate visibility into pending review age, achieved full export parity, and verified zero TypeScript compilation errors.

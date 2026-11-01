@@ -92,12 +92,29 @@ export async function PUT(
       return NextResponse.json({ error: 'At least one deliverable live link or proof document is required' }, { status: 400 })
     }
 
-    // Validate required custom completion fields
+    // Validate required custom completion fields and auto-bridge canonical fields
     const completionFormFields = campaignConfig?.completion_form_fields || []
+    const finalCustomResponses: Record<string, any> = { ...(custom_responses || {}) }
+
     if (Array.isArray(completionFormFields) && completionFormFields.length > 0) {
       for (const f of completionFormFields) {
+        const fLower = (f.name || '').toLowerCase()
+        // Auto-bridge canonical fields from primary inputs
+        if ((fLower.includes('live date') || fLower.includes('content live') || fLower === 'live_date') && live_date) {
+          if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = live_date
+        }
+        if ((fLower.includes('link') || fLower.includes('url') || fLower.includes('reel') || fLower.includes('post')) && deliverable_link) {
+          if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = deliverable_link
+        }
+        if ((fLower.includes('views') || fLower.includes('reach')) && views_count) {
+          if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = views_count
+        }
+        if ((fLower.includes('proof') || fLower.includes('screenshot') || fLower.includes('insight')) && supporting_document) {
+          if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = supporting_document
+        }
+
         if (f.required) {
-          const answer = custom_responses?.[f.name]
+          const answer = finalCustomResponses[f.name]
           if (answer === undefined || answer === null || answer === '') {
             return NextResponse.json({ error: `"${f.name}" is required` }, { status: 400 })
           }
@@ -199,7 +216,7 @@ export async function PUT(
         supporting_document: supporting_document || '',
         views_count: views_count || '',
         notes: notes || '',
-        custom_responses: custom_responses || {},
+        custom_responses: finalCustomResponses,
         posted_from_handle: applied.username || null,
         posted_from_profile_id: applied.profileId || null,
         verification_method: 'self_declared',

@@ -151,15 +151,15 @@ export async function POST(request: Request) {
       const updateRes = await pool.query(`
         UPDATE public.applications
         SET 
-          team_remark = $1,
-          team_remark_by = $2,
-          team_remark_updated_at = $3,
+          team_remark = $1::text,
+          team_remark_by = $2::text,
+          team_remark_updated_at = $3::timestamptz,
           form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
-            'team_remark', $1,
-            'team_remark_by', $2,
-            'team_remark_updated_at', $3
+            'team_remark', $1::text,
+            'team_remark_by', $2::text,
+            'team_remark_updated_at', $3::text
           ),
-          updated_at = $4
+          updated_at = $4::timestamptz
         WHERE id = ANY($5::uuid[])
         RETURNING id, team_remark, team_remark_by, team_remark_updated_at
       `, [
@@ -191,16 +191,16 @@ export async function POST(request: Request) {
       const updateRes = await pool.query(`
         UPDATE public.applications
         SET 
-          team_remark = $1,
-          team_remark_by = $2,
-          team_remark_updated_at = $3,
+          team_remark = $1::text,
+          team_remark_by = $2::text,
+          team_remark_updated_at = $3::timestamptz,
           form_data = COALESCE(form_data, '{}'::jsonb) || jsonb_build_object(
-            'team_remark', $1,
-            'team_remark_by', $2,
-            'team_remark_updated_at', $3
+            'team_remark', $1::text,
+            'team_remark_by', $2::text,
+            'team_remark_updated_at', $3::text
           ),
-          updated_at = $4
-        WHERE id = $5
+          updated_at = $4::timestamptz
+        WHERE id = $5::uuid
         RETURNING id, team_remark, team_remark_by, team_remark_updated_at, form_data
       `, [
         trimmedRemark,
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
     }
 
     // Fetch existing application
-    const appRes = await pool.query('SELECT id, form_data, status FROM public.applications WHERE id = $1', [application_id])
+    const appRes = await pool.query('SELECT id, form_data, status FROM public.applications WHERE id = $1::uuid', [application_id])
     if (appRes.rows.length === 0) {
       return NextResponse.json({ error: 'Application not found' }, { status: 404 })
     }
@@ -263,20 +263,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid action. Must be approve, reject, update_remark, or batch_update_remark.' }, { status: 400 })
     }
 
+    const adminUuid = admin.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(admin.id) ? admin.id : null
+
     const updateRes = await pool.query(`
       UPDATE public.applications 
       SET 
-        address_status = $1,
-        address_verified_at = $2,
-        address_verified_by = $3,
-        form_data = $4,
-        updated_at = $5
-      WHERE id = $6
+        address_status = $1::text,
+        address_verified_at = $2::timestamptz,
+        address_verified_by = $3::uuid,
+        form_data = $4::jsonb,
+        updated_at = $5::timestamptz
+      WHERE id = $6::uuid
       RETURNING *
     `, [
       newAddressStatus,
       action === 'approve' ? nowIso : null,
-      action === 'approve' ? admin.id : null,
+      action === 'approve' ? adminUuid : null,
       JSON.stringify(updatedFd),
       nowIso,
       application_id

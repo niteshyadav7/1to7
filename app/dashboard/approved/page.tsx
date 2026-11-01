@@ -14,6 +14,7 @@ import { getApplicationCommercialAmount, isPaidCollaboration } from '@/lib/utils
 interface Application {
   id: string
   status: string
+  is_archived?: boolean | null
   form_data?: any
   partial_payment: number
   final_payment: number
@@ -62,7 +63,9 @@ export default function ApprovedCampaignsPage() {
       const res = await fetch('/api/dashboard/applications')
       const data = await res.json()
       const validStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
-      const allApps = data.applications || []
+      const allApps = (data.applications || []).filter(
+        (app: Application) => !app.is_archived && app.status !== 'Archived'
+      )
 
       // Identify approved campaigns that need missing details
       const missingDetails = allApps.filter((app: Application) => {

@@ -341,11 +341,28 @@ export default function ApprovedCampaignModal({
       return
     }
 
-    // Validate custom fields
+    // Validate custom fields and bridge built-in canonical values
     const customFields = application.campaigns?.completion_form_fields || []
+    const finalCustomResponses: Record<string, any> = { ...customResponses }
+
     for (const f of customFields) {
+      const fLower = (f.name || '').toLowerCase()
+      // Auto-bridge canonical values
+      if ((fLower.includes('live date') || fLower.includes('content live') || fLower === 'live_date') && liveDate) {
+        if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = liveDate
+      }
+      if ((fLower.includes('link') || fLower.includes('url') || fLower.includes('reel') || fLower.includes('post')) && deliverableLink.trim()) {
+        if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = deliverableLink.trim()
+      }
+      if ((fLower.includes('views') || fLower.includes('reach')) && viewsCount.trim()) {
+        if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = viewsCount.trim()
+      }
+      if ((fLower.includes('proof') || fLower.includes('screenshot') || fLower.includes('insight')) && proofUrl) {
+        if (!finalCustomResponses[f.name]) finalCustomResponses[f.name] = proofUrl
+      }
+
       if (f.required) {
-        const val = customResponses[f.name]
+        const val = finalCustomResponses[f.name]
         if (val === undefined || val === null || val === '') {
           toast.error(`"${f.name}" is required`)
           return
@@ -370,6 +387,7 @@ export default function ApprovedCampaignModal({
           supporting_document: proofUrl,
           views_count: viewsCount.trim(),
           notes: completionNotes.trim(),
+          custom_responses: finalCustomResponses,
           confirmed_instagram_username: appliedHandle
         }),
       })
@@ -1368,112 +1386,122 @@ export default function ApprovedCampaignModal({
                       </div>
 
                       {/* Dynamic Custom Deliverables Fields */}
-                      {Array.isArray(application.campaigns?.completion_form_fields) && application.campaigns.completion_form_fields.length > 0 && (
-                        <div className="space-y-3 pt-3 border-t border-slate-200">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="h-4 w-4 text-indigo-600" />
-                            <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                              Campaign Deliverable Requirements
-                            </p>
-                          </div>
-                          <div className="space-y-3.5">
-                            {application.campaigns.completion_form_fields.map((field: any, idx: number) => {
-                              const fieldVal = customResponses[field.name] || ''
-                              const isUploading = Boolean(uploadingCustomFiles[field.name])
+                      {(() => {
+                        const customFieldsToRender = (application.campaigns?.completion_form_fields || []).filter((field: any) => {
+                          const fLower = (field.name || '').toLowerCase()
+                          if (fLower.includes('live date') || fLower.includes('content live') || fLower === 'live_date') return false
+                          return true
+                        })
 
-                              return (
-                                <div key={idx} className="space-y-1.5">
-                                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                                    <span>
-                                      {field.name} {field.required && <span className="text-red-500">*</span>}
-                                    </span>
-                                    {field.required ? (
-                                      <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                                        Required
+                        if (customFieldsToRender.length === 0) return null
+
+                        return (
+                          <div className="space-y-3 pt-3 border-t border-slate-200">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="h-4 w-4 text-indigo-600" />
+                              <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                Campaign Deliverable Requirements
+                              </p>
+                            </div>
+                            <div className="space-y-3.5">
+                              {customFieldsToRender.map((field: any, idx: number) => {
+                                const fieldVal = customResponses[field.name] || ''
+                                const isUploading = Boolean(uploadingCustomFiles[field.name])
+
+                                return (
+                                  <div key={idx} className="space-y-1.5">
+                                    <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                                      <span>
+                                        {field.name} {field.required && <span className="text-red-500">*</span>}
                                       </span>
-                                    ) : (
-                                      <span className="text-[9px] text-slate-400">Optional</span>
-                                    )}
-                                  </label>
-
-                                  {field.type === 'textarea' ? (
-                                    <textarea
-                                      value={fieldVal}
-                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
-                                      placeholder={`Enter ${field.name}...`}
-                                      rows={2}
-                                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
-                                      required={field.required}
-                                    />
-                                  ) : field.type === 'dropdown' ? (
-                                    <select
-                                      value={fieldVal}
-                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
-                                      className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl h-12 px-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
-                                      required={field.required}
-                                    >
-                                      <option value="">Select an option...</option>
-                                      {(field.options || []).map((opt: string, i: number) => (
-                                        <option key={i} value={opt}>{opt}</option>
-                                      ))}
-                                    </select>
-                                  ) : field.type === 'image' ? (
-                                    <div>
-                                      {fieldVal ? (
-                                        <div className="relative rounded-2xl border border-slate-200 overflow-hidden bg-slate-100 p-2 flex items-center justify-between">
-                                          <div className="flex items-center gap-3">
-                                            <img src={fieldVal} alt={field.name} className="h-14 w-20 object-cover rounded-lg border border-slate-200" />
-                                            <div>
-                                              <p className="text-xs font-bold text-slate-800">Uploaded</p>
-                                              <a href={fieldVal} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1">
-                                                <ExternalLink className="h-3 w-3" /> View image
-                                              </a>
-                                            </div>
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => setCustomResponses(p => ({ ...p, [field.name]: '' }))}
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                          >
-                                            <X className="h-4 w-4" />
-                                          </button>
-                                        </div>
+                                      {field.required ? (
+                                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                          Required
+                                        </span>
                                       ) : (
-                                        <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-2xl border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 transition-all cursor-pointer">
-                                          {isUploading ? (
-                                            <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
-                                          ) : (
-                                            <>
-                                              <UploadCloud className="h-5 w-5 text-indigo-600 mb-1" />
-                                              <span className="text-xs font-semibold text-slate-700">Upload {field.name}</span>
-                                            </>
-                                          )}
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            className="hidden"
-                                            disabled={isUploading}
-                                            onChange={(e) => handleCustomFileUpload(e, field.name)}
-                                          />
-                                        </label>
+                                        <span className="text-[9px] text-slate-400">Optional</span>
                                       )}
-                                    </div>
-                                  ) : (
-                                    <Input
-                                      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                      value={fieldVal}
-                                      onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
-                                      placeholder={`Enter ${field.name}...`}
-                                      className="bg-slate-50 border-slate-200 text-slate-900 h-12 rounded-xl focus:ring-indigo-500 text-xs"
-                                      required={field.required}
-                                    />
-                                  )}
-                                </div>
-                              )
-                            })}
+                                    </label>
+
+                                    {field.type === 'textarea' ? (
+                                      <textarea
+                                        value={fieldVal}
+                                        onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                        placeholder={`Enter ${field.name}...`}
+                                        rows={2}
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                                        required={field.required}
+                                      />
+                                    ) : field.type === 'dropdown' ? (
+                                      <select
+                                        value={fieldVal}
+                                        onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs rounded-xl h-12 px-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                                        required={field.required}
+                                      >
+                                        <option value="">Select an option...</option>
+                                        {(field.options || []).map((opt: string, i: number) => (
+                                          <option key={i} value={opt}>{opt}</option>
+                                        ))}
+                                      </select>
+                                    ) : field.type === 'image' ? (
+                                      <div>
+                                        {fieldVal ? (
+                                          <div className="relative rounded-2xl border border-slate-200 overflow-hidden bg-slate-100 p-2 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                              <img src={fieldVal} alt={field.name} className="h-14 w-20 object-cover rounded-lg border border-slate-200" />
+                                              <div>
+                                                <p className="text-xs font-bold text-slate-800">Uploaded</p>
+                                                <a href={fieldVal} target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline flex items-center gap-1">
+                                                  <ExternalLink className="h-3 w-3" /> View image
+                                                </a>
+                                              </div>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => setCustomResponses(p => ({ ...p, [field.name]: '' }))}
+                                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                            >
+                                              <X className="h-4 w-4" />
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <label className="relative flex flex-col items-center justify-center w-full h-20 rounded-2xl border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50 transition-all cursor-pointer">
+                                            {isUploading ? (
+                                              <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
+                                            ) : (
+                                              <>
+                                                <UploadCloud className="h-5 w-5 text-indigo-600 mb-1" />
+                                                <span className="text-xs font-semibold text-slate-700">Upload {field.name}</span>
+                                              </>
+                                            )}
+                                            <input
+                                              type="file"
+                                              accept="image/*"
+                                              className="hidden"
+                                              disabled={isUploading}
+                                              onChange={(e) => handleCustomFileUpload(e, field.name)}
+                                            />
+                                          </label>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <Input
+                                        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                        value={fieldVal}
+                                        onChange={(e) => setCustomResponses(p => ({ ...p, [field.name]: e.target.value }))}
+                                        placeholder={`Enter ${field.name}...`}
+                                        className="bg-slate-50 border-slate-200 text-slate-900 h-12 rounded-xl focus:ring-indigo-500 text-xs"
+                                        required={field.required}
+                                      />
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )
+                      })()}
 
                       {/* Submit Button */}
                       <Button

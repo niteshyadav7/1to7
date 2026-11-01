@@ -15,6 +15,7 @@ import { getInstagramUrl } from '@/lib/instagram-utils'
 interface Application {
   id: string
   status: string
+  is_archived?: boolean | null
   form_data: any
   partial_payment: number
   final_payment: number
@@ -115,6 +116,8 @@ export default function AppliedCampaignsPage() {
   // keep it visible on the Applied page so the influencer can fill details
   const approvedStatuses = ['Approved', 'Payment Requested', 'Payment Initiated', 'Payment Approved', 'Completed']
   const appliedPageApps = applications.filter(app => {
+    // Hide archived applications completely from creator view
+    if (app.is_archived || app.status === 'Archived') return false
     // Always show Applied & Rejected
     if (!approvedStatuses.includes(app.status)) return true
     // For campaigns with order forms: keep in Applied until order_details are approved by admin

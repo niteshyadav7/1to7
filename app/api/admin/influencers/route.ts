@@ -33,11 +33,9 @@ export async function GET(request: Request) {
       .from('users')
       .select('*', { count: 'exact' }) // Get count for pagination
 
-    // Filter by Active vs Archived status
+    // Filter by Active vs Archived status (only if explicitly requested)
     if (tab === 'archived') {
       query = query.eq('is_archived', true)
-    } else if (tab === 'active') {
-      query = query.or('is_archived.is.null,is_archived.eq.false')
     }
 
     if (search) {
@@ -117,27 +115,27 @@ export async function GET(request: Request) {
       }
     })
 
-    // Get global stats (total count, active, archived, verified email count)
+    // Get global stats (total count, with instagram, verified email count)
     const [
       { count: totalCount },
-      { count: archivedCount },
+      { count: instaCount },
       { count: verifiedCount }
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_archived', true),
+      supabase.from('users').select('*', { count: 'exact', head: true }).not('instagram_username', 'is', null),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_email_verified', true)
     ])
 
     const totalInfluencers = totalCount || 0
-    const archivedInfluencers = archivedCount || 0
-    const activeInfluencers = Math.max(0, totalInfluencers - archivedInfluencers)
+    const withInstagram = instaCount || 0
 
     return NextResponse.json({
       influencers: enrichedInfluencers,
       stats: {
         total: totalInfluencers,
-        active: activeInfluencers,
-        archived: archivedInfluencers,
+        active: totalInfluencers,
+        withInstagram,
+        archived: 0,
         verified: verifiedCount || 0,
       },
       pagination: {

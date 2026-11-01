@@ -8,7 +8,6 @@ import {
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
   Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye, BookmarkPlus,
-  Archive, ArchiveRestore
 } from 'lucide-react'
 import AddToSampleListModal from '@/components/admin/influencers/AddToSampleListModal'
 import { Input } from '@/components/ui/input'
@@ -118,14 +117,12 @@ function ProfileModal({
   onViewGhostHistory,
   onGhostAction,
   onAddToSampleList,
-  onToggleArchive,
 }: {
   user: Influencer
   onClose: () => void
   onViewGhostHistory?: (userId: string, name: string) => void
   onGhostAction?: (actionType: 'ghost' | 'unghost', user: Influencer) => void
   onAddToSampleList?: (user: Influencer) => void
-  onToggleArchive?: (user: Influencer, action: 'archive' | 'unarchive') => void
 }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -178,28 +175,6 @@ function ProfileModal({
               <span>Add to Sample List</span>
             </button>
 
-            {user.is_archived ? (
-              <button
-                type="button"
-                onClick={() => onToggleArchive?.(user, 'unarchive')}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-                title="Restore creator to active pool"
-              >
-                <ArchiveRestore className="h-3.5 w-3.5" />
-                <span>Restore Creator</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onToggleArchive?.(user, 'archive')}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-white/10 shadow-sm transition-all cursor-pointer"
-                title="Archive creator (mark as inactive)"
-              >
-                <Archive className="h-3.5 w-3.5" />
-                <span>Archive Creator</span>
-              </button>
-            )}
-
             <Link
               href={`/admin/virtual-profile/${user.id}`}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-pink-500/20 transition-all cursor-pointer"
@@ -235,11 +210,6 @@ function ProfileModal({
                  {user.is_ghosted && (
                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1 shadow-sm">
                      👻 Ghosted ({user.active_ghost_count || 1})
-                   </span>
-                 )}
-                 {user.is_archived && (
-                   <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-sm">
-                     <Archive className="h-3.5 w-3.5" /> Archived
                    </span>
                  )}
                </h2>
@@ -1219,10 +1189,8 @@ export default function InfluencersDirectoryPage() {
   const [loading, setLoading] = useState(true)
   const [influencers, setInfluencers] = useState<Influencer[]>([])
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
-  const [stats, setStats] = useState({ total: 0, verified: 0, active: 0, archived: 0 })
-  
-  // Tab: Active vs Archived vs All
-  const [activeTab, setActiveTab] = useState<'active' | 'archived' | 'all'>('active')
+  const [stats, setStats] = useState({ total: 0, verified: 0, active: 0, withInstagram: 0 })
+  const activeTab = 'all'
 
   // Controls
   const [searchQuery, setSearchQuery] = useState('')
@@ -1281,7 +1249,7 @@ export default function InfluencersDirectoryPage() {
       setInfluencers(data.influencers || [])
       setPagination(data.pagination)
       if (data.stats) setStats(data.stats)
-      if (currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All' && activeTab === 'active') {
+      if (currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All') {
         setFastCache('admin_influencers_cache', data)
       }
     } catch {
@@ -1293,7 +1261,7 @@ export default function InfluencersDirectoryPage() {
 
   useEffect(() => {
     const cached = getFastCache<any>('admin_influencers_cache')
-    if (cached && currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All' && activeTab === 'active') {
+    if (cached && currentPage === 1 && !debouncedSearch && genderFilter === 'All' && categoryFilter === 'All') {
       setInfluencers(cached.influencers || [])
       setPagination(cached.pagination)
       if (cached.stats) setStats(cached.stats)
@@ -1362,7 +1330,7 @@ export default function InfluencersDirectoryPage() {
       a.href = url
       const dateStr = new Date().toISOString().split('T')[0]
       const scopeLabel = scope === 'all' ? 'all_creators' : scope === 'current_page' ? 'current_page' : 'filtered_creators'
-      const tabLabel = activeTab === 'archived' ? 'archived_' : activeTab === 'active' ? 'active_' : ''
+      const tabLabel = ''
       a.download = `influencers_export_${tabLabel}${scopeLabel}_${dateStr}.csv`
       document.body.appendChild(a)
       a.click()
@@ -1376,44 +1344,6 @@ export default function InfluencersDirectoryPage() {
     } finally {
       setIsExporting(false)
     }
-  }
-
-  // Handle Archive / Restore
-  const executeArchiveRequest = async (user: Influencer, action: 'archive' | 'unarchive', reason: string) => {
-    setArchiveSubmitting(true)
-    try {
-      const res = await fetch('/api/admin/influencers/archive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds: [user.id],
-          action,
-          reason: reason.trim() || 'Archived via Influencers directory',
-          cancel_applications: action === 'archive'
-        })
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update archive status')
-      toast.success(data.message || (action === 'archive' ? `${user.full_name} archived` : `${user.full_name} restored`))
-      setArchiveModalTarget(null)
-      fetchInfluencers(true)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update archive status')
-    } finally {
-      setArchiveSubmitting(false)
-    }
-  }
-
-  const handleToggleArchive = async (user: Influencer, action: 'archive' | 'unarchive') => {
-    if (action === 'unarchive') {
-      if (!confirm(`Restore ${user.full_name} to the active creators pool?`)) return
-      executeArchiveRequest(user, 'unarchive', '')
-      return
-    }
-
-    setArchiveModalTarget(user)
-    setSelectedPresetReason('Inactive / dormant profile')
-    setArchiveReason('')
   }
 
   // Helpers
@@ -1461,12 +1391,6 @@ export default function InfluencersDirectoryPage() {
 
   const [addToSampleTarget, setAddToSampleTarget] = useState<Influencer | null>(null)
 
-  // Archive with remarks modal state
-  const [archiveModalTarget, setArchiveModalTarget] = useState<Influencer | null>(null)
-  const [archiveReason, setArchiveReason] = useState('')
-  const [selectedPresetReason, setSelectedPresetReason] = useState('Inactive / dormant profile')
-  const [archiveSubmitting, setArchiveSubmitting] = useState(false)
-
   return (
     <div className="space-y-5 pb-24 relative">
       <AnimatePresence>
@@ -1480,7 +1404,6 @@ export default function InfluencersDirectoryPage() {
               setGhostActionTarget({ isOpen: true, actionType, user })
             }}
             onAddToSampleList={(u) => setAddToSampleTarget(u)}
-            onToggleArchive={handleToggleArchive}
           />
         )}
         {addToSampleTarget && (
@@ -1534,123 +1457,6 @@ export default function InfluencersDirectoryPage() {
               fetchInfluencers(true)
             }}
           />
-        )}
-        {/* Archive Creator with Remarks Modal */}
-        {archiveModalTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                    <Archive className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white">Archive {archiveModalTarget.full_name}</h3>
-                    <p className="text-xs text-slate-400">Mark as inactive and move to the Archived Creators tab</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setArchiveModalTarget(null)}
-                  disabled={archiveSubmitting}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Preset Reason Tags */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  Select Reason / Category:
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    'Inactive / dormant profile',
-                    'Low engagement / criteria mismatch',
-                    'Commercial rate too high',
-                    'Unresponsive to outreach',
-                    'Deliverable / quality issue',
-                    'Other / custom remark',
-                  ].map((preset) => {
-                    const isSelected = selectedPresetReason === preset
-                    return (
-                      <button
-                        key={preset}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPresetReason(preset)
-                          if (preset !== 'Other / custom remark') {
-                            setArchiveReason(preset)
-                          }
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer border ${
-                          isSelected
-                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                            : 'bg-slate-800/60 text-slate-400 border-white/5 hover:border-white/15 hover:text-white'
-                        }`}
-                      >
-                        {preset}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Remarks Textarea */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  Archive Remarks / Explanation:
-                </label>
-                <textarea
-                  value={archiveReason}
-                  onChange={(e) => setArchiveReason(e.target.value)}
-                  placeholder="e.g. Creator has been inactive for 6+ months or unresponsive..."
-                  rows={3}
-                  className="w-full text-xs bg-slate-950/70 border border-slate-700/60 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 resize-none"
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setArchiveModalTarget(null)}
-                  disabled={archiveSubmitting}
-                  className="h-8 text-xs border-slate-700 text-slate-300 hover:bg-slate-800"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const finalReason = archiveReason.trim() || selectedPresetReason
-                    executeArchiveRequest(archiveModalTarget, 'archive', finalReason)
-                  }}
-                  disabled={archiveSubmitting}
-                  className="h-8 px-4 text-xs font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white rounded-lg shadow-md shadow-amber-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {archiveSubmitting ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Archiving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="h-3.5 w-3.5" />
-                      <span>Confirm & Archive</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
 
@@ -1807,30 +1613,27 @@ export default function InfluencersDirectoryPage() {
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/20">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
             </div>
-            <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Active Pool</span>
+            <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Active Talent Pool</span>
           </div>
           <div className="flex items-end gap-2">
              <p className="text-2xl font-bold text-emerald-400">
-               {isInitialLoading ? <span className="inline-block w-16 h-7 rounded bg-white/10 animate-pulse" /> : stats.active.toLocaleString()}
+               {isInitialLoading ? <span className="inline-block w-16 h-7 rounded bg-white/10 animate-pulse" /> : stats.total.toLocaleString()}
              </p>
-             <p className="text-xs text-slate-500 mb-1">{stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% active</p>
+             <p className="text-xs text-slate-500 mb-1">100% active</p>
           </div>
         </div>
 
-        {/* 3. Archived / Inactive Creators */}
-        <div className="bg-slate-900/40 border border-white/[0.06] rounded-2xl p-4 shadow-lg shadow-amber-500/5">
+        {/* 3. Instagram Linked */}
+        <div className="bg-slate-900/40 border border-white/[0.06] rounded-2xl p-4 shadow-lg shadow-pink-500/5">
            <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20">
-              <Archive className="h-3.5 w-3.5 text-amber-400" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-pink-500/20 to-rose-500/20 border border-pink-500/20">
+              <Instagram className="h-3.5 w-3.5 text-pink-400" />
             </div>
-            <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Archived / Inactive</span>
+            <span className="text-[10px] text-pink-400 uppercase font-bold tracking-wider">Instagram Linked</span>
           </div>
-          <div className="flex items-end gap-2">
-            <p className="text-2xl font-bold text-amber-300">
-              {isInitialLoading ? <span className="inline-block w-12 h-7 rounded bg-white/10 animate-pulse" /> : stats.archived.toLocaleString()}
-            </p>
-            <p className="text-xs text-slate-500 mb-1">{stats.total > 0 ? Math.round((stats.archived / stats.total) * 100) : 0}% archived</p>
-          </div>
+          <p className="text-2xl font-bold text-white">
+            {isInitialLoading ? <span className="inline-block w-12 h-7 rounded bg-white/10 animate-pulse" /> : (stats.withInstagram || stats.total).toLocaleString()}
+          </p>
         </div>
         
         {/* 4. Verified Emails */}
@@ -1845,54 +1648,6 @@ export default function InfluencersDirectoryPage() {
             {isInitialLoading ? <span className="inline-block w-16 h-7 rounded bg-white/10 animate-pulse" /> : stats.verified.toLocaleString()}
           </p>
         </div>
-      </div>
-
-      {/* Active vs Archived Segment Tabs */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-900/70 border border-white/10 rounded-2xl w-fit backdrop-blur-md">
-        <button
-          type="button"
-          onClick={() => { setActiveTab('active'); setCurrentPage(1); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'active'
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-md shadow-emerald-500/10'
-              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>Active Creators</span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            {stats.active.toLocaleString()}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { setActiveTab('archived'); setCurrentPage(1); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'archived'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-md shadow-amber-500/10'
-              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-          }`}
-        >
-          <Archive className="h-3.5 w-3.5 text-amber-400" />
-          <span>Archived Creators</span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            {stats.archived.toLocaleString()}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => { setActiveTab('all'); setCurrentPage(1); }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'all'
-              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-md shadow-indigo-500/10'
-              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-          }`}
-        >
-          <Users className="h-3.5 w-3.5 text-indigo-400" />
-          <span>All ({stats.total.toLocaleString()})</span>
-        </button>
       </div>
 
       {/* Toolbar */}
@@ -2178,42 +1933,7 @@ export default function InfluencersDirectoryPage() {
                                 <BookmarkPlus className="h-3 w-3" />
                                 <span>Sample</span>
                               </button>
-                              {user.is_archived ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleToggleArchive(user, 'unarchive')
-                                  }}
-                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 px-1.5 py-0.5 rounded border border-amber-500/30 cursor-pointer transition-colors"
-                                  title="Restore creator to active pool"
-                                >
-                                  <ArchiveRestore className="h-3 w-3" />
-                                  <span>Restore</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleToggleArchive(user, 'archive')
-                                  }}
-                                  className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 hover:text-amber-300 bg-slate-800/80 hover:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-700/60 cursor-pointer transition-colors"
-                                  title="Archive inactive creator"
-                                >
-                                  <Archive className="h-3 w-3" />
-                                  <span>Archive</span>
-                                </button>
-                              )}
                            </div>
-                           {user.is_archived && (
-                             <span
-                               className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30 shadow-sm"
-                               title={user.archived_at ? `Archived on ${new Date(user.archived_at).toLocaleDateString('en-GB')}${user.archive_reason ? ': ' + user.archive_reason : ''}` : 'Creator is archived / inactive'}
-                             >
-                               <Archive className="h-3 w-3" /> Archived
-                             </span>
-                           )}
                            {user.is_ghosted ? (
                              <button
                                type="button"

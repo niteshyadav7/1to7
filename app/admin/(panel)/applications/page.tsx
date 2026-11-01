@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Loader2, Check, CheckCircle2, XCircle, ClipboardList,
@@ -837,7 +838,98 @@ function ActionsDropdown({
   onMarkBackout?: (app: Application) => void
   onRevertBackout?: (app: Application) => void
 }) {
-  const { open, setOpen, popoverRef } = usePopover()
+  const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [menuCoords, setMenuCoords] = useState<{
+    top?: number
+    bottom?: number
+    right: number
+    maxHeight: number
+  } | null>(null)
+
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const updatePosition = useCallback(() => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+
+    // If trigger button is scrolled out of viewport, close dropdown
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      setOpen(false)
+      return
+    }
+
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const prefersTop = spaceBelow < 340 && spaceAbove > spaceBelow
+
+    const rightOffset = Math.max(12, window.innerWidth - rect.right)
+
+    if (prefersTop) {
+      setMenuCoords({
+        bottom: Math.max(8, window.innerHeight - rect.top + 6),
+        right: rightOffset,
+        maxHeight: Math.min(520, Math.max(180, spaceAbove - 16)),
+      })
+    } else {
+      setMenuCoords({
+        top: Math.max(8, rect.bottom + 6),
+        right: rightOffset,
+        maxHeight: Math.min(520, Math.max(180, spaceBelow - 16)),
+      })
+    }
+  }, [])
+
+  // Update position on window/container scroll and resize
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+
+    const handleScrollOrResize = () => {
+      updatePosition()
+    }
+
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+    }
+  }, [open, updatePosition])
+
+  // Handle outside click & escape key
+  useEffect(() => {
+    if (!open) return
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (
+        triggerRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return
+      }
+      setOpen(false)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
 
   const isPaidVariable = String(app.campaigns?.budget_type || '').toLowerCase().includes('variable')
   const isPendingDeal = app.form_data?.negotiation?.status === 'pending_peer_approval'
@@ -860,274 +952,294 @@ function ActionsDropdown({
   ].filter(a => a.status !== app.status)
 
   return (
-    <div className="relative" ref={popoverRef}>
+    <div className="relative inline-flex items-center justify-end">
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        ref={triggerRef}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (!open) updatePosition()
+          setOpen(!open)
+        }}
         className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
         title="Application Actions"
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.98 }}
-            transition={{ duration: 0.12 }}
-            className="absolute top-full right-0 mt-1 z-50 min-w-[210px] bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl shadow-black/40 overflow-hidden"
-          >
-            <div className="p-1 space-y-0.5">
-              {/* If Paid Variable, show prominent Negotiate Deal action */}
-              {isPaidVariable && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    onOpenNegotiate?.(app)
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
-                >
-                  <IndianRupee className="h-3.5 w-3.5 text-amber-400" />
-                  {isPendingDeal
-                    ? `Review Colleague Deal (₹${Number(proposedAmount).toLocaleString()})`
-                    : isApprovedDeal
-                    ? `View Approved Deal (₹${Number(proposedAmount || app.form_data?.negotiation?.approved_amount).toLocaleString()})`
-                    : 'Negotiate Deal (Maker-Checker)'}
-                </button>
-              )}
-
-              {app.status === 'Approved' && (
-                <>
+      {mounted && createPortal(
+        <AnimatePresence>
+          {open && menuCoords && (
+            <motion.div
+              ref={menuRef}
+              initial={{ opacity: 0, y: menuCoords.bottom !== undefined ? 6 : -6, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.12 }}
+              style={{
+                position: 'fixed',
+                top: menuCoords.top !== undefined ? `${menuCoords.top}px` : undefined,
+                bottom: menuCoords.bottom !== undefined ? `${menuCoords.bottom}px` : undefined,
+                right: `${menuCoords.right}px`,
+                maxHeight: `${menuCoords.maxHeight}px`,
+                zIndex: 9999,
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-64 min-w-[220px] bg-slate-900/98 backdrop-blur-2xl border border-white/15 rounded-xl shadow-2xl shadow-black/80 flex flex-col ring-1 ring-white/10 overflow-hidden"
+            >
+              <div className="p-1.5 space-y-0.5 overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.2)_transparent]">
+                {/* If Paid Variable, show prominent Negotiate Deal action */}
+                {isPaidVariable && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       setOpen(false)
-                      onRevertApproval?.(app)
+                      onOpenNegotiate?.(app)
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Revert to Applied (Undo)
+                    <IndianRupee className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      {isPendingDeal
+                        ? `Review Colleague Deal (₹${Number(proposedAmount).toLocaleString()})`
+                        : isApprovedDeal
+                        ? `View Approved Deal (₹${Number(proposedAmount || app.form_data?.negotiation?.approved_amount).toLocaleString()})`
+                        : 'Negotiate Deal (Maker-Checker)'}
+                    </span>
                   </button>
+                )}
+
+                {app.status === 'Approved' && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(false)
+                        onRevertApproval?.(app)
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+                      <span>Revert to Applied (Undo)</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(false)
+                        onRevokeApproval?.(app)
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                    >
+                      <XCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Revoke Approval with Reason</span>
+                    </button>
+                    <div className="border-t border-white/10 my-1" />
+                  </>
+                )}
+
+                {actions.map(a => (
                   <button
+                    key={a.status}
                     onClick={(e) => {
                       e.stopPropagation()
                       setOpen(false)
-                      onRevokeApproval?.(app)
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
-                  >
-                    <XCircle className="h-3.5 w-3.5" />
-                    Revoke Approval with Reason
-                  </button>
-                  <div className="border-t border-white/10 my-1" />
-                </>
-              )}
-
-              {actions.map(a => (
-                <button
-                  key={a.status}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    if (a.status === 'Approved' && isPaidVariable && !isApprovedDeal) {
-                      onOpenNegotiate?.(app)
-                      toast.info('Paid Variable campaigns require colleague approval on negotiated commercial before approving.')
-                      return
-                    }
-                    if (a.status === 'Rejected') {
-                      if (onRejectWithReason) {
-                        onRejectWithReason(app)
+                      if (a.status === 'Approved' && isPaidVariable && !isApprovedDeal) {
+                        onOpenNegotiate?.(app)
+                        toast.info('Paid Variable campaigns require colleague approval on negotiated commercial before approving.')
+                        return
+                      }
+                      if (a.status === 'Rejected') {
+                        if (onRejectWithReason) {
+                          onRejectWithReason(app)
+                        } else {
+                          onStatusChange(app.id, a.status)
+                        }
                       } else {
                         onStatusChange(app.id, a.status)
                       }
-                    } else {
-                      onStatusChange(app.id, a.status)
-                    }
-                  }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${a.color}`}
-                >
-                  <a.icon className="h-3.5 w-3.5" />
-                  {a.label}
-                </button>
-              ))}
-
-              <div className="border-t border-white/10 my-1" />
-
-              {app.form_data?.sent_to_brand?.is_sent ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    onSentToBrandToggle?.('unmark_sent', app.id)
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-                  Reset Brand Admin Queue
-                </button>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    onSentToBrandToggle?.('mark_sent', app.id)
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-purple-300 hover:bg-purple-500/15"
-                >
-                  <Share2 className="h-3.5 w-3.5 text-purple-400" />
-                  Forward to Brand Admin
-                </button>
-              )}
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                  onEditRemark?.(app)
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-cyan-300 hover:bg-cyan-500/15"
-              >
-                <MessageSquareText className="h-3.5 w-3.5 text-cyan-400" />
-                {app.team_remark ? 'Edit Team Remark' : 'Add Team Remark'}
-              </button>
-
-              <div className="border-t border-white/10 my-1" />
-
-              {/* Ghost / Unghost Action */}
-              {app.is_ghosted ? (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setOpen(false)
-                      onGhostAction?.(app, 'unghost')
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${a.color}`}
                   >
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    Un-ghost Creator
+                    <a.icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{a.label}</span>
                   </button>
+                ))}
+
+                <div className="border-t border-white/10 my-1" />
+
+                {app.form_data?.sent_to_brand?.is_sent ? (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
                       setOpen(false)
-                      onGhostHistory?.(app)
+                      onSentToBrandToggle?.('unmark_sent', app.id)
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
                   >
-                    <History className="h-3.5 w-3.5 text-slate-400" />
-                    Ghost Audit History
+                    <RotateCcw className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span>Reset Brand Admin Queue</span>
                   </button>
-                </>
-              ) : (
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onSentToBrandToggle?.('mark_sent', app.id)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-purple-300 hover:bg-purple-500/15"
+                  >
+                    <Share2 className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                    <span>Forward to Brand Admin</span>
+                  </button>
+                )}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setOpen(false)
-                    onGhostAction?.(app, 'ghost')
+                    onEditRemark?.(app)
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
-                  title="Mark unresponsive creator as ghosted with proof"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-cyan-300 hover:bg-cyan-500/15"
                 >
-                  <span className="text-sm">👻</span>
-                  Mark Ghosted
+                  <MessageSquareText className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                  <span>{app.team_remark ? 'Edit Team Remark' : 'Add Team Remark'}</span>
                 </button>
-              )}
 
-              {/* Direct WhatsApp Action */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                  onSendWhatsApp?.(app)
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
-                title="Send WhatsApp message regarding this application"
-              >
-                <svg className="h-3.5 w-3.5 fill-current text-emerald-400 shrink-0" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-                <span>Send WhatsApp Message</span>
-              </button>
+                <div className="border-t border-white/10 my-1" />
 
-              {/* Backout / Revert Backout Action */}
-              {app.status === 'Backout' || app.form_data?.backout_details ? (
+                {/* Ghost / Unghost Action */}
+                {app.is_ghosted ? (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(false)
+                        onGhostAction?.(app, 'unghost')
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <span>Un-ghost Creator</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOpen(false)
+                        onGhostHistory?.(app)
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-slate-300 hover:bg-white/5"
+                    >
+                      <History className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span>Ghost Audit History</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onGhostAction?.(app, 'ghost')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                    title="Mark unresponsive creator as ghosted with proof"
+                  >
+                    <span className="text-sm shrink-0">👻</span>
+                    <span>Mark Ghosted</span>
+                  </button>
+                )}
+
+                {/* Direct WhatsApp Action */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setOpen(false)
-                    onRevertBackout?.(app)
+                    onSendWhatsApp?.(app)
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
-                  title="Revert backout and restore creator to Approved"
+                  title="Send WhatsApp message regarding this application"
                 >
-                  <RotateCcw className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                  <span>Revert Backout (Restore)</span>
+                  <svg className="h-3.5 w-3.5 fill-current text-emerald-400 shrink-0" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  <span>Send WhatsApp Message</span>
                 </button>
-              ) : (
+
+                {/* Backout / Revert Backout Action */}
+                {app.status === 'Backout' || app.form_data?.backout_details ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onRevertBackout?.(app)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-emerald-300 hover:bg-emerald-500/15"
+                    title="Revert backout and restore creator to Approved"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    <span>Revert Backout (Restore)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onMarkBackout?.(app)
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
+                    title="Mark creator as Backout with reason"
+                  >
+                    <UserMinus className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                    <span>Mark as Backout</span>
+                  </button>
+                )}
+
+                {/* Archive / Unarchive Application Action */}
+                {app.is_archived || app.status === 'Archived' ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onArchiveCreator?.(app, 'unarchive')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
+                    title="Restore application to active pipeline"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <span>Unarchive Application</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpen(false)
+                      onArchiveCreator?.(app, 'archive')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300/90 hover:bg-amber-500/15"
+                    title="Archive application (Hold, Re-apply or Reset)"
+                  >
+                    <Archive className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    <span>Archive Application</span>
+                  </button>
+                )}
+
+                <div className="border-t border-white/10 my-1" />
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     setOpen(false)
-                    onMarkBackout?.(app)
+                    onDeleteApp(app.id, app.users?.full_name)
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-rose-300 hover:bg-rose-500/15"
-                  title="Mark creator as Backout with reason"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-red-400 hover:bg-red-500/15"
                 >
-                  <UserMinus className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-                  <span>Mark as Backout</span>
+                  <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>Reset Application (Delete)</span>
                 </button>
-              )}
-
-              {/* Archive / Unarchive Action */}
-              {app.users?.is_archived || app.is_archived ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    onArchiveCreator?.(app, 'unarchive')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300 hover:bg-amber-500/15"
-                  title="Restore creator to active pool"
-                >
-                  <ArchiveRestore className="h-3.5 w-3.5 text-amber-400" />
-                  Unarchive Creator
-                </button>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setOpen(false)
-                    onArchiveCreator?.(app, 'archive')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer text-amber-300/90 hover:bg-amber-500/15"
-                  title="Archive creator as inactive and move to Archived tab"
-                >
-                  <Archive className="h-3.5 w-3.5 text-amber-400" />
-                  Archive Creator
-                </button>
-              )}
-
-              <div className="border-t border-white/10 my-1" />
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                  onDeleteApp(app.id, app.users?.full_name)
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-red-400 hover:bg-red-500/15"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Reset Application (Delete)
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   )
 }
@@ -1440,16 +1552,16 @@ export default function AllApplicationsPage() {
   const [whatsappCustomMessage, setWhatsappCustomMessage] = useState('')
   const [contactedWhatsAppIds, setContactedWhatsAppIds] = useState<Set<string>>(new Set())
 
-  // Archive Modal State
+  // Archive Modal State (Application-Wise)
   const [archiveModalData, setArchiveModalData] = useState<{
-    userIds: string[]
-    creatorNames: string[]
     applicationIds: string[]
+    creatorNames: string[]
+    campaignNames: string[]
     action: 'archive' | 'unarchive'
   } | null>(null)
+  const [dynamicArchiveMode, setDynamicArchiveMode] = useState<'hold' | 'reapply' | 'reset'>('hold')
   const [archiveReason, setArchiveReason] = useState('')
-  const [selectedPresetReason, setSelectedPresetReason] = useState('Inactive / dormant profile')
-  const [cancelActiveApplications, setCancelActiveApplications] = useState(true)
+  const [selectedPresetReason, setSelectedPresetReason] = useState('Campaign slot on hold / paused')
   const [archiveSubmitting, setArchiveSubmitting] = useState(false)
   const { open: bulkMoreOpen, setOpen: setBulkMoreOpen, popoverRef: bulkMoreRef } = usePopover()
 
@@ -2122,14 +2234,14 @@ export default function AllApplicationsPage() {
     if (activeStatus === 'Ghosted') {
       result = result.filter(a => a.is_ghosted)
     } else if (activeStatus === 'Archived') {
-      result = result.filter(a => a.is_archived || a.users?.is_archived)
+      result = result.filter(a => a.is_archived || a.status === 'Archived')
     } else if (activeStatus === 'Backout') {
       result = result.filter(a => a.status === 'Backout' || a.form_data?.backout_details)
     } else if (activeStatus === 'Approved') {
       if (approvedSubFilter === 'backout') {
         result = result.filter(a => a.status === 'Backout' || a.form_data?.backout_details)
       } else {
-        result = result.filter(a => a.status === 'Approved' && !a.is_archived && !a.users?.is_archived && !a.is_ghosted && !a.form_data?.backout_details)
+        result = result.filter(a => a.status === 'Approved' && !a.is_archived && !a.is_ghosted && !a.form_data?.backout_details)
         if (approvedSubFilter === 'address_shared') {
           result = result.filter(a => {
             const { addr, fullText } = resolveApplicationAddress(a)
@@ -2145,7 +2257,7 @@ export default function AllApplicationsPage() {
     } else if (activeStatus === 'All') {
       // keep all
     } else {
-      result = result.filter(a => a.status === activeStatus && !a.is_archived && !a.users?.is_archived && a.status !== 'Backout' && !a.form_data?.backout_details)
+      result = result.filter(a => a.status === activeStatus && !a.is_archived && a.status !== 'Archived' && a.status !== 'Backout' && !a.form_data?.backout_details)
     }
 
     // Brand Shared filter
@@ -2524,31 +2636,35 @@ export default function AllApplicationsPage() {
     }
   }
 
-  const executeArchiveApi = async (
-    userIds: string[],
+  const executeApplicationArchiveApi = async (
+    applicationIds: string[],
     action: 'archive' | 'unarchive',
-    customReason: string,
-    cancelApps: boolean
+    mode: 'hold' | 'reapply' | 'reset',
+    customReason: string
   ) => {
     setArchiveSubmitting(true)
     try {
-      const cleanReason = customReason.trim() || 'Marked as archived by operations team'
-      const res = await fetch('/api/admin/influencers/archive', {
+      const cleanReason = customReason.trim() || 'Marked by operations team'
+      const res = await fetch('/api/admin/applications/archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userIds,
+          applicationIds,
           action,
-          reason: cleanReason,
-          cancel_applications: cancelApps
+          dynamic_mode: mode,
+          reason: cleanReason
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update archive status')
+      if (!res.ok) throw new Error(data.error || 'Failed to update application archive status')
       toast.success(
         action === 'archive'
-          ? `Archived ${userIds.length} creator${userIds.length > 1 ? 's' : ''}: "${cleanReason}"`
-          : `Restored ${userIds.length} creator${userIds.length > 1 ? 's' : ''} to active pool`
+          ? (mode === 'reset'
+              ? `Reset ${applicationIds.length} application${applicationIds.length > 1 ? 's' : ''}`
+              : mode === 'reapply'
+              ? `Marked ${applicationIds.length} application${applicationIds.length > 1 ? 's' : ''} for Re-Apply`
+              : `Moved ${applicationIds.length} application${applicationIds.length > 1 ? 's' : ''} to Archived queue`)
+          : `Restored ${applicationIds.length} application${applicationIds.length > 1 ? 's' : ''} to active pool`
       )
       setArchiveModalData(null)
       setSelectedIds(new Set())
@@ -2560,49 +2676,48 @@ export default function AllApplicationsPage() {
     }
   }
 
-  const handleArchiveCreator = (targetApp: Application, action: 'archive' | 'unarchive') => {
-    const userId = targetApp.users?.id
-    if (!userId) {
-      toast.error('Creator user ID not found')
-      return
-    }
-
+  const handleArchiveApplication = (targetApp: Application, action: 'archive' | 'unarchive') => {
     if (action === 'unarchive') {
-      executeArchiveApi([userId], 'unarchive', '', false)
+      executeApplicationArchiveApi([targetApp.id], 'unarchive', 'hold', '')
       return
     }
 
     setArchiveModalData({
-      userIds: [userId],
-      creatorNames: [targetApp.users?.full_name || 'Creator'],
       applicationIds: [targetApp.id],
+      creatorNames: [targetApp.users?.full_name || 'Creator'],
+      campaignNames: [targetApp.campaigns?.brand_name || 'Campaign'],
       action: 'archive'
     })
-    setSelectedPresetReason('Inactive / dormant profile')
+    setDynamicArchiveMode('hold')
+    setSelectedPresetReason('Campaign slot on hold / paused')
     setArchiveReason('')
-    setCancelActiveApplications(true)
   }
 
-  const handleBulkArchiveCreators = () => {
+  const handleBulkArchiveApplications = () => {
     if (selectedIds.size === 0) return
     const selectedApps = Array.from(selectedIds).map(id => applications.find(a => a.id === id)).filter(Boolean) as Application[]
-    const userIds = Array.from(new Set(selectedApps.map(a => a?.users?.id).filter(Boolean))) as string[]
-    const creatorNames = Array.from(new Set(selectedApps.map(a => a?.users?.full_name).filter(Boolean))) as string[]
-
-    if (userIds.length === 0) {
-      toast.error('No valid creators selected to archive')
+    if (selectedApps.length === 0) {
+      toast.error('No valid applications selected to archive')
       return
     }
 
+    const creatorNames = Array.from(new Set(selectedApps.map(a => a?.users?.full_name).filter(Boolean))) as string[]
+    const campaignNames = Array.from(new Set(selectedApps.map(a => a?.campaigns?.brand_name).filter(Boolean))) as string[]
+
     setArchiveModalData({
-      userIds,
-      creatorNames,
       applicationIds: selectedApps.map(a => a.id),
+      creatorNames,
+      campaignNames,
       action: 'archive'
     })
-    setSelectedPresetReason('Inactive / dormant profile')
+    setDynamicArchiveMode('hold')
+    setSelectedPresetReason('Campaign slot on hold / paused')
     setArchiveReason('')
-    setCancelActiveApplications(true)
+  }
+
+  const handleBulkUnarchiveApplications = () => {
+    if (selectedIds.size === 0) return
+    executeApplicationArchiveApi(Array.from(selectedIds), 'unarchive', 'hold', '')
   }
 
   // ─── Backout Handlers ──────────────────────────────────────
@@ -2842,7 +2957,7 @@ export default function AllApplicationsPage() {
       if (a.is_ghosted) {
         counts['Ghosted'] = (counts['Ghosted'] || 0) + 1
       }
-      if (a.is_archived || a.users?.is_archived) {
+      if (a.is_archived || a.status === 'Archived') {
         counts['Archived'] = (counts['Archived'] || 0) + 1
       }
       if (a.status === 'Backout' || a.form_data?.backout_details) {
@@ -3955,7 +4070,7 @@ export default function AllApplicationsPage() {
                               onDeleteApp={handleDeleteApplication}
                               onGhostAction={(targetApp, actionType) => setGhostModalApp({ app: targetApp, actionType })}
                               onGhostHistory={(targetApp) => setGhostHistoryApp(targetApp)}
-                              onArchiveCreator={handleArchiveCreator}
+                              onArchiveCreator={handleArchiveApplication}
                                onSendWhatsApp={handleOpenWhatsApp}
                                onMarkBackout={(app) => {
                                  setBackoutModalApps([app])
@@ -4959,19 +5074,34 @@ export default function AllApplicationsPage() {
                         <span>Mark as Backout ({selectedIds.size})</span>
                       </button>
 
-                      {/* ARCHIVE */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBulkMoreOpen(false)
-                          handleBulkArchiveCreators()
-                        }}
-                        disabled={bulkUpdating}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-amber-300 hover:bg-amber-500/15 transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        <Archive className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                        <span>Archive ({selectedIds.size})</span>
-                      </button>
+                      {/* ARCHIVE / UNARCHIVE */}
+                      {activeStatus === 'Archived' ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkMoreOpen(false)
+                            handleBulkUnarchiveApplications()
+                          }}
+                          disabled={bulkUpdating}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-emerald-300 hover:bg-emerald-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <ArchiveRestore className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                          <span>Unarchive / Restore ({selectedIds.size})</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkMoreOpen(false)
+                            handleBulkArchiveApplications()
+                          }}
+                          disabled={bulkUpdating}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold text-amber-300 hover:bg-amber-500/15 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <Archive className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                          <span>Archive ({selectedIds.size})</span>
+                        </button>
+                      )}
 
                       <div className="my-0.5 border-t border-white/5" />
 
@@ -5902,7 +6032,7 @@ export default function AllApplicationsPage() {
         )}
       </AnimatePresence>
 
-            {/* ─── Archive Creator with Remarks Modal ────────────────── */}
+            {/* ─── Archive Application with Dynamic Action Modal ────────────────── */}
       <AnimatePresence>
         {archiveModalData && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -5910,7 +6040,7 @@ export default function AllApplicationsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
+              className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700/60 p-6 shadow-2xl space-y-4"
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-3">
@@ -5919,12 +6049,13 @@ export default function AllApplicationsPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-white">
-                      {archiveModalData.userIds.length > 1
-                        ? `Archive ${archiveModalData.userIds.length} Creators`
-                        : `Archive ${archiveModalData.creatorNames[0] || 'Creator'}`}
+                      {archiveModalData.applicationIds.length > 1
+                        ? `Archive ${archiveModalData.applicationIds.length} Applications`
+                        : `Archive Application`}
                     </h3>
                     <p className="text-xs text-slate-400">
-                      Mark as inactive and move to the Archived Creators pool
+                      {archiveModalData.creatorNames[0]} {archiveModalData.campaignNames[0] ? `• ${archiveModalData.campaignNames[0]}` : ''}
+                      {archiveModalData.applicationIds.length > 1 ? ` (+${archiveModalData.applicationIds.length - 1} more)` : ''}
                     </p>
                   </div>
                 </div>
@@ -5938,6 +6069,104 @@ export default function AllApplicationsPage() {
                 </button>
               </div>
 
+              {/* Dynamic Action Mode Selector */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300">
+                  Select Desired Action on Application:
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {/* Option 1: Hold / Archived */}
+                  <label
+                    onClick={() => setDynamicArchiveMode('hold')}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                      dynamicArchiveMode === 'hold'
+                        ? 'bg-amber-500/15 border-amber-500/50 shadow-xs'
+                        : 'bg-slate-950/40 border-white/5 hover:border-white/15'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="dynamicArchiveMode"
+                      value="hold"
+                      checked={dynamicArchiveMode === 'hold'}
+                      onChange={() => setDynamicArchiveMode('hold')}
+                      className="mt-1 text-amber-500 focus:ring-amber-500/30"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white">Hold / Archive Application</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                          Recommended
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Hides application completely from creator front-end (0 visibility in Applied list). Moves strictly to Admin&apos;s Archived queue. Profile remains active.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Allow Re-Apply */}
+                  <label
+                    onClick={() => setDynamicArchiveMode('reapply')}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                      dynamicArchiveMode === 'reapply'
+                        ? 'bg-blue-500/15 border-blue-500/50 shadow-xs'
+                        : 'bg-slate-950/40 border-white/5 hover:border-white/15'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="dynamicArchiveMode"
+                      value="reapply"
+                      checked={dynamicArchiveMode === 'reapply'}
+                      onChange={() => setDynamicArchiveMode('reapply')}
+                      className="mt-1 text-blue-500 focus:ring-blue-500/30"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white">Allow Re-Apply (Reject with Remark)</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
+                          Re-Apply
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Marks this application as Rejected with your remark so creator sees what to fix and gets the &quot;Re-Apply to Campaign&quot; button.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 3: Reset / Delete */}
+                  <label
+                    onClick={() => setDynamicArchiveMode('reset')}
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                      dynamicArchiveMode === 'reset'
+                        ? 'bg-rose-500/15 border-rose-500/50 shadow-xs'
+                        : 'bg-slate-950/40 border-white/5 hover:border-white/15'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="dynamicArchiveMode"
+                      value="reset"
+                      checked={dynamicArchiveMode === 'reset'}
+                      onChange={() => setDynamicArchiveMode('reset')}
+                      className="mt-1 text-rose-500 focus:ring-rose-500/30"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white">Reset Application (Fresh Apply)</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30">
+                          Clean Wipe
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Deletes application record completely. Creator sees the campaign afresh on explore page with &quot;Apply Now&quot; button.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               {/* Preset Reason Tags */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">
@@ -5945,11 +6174,11 @@ export default function AllApplicationsPage() {
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {[
-                    'Inactive / dormant profile',
-                    'Low engagement / criteria mismatch',
-                    'Commercial rate too high',
-                    'Unresponsive to outreach',
-                    'Deliverable / quality issue',
+                    'Campaign slot on hold / paused',
+                    'Not shortlisted for this campaign',
+                    'Follower / niche criteria mismatch',
+                    'Barter / commercial rate mismatch',
+                    'Creator unresponsive to campaign brief',
                     'Other / custom remark',
                   ].map((preset) => {
                     const isSelected = selectedPresetReason === preset
@@ -5979,29 +6208,16 @@ export default function AllApplicationsPage() {
               {/* Remarks / Custom Note */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">
-                  Archive Remarks / Reason:
+                  Remarks / Reason:
                 </label>
                 <textarea
                   value={archiveReason}
                   onChange={(e) => setArchiveReason(e.target.value)}
-                  placeholder="e.g. Creator has not posted or responded to pitches for 3+ months..."
-                  rows={3}
+                  placeholder="Type specific remarks or instructions..."
+                  rows={2}
                   className="w-full text-xs bg-slate-950/70 border border-slate-700/60 rounded-xl p-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50 resize-none"
                 />
               </div>
-
-              {/* Cancel Applications Checkbox */}
-              <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950/40 border border-white/5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={cancelActiveApplications}
-                  onChange={(e) => setCancelActiveApplications(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-700 text-amber-500 focus:ring-amber-500/30"
-                />
-                <span className="text-[11px] text-slate-300 leading-tight">
-                  Cancel & reject pending applications for {archiveModalData.userIds.length > 1 ? 'these creators' : 'this creator'} with this remark
-                </span>
-              </label>
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
@@ -6018,25 +6234,37 @@ export default function AllApplicationsPage() {
                   size="sm"
                   onClick={() => {
                     const finalReason = archiveReason.trim() || selectedPresetReason
-                    executeArchiveApi(
-                      archiveModalData.userIds,
+                    executeApplicationArchiveApi(
+                      archiveModalData.applicationIds,
                       'archive',
-                      finalReason,
-                      cancelActiveApplications
+                      dynamicArchiveMode,
+                      finalReason
                     )
                   }}
                   disabled={archiveSubmitting}
-                  className="h-8 px-4 text-xs font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white rounded-lg shadow-md shadow-amber-600/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className={`h-8 px-4 text-xs font-bold text-white rounded-lg shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                    dynamicArchiveMode === 'reset'
+                      ? 'bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 shadow-rose-600/20'
+                      : dynamicArchiveMode === 'reapply'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-600/20'
+                      : 'bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 shadow-amber-600/20'
+                  }`}
                 >
                   {archiveSubmitting ? (
                     <>
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>Archiving...</span>
+                      <span>Processing...</span>
                     </>
                   ) : (
                     <>
                       <Archive className="h-3.5 w-3.5" />
-                      <span>Confirm & Archive</span>
+                      <span>
+                        {dynamicArchiveMode === 'reset'
+                          ? 'Confirm Reset & Delete'
+                          : dynamicArchiveMode === 'reapply'
+                          ? 'Confirm & Allow Re-Apply'
+                          : 'Confirm & Archive Application'}
+                      </span>
                     </>
                   )}
                 </Button>
