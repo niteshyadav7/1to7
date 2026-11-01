@@ -367,6 +367,16 @@ export default function AdminVirtualProfileEditPage() {
 
   useEffect(() => {
     fetchProfile()
+
+    const handleAddressSync = () => {
+      fetchProfile()
+    }
+    window.addEventListener('address-confirmed', handleAddressSync)
+    window.addEventListener('address-updated', handleAddressSync)
+    return () => {
+      window.removeEventListener('address-confirmed', handleAddressSync)
+      window.removeEventListener('address-updated', handleAddressSync)
+    }
   }, [userId])
 
   // Support direct deep links e.g. /profile?step=2 or ?tab=address

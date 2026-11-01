@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   MapPin, CheckCircle2, AlertCircle, ArrowLeft, Loader2,
   Phone, User, Home, Building2, Sparkles, ShieldCheck,
-  Check, Edit3, Plus, ArrowRight, Package, Clock, Truck
+  Check, Edit3, Plus, ArrowRight, Package, Clock, Truck,
+  Trash2, Star, X, Briefcase
 } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { Input } from '@/components/ui/input'
@@ -51,8 +52,29 @@ function AddressConfirmationContent() {
   const [campaignOrderFields, setCampaignOrderFields] = useState<Array<{ name: string; type: string; required?: boolean; options?: string[] }>>([])
   const [orderDetails, setOrderDetails] = useState<Record<string, any>>({})
 
-  // Cities for selected state
+  // Profile Address Management State (Hub Mode)
+  const [addressModalOpen, setAddressModalOpen] = useState(false)
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
+  const [addressModalSaving, setAddressModalSaving] = useState(false)
+  const [addressModalForm, setAddressModalForm] = useState({
+    title: 'Home',
+    recipient_name: '',
+    mobile: '',
+    address_line1: '',
+    address_line2: '',
+    landmark: '',
+    state: '',
+    city: '',
+    pincode: '',
+    delivery_remarks: '',
+    is_default: true,
+  })
+
+  // Cities for selected state in confirmation form
   const availableCities = selectedState && INDIA_DATA[selectedState] ? INDIA_DATA[selectedState] : []
+
+  // Cities for selected state in modal address form
+  const modalAvailableCities = addressModalForm.state && INDIA_DATA[addressModalForm.state] ? INDIA_DATA[addressModalForm.state] : []
 
   // Check login state and redirect if needed
   useEffect(() => {
@@ -144,7 +166,201 @@ function AddressConfirmationContent() {
     }
 
     fetchData()
+
+    const handleAddressRefresh = () => {
+      fetchData()
+    }
+    window.addEventListener('address-confirmed', handleAddressRefresh)
+    window.addEventListener('address-updated', handleAddressRefresh)
+    return () => {
+      window.removeEventListener('address-confirmed', handleAddressRefresh)
+      window.removeEventListener('address-updated', handleAddressRefresh)
+    }
   }, [appId, user])
+
+  // Profile Address Handlers
+  const openAddAddressModal = () => {
+    setEditingAddressId(null)
+    setAddressModalForm({
+      title: 'Home',
+      recipient_name: user?.full_name || '',
+      mobile: user?.mobile || '',
+      address_line1: '',
+      address_line2: '',
+      landmark: '',
+      state: '',
+      city: '',
+      pincode: '',
+      delivery_remarks: '',
+      is_default: savedAddresses.length === 0,
+    })
+    setAddressModalOpen(true)
+  }
+
+  const openEditAddressModal = (addr: any) => {
+    setEditingAddressId(addr.id || addr.address_line1)
+    setAddressModalForm({
+      title: addr.title || 'Home',
+      recipient_name: addr.recipient_name || addr.name || '',
+      mobile: addr.mobile || '',
+      address_line1: addr.address_line1 || '',
+      address_line2: addr.address_line2 || '',
+      landmark: addr.landmark || '',
+      state: addr.state || '',
+      city: addr.city || '',
+      pincode: addr.pincode || '',
+      delivery_remarks: addr.delivery_remarks || addr.delivery_notes || '',
+      is_default: Boolean(addr.is_default),
+    })
+    setAddressModalOpen(true)
+  }
+
+  const handleSaveProfileAddress = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const cleanName = addressModalForm.recipient_name.trim()
+    const cleanMobile = addressModalForm.mobile.replace(/\D/g, '')
+    const cleanLine1 = addressModalForm.address_line1.trim()
+    const cleanPin = addressModalForm.pincode.replace(/\D/g, '')
+
+    if (!cleanName) {
+      toast.error('Recipient name is required')
+      return
+    }
+    if (!cleanMobile || cleanMobile.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number')
+      return
+    }
+    if (!cleanLine1) {
+      toast.error('Flat / House No. & Building name is required')
+      return
+    }
+    if (!addressModalForm.state) {
+      toast.error('Please select state')
+      return
+    }
+    if (!addressModalForm.city) {
+      toast.error('Please select city')
+      return
+    }
+    if (!cleanPin || cleanPin.length !== 6) {
+      toast.error('Valid 6-digit Pincode is required')
+      return
+    }
+
+    setAddressModalSaving(true)
+    try {
+      let updatedAddrs = [...savedAddresses]
+      const newOrEditedAddr = {
+        id: editingAddressId || `addr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        title: addressModalForm.title.trim() || 'Home',
+        recipient_name: cleanName,
+        name: cleanName,
+        mobile: cleanMobile,
+        address_line1: cleanLine1,
+        address_line2: addressModalForm.address_line2.trim() || undefined,
+        landmark: addressModalForm.landmark.trim() || undefined,
+        city: addressModalForm.city.trim(),
+        state: addressModalForm.state.trim(),
+        pincode: cleanPin,
+        delivery_remarks: addressModalForm.delivery_remarks.trim() || undefined,
+        is_default: addressModalForm.is_default || updatedAddrs.length === 0,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (editingAddressId) {
+        updatedAddrs = updatedAddrs.map((a: any) => {
+          if (a.id === editingAddressId || a.address_line1 === editingAddressId) {
+            return { ...a, ...newOrEditedAddr, id: a.id || newOrEditedAddr.id }
+          }
+          return newOrEditedAddr.is_default ? { ...a, is_default: false } : a
+        })
+      } else {
+        if (newOrEditedAddr.is_default) {
+          updatedAddrs = updatedAddrs.map((a: any) => ({ ...a, is_default: false }))
+          updatedAddrs.unshift(newOrEditedAddr)
+        } else {
+          updatedAddrs.push(newOrEditedAddr)
+        }
+      }
+
+      if (updatedAddrs.length > 6) {
+        updatedAddrs = updatedAddrs.slice(0, 6)
+      }
+
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipping_addresses: updatedAddrs }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save address')
+
+      setSavedAddresses(updatedAddrs)
+      setAddressModalOpen(false)
+      toast.success(editingAddressId ? 'Delivery address updated!' : 'New delivery address saved to profile!')
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('address-confirmed'))
+        window.dispatchEvent(new Event('address-updated'))
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save address')
+    } finally {
+      setAddressModalSaving(false)
+    }
+  }
+
+  const handleSetDefaultAddress = async (addrId: string) => {
+    try {
+      const updatedAddrs = savedAddresses.map((a: any) => ({
+        ...a,
+        is_default: a.id === addrId,
+      }))
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipping_addresses: updatedAddrs }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to set default address')
+
+      setSavedAddresses(updatedAddrs)
+      toast.success('Primary delivery address updated!')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('address-confirmed'))
+        window.dispatchEvent(new Event('address-updated'))
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update primary address')
+    }
+  }
+
+  const handleDeleteAddress = async (addrId: string) => {
+    if (!confirm('Are you sure you want to delete this delivery address?')) return
+    try {
+      let filtered = savedAddresses.filter((a: any) => a.id !== addrId)
+      if (filtered.length > 0 && !filtered.some((a: any) => a.is_default)) {
+        filtered[0].is_default = true
+      }
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipping_addresses: filtered }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete address')
+
+      setSavedAddresses(filtered)
+      toast.success('Address removed from profile')
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('address-confirmed'))
+        window.dispatchEvent(new Event('address-updated'))
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete address')
+    }
+  }
 
   // Handle Submission
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -230,6 +446,7 @@ function AddressConfirmationContent() {
       setIsEditing(false)
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('address-confirmed'))
+        window.dispatchEvent(new Event('address-updated'))
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to confirm address')
@@ -504,67 +721,371 @@ function AddressConfirmationContent() {
           </div>
         )}
 
-        {/* Primary Saved Profile Address */}
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-3">
+        {/* Saved Profile Delivery Addresses (Full List & Direct Management) */}
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Home className="h-4 w-4 text-slate-700" />
               <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">
-                Saved Profile Delivery Address
+                Saved Profile Delivery Locations ({savedAddresses.length}/6)
               </h3>
             </div>
-            <Link href="/dashboard/profile?step=2">
-              <button
-                type="button"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 transition-all cursor-pointer"
-              >
-                <Edit3 className="h-3 w-3 text-slate-400" />
-                Manage in Profile (Step 2)
-              </button>
-            </Link>
-          </div>
-
-          {primarySaved ? (
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900">
-                    {primarySaved.recipient_name || primarySaved.name || user?.full_name}
-                  </span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-200/70 text-slate-700">
-                    {primarySaved.title || 'Default'}
-                  </span>
-                </div>
-                {primarySaved.mobile && (
-                  <span className="text-xs text-slate-500 font-mono">+91 {primarySaved.mobile}</span>
-                )}
-              </div>
-              <p className="text-xs text-slate-700">
-                {primarySaved.address_line1 || primarySaved.street_address}
-                {primarySaved.address_line2 ? `, ${primarySaved.address_line2}` : ''}
-                {primarySaved.landmark ? `, Near ${primarySaved.landmark}` : ''}
-              </p>
-              <p className="text-xs font-medium text-slate-500">
-                {primarySaved.city}, {primarySaved.state} — <span className="font-mono font-bold text-slate-800">{primarySaved.pincode || primarySaved.postal_code}</span>
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center space-y-2 bg-slate-50/50">
-              <MapPin className="h-6 w-6 text-slate-400 mx-auto" />
-              <p className="text-xs text-slate-600">
-                No delivery address saved in your profile yet.
-              </p>
+            <div className="flex items-center gap-2">
+              {savedAddresses.length < 6 && (
+                <button
+                  type="button"
+                  onClick={openAddAddressModal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f50057] hover:bg-[#d8004c] text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  + Add Address
+                </button>
+              )}
               <Link href="/dashboard/profile?step=2">
                 <button
                   type="button"
-                  className="mt-1 px-3 py-1.5 rounded-lg bg-primary-container hover:bg-primary-container/90 text-black text-xs font-bold shadow-2xs cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 transition-all cursor-pointer"
                 >
-                  Add Delivery Address Now
+                  <Edit3 className="h-3 w-3 text-slate-400" />
+                  Manage in Profile (Step 2)
                 </button>
               </Link>
             </div>
+          </div>
+
+          {savedAddresses.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {savedAddresses.map((addr: any) => (
+                <div
+                  key={addr.id || addr.address_line1}
+                  className={`relative rounded-xl border p-4 transition-all flex flex-col justify-between ${
+                    addr.is_default
+                      ? 'bg-gradient-to-br from-pink-50/60 via-white to-amber-50/30 border-[#f50057]/40 shadow-xs ring-1 ring-[#f50057]/20'
+                      : 'bg-slate-50/60 border-slate-200/90 hover:border-slate-300'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center h-7 w-7 rounded-lg bg-white border border-slate-200 text-slate-700 shrink-0 shadow-2xs">
+                          {addr.title?.toLowerCase().includes('home') ? (
+                            <Home className="h-3.5 w-3.5 text-blue-600" />
+                          ) : addr.title?.toLowerCase().includes('studio') || addr.title?.toLowerCase().includes('office') ? (
+                            <Briefcase className="h-3.5 w-3.5 text-purple-600" />
+                          ) : (
+                            <Package className="h-3.5 w-3.5 text-amber-600" />
+                          )}
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {addr.title || 'Delivery Address'}
+                        </span>
+                      </div>
+
+                      {addr.is_default ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#f50057] text-white shadow-2xs shrink-0">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          Primary
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSetDefaultAddress(addr.id)}
+                          className="text-[10px] font-semibold text-slate-500 hover:text-[#f50057] px-2 py-0.5 rounded-md hover:bg-white border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+                        >
+                          Set Primary
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                        <span>{addr.recipient_name || addr.name || user?.full_name}</span>
+                        {addr.mobile && (
+                          <span className="text-[11px] font-mono font-medium text-slate-500">+91 {addr.mobile}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        {addr.address_line1}
+                        {addr.address_line2 ? `, ${addr.address_line2}` : ''}
+                        {addr.landmark ? `, Near ${addr.landmark}` : ''}
+                      </p>
+                      <p className="text-xs font-medium text-slate-500">
+                        {addr.city}, {addr.state} — <span className="font-mono font-bold text-slate-800">{addr.pincode}</span>
+                      </p>
+                      {addr.delivery_remarks && (
+                        <p className="text-[11px] text-slate-500 bg-white/80 p-1.5 rounded-md border border-slate-200/60 mt-1 italic">
+                          &quot;{addr.delivery_remarks}&quot;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 mt-2 border-t border-slate-200/60 flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditAddressModal(addr)}
+                      className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit3 className="h-3 w-3 text-slate-500" />
+                      Edit
+                    </button>
+                    {savedAddresses.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddress(addr.id)}
+                        className="px-2 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-white border border-slate-200 rounded-lg hover:bg-rose-50 hover:border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
+                        title="Delete Address"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center space-y-2 bg-slate-50/50">
+              <MapPin className="h-8 w-8 text-slate-400 mx-auto" />
+              <p className="text-xs text-slate-600 font-medium">
+                No delivery address saved in your profile yet.
+              </p>
+              <button
+                type="button"
+                onClick={openAddAddressModal}
+                className="mt-1 px-4 py-2 rounded-lg bg-[#f50057] hover:bg-[#d8004c] text-white text-xs font-bold shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Delivery Address Now
+              </button>
+            </div>
           )}
         </div>
+
+        {/* Add / Edit Profile Shipping Address Modal */}
+        {addressModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8"
+            >
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-[#f50057]">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      {editingAddressId ? 'Edit Delivery Location' : 'Add Delivery Location'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Saved directly into your creator profile for product parcel dispatch
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddressModalOpen(false)}
+                  className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveProfileAddress} className="p-5 space-y-3.5">
+                {/* Address Title / Preset Pills */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Location Label / Tag</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Home', 'Studio / Office', 'Agency', 'Other'].map((preset) => (
+                      <button
+                        type="button"
+                        key={preset}
+                        onClick={() => setAddressModalForm({ ...addressModalForm, title: preset })}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          addressModalForm.title === preset
+                            ? 'bg-[#f50057] text-white border-[#f50057] shadow-xs'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recipient Name & Phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">Recipient / Receiver Name *</Label>
+                    <Input
+                      required
+                      value={addressModalForm.recipient_name}
+                      onChange={(e) => setAddressModalForm({ ...addressModalForm, recipient_name: e.target.value })}
+                      placeholder="Full name of receiver"
+                      className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">Delivery Contact Number *</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-mono">+91</span>
+                      <Input
+                        required
+                        type="tel"
+                        maxLength={10}
+                        value={addressModalForm.mobile}
+                        onChange={(e) => setAddressModalForm({ ...addressModalForm, mobile: e.target.value.replace(/\D/g, '') })}
+                        placeholder="10-digit mobile"
+                        className="h-9 text-xs border-slate-200 pl-10 font-mono rounded-lg focus-visible:ring-[#f50057]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flat / Building */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Flat / House No., Floor, Building Name *</Label>
+                  <Input
+                    required
+                    value={addressModalForm.address_line1}
+                    onChange={(e) => setAddressModalForm({ ...addressModalForm, address_line1: e.target.value })}
+                    placeholder="e.g. Flat 402, Sunshine Heights, 4th Floor"
+                    className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">Street / Road / Area (Optional)</Label>
+                    <Input
+                      value={addressModalForm.address_line2 || ''}
+                      onChange={(e) => setAddressModalForm({ ...addressModalForm, address_line2: e.target.value })}
+                      placeholder="e.g. MG Road, Near Link Road"
+                      className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">Landmark (Optional)</Label>
+                    <Input
+                      value={addressModalForm.landmark || ''}
+                      onChange={(e) => setAddressModalForm({ ...addressModalForm, landmark: e.target.value })}
+                      placeholder="e.g. Near Metro Station / Mall"
+                      className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                    />
+                  </div>
+                </div>
+
+                {/* State, City & Pincode */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">State *</Label>
+                    <select
+                      required
+                      value={addressModalForm.state}
+                      onChange={(e) => setAddressModalForm({ ...addressModalForm, state: e.target.value, city: '' })}
+                      className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9 px-2.5 focus:border-[#f50057] focus:outline-none font-medium cursor-pointer"
+                    >
+                      <option value="">Select State</option>
+                      {STATES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">City *</Label>
+                    {modalAvailableCities.length > 0 ? (
+                      <select
+                        required
+                        value={addressModalForm.city}
+                        onChange={(e) => setAddressModalForm({ ...addressModalForm, city: e.target.value })}
+                        className="w-full bg-white border border-slate-200 text-slate-900 rounded-lg text-xs h-9 px-2.5 focus:border-[#f50057] focus:outline-none font-medium cursor-pointer"
+                      >
+                        <option value="">Select City</option>
+                        {modalAvailableCities.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                        <option value="Other">Other / Not Listed</option>
+                      </select>
+                    ) : (
+                      <Input
+                        required
+                        value={addressModalForm.city}
+                        onChange={(e) => setAddressModalForm({ ...addressModalForm, city: e.target.value })}
+                        placeholder="Enter city"
+                        className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">Pincode *</Label>
+                    <Input
+                      required
+                      maxLength={6}
+                      value={addressModalForm.pincode}
+                      onChange={(e) => setAddressModalForm({ ...addressModalForm, pincode: e.target.value.replace(/\D/g, '') })}
+                      placeholder="6-digit PIN"
+                      className="h-9 text-xs border-slate-200 font-mono rounded-lg focus-visible:ring-[#f50057]"
+                    />
+                  </div>
+                </div>
+
+                {/* Delivery Remarks */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Special Instructions / Remarks (Optional)</Label>
+                  <Input
+                    value={addressModalForm.delivery_remarks || ''}
+                    onChange={(e) => setAddressModalForm({ ...addressModalForm, delivery_remarks: e.target.value })}
+                    placeholder="e.g. Call before delivery / Leave with security guard"
+                    className="h-9 text-xs border-slate-200 rounded-lg focus-visible:ring-[#f50057]"
+                  />
+                </div>
+
+                {/* Set Default */}
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={addressModalForm.is_default}
+                    onChange={(e) => setAddressModalForm({ ...addressModalForm, is_default: e.target.checked })}
+                    className="rounded text-[#f50057] focus:ring-[#f50057] h-4 w-4 border-slate-300"
+                  />
+                  <span className="text-xs text-slate-700 font-medium">
+                    Set as primary shipping address for product deliveries
+                  </span>
+                </label>
+
+                {/* Submit Buttons */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAddressModalOpen(false)}
+                    className="h-9 px-4 text-xs font-semibold rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={addressModalSaving}
+                    className="h-9 px-5 bg-[#f50057] hover:bg-[#d8004c] text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    {addressModalSaving ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save to Profile</span>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
 
         {/* Empty State when no campaigns need delivery */}
         {pendingApps.length === 0 && confirmedApps.length === 0 && (

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import pool from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { getAdminFromRequest } from '@/lib/admin-auth'
@@ -275,11 +276,24 @@ export async function POST(
 
     // 2. Sync to Creator Profile (users.shipping_addresses) if save_to_profile is true
     if (save_to_profile) {
-      const { data: userProfile } = await supabase
+      let userProfile: any = null
+      const { data: supaUser } = await supabase
         .from('users')
         .select('id, shipping_addresses, city, state, pincode')
         .eq('id', application.user_id)
         .single()
+
+      if (supaUser) {
+        userProfile = supaUser
+      } else if (pool) {
+        const pgRes = await pool.query(
+          'SELECT id, shipping_addresses, city, state, pincode FROM public.users WHERE id = $1',
+          [application.user_id]
+        )
+        if (pgRes.rows.length > 0) {
+          userProfile = pgRes.rows[0]
+        }
+      }
 
       if (userProfile) {
         let existingAddrs: any[] = Array.isArray(userProfile.shipping_addresses)
@@ -289,18 +303,26 @@ export async function POST(
         // Set all existing to is_default: false
         existingAddrs = existingAddrs.map((a: any) => ({ ...a, is_default: false }))
 
-        // Check if matching line1 and pincode already exists
+        // Check if matching id or matching line1 and pincode already exists
         const matchIdx = existingAddrs.findIndex(
           (a: any) =>
-            a.address_line1?.toLowerCase().trim() === line1.toLowerCase() &&
-            a.pincode === pincode
+            (shipping_address.id && a.id === shipping_address.id) ||
+            (a.address_line1?.toLowerCase().trim() === line1.toLowerCase() && String(a.pincode) === String(pincode))
         )
 
         if (matchIdx >= 0) {
+          const existingTitle = existingAddrs[matchIdx].title
+          // Preserve custom title if incoming title is generic default
+          const finalTitle =
+            title && !['home', 'office', 'other'].includes(title.toLowerCase())
+              ? title
+              : existingTitle || title
+
           existingAddrs[matchIdx] = {
             ...existingAddrs[matchIdx],
             ...normalizedAddress,
-            id: existingAddrs[matchIdx].id,
+            id: existingAddrs[matchIdx].id || addressId,
+            title: finalTitle,
             is_default: true,
           }
         } else {
@@ -311,16 +333,46 @@ export async function POST(
           }
         }
 
-        await supabase
+        // Auto-compile address_remarks to match profile page compilation
+        const compiledRemarks = existingAddrs
+          .map((addr: any) => {
+            const isPrimary = addr.is_default ? '[PRIMARY] ' : ''
+            const t = addr.title ? `[${addr.title}] ` : ''
+            const recipient = addr.recipient_name ? `${addr.recipient_name} (Ph: ${addr.mobile || 'N/A'})` : ''
+            const lines = [
+              addr.address_line1,
+              addr.address_line2,
+              addr.landmark ? `Near ${addr.landmark}` : '',
+              `${addr.city}, ${addr.state} - ${addr.pincode}`,
+            ]
+              .filter(Boolean)
+              .join(', ')
+            const note = addr.delivery_remarks ? ` | Notes: ${addr.delivery_remarks}` : ''
+            return `${isPrimary}${t}${recipient} - ${lines}${note}`
+          })
+          .join('\n---\n')
+
+        const { error: supaUpdateErr } = await supabase
           .from('users')
           .update({
             shipping_addresses: existingAddrs,
             city,
             state,
             pincode,
+            address_remarks: compiledRemarks,
             updated_at: nowIso,
           })
           .eq('id', application.user_id)
+
+        if (supaUpdateErr && pool) {
+          console.warn('Supabase user profile update error, falling back to pg pool:', supaUpdateErr)
+          await pool.query(
+            `UPDATE public.users 
+             SET shipping_addresses = $1, city = $2, state = $3, pincode = $4, address_remarks = $5, updated_at = $6
+             WHERE id = $7`,
+            [JSON.stringify(existingAddrs), city, state, pincode, compiledRemarks, nowIso, application.user_id]
+          )
+        }
       }
     }
 

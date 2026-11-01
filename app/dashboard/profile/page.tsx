@@ -823,6 +823,16 @@ export default function ProfilePage() {
         }
       })
       .catch(() => {})
+
+    const handleAddressSync = () => {
+      fetchProfile()
+    }
+    window.addEventListener('address-confirmed', handleAddressSync)
+    window.addEventListener('address-updated', handleAddressSync)
+    return () => {
+      window.removeEventListener('address-confirmed', handleAddressSync)
+      window.removeEventListener('address-updated', handleAddressSync)
+    }
   }, [])
 
   const fetchProfile = async () => {
