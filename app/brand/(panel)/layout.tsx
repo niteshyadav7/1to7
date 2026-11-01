@@ -214,7 +214,7 @@ function BrandPanelLayoutContent({ children }: { children: React.ReactNode }) {
     if (isSampleRostersActive) return 'Sample Pitch Decks'
     if (isDispatchActive) return 'Product Dispatch'
     if (pathname.includes('/creators')) return 'Creator Review Studio'
-    if (isCampaignsActive) return 'Campaign Applications'
+    if (isCampaignsActive) return 'Campaign Creators'
     return 'Brand Overview'
   }
 
@@ -310,17 +310,9 @@ function BrandPanelLayoutContent({ children }: { children: React.ReactNode }) {
               {(!isCollapsed || isMobile) && <span className="truncate">Campaign Creators</span>}
             </div>
 
-            {(!isCollapsed || isMobile) && (
-              <span
-                className={`px-2 py-0.5 rounded-none text-[11px] font-semibold shrink-0 ${
-                  counts.pendingApps > 0
-                    ? 'bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/25'
-                    : isCampaignsActive
-                      ? 'bg-[#243044] text-[#cbd5e1]'
-                      : 'bg-[#243044]/50 text-[#64748b]'
-                }`}
-              >
-                {counts.pendingApps > 0 ? `${counts.pendingApps} New` : counts.campaigns}
+            {(!isCollapsed || isMobile) && counts.pendingApps > 0 && (
+              <span className="px-2 py-0.5 rounded-none text-[11px] font-semibold shrink-0 bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/25">
+                {`${counts.pendingApps} New`}
               </span>
             )}
           </Link>
