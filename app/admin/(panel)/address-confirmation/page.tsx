@@ -77,58 +77,58 @@ function AddressSkeletonRow() {
   return (
     <tr className="border-b border-white/5 animate-pulse">
       {/* Checkbox */}
-      <td className="py-3 px-3 align-top w-10">
-        <div className="h-4 w-4 rounded bg-slate-800 shimmer" />
+      <td className="py-2 px-2.5 align-top w-8">
+        <div className="h-3.5 w-3.5 rounded bg-slate-800 shimmer mt-0.5" />
       </td>
 
       {/* Creator Profile & Contact */}
-      <td className="py-3 px-4 align-top">
-        <div className="flex items-start gap-2.5">
-          <div className="h-8 w-8 rounded-full bg-slate-800 shrink-0 shimmer" />
-          <div className="space-y-1.5 pt-0.5">
-            <div className="h-3.5 w-28 rounded bg-slate-800 shimmer" />
-            <div className="h-2.5 w-20 rounded bg-slate-800/60 shimmer" />
-            <div className="h-2.5 w-24 rounded bg-slate-800/40 shimmer" />
+      <td className="py-2 px-2.5 align-top">
+        <div className="flex items-start gap-2">
+          <div className="h-7 w-7 rounded-full bg-slate-800 shrink-0 shimmer" />
+          <div className="space-y-1 pt-0.5">
+            <div className="h-3 w-24 rounded bg-slate-800 shimmer" />
+            <div className="h-2 w-16 rounded bg-slate-800/60 shimmer" />
+            <div className="h-2 w-20 rounded bg-slate-800/40 shimmer" />
           </div>
         </div>
       </td>
 
       {/* Campaign */}
-      <td className="py-3 px-4 align-top">
-        <div className="space-y-1.5">
-          <div className="h-3.5 w-24 rounded bg-slate-800 shimmer" />
-          <div className="h-4 w-20 rounded bg-slate-800/80 border border-white/5 shimmer" />
-          <div className="h-2.5 w-16 rounded bg-slate-800/40 shimmer" />
+      <td className="py-2 px-2.5 align-top">
+        <div className="space-y-1">
+          <div className="h-3 w-20 rounded bg-slate-800 shimmer" />
+          <div className="h-3.5 w-16 rounded bg-slate-800/80 border border-white/5 shimmer" />
+          <div className="h-2 w-14 rounded bg-slate-800/40 shimmer" />
         </div>
       </td>
 
       {/* Delivery Address */}
-      <td className="py-3 px-4 align-top">
-        <div className="space-y-1.5 max-w-[280px]">
-          <div className="h-3.5 w-36 rounded bg-slate-800 shimmer" />
-          <div className="h-3 w-52 rounded bg-slate-800/70 shimmer" />
-          <div className="h-3 w-36 rounded bg-slate-800/50 shimmer" />
+      <td className="py-2 px-2.5 align-top">
+        <div className="space-y-1 max-w-[240px]">
+          <div className="h-3 w-28 rounded bg-slate-800 shimmer" />
+          <div className="h-2.5 w-44 rounded bg-slate-800/70 shimmer" />
+          <div className="h-2.5 w-28 rounded bg-slate-800/50 shimmer" />
         </div>
       </td>
 
       {/* Status */}
-      <td className="py-3 px-4 align-top">
-        <div className="h-6 w-24 rounded-full bg-slate-800/80 border border-white/5 shimmer" />
+      <td className="py-2 px-2.5 align-top">
+        <div className="h-5 w-20 rounded-full bg-slate-800/80 border border-white/5 shimmer" />
       </td>
 
       {/* Brand Dispatch & Remarks */}
-      <td className="py-3 px-4 align-top">
-        <div className="space-y-1.5">
-          <div className="h-5 w-28 rounded-full bg-slate-800/80 shimmer" />
-          <div className="h-2.5 w-16 rounded bg-slate-800/40 shimmer" />
+      <td className="py-2 px-2.5 align-top">
+        <div className="space-y-1">
+          <div className="h-4.5 w-24 rounded-full bg-slate-800/80 shimmer" />
+          <div className="h-2 w-14 rounded bg-slate-800/40 shimmer" />
         </div>
       </td>
 
       {/* Verification Action */}
-      <td className="py-3 px-4 align-top text-right">
-        <div className="flex items-center justify-end gap-1.5">
-          <div className="h-8 w-16 rounded-lg bg-slate-800 shimmer" />
-          <div className="h-8 w-16 rounded-lg bg-slate-800/60 shimmer" />
+      <td className="py-2 px-2.5 align-top text-right">
+        <div className="flex items-center justify-end gap-1">
+          <div className="h-6.5 w-14 rounded-md bg-slate-800 shimmer" />
+          <div className="h-6.5 w-14 rounded-md bg-slate-800/60 shimmer" />
         </div>
       </td>
     </tr>
@@ -1061,16 +1061,16 @@ export default function AdminAddressConfirmationPage() {
       <div className="rounded-2xl border border-white/5 bg-slate-900/60 overflow-hidden backdrop-blur-lg">
         {loading ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
+            <table className="w-full text-left text-[11px]">
+              <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[10px] font-bold uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-3 w-10"></th>
-                  <th className="py-3 px-4 min-w-[200px]">Creator & Contact</th>
-                  <th className="py-3 px-4 min-w-[150px]">Campaign</th>
-                  <th className="py-3 px-4 min-w-[260px]">Delivery Address</th>
-                  <th className="py-3 px-4 min-w-[150px]">Status</th>
-                  <th className="py-3 px-4 min-w-[170px]">Brand Dispatch & Remarks</th>
-                  <th className="py-3 px-4 text-right min-w-[150px] shrink-0">Verification Action</th>
+                  <th className="py-2.5 px-2 w-9"></th>
+                  <th className="py-2.5 px-2.5 min-w-[155px]">Creator & Contact</th>
+                  <th className="py-2.5 px-2.5 min-w-[130px]">Campaign</th>
+                  <th className="py-2.5 px-2.5 min-w-[210px]">Delivery Address</th>
+                  <th className="py-2.5 px-2.5 min-w-[125px]">Status</th>
+                  <th className="py-2.5 px-2.5 min-w-[125px]">Brand Dispatch & Remarks</th>
+                  <th className="py-2.5 px-2.5 text-right min-w-[130px] shrink-0">Verification Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1117,24 +1117,24 @@ export default function AdminAddressConfirmationPage() {
                 </button>
               </div>
             )}
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[11px] font-semibold uppercase tracking-wider">
+            <table className="w-full text-left text-[11px]">
+              <thead className="bg-slate-950/80 text-slate-400 border-b border-white/5 text-[10px] font-bold uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-3 w-10">
+                  <th className="py-2.5 px-2 w-9">
                     <input
                       type="checkbox"
                       checked={isAllPageSelected}
                       onChange={toggleSelectPage}
-                      className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500"
+                      className="h-3.5 w-3.5 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500"
                       title={isAllPageSelected ? 'Deselect all on this page' : 'Select all on this page'}
                     />
                   </th>
-                  <th className="py-3 px-4 min-w-[200px]">Creator & Contact</th>
-                  <th className="py-3 px-4 min-w-[150px]">Campaign</th>
-                  <th className="py-3 px-4 min-w-[260px]">Delivery Address</th>
-                  <th className="py-3 px-4 min-w-[150px]">Status</th>
-                  <th className="py-3 px-4 min-w-[170px]">Brand Dispatch & Remarks</th>
-                  <th className="py-3 px-4 text-right min-w-[150px] shrink-0">Verification Action</th>
+                  <th className="py-2.5 px-2.5 min-w-[155px]">Creator & Contact</th>
+                  <th className="py-2.5 px-2.5 min-w-[130px]">Campaign</th>
+                  <th className="py-2.5 px-2.5 min-w-[210px]">Delivery Address</th>
+                  <th className="py-2.5 px-2.5 min-w-[125px]">Status</th>
+                  <th className="py-2.5 px-2.5 min-w-[125px]">Brand Dispatch & Remarks</th>
+                  <th className="py-2.5 px-2.5 text-right min-w-[130px] shrink-0">Verification Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1154,19 +1154,19 @@ export default function AdminAddressConfirmationPage() {
                   return (
                     <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
                       {/* Checkbox */}
-                      <td className="py-3 px-3 align-top w-10">
+                      <td className="py-2.5 px-2 align-top w-9">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(entry.id)}
                           onChange={() => toggleSelectRow(entry.id)}
-                          className="h-4 w-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500 mt-1"
+                          className="h-3.5 w-3.5 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-950 cursor-pointer accent-emerald-500 mt-1"
                         />
                       </td>
 
                       {/* Creator Profile & Contact Phone */}
-                      <td className="py-3 px-4 align-top">
-                        <div className="flex items-start gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
+                      <td className="py-2.5 px-2.5 align-top">
+                        <div className="flex items-start gap-2">
+                          <div className="h-7 w-7 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-[11px] font-bold text-white shrink-0 overflow-hidden">
                             {entry.users?.profile_photo || entry.users?.instagram_profile_pic ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -1179,8 +1179,8 @@ export default function AdminAddressConfirmationPage() {
                             )}
                           </div>
                           <div className="min-w-0 space-y-0.5">
-                            <p className="font-bold text-white text-xs truncate max-w-[160px]">{entry.users?.full_name || 'Unnamed'}</p>
-                            <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                            <p className="font-bold text-white text-[11px] truncate max-w-[140px]">{entry.users?.full_name || 'Unnamed'}</p>
+                            <div className="flex items-center gap-1 flex-wrap text-[10px]">
                               <span className="text-slate-400 font-mono">{entry.users?.influencer_id || 'ID N/A'}</span>
                               {entry.users?.instagram_username && (
                                 <a
@@ -1194,11 +1194,11 @@ export default function AdminAddressConfirmationPage() {
                                 </a>
                               )}
                             </div>
-                            <div className="text-[11px] font-mono text-slate-300 flex items-center gap-1 pt-0.5">
+                            <div className="text-[10px] font-mono text-slate-300 flex items-center gap-1 pt-0.5">
                               <Phone className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
                               <span>{addr.mobile || entry.users?.mobile || 'N/A'}</span>
                               {addr.alt_mobile && (
-                                <span className="text-slate-500 text-[10px]">({addr.alt_mobile})</span>
+                                <span className="text-slate-500 text-[9px]">({addr.alt_mobile})</span>
                               )}
                             </div>
                           </div>
@@ -1206,50 +1206,50 @@ export default function AdminAddressConfirmationPage() {
                       </td>
 
                       {/* Campaign */}
-                      <td className="py-3 px-4 align-top">
-                        <span className="font-bold text-white block text-xs">{entry.campaigns?.brand_name || 'Brand'}</span>
-                        <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 inline-block mt-0.5">
+                      <td className="py-2.5 px-2.5 align-top">
+                        <span className="font-bold text-white block text-[11px] truncate max-w-[130px]">{entry.campaigns?.brand_name || 'Brand'}</span>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 inline-block mt-0.5">
                           {entry.campaigns?.campaign_code}
                         </span>
                         {entry.campaigns?.deliverables && (
-                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-1" title={entry.campaigns.deliverables}>
+                          <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1" title={entry.campaigns.deliverables}>
                             {entry.campaigns.deliverables}
                           </p>
                         )}
                       </td>
 
                       {/* Delivery Address */}
-                      <td className="py-3 px-4 align-top">
+                      <td className="py-2.5 px-2.5 align-top">
                         {hasSubmittedAddress ? (
-                          <div className="space-y-1">
-                            <p className="font-bold text-slate-200 text-xs flex items-center gap-1.5">
-                              <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                              {addr.recipient_name || addr.name || entry.users?.full_name}
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-slate-200 text-[11px] flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-emerald-400 shrink-0" />
+                              <span className="truncate max-w-[170px]">{addr.recipient_name || addr.name || entry.users?.full_name}</span>
                               {addr.title && (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-white/10">
+                                <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-slate-800 text-slate-300 border border-white/10 shrink-0">
                                   {addr.title}
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-slate-300 leading-snug">
+                            <p className="text-[10.5px] text-slate-300 leading-snug">
                               {addr.address_line1} {addr.address_line2 ? `, ${addr.address_line2}` : ''}
                             </p>
                             {addr.landmark && (
-                              <p className="text-[11px] text-slate-400">Landmark: {addr.landmark}</p>
+                              <p className="text-[10px] text-slate-400">Landmark: {addr.landmark}</p>
                             )}
-                            <p className="text-xs font-bold text-emerald-300">
+                            <p className="text-[10.5px] font-bold text-emerald-300">
                               {addr.city}, {addr.state} — <span className="font-mono">{addr.pincode}</span>
                             </p>
                             {addr.delivery_remarks && (
-                              <p className="text-[11px] text-amber-300/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mt-1">
+                              <p className="text-[10px] text-amber-300/80 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20 mt-0.5">
                                 Note: {addr.delivery_remarks}
                               </p>
                             )}
                             {/* Dynamic Custom Courier / Product Details */}
                             {entry.form_data?.order_details && Object.keys(entry.form_data.order_details).length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 mt-2 pt-1.5 border-t border-white/5">
+                              <div className="flex flex-wrap gap-1 mt-1 pt-1 border-t border-white/5">
                                 {Object.entries(entry.form_data.order_details).map(([k, v]) => (
-                                  <span key={k} className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                  <span key={k} className="text-[9.5px] px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                                     <span className="font-semibold text-slate-300">{k}:</span> {String(v)}
                                   </span>
                                 ))}
@@ -1258,8 +1258,8 @@ export default function AdminAddressConfirmationPage() {
 
                             {/* Address Submitted / Filled Timestamp */}
                             {submittedAt && (
-                              <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-2 pt-1.5 border-t border-white/5">
-                                <Calendar className="h-3 w-3 text-cyan-400 shrink-0" />
+                              <div className="flex items-center gap-1 text-[9.5px] text-slate-400 mt-1 pt-1 border-t border-white/5">
+                                <Calendar className="h-2.5 w-2.5 text-cyan-400 shrink-0" />
                                 <span>Filled:</span>
                                 <span className="font-semibold text-slate-200">
                                   {formatAddressTimestamp(submittedAt)}
@@ -1268,33 +1268,33 @@ export default function AdminAddressConfirmationPage() {
                             )}
                           </div>
                         ) : (
-                          <div className="text-slate-500 italic text-xs flex items-center gap-1.5">
-                            <AlertCircle className="h-3.5 w-3.5 text-slate-500" />
+                          <div className="text-slate-500 italic text-[11px] flex items-center gap-1.5">
+                            <AlertCircle className="h-3 w-3 text-slate-500" />
                             Address not submitted yet
                           </div>
                         )}
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4 align-top">
-                        <div className="space-y-1.5">
+                      <td className="py-2.5 px-2.5 align-top">
+                        <div className="space-y-1">
                           {/* Campaign Application Status */}
                           <div>
                             {entry.status === 'Approved' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                <Sparkles className="h-2.5 w-2.5 text-indigo-400" />
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                <Sparkles className="h-2 w-2 text-indigo-400" />
                                 Campaign: Approved
                               </span>
                             ) : entry.status === 'Applied' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/25">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/25">
                                 Campaign: Applied
                               </span>
                             ) : entry.status === 'Rejected' ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/25">
                                 Campaign: Rejected
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-white/10">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9.5px] font-medium bg-slate-800 text-slate-300 border border-white/10">
                                 Campaign: {entry.status || 'Applied'}
                               </span>
                             )}
@@ -1304,55 +1304,55 @@ export default function AdminAddressConfirmationPage() {
                           <div>
                             {vStatus === 'Approved' ? (
                               <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                  <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400" />
                                   Address: Verified
                                 </span>
                                 {verifiedAt && (
-                                  <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium mt-1">
-                                    <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                                  <div className="flex items-center gap-1 text-[9.5px] text-emerald-400 font-medium mt-0.5">
+                                    <CheckCircle2 className="h-2 w-2 shrink-0" />
                                     <span>Verified: {formatAddressTimestamp(verifiedAt)}</span>
                                   </div>
                                 )}
                                 {verifiedBy && (
-                                  <p className="text-[9px] text-slate-400 pl-3.5 leading-tight">
+                                  <p className="text-[8.5px] text-slate-400 pl-3 leading-tight">
                                     by {verifiedBy}
                                   </p>
                                 )}
                               </div>
                             ) : vStatus === 'Rejected' ? (
                               <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                                  <XCircle className="h-3 w-3 text-rose-400" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                  <XCircle className="h-2.5 w-2.5 text-rose-400" />
                                   Address: Update Req.
                                 </span>
                                 {entry.form_data?.address_rejected_at && (
-                                  <div className="flex items-center gap-1 text-[10px] text-rose-400 font-medium mt-1">
-                                    <Clock className="h-2.5 w-2.5 shrink-0" />
+                                  <div className="flex items-center gap-1 text-[9.5px] text-rose-400 font-medium mt-0.5">
+                                    <Clock className="h-2 w-2 shrink-0" />
                                     <span>Requested: {formatAddressTimestamp(entry.form_data.address_rejected_at)}</span>
                                   </div>
                                 )}
                                 {entry.form_data?.address_rejection_reason && (
-                                  <p className="text-[10px] text-rose-300/80 mt-1 max-w-[150px] line-clamp-2">
+                                  <p className="text-[9.5px] text-rose-300/80 mt-0.5 max-w-[130px] line-clamp-2">
                                     {entry.form_data.address_rejection_reason}
                                   </p>
                                 )}
                               </div>
                             ) : vStatus === 'Pending' ? (
                               <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-                                  <Clock className="h-3 w-3 text-amber-400" />
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                                  <Clock className="h-2.5 w-2.5 text-amber-400" />
                                   Address: Pending Review
                                 </span>
                                 {submittedAt && (
-                                  <div className="flex items-center gap-1 text-[10px] text-amber-300/80 font-medium mt-1">
-                                    <Calendar className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                                  <div className="flex items-center gap-1 text-[9.5px] text-amber-300/80 font-medium mt-0.5">
+                                    <Calendar className="h-2 w-2 text-amber-400 shrink-0" />
                                     <span>Filled: {formatAddressTimestamp(submittedAt)}</span>
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-white/10">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-white/10">
                                 Address: Not Submitted
                               </span>
                             )}
@@ -1361,8 +1361,8 @@ export default function AdminAddressConfirmationPage() {
                           {/* Ready for Brand Dispatch Indicator */}
                           {entry.status === 'Approved' && vStatus === 'Approved' && (
                             <div>
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                                <Truck className="h-2.5 w-2.5 text-emerald-400" />
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[8.5px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                <Truck className="h-2 w-2 text-emerald-400" />
                                 Ready for Brand Dispatch
                               </span>
                             </div>
@@ -1371,7 +1371,7 @@ export default function AdminAddressConfirmationPage() {
                       </td>
 
                       {/* Brand Dispatch & Remarks */}
-                      <td className="py-3 px-4 align-top">
+                      <td className="py-2.5 px-2.5 align-top">
                         {(() => {
                           const currentRemark = entry.team_remark || entry.form_data?.team_remark || null
                           const isSentToBrand = currentRemark === 'Sent to Brand'
@@ -1382,13 +1382,13 @@ export default function AdminAddressConfirmationPage() {
                             <div className="space-y-1">
                               {currentRemark ? (
                                 <div className="space-y-0.5">
-                                  <div className="flex items-center gap-1.5">
+                                  <div className="flex items-center gap-1">
                                     <span
-                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${badge?.bg}`}
+                                      className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold border ${badge?.bg}`}
                                       title={`Remark: ${currentRemark}`}
                                     >
-                                      <BadgeIcon className="h-3 w-3 shrink-0" />
-                                      <span className="truncate max-w-[120px]">{badge?.label || currentRemark}</span>
+                                      <BadgeIcon className="h-2.5 w-2.5 shrink-0" />
+                                      <span className="truncate max-w-[100px]">{badge?.label || currentRemark}</span>
                                     </span>
                                     <button
                                       type="button"
@@ -1400,12 +1400,12 @@ export default function AdminAddressConfirmationPage() {
                                       className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-white/5 transition-colors cursor-pointer"
                                       title="Edit remark"
                                     >
-                                      <Edit2 className="h-3 w-3" />
+                                      <Edit2 className="h-2.5 w-2.5" />
                                     </button>
                                   </div>
 
                                   {entry.team_remark_by && (
-                                    <p className="text-[10px] text-slate-500 truncate max-w-[130px]" title={`By ${entry.team_remark_by}`}>
+                                    <p className="text-[9.5px] text-slate-500 truncate max-w-[110px]" title={`By ${entry.team_remark_by}`}>
                                       By {entry.team_remark_by}
                                       {entry.team_remark_updated_at ? ` • ${new Date(entry.team_remark_updated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}
                                     </p>
@@ -1415,22 +1415,22 @@ export default function AdminAddressConfirmationPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleQuickSetSentToBrand(entry)}
-                                      className="text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer pt-0.5"
+                                      className="text-[9.5px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors cursor-pointer pt-0.5"
                                     >
                                       <CheckCheck className="h-2.5 w-2.5" /> Mark Sent to Brand
                                     </button>
                                   )}
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="flex items-center gap-1 flex-wrap">
                                   <button
                                     type="button"
                                     onClick={() => handleQuickSetSentToBrand(entry)}
                                     disabled={actionInProgressId === entry.id}
-                                    className="h-7 px-2.5 text-[11px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                                    className="h-6.5 px-2 text-[10.5px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                                     title="Quick 1-click mark: Address sent to brand"
                                   >
-                                    <CheckCheck className="h-3 w-3 text-emerald-400" />
+                                    <CheckCheck className="h-2.5 w-2.5 text-emerald-400" />
                                     Mark Sent
                                   </button>
                                   <button
@@ -1440,10 +1440,10 @@ export default function AdminAddressConfirmationPage() {
                                       setSelectedRemarkVal('')
                                       setCustomRemarkNote('')
                                     }}
-                                    className="h-7 px-2 text-[11px] text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                                    className="h-6.5 px-1.5 text-[10.5px] text-slate-400 hover:text-white border border-white/10 hover:bg-white/5 rounded-md flex items-center gap-1 transition-colors cursor-pointer"
                                     title="Add custom or predefined remark"
                                   >
-                                    <Tag className="h-3 w-3 text-slate-400" />
+                                    <Tag className="h-2.5 w-2.5 text-slate-400" />
                                     Remark
                                   </button>
                                 </div>
@@ -1454,20 +1454,20 @@ export default function AdminAddressConfirmationPage() {
                       </td>
 
                       {/* Verification Action */}
-                      <td className="py-3.5 px-4 align-top text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-2.5 px-2.5 align-top text-right">
+                        <div className="flex items-center justify-end gap-1">
                           {vStatus !== 'Approved' && (
                             <Button
                               size="sm"
                               disabled={isProcessing || !hasSubmittedAddress}
                               onClick={() => handleApprove(entry)}
-                              className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                              className="h-7 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10.5px] rounded-md shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-40"
                               title={hasSubmittedAddress ? 'Approve address' : 'Address not submitted yet'}
                             >
                               {isProcessing ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <Check className="h-3.5 w-3.5" />
+                                <Check className="h-3 w-3" />
                               )}
                               Verify
                             </Button>
@@ -1482,10 +1482,10 @@ export default function AdminAddressConfirmationPage() {
                                 setRejectModalEntry(entry)
                                 setRejectionReason('')
                               }}
-                              className="h-8 px-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-bold text-xs rounded-lg cursor-pointer disabled:opacity-40"
+                              className="h-7 px-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-bold text-[10.5px] rounded-md cursor-pointer disabled:opacity-40"
                               title="Request creator to update address"
                             >
-                              <X className="h-3.5 w-3.5" />
+                              <X className="h-3 w-3" />
                               Reject
                             </Button>
                           )}
