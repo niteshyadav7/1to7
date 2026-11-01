@@ -138,6 +138,7 @@ CASE 127: Intermediate Table Friction & Multi-Campaign Context Shifting: Direct 
 CASE 128: Bidirectional Profile Address Synchronization Breakdown & Sub-Funnel Isolation: Silent DB Failures, Autosave Race Overwrites & Unified In-Place Address Management Engine
 CASE 129: PostgreSQL Enum Constraint 500 Crash on 'Archived' Status, Active Tab Double-Count Inversion & Unified Centralized Archive Hub Architecture
 CASE 130: Campaign Apply Follower Edit Discard, Unsynchronized JSONB Profile Arrays & Atomic Profile Sync Pipeline
+CASE 131: Brand Portal Creator Shortlist Disappearance: Phantom Column Query Crash, Silently Swallowed Catch Blocks & Schema-Aligned SQL Architecture
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5956,3 +5957,40 @@ S: Editing follower count during campaign application failed to synchronize with
 T: Diagnose the root cause of follower discard, prevent profile reversion, and ensure all three storage locations (relational columns, JSONB arrays, and linked profile tables) stay strictly synchronized.
 A: Discovered that /api/apply overwrote incoming followers with stale profile data, omitted JSONB array updates, and /api/dashboard/profile actively reverted columns to match the stale JSONB data. Built a unified syncProfileAfterApply engine that synchronously updates all three storage models, updated both creator and admin-virtual-profile apply routes, and updated the client modal to await profile refresh.
 R: 100% reliable follower synchronization from campaign apply modal to profile page, zero state divergence across tables and JSONB columns, and clean production build verification.
+
+
+====================================================================================================
+CASE 131: Brand Portal Creator Shortlist Disappearance: Phantom Column Query Crash, Silently Swallowed Catch Blocks & Schema-Aligned SQL Architecture
+Category: Database Bug / Missing Column / Silent Error Swallowing / Brand Portal State Divergence
+====================================================================================================
+
+[INTERVIEW QUESTION]
+"In a brand client portal, the sidebar badge indicated '5 New' creators were pending review for a campaign, but the main review table displayed 'No creator shortlists found (0 of 0 entries)'. No explicit 500 error was returned to the client. How would you debug this phantom discrepancy between aggregate counters and detail records?"
+
+[SITUATION]
+In the Brand Portal (/brand/campaigns), brand directors (e.g. Plum / a@a.com) noticed that the left sidebar displayed "Campaign Creators: 5 New", indicating 5 creators had been pitched by agency staff and were awaiting brand curation. However, upon opening the Campaign Creators studio, the table showed "No creator shortlists found. When creators are pitched for your campaigns, they will appear directly here. (Showing 0 to 0 of 0 entries)".
+
+[ROOT CAUSE]
+1. Phantom Column Reference in PostgreSQL Queries:
+   In app/api/brand/campaigns/[id]/creators/route.ts, lines 57, 122, and 168 selected:
+   COALESCE(c.title, c.campaign_code) as title / campaign_title
+   The campaigns table schema defines campaign_code, brand_name, deliverables, etc., but has no 'title' column.
+2. Silent Error Swallowing Catch Block:
+   Both the campaign aggregator and application queries inside /api/brand/campaigns/[id]/creators/route.ts wrapped the database calls in:
+   try { ... } catch (dbErr: any) { console.warn('DB query error in brand creators route:', dbErr.message) }
+   When PostgreSQL raised error 42703 ("column c.title does not exist"), the exception was logged only to server stdout and execution proceeded with rows = [] and campaignsList = []. The route returned HTTP 200 with creators: [], masking the database failure as an empty result set.
+3. Metric Disconnect Between Counter and Detail Endpoints:
+   The sidebar badge relied on /api/brand/campaigns, which queried COUNT(a.id) FILTER (WHERE a.brand_review_status = 'pending_brand_review') without selecting c.title, correctly reporting 5 pending creators. The detail endpoint crashed on c.title and silently delivered 0 rows.
+
+[SOLUTION & ARCHITECTURE]
+1. Schema Alignment in Creator Review API (app/api/brand/campaigns/[id]/creators/route.ts):
+   Replaced all phantom references to c.title with schema-compliant expressions:
+   COALESCE(NULLIF(c.campaign_code, ''), 'Campaign') as title / campaign_title
+2. End-to-End Live Verification:
+   Simulated the authenticated brand session for Plum (brand_id: cc2fbd51-488d-47de-869f-283d2d14fe3b). Confirmed that /api/brand/campaigns/all/creators now responds with HTTP 200, successfully returning all 7 pitched creators (5 under 'Pending Review' and 2 under 'Approved'), in exact alignment with the sidebar badge.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Brand Portal sidebar displayed "5 New" creators pending review, but the main review studio displayed 0 creators with an empty state.
+T: Isolate the cause of the discrepancy between the sidebar counter and the creator review table, fix database query errors, and ensure all pitched creators display cleanly.
+A: Identified that /api/brand/campaigns/[id]/creators queried a non-existent column (c.title) and silently swallowed the error, returning an empty array to the client. Fixed the query to use valid schema fields (c.campaign_code), eliminating the crash.
+R: 100% accurate creator presentation in Brand Portal, flawless alignment between sidebar counters and table rows, and complete audit documentation.

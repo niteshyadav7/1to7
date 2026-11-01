@@ -54,7 +54,7 @@ export async function GET(
           c.campaign_code,
           COALESCE(c.brand_name, 'Brand') as brand_name,
           COALESCE(NULLIF(c.campaign_code, ''), 'Campaign') as code,
-          COALESCE(c.title, c.campaign_code) as title,
+          COALESCE(NULLIF(c.campaign_code, ''), 'Campaign') as title,
           COALESCE(c.platform, 'Instagram') as platform,
           COALESCE(c.budget_type, 'Barter') as budget_type,
           COUNT(a.id)::int as creator_count,
@@ -119,7 +119,7 @@ export async function GET(
             u.gender,
             c.campaign_code,
             c.brand_name,
-            COALESCE(c.title, c.campaign_code) as campaign_title,
+            COALESCE(NULLIF(c.campaign_code, ''), 'Campaign') as campaign_title,
             c.deliverables,
             c.budget_type,
             COALESCE(c.allow_brand_curation, true) as allow_brand_curation
@@ -165,7 +165,7 @@ export async function GET(
             u.gender,
             c.campaign_code,
             c.brand_name,
-            COALESCE(c.title, c.campaign_code) as campaign_title,
+            COALESCE(NULLIF(c.campaign_code, ''), 'Campaign') as campaign_title,
             c.deliverables,
             c.budget_type,
             COALESCE(c.allow_brand_curation, true) as allow_brand_curation
