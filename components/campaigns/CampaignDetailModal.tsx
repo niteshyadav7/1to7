@@ -589,7 +589,7 @@ export default function CampaignDetailModal({
 
       // Refresh in-memory user cache in background without blocking UI
       if (refreshUserProfile && !adminMode) {
-        refreshUserProfile().catch(() => { })
+        await refreshUserProfile()
       }
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong')

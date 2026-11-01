@@ -77,6 +77,7 @@ const sidebarCategories: SidebarCategory[] = [
       { href: '/admin/order-details', label: 'Order Details', icon: ClipboardList, moduleKey: 'order_details' },
       { href: '/admin/address-confirmation', label: 'Address', icon: MapPin, moduleKey: 'applications' },
       { href: '/admin/completion-details', label: 'Completion Details', icon: FileCheck, moduleKey: 'applications' },
+      { href: '/admin/archive', label: 'Archived Hub', icon: Archive, moduleKey: 'applications' },
     ],
   },
   {
@@ -128,6 +129,7 @@ function getModuleKeyFromPath(pathname: string): string | null {
   if (pathname.startsWith('/admin/order-details')) return 'order_details'
   if (pathname.startsWith('/admin/address-confirmation')) return 'applications'
   if (pathname.startsWith('/admin/completion-details')) return 'applications'
+  if (pathname.startsWith('/admin/archive')) return 'applications'
   if (pathname.startsWith('/admin/ghosted')) return 'applications'
   if (pathname.startsWith('/admin/instagram-logs')) return 'applications'
   if (pathname.startsWith('/admin/finance')) return 'payments'

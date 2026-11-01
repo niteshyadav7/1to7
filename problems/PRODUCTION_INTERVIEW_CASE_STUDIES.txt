@@ -136,6 +136,8 @@ CASE 125: Brand Dispatch Fulfillment Disconnect: Gated Manual Release Gatekeeper
 CASE 126: Magic Link Static Redirection Trap: Dynamic Destination Architecture, Smart Content Auto-Detect & Frictionless B2B Client Onboarding
 CASE 127: Intermediate Table Friction & Multi-Campaign Context Shifting: Direct Creator Studio Architecture with Compact Top Campaign Switcher
 CASE 128: Bidirectional Profile Address Synchronization Breakdown & Sub-Funnel Isolation: Silent DB Failures, Autosave Race Overwrites & Unified In-Place Address Management Engine
+CASE 129: PostgreSQL Enum Constraint 500 Crash on 'Archived' Status, Active Tab Double-Count Inversion & Unified Centralized Archive Hub Architecture
+CASE 130: Campaign Apply Follower Edit Discard, Unsynchronized JSONB Profile Arrays & Atomic Profile Sync Pipeline
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5855,3 +5857,102 @@ S: Creators confirming physical parcel delivery addresses on the Address tab fou
 T: Architect an end-to-end bidirectional synchronization system ensuring addresses added or confirmed in the Address tab immediately persist to the creator's profile, eliminate silent database failures, and provide in-place address management on the Address Hub.
 A: Identified unchecked silent Supabase update errors, destructive address title overwriting, and stale in-memory autosave race conditions. Built a resilient two-tier database write pipeline with PostgreSQL pool fallbacks, auto-compiled address remarks, added complete in-place address management (+ Add, Edit, Set Primary, Delete) directly onto the Address Hub for both creator and admin virtual profiles, and implemented cross-tab event listeners to invalidate stale profile caches.
 R: 100% bidirectional sync reliability between Address Hub and Creator Profile, eliminated silent write failures, enabled direct in-place address creation, and maintained zero TypeScript/build errors across 176 Next.js routes.
+
+
+====================================================================================================
+CASE 129: PostgreSQL Enum Constraint 500 Crash on 'Archived' Status, Active Tab Double-Count Inversion & Unified Centralized Archive Hub Architecture
+====================================================================================================
+Category: Database Enum Constraints / State Filtering Discrepancies / Next.js Admin Architecture
+Interview Question: When implementing an "Archive / Hold" state in a large multi-status production workflow (Next.js + PostgreSQL + Supabase), what database schema mismatches and client-side tab state recalculations can cause silent update failures and UI filtering discrepancies? How do you architect a unified Archive Hub with instant 1-click restoration?
+
+[SITUATION]
+Operational admins attempting to archive applications from the Applications grid (/admin/applications) reported that applications refused to archive: when selecting an application and choosing "Archive (1)" from the bulk actions toolbar, the application never moved to the Archived tab (the count remained stuck at "Archived (0)"), and no archived status persisted. Furthermore, admins reported that the left navigation sidebar lacked any "Archived" destination tab, forcing admins into a discovery blindspot where archived records were difficult to track or restore.
+
+[ROOT CAUSE]
+1. PostgreSQL Type Constraint Enum Failure (22P02 invalid input value for enum):
+   The applications table in PostgreSQL utilizes an enumerated type `application_status` with allowed labels:
+   ('Applied', 'Approved', 'Rejected', 'Completed', 'Payment Initiated', 'Payment Requested', 'In Progress', 'Submit Link', 'Under Review', 'Under Process', 'Payment Approved').
+   The API route (`/api/admin/applications/archive`) attempted to execute:
+   `await supabase.from('applications').update({ is_archived: true, status: 'Archived', ... }).eq('id', app.id)`.
+   Because 'Archived' was never registered as an enum label in `application_status`, PostgreSQL immediately aborted the transaction with error `22P02: invalid input value for enum application_status: "Archived"`. This 500 failure prevented the update from executing, leaving `is_archived` as `false` and the record stuck in its active pipeline state.
+2. Status Count Double-Incrementation & Active Tab Discrepancies:
+   In `app/admin/(panel)/applications/page.tsx`, `statusCounts` aggregated counts using:
+   `counts[a.status] = (counts[a.status] || 0) + 1` followed by `if (a.is_archived || a.status === 'Archived') counts['Archived'] = (counts['Archived'] || 0) + 1`.
+   If an application had `status === 'Archived'`, `counts['Archived']` was incremented twice. Conversely, if an application had `is_archived === true` but retained an active status (e.g. 'Applied'), it remained counted inside `counts['Applied']`, causing a mismatch between the tab count badge and the filtered rows displayed in the grid.
+3. Missing Dedicated Sidebar Link & Archive Hub Discoverability:
+   The sidebar navigation (`app/admin/(panel)/layout.tsx`) included dedicated links for "Ghosted Creators" under Talent Pool, but had no entry for Archived records under Campaigns & Operations. Admins had no direct route to inspect or manage shelved records outside of the secondary filter tab.
+
+[SOLUTION & ARCHITECTURE]
+1. Idempotent PostgreSQL Enum Migration (`lib/db.ts`):
+   - Executed `ALTER TYPE application_status ADD VALUE IF NOT EXISTS 'Archived';` on PostgreSQL.
+   - Incorporated this schema migration into `lib/db.ts` auto-migration engine wrapped in an exception block (`BEGIN ALTER TYPE ... EXCEPTION WHEN duplicate_object THEN null; END;`) to ensure all staging and production instances preserve this enum value without manual intervention.
+2. Resilient API Write Pipeline (`/api/admin/applications/archive/route.ts`):
+   - Added `GET` endpoint returning all archived applications (with relational joins to `users` and `campaigns`) and archived creators (`users.is_archived = true`), along with summary stats.
+   - Refactored `POST` to explicitly catch and throw update errors (`const { error: archiveErr } = ... if (archiveErr) throw archiveErr`), ensuring database failures are never silently swallowed.
+   - On `unarchive`, accurately restored `formData._pre_archive_status || 'Applied'` and cleared archive timestamps and user IDs.
+3. Accurate Status Filtering & Tab Count Calibration (`app/admin/(panel)/applications/page.tsx`):
+   - Calibrated `statusCounts`: if an application is archived (`a.is_archived || a.status === 'Archived'`), it is strictly counted towards `Archived` and excluded from active status counts (`Applied`, `Approved`, etc.).
+   - Calibrated `All` tab count and table view to cleanly display active pipeline applications while preserving full access to shelved applications in the `Archived` tab.
+4. Dedicated Centralized Archived Hub (`/admin/archive` & Sidebar Navigation):
+   - Added `{ href: '/admin/archive', label: 'Archived Hub', icon: Archive, moduleKey: 'applications' }` to the left admin sidebar under "Campaigns & Operations".
+   - Built a comprehensive, high-density Archived Hub page (`app/admin/(panel)/archive/page.tsx`) featuring:
+     - Real-time tabs for "Archived Applications" and "Archived Creators".
+     - Fast multi-field search (Creator name, ID, phone, email, campaign code, archive reason).
+     - 1-Click "Unarchive / Restore" with instant toast feedback.
+     - "Reset / Delete" action allowing creators to apply fresh.
+     - Direct shortcut button linking to the Applications Table pre-filtered to `status=Archived`.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Operations admins found that archiving applications failed to move them to the Archived tab (Archived count stayed at 0), and there was no Archived tab or destination link in the admin sidebar.
+T: Identify the database write failure preventing archive persistence, correct UI count discrepancies, and provide a dedicated sidebar link and management hub for archived records.
+A: Discovered a PostgreSQL enum constraint error (`22P02: invalid input value for enum application_status: "Archived"`) causing silent 500 errors on Supabase updates. Added 'Archived' to `application_status` in Postgres and `lib/db.ts`, refactored the archive API with error throwing, calibrated client-side status tab counts to prevent double-counting, added "Archived Hub" to the sidebar under Campaigns & Operations, and constructed a dedicated `/admin/archive` dashboard with 1-click application and creator restoration.
+R: 100% reliable archiving and restoring of applications, accurate tab badges without count drift, instant discoverability via sidebar "Archived Hub", and zero TypeScript build errors.
+
+
+====================================================================================================
+CASE 130: Campaign Apply Follower Edit Discard, Unsynchronized JSONB Profile Arrays & Atomic Profile Sync Pipeline
+Category: Database Bug / Form Data Desynchronization / Data Integrity / State Consistency
+====================================================================================================
+
+[INTERVIEW QUESTION]
+"During a campaign application review flow, creators can edit their Instagram handle and follower count before confirming. However, after submitting with an updated follower count (e.g. 10,000 instead of 1,000), the application and creator profile still showed the old follower count (1,000) on their profile dashboard. How would you debug and fix this multi-table state divergence across relational columns and JSONB arrays?"
+
+[SITUATION]
+In the creator application flow (components/campaigns/CampaignDetailModal.tsx), creators review their submission details before applying. Clicking "Edit Handle" allows modifying the Instagram username and follower count. In production, when user 'de__thor__' submitted with 10,000 followers, the profile dashboard (/dashboard/profile) immediately reverted to 1,000 followers, and the application record in the admin panel recorded applied_instagram_followers: 1000. The same issue occurred in admin virtual profile applications (app/api/admin/virtual-profile/[userId]/apply/route.ts).
+
+[ROOT CAUSE]
+1. Input Discard via Overwrite in Apply API (app/api/apply/route.ts & app/api/admin/virtual-profile/[userId]/apply/route.ts):
+   When resolving verifiedSelectedProfile, the API looked up the user's handles in user_instagram_profiles. If a match was found, it executed:
+   followers: match.followers || 0
+   This discarded the incoming user-edited follower count from the request body in favor of the stale database value.
+2. Fragmented Instagram State Across Three Storage Locations:
+   Instagram follower data is distributed across:
+   - Relational integer columns: users.followers and users.instagram_followers_count
+   - JSONB array column: users.instagram_profiles
+   - Relational table: user_instagram_profiles
+   The application submission pipeline previously updated neither users.instagram_profiles nor user_instagram_profiles.
+3. Auto-Reversion Trap in Profile Fetch Route (app/api/dashboard/profile/route.ts):
+   Lines 51-63 of GET /api/dashboard/profile checked user.instagram_profiles. If primary.followers differed from user.followers, it forcefully synchronized user.followers = primary.followers and wrote the stale value back to the database. Because users.instagram_profiles retained 1000, visiting the profile page immediately reverted user.followers back to 1,000.
+4. Non-Blocking Background Detachment:
+   Profile updates were kicked off as detached promises (syncProfileUpdates(...).catch(...)), returning 200 OK before writes committed, creating race conditions with subsequent client profile fetches.
+
+[SOLUTION & ARCHITECTURE]
+1. Explicit Incoming Input Prioritization:
+   Extracted incomingFollowers from selectedInstagramProfile.followers || formData.followers. In verifiedSelectedProfile resolution:
+   followers: incomingFollowers > 0 ? incomingFollowers : (match.followers || 0)
+   Ensured user edits in the modal are preserved and propagated to application metadata (applied_instagram_followers).
+2. Unified Synchronous Sync Engine (syncProfileAfterApply):
+   Implemented an atomic sync helper executed with await before returning the apply response:
+   - Updates users.followers and users.instagram_followers_count.
+   - Modifies users.instagram_profiles JSONB array in-place, updating the target profile's follower count while preserving UUIDs and metadata.
+   - Updates or inserts the matching row in user_instagram_profiles.
+3. Client-Side Cache Coherence (CampaignDetailModal.tsx):
+   Switched refreshUserProfile() call from an unhandled background promise to await refreshUserProfile(), ensuring AuthProvider in-memory state and localStorage are up to date prior to navigation.
+4. Database Remediation:
+   Synchronized affected records for creator 'de__thor__' across users, user_instagram_profiles, and applications to 10,000 followers.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Editing follower count during campaign application failed to synchronize with creator profiles, reverting back to stale database counts on page refresh.
+T: Diagnose the root cause of follower discard, prevent profile reversion, and ensure all three storage locations (relational columns, JSONB arrays, and linked profile tables) stay strictly synchronized.
+A: Discovered that /api/apply overwrote incoming followers with stale profile data, omitted JSONB array updates, and /api/dashboard/profile actively reverted columns to match the stale JSONB data. Built a unified syncProfileAfterApply engine that synchronously updates all three storage models, updated both creator and admin-virtual-profile apply routes, and updated the client modal to await profile refresh.
+R: 100% reliable follower synchronization from campaign apply modal to profile page, zero state divergence across tables and JSONB columns, and clean production build verification.

@@ -437,6 +437,13 @@ export async function ensurePocMigration(): Promise<void> {
           ALTER TABLE public.applications ADD COLUMN archive_reason TEXT;
           CREATE INDEX IF NOT EXISTS idx_applications_is_archived ON public.applications (is_archived);
         END IF;
+
+        -- Ensure 'Archived' status is supported in PostgreSQL application_status enum
+        BEGIN
+          ALTER TYPE application_status ADD VALUE IF NOT EXISTS 'Archived';
+        EXCEPTION
+          WHEN duplicate_object THEN null;
+        END;
       END $$;
     `)
     global._pocMigrationDone = true

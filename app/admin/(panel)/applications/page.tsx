@@ -2255,7 +2255,7 @@ export default function AllApplicationsPage() {
         }
       }
     } else if (activeStatus === 'All') {
-      // keep all
+      result = result.filter(a => !a.is_archived && a.status !== 'Archived')
     } else {
       result = result.filter(a => a.status === activeStatus && !a.is_archived && a.status !== 'Archived' && a.status !== 'Backout' && !a.form_data?.backout_details)
     }
@@ -2953,12 +2953,13 @@ export default function AllApplicationsPage() {
       : applications
 
     pool.forEach(a => {
-      counts[a.status] = (counts[a.status] || 0) + 1
-      if (a.is_ghosted) {
-        counts['Ghosted'] = (counts['Ghosted'] || 0) + 1
-      }
       if (a.is_archived || a.status === 'Archived') {
         counts['Archived'] = (counts['Archived'] || 0) + 1
+      } else {
+        counts[a.status] = (counts[a.status] || 0) + 1
+      }
+      if (a.is_ghosted) {
+        counts['Ghosted'] = (counts['Ghosted'] || 0) + 1
       }
       if (a.status === 'Backout' || a.form_data?.backout_details) {
         counts['Backout'] = (counts['Backout'] || 0) + 1
@@ -3040,7 +3041,9 @@ export default function AllApplicationsPage() {
         <div className="flex flex-wrap items-center gap-1">
           {statusFilters.map(f => {
             const countForTab = f === 'All'
-              ? (searchQuery.trim() ? Object.values(statusCounts).reduce((a, b) => a + b, 0) : applications.length)
+              ? (searchQuery.trim()
+                  ? applications.filter(a => matchesApplicationSearch(a, searchQuery) && !a.is_archived && a.status !== 'Archived').length
+                  : applications.filter(a => !a.is_archived && a.status !== 'Archived').length)
               : (statusCounts[f] || 0)
 
             return (

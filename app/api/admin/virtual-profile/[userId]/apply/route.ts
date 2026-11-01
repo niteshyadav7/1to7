@@ -7,6 +7,124 @@ import { extractProfileUpdatesFromFormData } from '@/lib/utils/profile-sync-util
 import { InstagramLogService } from '@/lib/services/instagram-log.service'
 import { sendApplicationSubmittedEmail } from '@/lib/mailer'
 
+async function syncProfileAfterApply({
+  userId,
+  user,
+  formData,
+  campaignFormFields,
+  verifiedSelectedProfile,
+}: {
+  userId: string
+  user: any
+  formData: any
+  campaignFormFields?: any[]
+  verifiedSelectedProfile?: { id?: string | null; username: string; followers: number } | null
+}) {
+  try {
+    let profileUpdates: Record<string, any> = {}
+
+    if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
+      const extracted = extractProfileUpdatesFromFormData(formData, user, campaignFormFields)
+      profileUpdates = { ...extracted.profileUpdates }
+    }
+
+    const norm = verifiedSelectedProfile?.username?.toLowerCase().replace(/^@/, '').trim() || ''
+    const targetFollowers = verifiedSelectedProfile?.followers && verifiedSelectedProfile.followers > 0
+      ? verifiedSelectedProfile.followers
+      : null
+
+    if (verifiedSelectedProfile?.username && norm !== (user.instagram_username || '').toLowerCase()) {
+      profileUpdates.instagram_username = verifiedSelectedProfile.username
+    }
+
+    if (targetFollowers && targetFollowers > 0) {
+      profileUpdates.followers = targetFollowers
+      profileUpdates.instagram_followers_count = targetFollowers
+    }
+
+    // Synchronize users.instagram_profiles (JSONB array on users table)
+    const existingProfiles: any[] = Array.isArray(user.instagram_profiles) ? [...user.instagram_profiles] : []
+
+    if (norm) {
+      const matchedIndex = existingProfiles.findIndex(
+        p => (verifiedSelectedProfile?.id && p.id === verifiedSelectedProfile.id) ||
+             (p.normalized_username && p.normalized_username.toLowerCase() === norm) ||
+             (p.username && p.username.toLowerCase() === norm)
+      )
+
+      if (matchedIndex >= 0) {
+        existingProfiles[matchedIndex] = {
+          ...existingProfiles[matchedIndex],
+          username: verifiedSelectedProfile?.username || existingProfiles[matchedIndex].username,
+          normalized_username: norm,
+          ...(targetFollowers ? { followers: targetFollowers } : {}),
+          updated_at: new Date().toISOString()
+        }
+      } else {
+        existingProfiles.push({
+          id: verifiedSelectedProfile?.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prof_${Date.now()}`),
+          username: verifiedSelectedProfile?.username || norm,
+          normalized_username: norm,
+          followers: targetFollowers || 0,
+          is_primary: existingProfiles.length === 0,
+          is_verified: false,
+          created_at: new Date().toISOString()
+        })
+      }
+      profileUpdates.instagram_profiles = existingProfiles
+    }
+
+    // Persist updates to users table
+    if (Object.keys(profileUpdates).length > 0) {
+      profileUpdates.updated_at = new Date().toISOString()
+      const { error: userUpdErr } = await supabase.from('users').update(profileUpdates).eq('id', userId)
+      if (userUpdErr) {
+        console.error('[syncProfileAfterApply:admin] users table update error:', userUpdErr)
+      }
+    }
+
+    // Persist updates to user_instagram_profiles table
+    if (norm) {
+      const { data: existingProf } = await supabase
+        .from('user_instagram_profiles')
+        .select('id, followers')
+        .eq('user_id', userId)
+        .eq('normalized_username', norm)
+        .maybeSingle()
+
+      if (existingProf) {
+        if (targetFollowers && existingProf.followers !== targetFollowers) {
+          const { error: updProfErr } = await supabase
+            .from('user_instagram_profiles')
+            .update({
+              followers: targetFollowers,
+              username: verifiedSelectedProfile?.username || norm,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingProf.id)
+          if (updProfErr) {
+            console.error('[syncProfileAfterApply:admin] user_instagram_profiles update error:', updProfErr)
+          }
+        }
+      } else {
+        const { error: insProfErr } = await supabase.from('user_instagram_profiles').insert([{
+          user_id: userId,
+          username: verifiedSelectedProfile?.username || norm,
+          normalized_username: norm,
+          followers: targetFollowers || 0,
+          is_primary: existingProfiles.length <= 1,
+          created_at: new Date().toISOString()
+        }])
+        if (insProfErr) {
+          console.error('[syncProfileAfterApply:admin] user_instagram_profiles insert error:', insProfErr)
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[syncProfileAfterApply:admin] Error syncing profile:', err)
+  }
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }
@@ -84,6 +202,15 @@ export async function POST(
     const rawTargetUsername = String(selectedInstagramProfile?.username || formData?.instagram_username || '').replace(/^@/, '').trim()
     const targetUser = rawTargetUsername.toLowerCase()
 
+    // Determine incoming followers explicitly edited or submitted during apply
+    const incomingFollowers = selectedInstagramProfile?.followers !== undefined && selectedInstagramProfile?.followers !== null
+      ? (typeof selectedInstagramProfile.followers === 'number'
+          ? selectedInstagramProfile.followers
+          : (parseInt(String(selectedInstagramProfile.followers).replace(/\D/g, ''), 10) || 0))
+      : (formData?.followers !== undefined && formData?.followers !== null
+          ? (typeof formData.followers === 'number' ? formData.followers : (parseInt(String(formData.followers).replace(/\D/g, ''), 10) || 0))
+          : 0)
+
     if (targetUser) {
       const match = dbUserProfiles?.find(
         p => (selectedInstagramProfile?.id && p.id === selectedInstagramProfile.id) ||
@@ -93,23 +220,19 @@ export async function POST(
         verifiedSelectedProfile = {
           id: match.id,
           username: match.username,
-          followers: match.followers || 0
+          followers: incomingFollowers > 0 ? incomingFollowers : (match.followers || 0)
         }
       } else if (user.instagram_username && user.instagram_username.toLowerCase() === targetUser) {
         verifiedSelectedProfile = {
           id: null,
           username: user.instagram_username,
-          followers: user.followers || 0
+          followers: incomingFollowers > 0 ? incomingFollowers : (user.followers || 0)
         }
       } else if (rawTargetUsername) {
-        const parsedFollowers = selectedInstagramProfile?.followers !== undefined && selectedInstagramProfile?.followers !== null
-          ? (typeof selectedInstagramProfile.followers === 'number' ? selectedInstagramProfile.followers : parseInt(String(selectedInstagramProfile.followers).replace(/\D/g, ''), 10) || 0)
-          : (user.followers || 0)
-
         verifiedSelectedProfile = {
           id: null,
           username: rawTargetUsername,
-          followers: parsedFollowers
+          followers: incomingFollowers > 0 ? incomingFollowers : (user.followers || 0)
         }
       }
     }
@@ -120,20 +243,22 @@ export async function POST(
       verifiedSelectedProfile = {
         id: primary.id,
         username: primary.username,
-        followers: primary.followers || 0
+        followers: incomingFollowers > 0 ? incomingFollowers : (primary.followers || 0)
       }
     } else if (!verifiedSelectedProfile && user.instagram_username) {
       verifiedSelectedProfile = {
         id: null,
         username: user.instagram_username,
-        followers: user.followers || 0
+        followers: incomingFollowers > 0 ? incomingFollowers : (user.followers || 0)
       }
+    } else if (verifiedSelectedProfile && incomingFollowers > 0) {
+      verifiedSelectedProfile.followers = incomingFollowers
     }
 
-    let effectiveFollowers = verifiedSelectedProfile?.followers ?? getEffectiveUserFollowers(
+    let effectiveFollowers = incomingFollowers > 0 ? incomingFollowers : (verifiedSelectedProfile?.followers ?? getEffectiveUserFollowers(
       user,
       selectedInstagramProfile?.id || selectedInstagramProfile?.username
-    )
+    ))
     if (selectedInstagramProfile && selectedInstagramProfile.followers !== undefined && selectedInstagramProfile.followers !== null) {
       const parsedSelected = typeof selectedInstagramProfile.followers === 'number'
         ? selectedInstagramProfile.followers
@@ -276,53 +401,24 @@ export async function POST(
       }).catch(err => console.error('[Virtual Profile Apply] Failed to log profile lock:', err))
     }
 
-    // Background non-blocking sync: Auto-sync answers to Creator Profile & send email
-    Promise.resolve().then(async () => {
-      try {
-        if (formData && typeof formData === 'object' && Object.keys(formData).length > 0) {
-          const { profileUpdates, hasChanges } = extractProfileUpdatesFromFormData(formData, user, campaign.form_fields)
-          if (verifiedSelectedProfile?.username && verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase()) {
-            profileUpdates.instagram_username = verifiedSelectedProfile.username
-            if (verifiedSelectedProfile.followers > 0) {
-              profileUpdates.followers = verifiedSelectedProfile.followers
-            }
-          }
-          if (Object.keys(profileUpdates).length > 0) {
-            profileUpdates.updated_at = new Date().toISOString()
-            await supabase.from('users').update(profileUpdates).eq('id', userId)
-          }
-        }
-        if (verifiedSelectedProfile?.username && (!verifiedSelectedProfile.id || verifiedSelectedProfile.username.toLowerCase() !== (user.instagram_username || '').toLowerCase())) {
-          const norm = verifiedSelectedProfile.username.toLowerCase()
-          const { data: existingProf } = await supabase
-            .from('user_instagram_profiles')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('normalized_username', norm)
-            .maybeSingle()
-          
-          if (!existingProf) {
-            await supabase.from('user_instagram_profiles').insert([{
-              user_id: userId,
-              username: verifiedSelectedProfile.username,
-              normalized_username: norm,
-              followers: verifiedSelectedProfile.followers || 0,
-              is_primary: true
-            }])
-          }
-        }
-        if (user?.email) {
-          await sendApplicationSubmittedEmail(
-            user.email,
-            user.full_name || 'Creator',
-            campaign.brand_name,
-            campaign.campaign_code
-          )
-        }
-      } catch (bgErr) {
-        console.error('[Virtual Profile Apply] Background post-process error:', bgErr)
-      }
+    // 1. Synchronously persist profile & follower updates before returning response
+    await syncProfileAfterApply({
+      userId,
+      user,
+      formData,
+      campaignFormFields: campaign.form_fields,
+      verifiedSelectedProfile
     })
+
+    // 2. Background non-blocking: send email notification
+    if (user?.email) {
+      sendApplicationSubmittedEmail(
+        user.email,
+        user.full_name || 'Creator',
+        campaign.brand_name,
+        campaign.campaign_code
+      ).catch(err => console.error('[Virtual Profile Apply] Email error:', err))
+    }
 
     return NextResponse.json({
       success: true,
