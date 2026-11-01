@@ -27,6 +27,7 @@ import {
   Lock,
   AlertTriangle,
   Check,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -95,6 +96,12 @@ export default function ClientBrandsDirectoryPage() {
   const [selectedBrandForCreds, setSelectedBrandForCreds] = useState<BrandWorkspace | null>(null)
   const [customPasswordInput, setCustomPasswordInput] = useState('')
   const [showPasswordInModal, setShowPasswordInModal] = useState(false)
+
+  // Dynamic Magic Link Modal State
+  const [magicLinkBrand, setMagicLinkBrand] = useState<BrandWorkspace | null>(null)
+  const [magicLinkTarget, setMagicLinkTarget] = useState<'auto' | 'dispatch' | 'creators' | 'sample_rosters'>('auto')
+  const [magicLinkResult, setMagicLinkResult] = useState<{ url: string; whatsappMessage: string } | null>(null)
+  const [isGeneratingMagicLink, setIsGeneratingMagicLink] = useState(false)
 
   // Delete Confirmation Modal State
   const [brandToDelete, setBrandToDelete] = useState<BrandWorkspace | null>(null)
@@ -301,8 +308,12 @@ export default function ClientBrandsDirectoryPage() {
     toast.success(`Copied login credentials message for ${brand.name}!`)
   }
 
-  const handleCopyBrandMagicLink = async (brand: BrandWorkspace) => {
+  const generateDynamicMagicLink = async (
+    brand: BrandWorkspace,
+    target: 'auto' | 'dispatch' | 'creators' | 'sample_rosters'
+  ) => {
     try {
+      setIsGeneratingMagicLink(true)
       const res = await fetch('/api/brand-admin/campaign-pitches/generate-review-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -312,43 +323,45 @@ export default function ClientBrandsDirectoryPage() {
           brand_slug: brand.slug,
           contact_name: brand.primaryContact,
           contact_email: brand.email,
+          target_page: target,
         }),
       })
       const data = await res.json()
       if (res.ok && data.url) {
-        navigator.clipboard.writeText(data.url)
-        toast.success(`Copied 1-Click WhatsApp Review Link for ${brand.name} (${brand.primaryContact})!`)
+        setMagicLinkResult({
+          url: data.url,
+          whatsappMessage: data.whatsappMessage,
+        })
       } else {
-        toast.error(data.error || 'Failed to generate link')
+        toast.error(data.error || 'Failed to generate review link')
       }
     } catch {
-      toast.error('Network error generating client link')
+      toast.error('Network error generating dynamic magic link')
+    } finally {
+      setIsGeneratingMagicLink(false)
     }
   }
 
-  const handleWhatsAppBrand = async (brand: BrandWorkspace) => {
-    try {
-      const res = await fetch('/api/brand-admin/campaign-pitches/generate-review-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brand_id: brand.id,
-          brand_name: brand.name,
-          brand_slug: brand.slug,
-          contact_name: brand.primaryContact,
-          contact_email: brand.email,
-        }),
-      })
-      const data = await res.json()
-      if (res.ok && data.whatsappMessage) {
-        const encoded = encodeURIComponent(data.whatsappMessage)
-        window.open(`https://wa.me/?text=${encoded}`, '_blank')
-      } else {
-        toast.error(data.error || 'Failed to generate WhatsApp link')
-      }
-    } catch {
-      toast.error('Network error generating WhatsApp link')
+  const handleOpenMagicLinkModal = (brand: BrandWorkspace) => {
+    setMagicLinkBrand(brand)
+    setMagicLinkTarget('auto')
+    setMagicLinkResult(null)
+    generateDynamicMagicLink(brand, 'auto')
+  }
+
+  const handleSwitchMagicLinkTarget = (target: 'auto' | 'dispatch' | 'creators' | 'sample_rosters') => {
+    setMagicLinkTarget(target)
+    if (magicLinkBrand) {
+      generateDynamicMagicLink(magicLinkBrand, target)
     }
+  }
+
+  const handleCopyBrandMagicLink = (brand: BrandWorkspace) => {
+    handleOpenMagicLinkModal(brand)
+  }
+
+  const handleWhatsAppBrand = (brand: BrandWorkspace) => {
+    handleOpenMagicLinkModal(brand)
   }
 
   return (
@@ -874,6 +887,177 @@ export default function ClientBrandsDirectoryPage() {
                     <li><strong className="text-neutral-300">1-Click WhatsApp Link:</strong> Zero password required; click &quot;Magic Link&quot; in the table.</li>
                   </ul>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic 1-Click Brand Magic Link Modal */}
+      <AnimatePresence>
+        {magicLinkBrand && (
+          <div
+            onClick={() => setMagicLinkBrand(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[#121417] border border-white/15 rounded-3xl p-6 sm:p-7 shadow-2xl cursor-default text-white space-y-5"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <span>1-Click Brand Magic Link</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {magicLinkBrand.name}
+                      </span>
+                    </h3>
+                    <p className="text-xs text-neutral-400">
+                      Zero password required. Choose exactly which tab the brand lands on!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMagicLinkBrand(null)}
+                  className="p-1.5 rounded-xl hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Destination Selector Tabs */}
+              <div>
+                <label className="text-xs font-bold text-neutral-300 block mb-2">
+                  Target Landing Page (Where Brand Lands):
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      id: 'auto',
+                      title: '⚡ Smart Auto-Detect',
+                      subtitle: 'Auto-opens tab with live data (Recommended)',
+                      badge: 'Smart Fallback',
+                      activeColor: 'border-amber-500/60 bg-amber-500/10 text-amber-200',
+                    },
+                    {
+                      id: 'dispatch',
+                      title: '📦 Product Dispatch',
+                      subtitle: 'Direct to addresses, variants & AWB sheet',
+                      badge: '/brand/dispatch',
+                      activeColor: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200',
+                    },
+                    {
+                      id: 'creators',
+                      title: '👥 Campaign Creators',
+                      subtitle: 'Review & approve pitched creators',
+                      badge: '/brand/campaigns',
+                      activeColor: 'border-blue-500/60 bg-blue-500/10 text-blue-200',
+                    },
+                    {
+                      id: 'sample_rosters',
+                      title: '📑 Sample Pitch Decks',
+                      subtitle: 'Explore sample creator pitch rosters',
+                      badge: '/brand/sample-rosters',
+                      activeColor: 'border-purple-500/60 bg-purple-500/10 text-purple-200',
+                    },
+                  ].map((dest) => {
+                    const isSelected = magicLinkTarget === dest.id
+                    return (
+                      <button
+                        key={dest.id}
+                        type="button"
+                        onClick={() => handleSwitchMagicLinkTarget(dest.id as any)}
+                        className={`text-left p-3 rounded-2xl border transition-all cursor-pointer relative ${
+                          isSelected
+                            ? `${dest.activeColor} ring-1 ring-white/20 shadow-lg`
+                            : 'border-white/10 bg-white/5 hover:bg-white/8 text-neutral-300'
+                        }`}
+                      >
+                        <div className="font-bold text-xs flex items-center justify-between mb-0.5">
+                          <span>{dest.title}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                        </div>
+                        <p className="text-[11px] text-neutral-400 line-clamp-1">{dest.subtitle}</p>
+                        <span className="inline-block mt-1.5 font-mono text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-neutral-400 border border-white/5">
+                          {dest.badge}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Generated Link Display & 1-Click Copy */}
+              <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-neutral-400 font-semibold">Generated Authentication Link</span>
+                  <span className="text-neutral-500 text-[11px]">Valid 14 days • 30-day session</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={isGeneratingMagicLink ? 'Generating secure link...' : magicLinkResult?.url || ''}
+                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-emerald-300 truncate focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    disabled={isGeneratingMagicLink || !magicLinkResult?.url}
+                    onClick={() => {
+                      if (magicLinkResult?.url) {
+                        navigator.clipboard.writeText(magicLinkResult.url)
+                        toast.success(`Copied Magic Link for ${magicLinkBrand.name}!`)
+                      }
+                    }}
+                    className="h-9 px-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 cursor-pointer rounded-xl"
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+
+              {/* Action Buttons: WhatsApp Share & Copy Formatted Message */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isGeneratingMagicLink || !magicLinkResult?.whatsappMessage}
+                  onClick={() => {
+                    if (magicLinkResult?.whatsappMessage) {
+                      navigator.clipboard.writeText(magicLinkResult.whatsappMessage)
+                      toast.success(`Copied tailored WhatsApp invite for ${magicLinkBrand.name}!`)
+                    }
+                  }}
+                  className="flex-1 border-white/15 hover:bg-white/10 text-neutral-200 h-10 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1.5" />
+                  Copy WhatsApp Text
+                </Button>
+
+                <Button
+                  type="button"
+                  disabled={isGeneratingMagicLink || !magicLinkResult?.whatsappMessage}
+                  onClick={() => {
+                    if (magicLinkResult?.whatsappMessage) {
+                      const encoded = encodeURIComponent(magicLinkResult.whatsappMessage)
+                      window.open(`https://wa.me/?text=${encoded}`, '_blank')
+                    }
+                  }}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white h-10 text-xs font-bold rounded-xl shadow-lg shadow-emerald-950/40 cursor-pointer"
+                >
+                  <MessageCircle className="w-4 h-4 mr-1.5" />
+                  Share on WhatsApp
+                </Button>
               </div>
             </motion.div>
           </div>

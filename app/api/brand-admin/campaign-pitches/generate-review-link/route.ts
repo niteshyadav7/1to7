@@ -52,7 +52,11 @@ export async function POST(request: Request) {
       contact_name,
       contact_email,
       creator_count,
+      target_page,
+      destination,
     } = body
+
+    const selectedTargetPage = (target_page || destination || 'auto').toLowerCase().trim()
 
     // 1. Resolve Brand Information
     const slugKey = (brand_slug || brand_name || 'mamaearth').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -76,6 +80,15 @@ export async function POST(request: Request) {
         campaign_id: campaign_id || undefined,
         batch_name: batch_name || undefined,
         token_type: 'pitch_review',
+        target_page: selectedTargetPage,
+        destination:
+          selectedTargetPage === 'dispatch'
+            ? '/brand/dispatch'
+            : selectedTargetPage === 'creators'
+              ? '/brand/campaigns'
+              : selectedTargetPage === 'sample_rosters'
+                ? '/brand/sample-rosters'
+                : undefined,
       },
       '14d'
     )
@@ -90,17 +103,38 @@ export async function POST(request: Request) {
     if (batch_name) {
       queryParams.set('batch', batch_name)
     }
+    if (selectedTargetPage) {
+      queryParams.set('dest', selectedTargetPage)
+    }
 
     const reviewUrl = `${baseUrl}/brand/review?${queryParams.toString()}`
 
-    // 4. Construct Formatted WhatsApp & Email Templates
+    // 4. Construct Formatted WhatsApp & Email Templates tailored to the target destination
     const countText = creator_count ? `${creator_count} shortlisted creators` : 'curated creator roster'
-    const campaignText = campaign_title || batch_name || 'Diwali Campaign'
+    const campaignText = campaign_title || batch_name || 'Campaign'
 
-    const whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nTheHype has prepared your *${countText}* for the *${resolvedBrandName} (${campaignText})*.\n\n⚡ *1-Tap Direct Review Link:*\n${reviewUrl}\n\n• Zero password required\n• Review profile analytics & commercial quotations\n• Instant 1-tap creator approval & dispatch\n\n_Valid for 14 days._`
+    let whatsappMessage = ''
+    let emailSubject = ''
+    let emailBody = ''
 
-    const emailSubject = `[TheHype Roster] Review & Approve Creators for ${resolvedBrandName} - ${campaignText}`
-    const emailBody = `Hi ${resolvedContactName},\n\nOur curation team at TheHype has shortlisted ${countText} for ${resolvedBrandName}.\n\nYou can review full Instagram metrics, commercial quotations, and approve creators directly using this secure link:\n${reviewUrl}\n\nBest regards,\nTheHype Campaign Operations`
+    if (selectedTargetPage === 'dispatch') {
+      whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nTheHype has published your live *Product Dispatch & Courier Manifest* for *${resolvedBrandName}*.\n\n⚡ *1-Tap Courier Manifest Link:*\n${reviewUrl}\n\n• Zero password required\n• Full delivery addresses, pincodes & contact phones\n• Real-time warehouse AWB tracking & 1-click Shiprocket/Delhivery CSV export\n\n_Valid for 14 days._`
+      emailSubject = `[TheHype Dispatch] Live Product Courier Manifest for ${resolvedBrandName}`
+      emailBody = `Hi ${resolvedContactName},\n\nThe verified shipping addresses and courier manifest for ${resolvedBrandName} are now ready for sample product dispatch.\n\nAccess your live courier sheet directly here:\n${reviewUrl}\n\nBest regards,\nTheHype Logistics & Operations`
+    } else if (selectedTargetPage === 'creators') {
+      whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nTheHype has prepared your *${countText}* for the *${resolvedBrandName} (${campaignText})*.\n\n⚡ *1-Tap Direct Review Link:*\n${reviewUrl}\n\n• Zero password required\n• Review profile analytics & commercial quotations\n• Instant 1-tap creator approval\n\n_Valid for 14 days._`
+      emailSubject = `[TheHype Curation] Review & Approve Creators for ${resolvedBrandName} - ${campaignText}`
+      emailBody = `Hi ${resolvedContactName},\n\nOur curation team at TheHype has shortlisted ${countText} for ${resolvedBrandName}.\n\nYou can review full Instagram metrics, commercial quotations, and approve creators directly using this secure link:\n${reviewUrl}\n\nBest regards,\nTheHype Campaign Operations`
+    } else if (selectedTargetPage === 'sample_rosters') {
+      whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nTheHype has prepared your curated *Sample Pitch Decks* for *${resolvedBrandName}*.\n\n⚡ *1-Tap Pitch Decks Link:*\n${reviewUrl}\n\n• Zero password required\n• Curated sample profiles, aesthetics & engagement metrics\n\n_Valid for 14 days._`
+      emailSubject = `[TheHype Pitch Deck] Sample Creator Roster for ${resolvedBrandName}`
+      emailBody = `Hi ${resolvedContactName},\n\nExplore our curated sample creator roster and presentation pitch decks for ${resolvedBrandName} here:\n${reviewUrl}\n\nBest regards,\nTheHype Talent Team`
+    } else {
+      // Smart Auto / General Access
+      whatsappMessage = `Hi ${resolvedContactName}! 👋\n\nHere is your official 1-Click access link to the *${resolvedBrandName}* Workspace on TheHype:\n\n⚡ *1-Tap Direct Portal Link:*\n${reviewUrl}\n\n• Zero password required\n• Live creator shortlists, approvals & courier dispatch manifests\n\n_Valid for 14 days._`
+      emailSubject = `[TheHype Portal] Direct 1-Click Access for ${resolvedBrandName}`
+      emailBody = `Hi ${resolvedContactName},\n\nAccess your live ${resolvedBrandName} brand workspace directly using this 1-click authentication link:\n${reviewUrl}\n\nBest regards,\nTheHype Team`
+    }
 
     return NextResponse.json({
       success: true,

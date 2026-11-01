@@ -36,7 +36,14 @@ export async function GET() {
       FROM public.applications a
       JOIN public.campaigns c ON a.campaign_id = c.id
       JOIN public.users u ON a.user_id = u.id
-      WHERE COALESCE((a.form_data->'brand_dispatch'->>'is_released')::boolean, false) = true
+      WHERE (
+        COALESCE((a.form_data->'brand_dispatch'->>'is_released')::boolean, false) = true
+        OR (
+          (a.status = 'Approved'::application_status OR a.brand_review_status = 'brand_approved')
+          AND COALESCE((a.form_data->'brand_curation'->>'is_finalized')::boolean, false) = true
+          AND a.address_status = 'Approved'
+        )
+      )
         AND (
           c.brand_id = $1
           OR LOWER(TRIM(COALESCE(c.brand_name, ''))) = LOWER(TRIM($2))
@@ -265,7 +272,14 @@ export async function POST(request: Request) {
       FROM public.campaigns c
       WHERE a.campaign_id = c.id
         AND a.id = ANY($1::uuid[])
-        AND COALESCE((a.form_data->'brand_dispatch'->>'is_released')::boolean, false) = true
+        AND (
+          COALESCE((a.form_data->'brand_dispatch'->>'is_released')::boolean, false) = true
+          OR (
+            (a.status = 'Approved'::application_status OR a.brand_review_status = 'brand_approved')
+            AND COALESCE((a.form_data->'brand_curation'->>'is_finalized')::boolean, false) = true
+            AND a.address_status = 'Approved'
+          )
+        )
         AND (
           c.brand_id = $3
           OR LOWER(TRIM(COALESCE(c.brand_name, ''))) = LOWER(TRIM($4))

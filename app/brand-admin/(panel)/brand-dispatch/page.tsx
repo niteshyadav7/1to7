@@ -1152,6 +1152,20 @@ export default function BrandDispatchDeskPage() {
                           ⭐ {b.name}
                         </option>
                       ))}
+                      {brands
+                        .filter(
+                          (br) =>
+                            br &&
+                            br !== 'all' &&
+                            !activeRegisteredBrands.some(
+                              (rb) => rb.name.toLowerCase() === br.toLowerCase()
+                            )
+                        )
+                        .map((br) => (
+                          <option key={br} value={br}>
+                            🏢 {br} (Unregistered)
+                          </option>
+                        ))}
                     </select>
                   </div>
 

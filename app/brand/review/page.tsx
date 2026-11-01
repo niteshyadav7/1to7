@@ -22,6 +22,7 @@ function ReviewTokenHandler() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const batch = searchParams.get('batch')
+  const dest = searchParams.get('dest') || searchParams.get('destination')
 
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [errorMsg, setErrorMsg] = useState('')
@@ -39,7 +40,7 @@ function ReviewTokenHandler() {
         const res = await fetch('/api/brand/auth/verify-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, batch }),
+          body: JSON.stringify({ token, batch, dest }),
         })
 
         const data = await res.json()

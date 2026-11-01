@@ -71,4 +71,19 @@ describe('Brand Magic Review Link Unit Tests', () => {
     expect(decryptedSession?.brand_id).toBe('b-mamaearth')
     expect(decryptedSession?.role).toBe('reviewer')
   })
+
+  it('embeds and verifies dynamic target destination in review token', async () => {
+    const payloadWithDest: BrandReviewTokenPayload = {
+      ...samplePayload,
+      target_page: 'dispatch',
+      destination: '/brand/dispatch',
+    }
+
+    const token = await generateBrandReviewToken(payloadWithDest, '14d')
+    const verified = await verifyBrandReviewToken(token)
+
+    expect(verified).not.toBeNull()
+    expect(verified.target_page).toBe('dispatch')
+    expect(verified.destination).toBe('/brand/dispatch')
+  })
 })

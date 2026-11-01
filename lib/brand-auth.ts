@@ -17,6 +17,8 @@ export interface BrandReviewTokenPayload {
   campaign_id?: string
   batch_name?: string
   token_type?: 'pitch_review' | 'direct_access'
+  destination?: string
+  target_page?: string
 }
 
 /**
@@ -63,6 +65,8 @@ export async function generateBrandReviewToken(
     campaign_id: payload.campaign_id,
     batch_name: payload.batch_name,
     token_type: payload.token_type || 'pitch_review',
+    destination: payload.destination,
+    target_page: payload.target_page,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()

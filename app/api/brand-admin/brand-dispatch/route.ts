@@ -340,10 +340,10 @@ export async function GET(request: Request) {
     let registeredBrands: Array<{ id: string; name: string; slug: string; isActive: boolean; assignedKam: string }> = []
     try {
       const regRes = await pool.query(`
-        SELECT b.id, b.brand_name, b.brand_slug, b.is_active, u.full_name as kam_name
+        SELECT b.id, b.name as brand_name, b.slug as brand_slug, b.is_active, u.full_name as kam_name
         FROM public.brands b
-        LEFT JOIN public.users u ON b.assigned_kam_id = u.id
-        ORDER BY b.is_active DESC, b.brand_name ASC
+        LEFT JOIN public.users u ON b.assigned_1to7_kam_id = u.id
+        ORDER BY b.is_active DESC, b.name ASC
       `)
       registeredBrands = regRes.rows.map((r) => ({
         id: r.id,
@@ -352,8 +352,8 @@ export async function GET(request: Request) {
         isActive: r.is_active !== false,
         assignedKam: r.kam_name || 'Unassigned',
       }))
-    } catch {
-      // Ignore if table not ready
+    } catch (e: any) {
+      console.warn('Registered brands query in brand-dispatch GET fallback:', e?.message)
     }
 
     return NextResponse.json({
@@ -429,7 +429,7 @@ export async function POST(request: Request) {
       }
 
       const brandCheck = await client.query(
-        `SELECT id, brand_name FROM public.brands WHERE LOWER(TRIM(brand_name)) = LOWER(TRIM($1)) OR LOWER(TRIM(brand_slug)) = LOWER(TRIM($1)) LIMIT 1`,
+        `SELECT id, name as brand_name, slug as brand_slug FROM public.brands WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) OR LOWER(TRIM(slug)) = LOWER(TRIM($1)) LIMIT 1`,
         [targetBrand]
       )
       const registeredBrand = brandCheck.rows[0]
@@ -489,6 +489,10 @@ export async function POST(request: Request) {
     }
 
     if (action === 'verify_address') {
+      const isValidUuid = (val?: string | null) =>
+        Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val))
+      const verifierUuid = isValidUuid(admin.id) ? admin.id : null
+
       // Optionally update shipping_address fields if provided, and mark address_status = 'Approved'
       for (const appId of applicationIds) {
         const existingRes = await client.query(
@@ -534,7 +538,7 @@ export async function POST(request: Request) {
             updated_at = NOW()
           WHERE id = $1
           `,
-          [appId, actorName, JSON.stringify(nextFd)]
+          [appId, verifierUuid, JSON.stringify(nextFd)]
         )
       }
 
