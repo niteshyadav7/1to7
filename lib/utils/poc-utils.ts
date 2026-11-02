@@ -155,6 +155,7 @@ export function filterPocCampaignsByMode<T extends {
   brandSlaWarnings?: number
   brandDispatchPending?: number
   brandContentPending?: number
+  orderFormRequired?: boolean
 }>(
   campaigns: T[],
   mode: PocOperationsMode = '360',
@@ -165,7 +166,7 @@ export function filterPocCampaignsByMode<T extends {
 
   return campaigns.filter(c => {
     const hasCreatorPending =
-      Number(c.pendingOrders || 0) > 0 ||
+      (c.orderFormRequired !== false && Number(c.pendingOrders || 0) > 0) ||
       Number(c.pendingDeliverables || 0) > 0 ||
       Number(c.pendingPayments || 0) > 0 ||
       Number(c.pendingApplications || 0) > 0

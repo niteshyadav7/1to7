@@ -24,6 +24,7 @@ export interface CampaignPendingItem {
   status: string
   isLive: boolean
   createdAt: string
+  orderFormRequired: boolean
   assignedPocs: AssignedPocInfo[]
   // Creator actions
   pendingOrders: number
@@ -175,13 +176,16 @@ export async function GET(request: Request) {
         c.budget_type,
         c.status,
         c.is_live,
+        c.order_form,
         c.poc_admin_ids,
         c.created_at,
         b.primary_contact_name,
         b.primary_contact_phone,
-        -- Creator Action Form Submissions
+        -- Creator Action Form Submissions (Strictly gated by c.order_form and non-empty JSONB)
         COUNT(app.id) FILTER (
-          WHERE app.form_data->>'order_details' IS NOT NULL 
+          WHERE COALESCE(c.order_form, false) = true
+          AND app.form_data->'order_details' IS NOT NULL 
+          AND app.form_data->'order_details' != '{}'::jsonb
           AND (app.form_data->>'order_details_approved' IS NULL OR app.form_data->>'order_details_approved' != 'true')
           AND app.status != 'Rejected'
         ) AS pending_orders,
@@ -242,10 +246,12 @@ export async function GET(request: Request) {
       LEFT JOIN public.brands b ON c.brand_id = b.id
       LEFT JOIN public.applications app ON app.campaign_id = c.id
       ${whereSQL}
-      GROUP BY c.id, b.id, b.name, b.primary_contact_name, b.primary_contact_phone
+      GROUP BY c.id, c.order_form, b.id, b.name, b.primary_contact_name, b.primary_contact_phone
       ORDER BY (
         COUNT(app.id) FILTER (
-          WHERE app.form_data->>'order_details' IS NOT NULL 
+          WHERE COALESCE(c.order_form, false) = true
+          AND app.form_data->'order_details' IS NOT NULL 
+          AND app.form_data->'order_details' != '{}'::jsonb
           AND (app.form_data->>'order_details_approved' IS NULL OR app.form_data->>'order_details_approved' != 'true')
           AND app.status != 'Rejected'
         ) +
@@ -291,8 +297,10 @@ export async function GET(request: Request) {
         .map(id => staffMap.get(id))
         .filter((poc): poc is AssignedPocInfo => Boolean(poc))
 
+      const orderFormRequired = Boolean(row.order_form)
+
       // Creator Metrics
-      const pendingOrders = parseInt(row.pending_orders) || 0
+      const pendingOrders = orderFormRequired ? (parseInt(row.pending_orders) || 0) : 0
       const pendingDeliverables = parseInt(row.pending_deliverables) || 0
       const pendingPayments = parseInt(row.pending_payments) || 0
       const pendingApplications = parseInt(row.pending_applications) || 0
@@ -339,6 +347,7 @@ export async function GET(request: Request) {
         budgetType: row.budget_type || 'Barter',
         status: row.status || 'Active',
         isLive: Boolean(row.is_live),
+        orderFormRequired,
         createdAt: row.created_at,
         assignedPocs,
         // Creator

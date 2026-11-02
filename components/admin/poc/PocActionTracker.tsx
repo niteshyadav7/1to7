@@ -854,7 +854,14 @@ export function PocActionTracker({ currentAdminId, isSuperAdmin = false }: PocAc
                       {/* Creator: Orders Pending */}
                       {(opsMode === '360' || opsMode === 'creator') && (
                         <td className="py-3 px-3 text-center">
-                          {c.pendingOrders > 0 ? (
+                          {!c.orderFormRequired ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] text-slate-500 bg-slate-800/40 border border-white/5"
+                              title="Order form is not required for this campaign (No — Just Comments)"
+                            >
+                              — Not Required
+                            </span>
+                          ) : c.pendingOrders > 0 ? (
                             <Link
                               href={c.quickLinks.ordersUrl}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold transition-all"

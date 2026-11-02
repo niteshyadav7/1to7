@@ -136,6 +136,34 @@ describe('POC Brand Operations Utility Tests (Production Safe)', () => {
       const filtered = filterPocCampaignsByMode(sampleCampaigns as any, '360', true)
       expect(filtered.map(c => c.brandName)).toEqual(['Plum', 'Minimalist', 'Mamaearth'])
     })
+
+    it('ignores pendingOrders when orderFormRequired is false', () => {
+      const campaignsWithOrderDisabled = [
+        {
+          id: 'c5',
+          brandName: 'Plum No Order',
+          orderFormRequired: false,
+          pendingOrders: 83, // phantom count
+          pendingDeliverables: 0,
+          pendingPayments: 0,
+          pendingApplications: 0,
+          brandPitched: 0,
+        },
+        {
+          id: 'c6',
+          brandName: 'Jiotag With Order',
+          orderFormRequired: true,
+          pendingOrders: 4, // real count
+          pendingDeliverables: 0,
+          pendingPayments: 0,
+          pendingApplications: 0,
+          brandPitched: 0,
+        },
+      ]
+
+      const filtered = filterPocCampaignsByMode(campaignsWithOrderDisabled as any, 'creator', true)
+      expect(filtered.map(c => c.brandName)).toEqual(['Jiotag With Order'])
+    })
   })
 })
 
