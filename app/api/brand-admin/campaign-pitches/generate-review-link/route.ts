@@ -1,46 +1,11 @@
 import { NextResponse } from 'next/server'
 import { generateBrandReviewToken } from '@/lib/brand-auth'
-
-const BRAND_DEFAULTS: Record<string, { brand_id: string; brand_name: string; brand_slug: string; contact_name: string; contact_email: string }> = {
-  mamaearth: {
-    brand_id: 'b-mamaearth',
-    brand_name: 'Mamaearth',
-    brand_slug: 'mamaearth',
-    contact_name: 'Ananya Sharma',
-    contact_email: 'ananya@mamaearth.in',
-  },
-  plum: {
-    brand_id: 'b-plum',
-    brand_name: 'Plum Goodness',
-    brand_slug: 'plum',
-    contact_name: 'Rahul Sen',
-    contact_email: 'rahul@plumgoodness.com',
-  },
-  plumgoodness: {
-    brand_id: 'b-plum',
-    brand_name: 'Plum Goodness',
-    brand_slug: 'plum',
-    contact_name: 'Rahul Sen',
-    contact_email: 'rahul@plumgoodness.com',
-  },
-  sugar: {
-    brand_id: 'b-sugar',
-    brand_name: 'Sugar Cosmetics',
-    brand_slug: 'sugar',
-    contact_name: 'Kavita Roy',
-    contact_email: 'kavita@sugarcosmetics.com',
-  },
-  sugarcosmetics: {
-    brand_id: 'b-sugar',
-    brand_name: 'Sugar Cosmetics',
-    brand_slug: 'sugar',
-    contact_name: 'Kavita Roy',
-    contact_email: 'kavita@sugarcosmetics.com',
-  },
-}
+import pool, { ensurePocMigration } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
+    await ensurePocMigration()
+
     const body = await request.json()
     const {
       brand_id,
@@ -58,15 +23,46 @@ export async function POST(request: Request) {
 
     const selectedTargetPage = (target_page || destination || 'auto').toLowerCase().trim()
 
-    // 1. Resolve Brand Information
-    const slugKey = (brand_slug || brand_name || 'mamaearth').toLowerCase().replace(/[^a-z0-9]/g, '')
-    const matchedDefault = BRAND_DEFAULTS[slugKey] || BRAND_DEFAULTS.mamaearth
+    // 1. Dynamically Resolve Brand Information from PostgreSQL Database
+    let dbBrand: any = null
+    if (brand_id) {
+      try {
+        const res = await pool.query(
+          `SELECT id, name, slug, primary_contact_name, primary_contact_email 
+           FROM public.brands 
+           WHERE id::text = $1 OR slug = $1 LIMIT 1`,
+          [brand_id]
+        )
+        if (res.rows.length > 0) dbBrand = res.rows[0]
+      } catch {
+        // Fall through
+      }
+    }
 
-    const resolvedBrandId = brand_id || matchedDefault.brand_id
-    const resolvedBrandName = brand_name || matchedDefault.brand_name
-    const resolvedBrandSlug = brand_slug || matchedDefault.brand_slug
-    const resolvedContactName = contact_name || matchedDefault.contact_name
-    const resolvedContactEmail = contact_email || matchedDefault.contact_email
+    if (!dbBrand && (brand_name || brand_slug)) {
+      const searchKey = (brand_slug || brand_name || '').trim()
+      try {
+        const res = await pool.query(
+          `SELECT id, name, slug, primary_contact_name, primary_contact_email 
+           FROM public.brands 
+           WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) 
+              OR LOWER(TRIM(slug)) = LOWER(TRIM($1)) 
+              OR slug ILIKE $2 
+           LIMIT 1`,
+          [searchKey, `${searchKey}%`]
+        )
+        if (res.rows.length > 0) dbBrand = res.rows[0]
+      } catch {
+        // Fall through
+      }
+    }
+
+    const resolvedBrandName = (brand_name || dbBrand?.name || 'Brand Partner').trim()
+    const fallbackSlug = resolvedBrandName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'brand'
+    const resolvedBrandSlug = (brand_slug || dbBrand?.slug || fallbackSlug).trim()
+    const resolvedBrandId = brand_id || dbBrand?.id || `b-${resolvedBrandSlug}`
+    const resolvedContactName = (contact_name || dbBrand?.primary_contact_name || `${resolvedBrandName} Team`).trim()
+    const resolvedContactEmail = (contact_email || dbBrand?.primary_contact_email || `contact@${resolvedBrandSlug}.com`).trim()
 
     // 2. Generate Signed JWT Token (Valid for 14 Days)
     const token = await generateBrandReviewToken(
@@ -98,18 +94,56 @@ export async function POST(request: Request) {
     const protocol = host.includes('localhost') ? 'http' : 'https'
     const baseUrl = process.env.NEXT_PUBLIC_BRAND_PORTAL_URL || (host.includes('1to7') ? 'https://brand.thehype.in' : `${protocol}://${host}`)
 
-    const queryParams = new URLSearchParams()
-    queryParams.set('token', token)
-    if (batch_name) {
-      queryParams.set('batch', batch_name)
-    }
-    if (selectedTargetPage) {
-      queryParams.set('dest', selectedTargetPage)
+    // 4. Generate Branded Short Link (Stored in DB)
+    const cleanBrandSlug = (resolvedBrandName || resolvedBrandSlug || 'brand')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 15) || 'brand'
+
+    const randomSuffix = Math.random().toString(36).substring(2, 6)
+    const shortCode = `${cleanBrandSlug}-${randomSuffix}`
+    let reviewUrl = `${baseUrl}/r/${shortCode}`
+
+    try {
+      await ensurePocMigration()
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+      await pool.query(
+        `INSERT INTO public.brand_magic_links 
+          (code, brand_id, brand_name, brand_slug, contact_name, contact_email, target_page, destination, batch_name, campaign_id, token, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (code) DO UPDATE 
+         SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at, updated_at = NOW()`,
+        [
+          shortCode,
+          resolvedBrandId,
+          resolvedBrandName,
+          resolvedBrandSlug,
+          resolvedContactName,
+          resolvedContactEmail,
+          selectedTargetPage,
+          selectedTargetPage === 'dispatch'
+            ? '/brand/dispatch'
+            : selectedTargetPage === 'creators'
+              ? '/brand/campaigns'
+              : selectedTargetPage === 'sample_rosters'
+                ? '/brand/sample-rosters'
+                : null,
+          batch_name || null,
+          campaign_id || null,
+          token,
+          expiresAt,
+        ]
+      )
+    } catch (dbErr) {
+      console.warn('[Magic Link] DB persist error, falling back to query token URL:', dbErr)
+      const queryParams = new URLSearchParams()
+      queryParams.set('token', token)
+      if (batch_name) queryParams.set('batch', batch_name)
+      if (selectedTargetPage) queryParams.set('dest', selectedTargetPage)
+      reviewUrl = `${baseUrl}/brand/review?${queryParams.toString()}`
     }
 
-    const reviewUrl = `${baseUrl}/brand/review?${queryParams.toString()}`
-
-    // 4. Construct Formatted WhatsApp & Email Templates tailored to the target destination
+    // 5. Construct Formatted WhatsApp & Email Templates tailored to the target destination
     const countText = creator_count ? `${creator_count} shortlisted creators` : 'curated creator roster'
     const campaignText = campaign_title || batch_name || 'Campaign'
 
@@ -139,6 +173,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       url: reviewUrl,
+      shortCode,
       token,
       brand_name: resolvedBrandName,
       contact_name: resolvedContactName,

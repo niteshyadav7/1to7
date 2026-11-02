@@ -21,6 +21,8 @@ function ReviewTokenHandler() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
+  const code = searchParams.get('code') || searchParams.get('c')
+  const errorParam = searchParams.get('error')
   const batch = searchParams.get('batch')
   const dest = searchParams.get('dest') || searchParams.get('destination')
 
@@ -29,9 +31,15 @@ function ReviewTokenHandler() {
   const [brandInfo, setBrandInfo] = useState<{ brand_name?: string; full_name?: string } | null>(null)
 
   useEffect(() => {
-    if (!token) {
+    if (errorParam) {
       setStatus('error')
-      setErrorMsg('No review token was provided in the link. Please ask your TheHype Account Manager for a valid link.')
+      setErrorMsg(decodeURIComponent(errorParam))
+      return
+    }
+
+    if (!token && !code) {
+      setStatus('error')
+      setErrorMsg('No review token or link code was provided. Please ask your TheHype Account Manager for a valid link.')
       return
     }
 
@@ -40,7 +48,7 @@ function ReviewTokenHandler() {
         const res = await fetch('/api/brand/auth/verify-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, batch, dest }),
+          body: JSON.stringify({ token, code, batch, dest }),
         })
 
         const data = await res.json()
@@ -67,7 +75,7 @@ function ReviewTokenHandler() {
     }
 
     authenticateToken()
-  }, [token, batch, router])
+  }, [token, code, errorParam, batch, dest, router])
 
   return (
     <div className="w-full max-w-[480px] bg-[#14171A]/95 backdrop-blur-2xl border border-white/12 rounded-3xl p-7 sm:p-9 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] relative text-center">

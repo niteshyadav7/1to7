@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import pool from '@/lib/db'
+import pool, { ensurePocMigration } from '@/lib/db'
 import {
   verifyBrandReviewToken,
   encryptBrandToken,
@@ -11,14 +11,57 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const token = body.token?.trim()
+    const code = (body.code || body.c)?.trim()
 
-    if (!token) {
-      return NextResponse.json({ error: 'Review token is required' }, { status: 400 })
+    if (!token && !code) {
+      return NextResponse.json({ error: 'Review token or short code is required' }, { status: 400 })
     }
 
-    // 1. Verify cryptographic signature & expiration of review token
-    const tokenPayload = await verifyBrandReviewToken(token)
-    if (!tokenPayload || !tokenPayload.brand_id) {
+    await ensurePocMigration()
+
+    let tokenPayload: any = null
+    let linkRecord: any = null
+
+    // 1. Resolve from short code if provided
+    if (code) {
+      const linkRes = await pool.query(
+        `SELECT * FROM public.brand_magic_links WHERE code = $1 LIMIT 1`,
+        [code]
+      )
+      if (linkRes.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'This review link is invalid or does not exist.' },
+          { status: 404 }
+        )
+      }
+      linkRecord = linkRes.rows[0]
+      if (linkRecord.is_active === false) {
+        return NextResponse.json(
+          { error: 'This review link has been deactivated.' },
+          { status: 403 }
+        )
+      }
+      if (new Date(linkRecord.expires_at) < new Date()) {
+        return NextResponse.json(
+          { error: 'This review link has expired. Please ask your Account Manager for a new link.' },
+          { status: 401 }
+        )
+      }
+
+      pool.query(
+        `UPDATE public.brand_magic_links SET clicks_count = COALESCE(clicks_count, 0) + 1, last_accessed_at = NOW() WHERE id = $1`,
+        [linkRecord.id]
+      ).catch(() => {})
+
+      if (linkRecord.token) {
+        tokenPayload = await verifyBrandReviewToken(linkRecord.token)
+      }
+    } else if (token) {
+      // Direct token verification
+      tokenPayload = await verifyBrandReviewToken(token)
+    }
+
+    if (!tokenPayload && !linkRecord) {
       return NextResponse.json(
         { error: 'This review link is invalid or has expired. Please contact your TheHype Account Manager for a fresh link.' },
         { status: 401 }
@@ -27,15 +70,15 @@ export async function POST(request: Request) {
 
     // 2. Build authenticated BrandPayload
     const brandPayload: BrandPayload = {
-      id: tokenPayload.id || `brand-user-${tokenPayload.brand_slug}`,
-      brand_id: tokenPayload.brand_id,
-      organization_id: tokenPayload.organization_id || null,
-      email: tokenPayload.email || `reviewer@${tokenPayload.brand_slug}.com`,
-      full_name: tokenPayload.full_name || `${tokenPayload.brand_name} Brand Partner`,
-      role: tokenPayload.role || 'reviewer',
-      brand_name: tokenPayload.brand_name || 'Brand Workspace',
-      brand_slug: tokenPayload.brand_slug || 'brand',
-      brand_logo_url: tokenPayload.brand_logo_url || null,
+      id: tokenPayload?.id || (linkRecord ? `brand-user-${linkRecord.brand_slug}` : 'brand-user'),
+      brand_id: tokenPayload?.brand_id || linkRecord?.brand_id,
+      organization_id: tokenPayload?.organization_id || null,
+      email: tokenPayload?.email || linkRecord?.contact_email || `reviewer@${linkRecord?.brand_slug || 'brand'}.com`,
+      full_name: tokenPayload?.full_name || linkRecord?.contact_name || `${linkRecord?.brand_name || 'Brand'} Brand Partner`,
+      role: tokenPayload?.role || 'reviewer',
+      brand_name: tokenPayload?.brand_name || linkRecord?.brand_name || 'Brand Workspace',
+      brand_slug: tokenPayload?.brand_slug || linkRecord?.brand_slug || 'brand',
+      brand_logo_url: tokenPayload?.brand_logo_url || null,
     }
 
     // 3. Generate 30-day session JWT
@@ -50,10 +93,11 @@ export async function POST(request: Request) {
           brandPayload.brand_id,
           brandPayload.id,
           brandPayload.email,
-          'magic_link_review_access',
+          code ? 'magic_link_code_access' : 'magic_link_review_access',
           JSON.stringify({
-            batch_name: tokenPayload.batch_name || body.batch || null,
-            campaign_id: tokenPayload.campaign_id || null,
+            code: code || null,
+            batch_name: tokenPayload?.batch_name || linkRecord?.batch_name || body.batch || null,
+            campaign_id: tokenPayload?.campaign_id || linkRecord?.campaign_id || null,
             ip: request.headers.get('x-forwarded-for') || 'local',
             user_agent: request.headers.get('user-agent') || 'unknown',
           }),
@@ -64,8 +108,8 @@ export async function POST(request: Request) {
     }
 
     // 5. Determine target redirect URL
-    const targetBatch = body.batch || tokenPayload.batch_name
-    const targetDest = (body.dest || body.destination || tokenPayload.target_page || tokenPayload.destination || '').toLowerCase().trim()
+    const targetBatch = body.batch || tokenPayload?.batch_name || linkRecord?.batch_name
+    const targetDest = (body.dest || body.destination || tokenPayload?.target_page || tokenPayload?.destination || linkRecord?.target_page || linkRecord?.destination || '').toLowerCase().trim()
 
     let redirectUrl = '/brand/campaigns'
 
