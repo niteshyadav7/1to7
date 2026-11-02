@@ -139,6 +139,7 @@ CASE 128: Bidirectional Profile Address Synchronization Breakdown & Sub-Funnel I
 CASE 129: PostgreSQL Enum Constraint 500 Crash on 'Archived' Status, Active Tab Double-Count Inversion & Unified Centralized Archive Hub Architecture
 CASE 130: Campaign Apply Follower Edit Discard, Unsynchronized JSONB Profile Arrays & Atomic Profile Sync Pipeline
 CASE 131: Brand Portal Creator Shortlist Disappearance: Phantom Column Query Crash, Silently Swallowed Catch Blocks & Schema-Aligned SQL Architecture
+CASE 132: Cross-Portal Accountability Blindspot & Dual-Engine Operations Inversion: Unifying Influencer Creator Ops and Brand Admin KAM Pipelines in POC Performance Hub
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -5994,3 +5995,52 @@ S: Brand Portal sidebar displayed "5 New" creators pending review, but the main 
 T: Isolate the cause of the discrepancy between the sidebar counter and the creator review table, fix database query errors, and ensure all pitched creators display cleanly.
 A: Identified that /api/brand/campaigns/[id]/creators queried a non-existent column (c.title) and silently swallowed the error, returning an empty array to the client. Fixed the query to use valid schema fields (c.campaign_code), eliminating the crash.
 R: 100% accurate creator presentation in Brand Portal, flawless alignment between sidebar counters and table rows, and complete audit documentation.
+
+
+====================================================================================================
+CASE 132: Cross-Portal Accountability Blindspot & Dual-Engine Operations Inversion: Unifying Influencer Creator Ops and Brand Admin KAM Pipelines in POC Performance Hub
+Category: System Architecture / Operational Governance / Cross-Portal Metric Aggregation / SQL Optimization
+====================================================================================================
+
+[INTERVIEW QUESTION]
+"When an agency operates two distinct portals—one for creator onboarding and another for B2B brand campaign curation—the operations staff works across both domains. However, operational tracking dashboards often suffer from a 'domain blindspot', measuring only one side of the business. How do you design and architect a unified 360-degree performance engine with zero database query degradation and seamless executive UX?"
+
+[SITUATION]
+At 1to7 Media, internal Point of Contact (POC) staff members wear dual hats:
+1. Creator Operations: Verifying order placement proofs, reviewing live reels/deliverables, confirming payment requests, and screening new creator applicants.
+2. Brand & Key Account Management (KAM) Operations: Curating and pitching creators to client brands, monitoring brand approval SLAs (>24h warning, >48h breach), verifying creator shipping addresses for brand courier dispatches, and coordinating brand content QA.
+
+While the Influencer Admin Hub featured a daily POC Performance Dashboard (/admin/poc-dashboard), it was historically 100% creator-centric. Management had zero visibility into brand pitches, brand approval conversion rates, or client response bottlenecks within the same dashboard. Managers were forced to manually cross-reference 4 distinct portals (/brand-admin/dashboard, /brand-admin/reviews-sla, /brand-admin/campaign-pitches, and /admin/poc-dashboard) to verify whether staff had followed up on brand SLA breaches or dispatch preparation.
+
+[ROOT CAUSE]
+1. Relational Projection Isolation:
+   The POC Daily Action Tracker endpoint (/api/admin/poc-dashboard/pending-tracker) queried only public.campaigns and form_data flags for creator actions (order_details, completion_submission, payment_request). It omitted joins on public.brands and lacked filters for brand_review_status, brand_pitched_at, and address_status.
+2. Missing Cross-Role Attribution:
+   Staff were linked to campaigns via campaigns.poc_admin_ids, but client brands assigned dedicated staff via brands.assigned_1to7_kam_id. When staff were assigned as a brand's KAM rather than per-campaign, their brand pitches and SLA responsibilities were completely omitted from their POC task ledger.
+3. Fragmented Executive Reporting:
+   The "Copy Summary" clipboard helper only serialized creator metrics. Management had no standardized way to summarize full 360-degree operations for daily leadership reviews on WhatsApp or Slack.
+
+[SOLUTION & ARCHITECTURE]
+1. Dual-Stream SQL Aggregation Engine (/api/admin/poc-dashboard/pending-tracker):
+   - Expanded SQL queries to LEFT JOIN public.brands b ON c.brand_id = b.id.
+   - Enhanced WHERE clause scoping: ($1 = ANY(c.poc_admin_ids) OR b.assigned_1to7_kam_id = $1), capturing both campaign-level and brand-level ownership.
+   - Aggregated real-time brand metrics using conditional SQL filters:
+     * brand_pitched: COUNT(app.id) FILTER (WHERE app.brand_review_status = 'pending_brand_review')
+     * brand_approved: COUNT(app.id) FILTER (WHERE app.brand_review_status = 'brand_approved')
+     * brand_sla_warnings (>24h) and brand_sla_breaches (>48h) calculated via COALESCE(app.brand_pitched_at, app.created_at).
+     * brand_dispatch_pending: brand-approved creators needing shipping address verification.
+     * brand_content_pending: submitted deliverables awaiting brand sign-off.
+2. 360-Degree Operations Control Lens (PocActionTracker.tsx):
+   - Implemented a segmented mode selector: [ 🌐 360° All | 📱 Creator Ops | 🏢 Brand & KAM ].
+   - Deployed a two-tier KPI engine rendering both Creator Action cards (Order forms, Deliverables, Payments, Applicants) and Brand Ops cards (Pitched to Brands, Brand SLA Delay, Brand Dispatch, Brand Content QA).
+   - In 360° and Brand modes, the campaign matrix features brand decision status, SLA warning badges, and direct deep-links to Brand Admin Curation desks (/brand-admin/campaign-pitches) and Courier Dispatch (/brand-admin/brand-dispatch).
+3. 360-Degree Executive Clipboard Formatter:
+   - Updated handleCopySummary to export both Creator Operations and Brand & KAM Operations metrics formatted with clean Markdown emojis for WhatsApp and Slack daily executive standups.
+4. Production Unit Test Verification:
+   - Added tests/unit/poc-brand-operations.test.ts testing calculateBrandHitRate, calculateSlaStatus, formatSlaDuration, and filterPocCampaignsByMode across edge cases (division by zero, negative values, SLA boundary thresholds). All 41 test files and 335 tests pass with 100% green coverage.
+
+[INTERVIEW STAR TAKEAWAY]
+S: Operations managers had visibility only into creator-side tasks on the POC dashboard, leaving staff's brand pitching, SLA bottlenecks, and dispatch preparation invisible and unmonitored.
+T: Design a unified 360-degree performance hub that aggregates both Creator and Brand operations, supports multi-mode viewing, and maintains 100% backward compatibility for existing production APIs.
+A: Enhanced the backend aggregation pipeline with relational joins across campaigns, brands, and applications. Introduced dual-stream KPI tiers, segmented mode switching, SLA duration formatting, and contextual deep-linking. Verified with comprehensive unit tests and automated regression checks.
+R: Operations managers now have an end-to-end, single-screen cockpit with 1-click clipboard export for daily executive standups. Staff accountability across both Creator Ops and Brand Curation is completely transparent.

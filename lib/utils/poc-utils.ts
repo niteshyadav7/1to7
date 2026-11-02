@@ -105,3 +105,85 @@ export function matchesCampaignSearch<T extends {
 
   return brandMatch || codeMatch || platformMatch || pocMatch
 }
+
+/**
+ * Calculates Brand Hit Rate percentage (brand approved creators / total pitched creators).
+ * Rounded to 1 decimal place. Capped at 100%.
+ */
+export function calculateBrandHitRate(approvedCount: number, pitchedCount: number): number {
+  if (!pitchedCount || pitchedCount <= 0 || !approvedCount || approvedCount <= 0) return 0
+  const rate = (approvedCount / pitchedCount) * 100
+  return Math.min(100, Math.round(rate * 10) / 10)
+}
+
+/**
+ * Calculates SLA health status based on hours elapsed:
+ * <= 24h: 'on_track'
+ * 24h - 48h: 'warning'
+ * > 48h: 'breached'
+ */
+export function calculateSlaStatus(hoursElapsed: number): 'on_track' | 'warning' | 'breached' {
+  if (hoursElapsed > 48) return 'breached'
+  if (hoursElapsed > 24) return 'warning'
+  return 'on_track'
+}
+
+/**
+ * Formats SLA hours into human readable duration string (e.g. "18h", "2d 4h").
+ */
+export function formatSlaDuration(hours: number): string {
+  if (!hours || hours <= 0) return '0h'
+  const rounded = Math.floor(hours)
+  if (rounded < 24) return `${rounded}h`
+  const days = Math.floor(rounded / 24)
+  const remHours = rounded % 24
+  return `${days}d ${remHours}h`
+}
+
+export type PocOperationsMode = '360' | 'creator' | 'brand'
+
+/**
+ * Filters campaigns based on active operations mode and pending status.
+ */
+export function filterPocCampaignsByMode<T extends {
+  pendingOrders?: number
+  pendingDeliverables?: number
+  pendingPayments?: number
+  pendingApplications?: number
+  brandPitched?: number
+  brandSlaBreaches?: number
+  brandSlaWarnings?: number
+  brandDispatchPending?: number
+  brandContentPending?: number
+}>(
+  campaigns: T[],
+  mode: PocOperationsMode = '360',
+  onlyPending: boolean = false
+): T[] {
+  if (!Array.isArray(campaigns)) return []
+  if (!onlyPending && mode === '360') return campaigns
+
+  return campaigns.filter(c => {
+    const hasCreatorPending =
+      Number(c.pendingOrders || 0) > 0 ||
+      Number(c.pendingDeliverables || 0) > 0 ||
+      Number(c.pendingPayments || 0) > 0 ||
+      Number(c.pendingApplications || 0) > 0
+
+    const hasBrandPending =
+      Number(c.brandPitched || 0) > 0 ||
+      Number(c.brandSlaBreaches || 0) > 0 ||
+      Number(c.brandSlaWarnings || 0) > 0 ||
+      Number(c.brandDispatchPending || 0) > 0 ||
+      Number(c.brandContentPending || 0) > 0
+
+    if (mode === 'creator') {
+      return onlyPending ? hasCreatorPending : true
+    }
+    if (mode === 'brand') {
+      return onlyPending ? hasBrandPending : true
+    }
+    // 360 mode
+    return onlyPending ? (hasCreatorPending || hasBrandPending) : true
+  })
+}

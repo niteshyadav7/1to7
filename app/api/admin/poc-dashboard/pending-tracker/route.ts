@@ -15,6 +15,7 @@ export interface AssignedPocInfo {
 
 export interface CampaignPendingItem {
   id: string
+  brandId?: string | null
   brandName: string
   campaignCode: string
   platform: string
@@ -24,6 +25,7 @@ export interface CampaignPendingItem {
   isLive: boolean
   createdAt: string
   assignedPocs: AssignedPocInfo[]
+  // Creator actions
   pendingOrders: number
   pendingDeliverables: number
   pendingPayments: number
@@ -31,12 +33,29 @@ export interface CampaignPendingItem {
   pendingGhosted: number
   totalCriticalPending: number
   isClear: boolean
+  // Brand & KAM actions
+  brandPitched: number
+  brandApproved: number
+  brandRejected: number
+  brandSlaWarnings: number
+  brandSlaBreaches: number
+  brandDispatchPending: number
+  brandContentPending: number
+  brandContactName?: string | null
+  brandContactPhone?: string | null
+  totalBrandCriticalPending: number
+  isBrandClear: boolean
+  // 360 combined pending
+  totalCombinedPending: number
   quickLinks: {
     ordersUrl: string
     completionUrl: string
     paymentsUrl: string
     applicationsUrl: string
     ghostedUrl?: string
+    brandPitchesUrl: string
+    brandDispatchUrl: string
+    brandSlaUrl: string
   }
 }
 
@@ -44,6 +63,7 @@ export interface PendingTrackerResponse {
   success: boolean
   summary: {
     totalAssignedCampaigns: number
+    // Creator metrics
     totalPendingOrders: number
     totalPendingDeliverables: number
     totalPendingPayments: number
@@ -51,6 +71,18 @@ export interface PendingTrackerResponse {
     totalPendingGhosted: number
     totalCriticalPending: number
     isAllClear: boolean
+    // Brand metrics
+    totalBrandPitched: number
+    totalBrandApproved: number
+    totalBrandRejected: number
+    totalBrandSlaWarnings: number
+    totalBrandSlaBreaches: number
+    totalBrandDispatchPending: number
+    totalBrandContentPending: number
+    totalBrandCriticalPending: number
+    isBrandAllClear: boolean
+    // Combined 360
+    totalCombinedPending: number
   }
   campaigns: CampaignPendingItem[]
   allStaff: AssignedPocInfo[]
@@ -121,13 +153,13 @@ export async function GET(request: Request) {
 
     const selectedPoc = targetPocId && targetPocId !== 'all' ? (staffMap.get(targetPocId) || null) : null
 
-    // 2. Query campaigns and aggregate pending items
+    // 2. Query campaigns and aggregate pending items for both Creator and Brand operations
     const queryParams: any[] = []
     let whereClauses: string[] = []
 
     if (targetPocId && targetPocId !== 'all') {
       queryParams.push(targetPocId)
-      whereClauses.push(`$${queryParams.length} = ANY(c.poc_admin_ids)`)
+      whereClauses.push(`($${queryParams.length} = ANY(c.poc_admin_ids) OR b.assigned_1to7_kam_id = $${queryParams.length})`)
     }
 
     const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
@@ -135,7 +167,8 @@ export async function GET(request: Request) {
     const campaignsQuery = `
       SELECT 
         c.id,
-        c.brand_name,
+        c.brand_id,
+        COALESCE(b.name, c.brand_name) AS brand_name,
         c.campaign_code,
         c.platform,
         c.category,
@@ -144,6 +177,9 @@ export async function GET(request: Request) {
         c.is_live,
         c.poc_admin_ids,
         c.created_at,
+        b.primary_contact_name,
+        b.primary_contact_phone,
+        -- Creator Action Form Submissions
         COUNT(app.id) FILTER (
           WHERE app.form_data->>'order_details' IS NOT NULL 
           AND (app.form_data->>'order_details_approved' IS NULL OR app.form_data->>'order_details_approved' != 'true')
@@ -174,11 +210,39 @@ export async function GET(request: Request) {
         COUNT(app.id) FILTER (
           WHERE app.is_ghosted = true
         ) AS pending_ghosted,
+        -- Brand & KAM Operations
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'pending_brand_review'
+        ) AS brand_pitched,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'brand_approved'
+        ) AS brand_approved,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'brand_rejected'
+        ) AS brand_rejected,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'pending_brand_review'
+          AND COALESCE(app.brand_pitched_at, (app.form_data->'sent_to_brand'->>'sent_at')::timestamptz, app.created_at) < NOW() - INTERVAL '48 hours'
+        ) AS brand_sla_breaches,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'pending_brand_review'
+          AND COALESCE(app.brand_pitched_at, (app.form_data->'sent_to_brand'->>'sent_at')::timestamptz, app.created_at) >= NOW() - INTERVAL '48 hours'
+          AND COALESCE(app.brand_pitched_at, (app.form_data->'sent_to_brand'->>'sent_at')::timestamptz, app.created_at) < NOW() - INTERVAL '24 hours'
+        ) AS brand_sla_warnings,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_review_status = 'brand_approved'
+          AND (app.address_status IS NULL OR app.address_status != 'Verified')
+        ) AS brand_dispatch_pending,
+        COUNT(app.id) FILTER (
+          WHERE app.brand_content_status = 'pending'
+          AND (app.completion_submitted_at IS NOT NULL OR app.form_data->'completion_submission' IS NOT NULL)
+        ) AS brand_content_pending,
         COUNT(app.id) AS total_applications
       FROM public.campaigns c
+      LEFT JOIN public.brands b ON c.brand_id = b.id
       LEFT JOIN public.applications app ON app.campaign_id = c.id
       ${whereSQL}
-      GROUP BY c.id
+      GROUP BY c.id, b.id, b.name, b.primary_contact_name, b.primary_contact_phone
       ORDER BY (
         COUNT(app.id) FILTER (
           WHERE app.form_data->>'order_details' IS NOT NULL 
@@ -199,10 +263,8 @@ export async function GET(request: Request) {
           AND (app.form_data->>'completion_approved' IS NULL OR app.form_data->>'completion_approved' != 'true')
         ) +
         COUNT(app.id) FILTER (
-          WHERE app.form_data->'payment_request' IS NOT NULL
-          AND (app.form_data->'payment_initiated' IS NULL OR app.form_data->'payment_initiated'->>'status' = 'rejected')
-          AND app.form_data->'finance_payout_completed' IS NULL
-          AND app.status != 'Rejected'
+          WHERE app.brand_review_status = 'pending_brand_review'
+          AND COALESCE(app.brand_pitched_at, (app.form_data->'sent_to_brand'->>'sent_at')::timestamptz, app.created_at) < NOW() - INTERVAL '48 hours'
         )
       ) DESC, c.created_at DESC
     `
@@ -215,12 +277,21 @@ export async function GET(request: Request) {
     let totalPendingApplications = 0
     let totalPendingGhosted = 0
 
+    let totalBrandPitched = 0
+    let totalBrandApproved = 0
+    let totalBrandRejected = 0
+    let totalBrandSlaWarnings = 0
+    let totalBrandSlaBreaches = 0
+    let totalBrandDispatchPending = 0
+    let totalBrandContentPending = 0
+
     let items: CampaignPendingItem[] = res.rows.map(row => {
       const rawPocIds: string[] = Array.isArray(row.poc_admin_ids) ? row.poc_admin_ids : []
       const assignedPocs: AssignedPocInfo[] = rawPocIds
         .map(id => staffMap.get(id))
         .filter((poc): poc is AssignedPocInfo => Boolean(poc))
 
+      // Creator Metrics
       const pendingOrders = parseInt(row.pending_orders) || 0
       const pendingDeliverables = parseInt(row.pending_deliverables) || 0
       const pendingPayments = parseInt(row.pending_payments) || 0
@@ -233,11 +304,34 @@ export async function GET(request: Request) {
       totalPendingApplications += pendingApplications
       totalPendingGhosted += pendingGhosted
 
+      // Brand & KAM Metrics
+      const brandPitched = parseInt(row.brand_pitched) || 0
+      const brandApproved = parseInt(row.brand_approved) || 0
+      const brandRejected = parseInt(row.brand_rejected) || 0
+      const brandSlaBreaches = parseInt(row.brand_sla_breaches) || 0
+      const brandSlaWarnings = parseInt(row.brand_sla_warnings) || 0
+      const brandDispatchPending = parseInt(row.brand_dispatch_pending) || 0
+      const brandContentPending = parseInt(row.brand_content_pending) || 0
+
+      totalBrandPitched += brandPitched
+      totalBrandApproved += brandApproved
+      totalBrandRejected += brandRejected
+      totalBrandSlaBreaches += brandSlaBreaches
+      totalBrandSlaWarnings += brandSlaWarnings
+      totalBrandDispatchPending += brandDispatchPending
+      totalBrandContentPending += brandContentPending
+
       const totalCriticalPending = pendingOrders + pendingDeliverables + pendingPayments
       const isClear = totalCriticalPending === 0
 
+      const totalBrandCriticalPending = brandPitched + brandSlaBreaches + brandDispatchPending
+      const isBrandClear = totalBrandCriticalPending === 0
+
+      const totalCombinedPending = totalCriticalPending + totalBrandCriticalPending
+
       return {
         id: row.id,
+        brandId: row.brand_id ? String(row.brand_id) : null,
         brandName: row.brand_name || 'Untitled Campaign',
         campaignCode: row.campaign_code || '—',
         platform: row.platform || 'Instagram',
@@ -247,6 +341,7 @@ export async function GET(request: Request) {
         isLive: Boolean(row.is_live),
         createdAt: row.created_at,
         assignedPocs,
+        // Creator
         pendingOrders,
         pendingDeliverables,
         pendingPayments,
@@ -254,12 +349,28 @@ export async function GET(request: Request) {
         pendingGhosted,
         totalCriticalPending,
         isClear,
+        // Brand
+        brandPitched,
+        brandApproved,
+        brandRejected,
+        brandSlaWarnings,
+        brandSlaBreaches,
+        brandDispatchPending,
+        brandContentPending,
+        brandContactName: row.primary_contact_name || null,
+        brandContactPhone: row.primary_contact_phone || null,
+        totalBrandCriticalPending,
+        isBrandClear,
+        totalCombinedPending,
         quickLinks: {
           ordersUrl: `/admin/order-details?status=Pending&brand=${encodeURIComponent(row.brand_name || '')}&campaignCode=${encodeURIComponent(row.campaign_code || '')}`,
           completionUrl: `/admin/completion-details?tab=pending&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
           paymentsUrl: `/admin/payments?status=Payment+Requested&brand=${encodeURIComponent(row.brand_name || '')}&search=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
           applicationsUrl: `/admin/applications?status=Applied&campaign=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
           ghostedUrl: `/admin/poc-dashboard?tab=ghosted&campaign=${encodeURIComponent(row.campaign_code || row.brand_name || '')}`,
+          brandPitchesUrl: `/brand-admin/campaign-pitches?campaignId=${encodeURIComponent(row.id)}`,
+          brandDispatchUrl: `/brand-admin/brand-dispatch?campaign=${encodeURIComponent(row.id)}`,
+          brandSlaUrl: `/brand-admin/reviews-sla`,
         }
       }
     })
@@ -276,16 +387,22 @@ export async function GET(request: Request) {
 
     // Filter by only pending if toggled
     if (onlyPending) {
-      items = items.filter(c => c.totalCriticalPending > 0)
+      items = items.filter(c => c.totalCombinedPending > 0)
     }
 
     const totalCriticalPending = totalPendingOrders + totalPendingDeliverables + totalPendingPayments
     const isAllClear = totalCriticalPending === 0
 
+    const totalBrandCriticalPending = totalBrandPitched + totalBrandSlaBreaches + totalBrandDispatchPending
+    const isBrandAllClear = totalBrandCriticalPending === 0
+
+    const totalCombinedPending = totalCriticalPending + totalBrandCriticalPending
+
     return NextResponse.json({
       success: true,
       summary: {
         totalAssignedCampaigns: items.length,
+        // Creator metrics
         totalPendingOrders,
         totalPendingDeliverables,
         totalPendingPayments,
@@ -293,6 +410,18 @@ export async function GET(request: Request) {
         totalPendingGhosted,
         totalCriticalPending,
         isAllClear,
+        // Brand metrics
+        totalBrandPitched,
+        totalBrandApproved,
+        totalBrandRejected,
+        totalBrandSlaWarnings,
+        totalBrandSlaBreaches,
+        totalBrandDispatchPending,
+        totalBrandContentPending,
+        totalBrandCriticalPending,
+        isBrandAllClear,
+        // Combined
+        totalCombinedPending,
       },
       campaigns: items,
       allStaff,
