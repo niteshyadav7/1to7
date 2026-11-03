@@ -61,6 +61,40 @@ function BrandHeaderSearch() {
   )
 }
 
+// Tab-isolated fetch interceptor: attaches tab-specific brand token to prevent cross-tab session collisions
+if (typeof window !== 'undefined' && !(window as any).__brandFetchPatched) {
+  ;(window as any).__brandFetchPatched = true
+  const originalFetch = window.fetch
+  window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
+    try {
+      const urlStr =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+          ? input.toString()
+          : (input as Request).url
+      if (urlStr.includes('/api/brand/')) {
+        const tabToken = window.sessionStorage.getItem('brand_token')
+        if (tabToken) {
+          const headers = new Headers(
+            init?.headers || (input instanceof Request ? input.headers : {})
+          )
+          if (!headers.has('x-brand-token')) {
+            headers.set('x-brand-token', tabToken)
+          }
+          return originalFetch.call(this, input, {
+            ...init,
+            headers,
+          })
+        }
+      }
+    } catch {
+      // Fallback to original fetch
+    }
+    return originalFetch.call(this, input, init)
+  }
+}
+
 export default function BrandPanelLayout({ children }: { children: React.ReactNode }) {
   return (
     <BrandSearchProvider>
@@ -73,7 +107,26 @@ function BrandPanelLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  const [brandUser, setBrandUser] = useState<BrandPayload | null>(() => brandCache.get<BrandPayload>('brand_user'))
+  const [brandUser, setBrandUser] = useState<BrandPayload | null>(() => {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      const btParam = url.searchParams.get('bt') || url.searchParams.get('token')
+      const bParam = url.searchParams.get('b') || url.searchParams.get('brand')
+      if (btParam) {
+        window.sessionStorage.setItem('brand_token', btParam)
+        if (bParam) window.sessionStorage.setItem('brand_slug', bParam)
+        brandCache.invalidate()
+        url.searchParams.delete('bt')
+        url.searchParams.delete('token')
+        url.searchParams.delete('b')
+        url.searchParams.delete('brand')
+        const cleanUrl = url.pathname + (url.search ? url.search : '') + url.hash
+        window.history.replaceState({}, '', cleanUrl)
+        return null
+      }
+    }
+    return brandCache.get<BrandPayload>('brand_user')
+  })
   const [loading, setLoading] = useState(() => !brandCache.get<BrandPayload>('brand_user'))
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -106,6 +159,12 @@ function BrandPanelLayoutContent({ children }: { children: React.ReactNode }) {
         if (data.authenticated && data.user) {
           setBrandUser(data.user)
           brandCache.set('brand_user', data.user)
+          if (data.token && typeof window !== 'undefined' && !window.sessionStorage.getItem('brand_token')) {
+            window.sessionStorage.setItem('brand_token', data.token)
+            if (data.user.brand_slug) {
+              window.sessionStorage.setItem('brand_slug', data.user.brand_slug)
+            }
+          }
         } else if (!silent) {
           brandCache.invalidate()
           router.replace('/brand/login')
@@ -194,6 +253,10 @@ function BrandPanelLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('brand_token')
+        window.sessionStorage.removeItem('brand_slug')
+      }
       brandCache.invalidate()
       await fetch('/api/brand/auth/logout', { method: 'POST' })
       toast.success('Signed out of Brand Workspace')

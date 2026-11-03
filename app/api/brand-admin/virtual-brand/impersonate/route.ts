@@ -91,8 +91,12 @@ export async function GET(request: Request) {
     // 3. Encrypt into 7-day session token
     const token = await encryptBrandToken(payload, '7d')
 
-    // 4. Construct response redirecting to targetPath with brand_token cookie set
+    // 4. Construct response redirecting to targetPath with brand_token cookie set and tab-scoped parameters
     const redirectUrl = new URL(redirectPath, request.url)
+    redirectUrl.searchParams.set('bt', token)
+    if (payload.brand_slug) {
+      redirectUrl.searchParams.set('b', payload.brand_slug)
+    }
     const response = NextResponse.redirect(redirectUrl)
     response.cookies.set(BRAND_COOKIE_NAME, token, {
       httpOnly: true,

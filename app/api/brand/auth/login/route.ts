@@ -156,6 +156,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       user: payload,
+      token,
     })
 
     // Set secure HttpOnly cookie for 7 days

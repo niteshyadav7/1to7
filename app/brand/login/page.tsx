@@ -127,6 +127,13 @@ export default function BrandLoginPage() {
         throw new Error(data.error || 'Invalid or expired verification code')
       }
 
+      if (data.token && typeof window !== 'undefined') {
+        window.sessionStorage.setItem('brand_token', data.token)
+        if (data.user?.brand_slug) {
+          window.sessionStorage.setItem('brand_slug', data.user.brand_slug)
+        }
+      }
+
       toast.success(`Welcome back, ${data.user?.full_name || 'Brand Partner'}!`)
       router.push('/brand/campaigns')
     } catch (err: any) {
@@ -158,6 +165,13 @@ export default function BrandLoginPage() {
       const data = await res.json()
       if (!res.ok) {
         throw new Error(data.error || 'Authentication failed. Please verify your credentials.')
+      }
+
+      if (data.token && typeof window !== 'undefined') {
+        window.sessionStorage.setItem('brand_token', data.token)
+        if (data.user?.brand_slug) {
+          window.sessionStorage.setItem('brand_slug', data.user.brand_slug)
+        }
       }
 
       toast.success(`Welcome back, ${data.user?.full_name || 'Brand Partner'}!`)

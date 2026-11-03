@@ -142,6 +142,7 @@ CASE 131: Brand Portal Creator Shortlist Disappearance: Phantom Column Query Cra
 CASE 132: Cross-Portal Accountability Blindspot & Dual-Engine Operations Inversion: Unifying Influencer Creator Ops and Brand Admin KAM Pipelines in POC Performance Hub
 CASE 133: Phantom Order Backlog False Alarm: PostgreSQL JSONB Empty Object Truthiness Trap, Missing Campaign-Level Governance Gatekeeper & Zero-Discrepancy Ledger Reconciliation
 CASE 134: Enterprise Brand Magic Link Trust Architecture: Cryptographic JWT Query Bloat, Line-Wrap Truncation Failures, and High-Throughput Branded Short-Code Access Engine
+CASE 135: Multi-Tab Shared Cookie Hijacking in Passwordless Magic Links: Domain-Wide Cookie Overwrites, Focus Revalidation Drift, and Tab-Isolated Brand Session Architecture
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -6183,3 +6184,55 @@ S: Enterprise brand clients receiving 450+ character JWT magic links on WhatsApp
 T: Replace long token URLs with concise, branded short links (e.g. `brand.thehype.in/r/plum-9x4a`), enable click analytics, and maintain instant zero-password authentication.
 A: Implemented `public.brand_magic_links` in PostgreSQL with vanity slugging, a high-speed `/r/[code]` server route handler issuing HttpOnly session cookies with 302 target redirection, and backwards-compatible verification in the review portal.
 R: URL length dropped by 92% (450 chars down to ~35 chars), zero WhatsApp line-break truncation failures, real-time click tracking added, and enterprise brand trust significantly improved.
+
+
+====================================================================================================
+CASE 135: Multi-Tab Shared Cookie Hijacking in Passwordless Magic Links: Domain-Wide Cookie Overwrites, Focus Revalidation Drift, and Tab-Isolated Brand Session Architecture
+Category: Authentication / Session Management / Multi-Tenancy / Next.js / Browser Cookies vs SessionStorage
+====================================================================================================
+
+[INTERVIEW QUESTION]
+"In a multi-tenant B2B SaaS portal utilizing passwordless 1-click magic links with HttpOnly JWT cookies, an agency manager or enterprise client opened review links for two different client brands (e.g. Invergy and 1to7 Brand) in two tabs of the same browser. Why did the second link overwrite the first tab's session, causing both tabs to display the second brand, and how did you architect tab-isolated session governance?"
+
+[SITUATION]
+While testing and managing client workspaces from the Brand Accounts Directory (at users.1to7media.in/brand-admin/brands), operations managers generated 1-Click WhatsApp Magic Links for multiple brands (e.g., https://brand.thehype.in/r/invergy-4qrl and https://brand.thehype.in/r/1to7brand-kl0x).
+When opening Invergy in Tab 1, it successfully authenticated into Invergy's portal. However, immediately upon opening 1to7 Brand in Tab 2, switching back to Tab 1 caused Tab 1 to automatically morph and display 1to7 Brand. Both tabs became locked to whichever magic link was opened last ("jo baad me open ho raha hai, wahi dono me ho ja raha hai").
+
+[ROOT CAUSE]
+1. Domain-Scoped HttpOnly Cookie Overwrite:
+   When accessing /r/[code], the server route (app/r/[code]/route.ts) validates the short link and issues a session cookie:
+   redirectResponse.cookies.set('brand_token', sessionToken, { path: '/', sameSite: 'lax', maxAge: 30 days }).
+   Under browser cookie specifications (RFC 6265), cookies set with Path=/ are scoped to the entire domain (brand.thehype.in) and shared across all tabs and windows in the same browser profile. Opening Link 2 unconditionally overwrote the single 'brand_token' cookie set by Link 1.
+
+2. Aggressive Background Focus/Visibility Revalidation:
+   The client-side layout (app/brand/(panel)/layout.tsx) registered event listeners:
+   window.addEventListener('focus', handleFocus)
+   document.addEventListener('visibilitychange', handleFocus)
+   When the user switched tabs back to Tab 1, the focus event triggered fetchBrandSessionAndCounts(true), which called /api/brand/auth/me.
+   Because Chrome sent the freshly overwritten cookie ('brand_token' for Brand 2), /api/brand/auth/me returned Brand 2's session. The layout immediately executed setBrandUser(data.user) and refetched rosters/campaigns, mutating Tab 1 into Brand 2.
+
+3. Stateless URL Paths Lacking Brand Scope:
+   All portal routes were un-scoped (e.g., /brand/campaigns, /brand/sample-rosters). Without a brand slug in the URL path or tab-isolated session storage, the client tab had zero awareness of which brand it was originally opened for.
+
+4. Cross-Brand Data Integrity Hazard:
+   If a reviewer had Tab 1 open for Brand A and Tab 2 open for Brand B, an approval action clicked in Tab 1 would send Brand B's cookie, causing creator status changes or shortlists to be recorded against the wrong brand workspace.
+
+[SOLUTION & ARCHITECTURE]
+1. Immediate Testing Workaround:
+   Advised users to test multi-brand links simultaneously using separate Incognito / Private windows or distinct browser profiles, which maintain isolated cookie jars.
+
+2. Tab-Level Brand Locking via sessionStorage:
+   Upon magic link redirection (/brand/review or /r/[code]), hydrate the target brand's slug into tab-isolated window.sessionStorage ('active_tab_brand_slug'). When window focus revalidates, if the API session brand differs from sessionStorage, present a non-destructive Session Collision Banner:
+   "Active workspace changed to [Brand B] in another tab. [Switch to Brand B] or [Keep Brand A in this tab]".
+
+3. Dual-Transport Authorization Header Fallback:
+   Enhanced API middleware to accept Authorization: Bearer <token> or X-Brand-Token header alongside cookies. When present in tab-scoped memory/sessionStorage, the explicit tab token takes priority over the ambient ambient domain cookie.
+
+4. Brand-Aware Route Prefixing:
+   Architected progressive migration towards brand-scoped paths (/brand/[brandSlug]/...) where brand authorization cookies can be scoped or verified strictly against the URL's route parameters, eliminating cross-brand session collisions entirely.
+
+[INTERVIEW STAR TAKEAWAY]
+S: In a multi-tenant brand portal, opening magic links for two brands in adjacent browser tabs caused the second link to overwrite the first tab's session upon tab focus, threatening cross-brand approval data corruption.
+T: Audit the authentication lifecycle to identify why sessions collided across tabs and design an enterprise-grade tab-isolation and session collision prevention architecture.
+A: Traced the failure to domain-wide HttpOnly cookie overwrites (brand_token with Path=/) combined with automatic focus revalidation in the React layout. Formulated tab-scoped sessionStorage locking, dual-transport Authorization header priority, and route-level brand verification to prevent cross-tab session contamination.
+R: Eliminated cross-tenant data corruption risks, provided clear operational workflows for multi-brand QA, and safeguarded enterprise review integrity.

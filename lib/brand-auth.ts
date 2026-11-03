@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
 import type { BrandPayload, BrandUserRole } from '@/types/brand'
 
@@ -89,12 +89,50 @@ export async function verifyBrandReviewToken(token: string): Promise<any | null>
 }
 
 /**
- * Retrieve the authenticated brand payload from request cookies.
+ * Retrieve the authenticated brand payload from request headers (tab-scoped) or cookies.
  */
-export async function getBrandFromRequest(): Promise<BrandPayload | null> {
+export async function getBrandFromRequest(request?: Request): Promise<BrandPayload | null> {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get(BRAND_COOKIE_NAME)?.value
+    let token: string | undefined
+
+    // 1. Direct request header inspection if request is explicitly passed
+    if (request) {
+      const customHeader = request.headers.get('x-brand-token')
+      if (customHeader) token = customHeader.trim()
+
+      if (!token) {
+        const authHeader = request.headers.get('authorization')
+        if (authHeader?.startsWith('Bearer ')) {
+          token = authHeader.substring(7).trim()
+        }
+      }
+    }
+
+    // 2. Next.js headers() inspection for tab-scoped isolation
+    if (!token) {
+      try {
+        const reqHeaders = await headers()
+        const customHeader = reqHeaders.get('x-brand-token')
+        if (customHeader) token = customHeader.trim()
+
+        if (!token) {
+          const authHeader = reqHeaders.get('authorization')
+          if (authHeader?.startsWith('Bearer ')) {
+            token = authHeader.substring(7).trim()
+          }
+        }
+      } catch {
+        // headers() context not available in non-request runner
+      }
+    }
+
+    // 3. Ambient cookie fallback (for legacy / standard flows)
+    if (!token) {
+      try {
+        const cookieStore = await cookies()
+        token = cookieStore.get(BRAND_COOKIE_NAME)?.value
+      } catch {}
+    }
 
     if (!token) return null
 

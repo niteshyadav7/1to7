@@ -175,6 +175,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       user: brandPayload,
+      token: sessionToken,
       redirectUrl,
       batch_name: targetBatch || null,
     })

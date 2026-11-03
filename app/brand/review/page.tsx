@@ -57,6 +57,13 @@ function ReviewTokenHandler() {
           throw new Error(data.error || 'The review link has expired or is invalid.')
         }
 
+        if (data.token && typeof window !== 'undefined') {
+          window.sessionStorage.setItem('brand_token', data.token)
+          if (data.user?.brand_slug) {
+            window.sessionStorage.setItem('brand_slug', data.user.brand_slug)
+          }
+        }
+
         setBrandInfo(data.user)
         setStatus('success')
         toast.success(`Welcome, ${data.user?.brand_name || 'Brand Partner'}! Direct access granted.`)

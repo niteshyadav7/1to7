@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   encryptBrandToken,
   decryptBrandToken,
+  getBrandFromRequest,
   hasBrandRole,
   canApproveCreators,
   canManageTeam,

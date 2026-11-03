@@ -163,8 +163,14 @@ export async function GET(
       // Non-fatal
     }
 
-    // 9. Redirect with HttpOnly session cookie
-    const redirectResponse = NextResponse.redirect(new URL(redirectUrl, request.url), 302)
+    // 9. Redirect with HttpOnly session cookie and tab-scoped auth parameters
+    const targetUrl = new URL(redirectUrl, request.url)
+    targetUrl.searchParams.set('bt', sessionToken)
+    if (brandPayload.brand_slug) {
+      targetUrl.searchParams.set('b', brandPayload.brand_slug)
+    }
+
+    const redirectResponse = NextResponse.redirect(targetUrl, 302)
     redirectResponse.cookies.set(BRAND_COOKIE_NAME, sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
