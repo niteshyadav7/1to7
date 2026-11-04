@@ -15,6 +15,7 @@ export async function GET() {
       .select(`
         id,
         status,
+        is_archived,
         form_data,
         partial_payment,
         final_payment,
@@ -57,8 +58,9 @@ export async function GET() {
 
     if (error) throw error
 
-    // Filter to ensure only applications with genuine completion data are returned
+    // Filter to ensure only applications with genuine completion data are returned (excluding archived)
     const completions = (applications || []).filter((app: any) => {
+      if (app.is_archived || app.status === 'Archived') return false
       const sub = app.form_data?.completion_submission
       const payReq = app.form_data?.payment_request
       const hasDirectCompletion = Boolean(app.completion_submitted_at || sub)
