@@ -163,14 +163,18 @@ export async function GET(request: Request) {
         c.poc_admin_ids,
         c.created_at,
         COUNT(app.id) AS total_applications,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review')) AS approved_count,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS approved_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count,
         COUNT(app.id) FILTER (WHERE app.is_ghosted = true) AS ghosted_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS total_paid
       FROM public.campaigns c
-      LEFT JOIN public.applications app 
-        ON app.campaign_id = c.id 
+      LEFT JOIN (
+        public.applications app
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
+      ) ON app.campaign_id = c.id 
+        AND COALESCE(app.is_archived, false) = false
+        AND app.status != 'Archived'
         AND (
           (app.created_at >= $1 AND app.created_at <= $2)
           OR (app.updated_at >= $1 AND app.updated_at <= $2)

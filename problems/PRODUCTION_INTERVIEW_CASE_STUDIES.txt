@@ -143,6 +143,7 @@ CASE 132: Cross-Portal Accountability Blindspot & Dual-Engine Operations Inversi
 CASE 133: Phantom Order Backlog False Alarm: PostgreSQL JSONB Empty Object Truthiness Trap, Missing Campaign-Level Governance Gatekeeper & Zero-Discrepancy Ledger Reconciliation
 CASE 134: Enterprise Brand Magic Link Trust Architecture: Cryptographic JWT Query Bloat, Line-Wrap Truncation Failures, and High-Throughput Branded Short-Code Access Engine
 CASE 135: Multi-Tab Shared Cookie Hijacking in Passwordless Magic Links: Domain-Wide Cookie Overwrites, Focus Revalidation Drift, and Tab-Isolated Brand Session Architecture
+CASE 136: Soft-Deleted & Dormant Record Leakage in Aggregation Pipelines: Unfiltered Archived Profile Counting in POC Operational Performance and Campaign Matrices
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 

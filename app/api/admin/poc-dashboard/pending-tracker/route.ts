@@ -244,7 +244,12 @@ export async function GET(request: Request) {
         COUNT(app.id) AS total_applications
       FROM public.campaigns c
       LEFT JOIN public.brands b ON c.brand_id = b.id
-      LEFT JOIN public.applications app ON app.campaign_id = c.id
+      LEFT JOIN (
+        public.applications app
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
+      ) ON app.campaign_id = c.id
+        AND COALESCE(app.is_archived, false) = false
+        AND app.status != 'Archived'
       ${whereSQL}
       GROUP BY c.id, c.order_form, b.id, b.name, b.primary_contact_name, b.primary_contact_phone
       ORDER BY (

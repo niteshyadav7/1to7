@@ -116,6 +116,9 @@ export async function GET(req: NextRequest) {
       LEFT JOIN campaigns c ON a.campaign_id = c.id
       LEFT JOIN users u ON a.user_id = u.id
       WHERE a.campaign_id = $1
+        AND COALESCE(a.is_archived, false) = false
+        AND a.status != 'Archived'
+        AND COALESCE(u.is_archived, false) = false
       ORDER BY 
         CASE 
           WHEN a.is_ghosted = true THEN 0

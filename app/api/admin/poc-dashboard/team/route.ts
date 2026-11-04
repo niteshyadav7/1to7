@@ -130,16 +130,20 @@ export async function GET(request: Request) {
         poc_id,
         COUNT(DISTINCT c.id) AS campaign_count,
         COUNT(app.id) AS total_applications,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review')) AS approved_count,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS approved_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS total_paid
       FROM (
         SELECT id, unnest(poc_admin_ids) AS poc_id 
         FROM public.campaigns 
         WHERE poc_admin_ids IS NOT NULL AND array_length(poc_admin_ids, 1) > 0
       ) c
-      LEFT JOIN public.applications app 
-        ON app.campaign_id = c.id 
+      LEFT JOIN (
+        public.applications app
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
+      ) ON app.campaign_id = c.id 
+        AND COALESCE(app.is_archived, false) = false
+        AND app.status != 'Archived'
         AND (
           (app.created_at >= $1 AND app.created_at <= $2)
           OR (app.updated_at >= $1 AND app.updated_at <= $2)
@@ -154,14 +158,18 @@ export async function GET(request: Request) {
       `
       SELECT 
         poc_id,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) AS prev_approved_count
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS prev_approved_count
       FROM (
         SELECT id, unnest(poc_admin_ids) AS poc_id 
         FROM public.campaigns 
         WHERE poc_admin_ids IS NOT NULL AND array_length(poc_admin_ids, 1) > 0
       ) c
-      LEFT JOIN public.applications app 
-        ON app.campaign_id = c.id 
+      LEFT JOIN (
+        public.applications app
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
+      ) ON app.campaign_id = c.id 
+        AND COALESCE(app.is_archived, false) = false
+        AND app.status != 'Archived'
         AND (
           (app.created_at >= $1 AND app.created_at <= $2)
           OR (app.updated_at >= $1 AND app.updated_at <= $2)
@@ -179,7 +187,7 @@ export async function GET(request: Request) {
         poc_id,
         a.name AS poc_name,
         COUNT(app.id) AS apps_received,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) AS approvals_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS approvals_count,
         COUNT(app.id) FILTER (WHERE app.completion_submitted_at IS NOT NULL) AS completions_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS payout_volume
       FROM (
@@ -187,7 +195,8 @@ export async function GET(request: Request) {
         FROM public.campaigns 
         WHERE poc_admin_ids IS NOT NULL AND array_length(poc_admin_ids, 1) > 0
       ) c
-      JOIN public.applications app ON app.campaign_id = c.id
+      JOIN public.applications app ON app.campaign_id = c.id AND COALESCE(app.is_archived, false) = false AND app.status != 'Archived'
+      JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
       JOIN public.admins a ON a.id = c.poc_id
       WHERE (
         (app.created_at >= $2 AND app.created_at <= $3)
@@ -207,13 +216,14 @@ export async function GET(request: Request) {
           poc_id,
           TO_CHAR(COALESCE(app.updated_at, app.created_at), 'YYYY-MM-DD') as day_date,
           TO_CHAR(COALESCE(app.updated_at, app.created_at), 'Dy') as day_name,
-          COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) as approvals
+          COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) as approvals
         FROM (
           SELECT id, unnest(poc_admin_ids) AS poc_id 
           FROM public.campaigns 
           WHERE poc_admin_ids IS NOT NULL AND array_length(poc_admin_ids, 1) > 0
         ) c
-        JOIN public.applications app ON app.campaign_id = c.id
+        JOIN public.applications app ON app.campaign_id = c.id AND COALESCE(app.is_archived, false) = false AND app.status != 'Archived'
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
         WHERE (
           (app.created_at >= $1 AND app.created_at <= $2)
           OR (app.updated_at >= $1 AND app.updated_at <= $2)

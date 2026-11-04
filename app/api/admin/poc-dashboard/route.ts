@@ -128,14 +128,18 @@ export async function GET(request: Request) {
         c.is_live,
         c.created_at,
         COUNT(app.id) AS total_applications,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review')) AS approved_count,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS approved_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived') AND (app.status = 'Completed' OR app.completion_submitted_at IS NOT NULL)) AS completed_count,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived') AND app.status != 'Completed' AND app.completion_submitted_at IS NULL AND (app.is_ghosted IS NULL OR app.is_ghosted = false)) AS pending_count,
         COUNT(app.id) FILTER (WHERE app.is_ghosted = true) AS ghosted_count,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS total_paid
       FROM public.campaigns c
-      LEFT JOIN public.applications app 
-        ON app.campaign_id = c.id 
+      LEFT JOIN (
+        public.applications app
+        JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
+      ) ON app.campaign_id = c.id 
+        AND COALESCE(app.is_archived, false) = false
+        AND app.status != 'Archived'
         AND (
           (app.created_at >= $1 AND app.created_at <= $2)
           OR (app.updated_at >= $1 AND app.updated_at <= $2)
@@ -199,11 +203,12 @@ export async function GET(request: Request) {
       SELECT 
         TO_CHAR(DATE_TRUNC('day', COALESCE(app.updated_at, app.created_at)), 'YYYY-MM-DD') AS day_date,
         COUNT(app.id) AS total_apps,
-        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected')) AS approvals,
+        COUNT(app.id) FILTER (WHERE app.status::text NOT IN ('Applied', 'Rejected', 'Under Process', 'Under Review', 'Archived')) AS approvals,
         COUNT(app.id) FILTER (WHERE app.completion_submitted_at IS NOT NULL) AS completions,
         COALESCE(SUM(COALESCE(app.partial_payment, 0) + COALESCE(app.final_payment, 0) + COALESCE(app.payment_amount, 0)), 0) AS payouts
       FROM public.campaigns c
-      JOIN public.applications app ON app.campaign_id = c.id
+      JOIN public.applications app ON app.campaign_id = c.id AND COALESCE(app.is_archived, false) = false AND app.status != 'Archived'
+      JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
       WHERE $1 = ANY(c.poc_admin_ids)
         AND (
           (app.created_at >= $2 AND app.created_at <= $3)
@@ -251,8 +256,8 @@ export async function GET(request: Request) {
         u.instagram_username,
         u.mobile
       FROM public.campaigns c
-      JOIN public.applications app ON app.campaign_id = c.id
-      LEFT JOIN public.users u ON app.user_id = u.id
+      JOIN public.applications app ON app.campaign_id = c.id AND COALESCE(app.is_archived, false) = false AND app.status != 'Archived'
+      JOIN public.users u ON app.user_id = u.id AND COALESCE(u.is_archived, false) = false
       WHERE $1 = ANY(c.poc_admin_ids)
         AND (
           (app.created_at >= $2 AND app.created_at <= $3)
