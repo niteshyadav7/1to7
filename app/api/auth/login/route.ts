@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { encrypt } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
+import { isPlaceholderEmail } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {
@@ -31,8 +32,8 @@ export async function POST(request: Request) {
 
     // Gate: mobile and email must be verified before allowing full login
     const needsMobile = !user.is_mobile_verified && !!user.mobile
-    const isPlaceholderEmail = !user.email || user.email.endsWith('@instagram.1to7.com')
-    const needsEmail = !user.is_email_verified && !!user.email && !isPlaceholderEmail
+    const isPlaceholder = isPlaceholderEmail(user.email)
+    const needsEmail = !user.is_email_verified && !!user.email && !isPlaceholder
 
     if (needsMobile || needsEmail) {
       return NextResponse.json({

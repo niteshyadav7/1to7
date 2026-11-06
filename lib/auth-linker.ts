@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { extractInstagramUsername, normalizeInstagramUsername, syncUserInstagramState } from '@/lib/instagram-utils'
+import { isPlaceholderEmail } from '@/lib/user-utils'
 
 export interface UserLinkInput {
   currentUserId?: string | null
@@ -31,7 +32,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   let existingUser: any = null
 
   const cleanEmail = input.email ? input.email.trim().toLowerCase() : null
-  const isRealEmail = cleanEmail && !cleanEmail.endsWith('@instagram.1to7.com')
+  const isRealEmail = cleanEmail && !isPlaceholderEmail(cleanEmail)
   const cleanMobile = input.mobile ? String(input.mobile).replace(/\D/g, '') : null
 
   // 1. Check if user is currently logged in
@@ -103,7 +104,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   // Case A: If user matched by mobile, but a different real email was provided
   if (userByMobile && isRealEmail) {
     const mobileUserEmail = userByMobile.email ? userByMobile.email.trim().toLowerCase() : ''
-    const isMobileUserPlaceholder = !mobileUserEmail || mobileUserEmail.endsWith('@instagram.1to7.com')
+    const isMobileUserPlaceholder = isPlaceholderEmail(mobileUserEmail)
 
     if (!isMobileUserPlaceholder && mobileUserEmail !== cleanEmail) {
       throw new Error(
@@ -160,7 +161,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
     }
 
     // Fill email if current email is placeholder and cleanEmail is valid
-    if (cleanEmail && (!existingUser.email || existingUser.email.endsWith('@instagram.1to7.com'))) {
+    if (cleanEmail && isPlaceholderEmail(existingUser.email)) {
       updates.email = cleanEmail
     }
 
@@ -229,7 +230,7 @@ export async function resolveOrCreateUserIdentity(input: UserLinkInput) {
   }
 
   // CREATE NEW USER (influencer_id is automatically assigned by PostgreSQL BEFORE INSERT trigger)
-  if (!cleanEmail || cleanEmail.endsWith('@instagram.1to7.com')) {
+  if (!cleanEmail || isPlaceholderEmail(cleanEmail)) {
     throw new Error('A valid email address is required to create a creator account.')
   }
   if (!cleanMobile) {

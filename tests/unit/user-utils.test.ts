@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { maskEmail } from '@/lib/user-utils'
+import { maskEmail, isPlaceholderEmail } from '@/lib/user-utils'
 
 describe('user-utils', () => {
   describe('maskEmail', () => {
@@ -18,22 +18,30 @@ describe('user-utils', () => {
     })
 
     it('applies alternating 2-character masking pattern for standard emails', () => {
-      // "yashandroid":
-      // "ya" (visible)
-      // "sh" -> "**" (masked)
-      // "an" (visible)
-      // "dr" -> "**" (masked)
-      // "oi" (visible)
-      // "d" -> "*" (masked)
       expect(maskEmail('yashandroid@gmail.com')).toBe('ya**an**oi*@gmail.com')
-
-      // "nitesh123":
-      // "ni" (visible)
-      // "te" -> "**" (masked)
-      // "sh" (visible)
-      // "12" -> "**" (masked)
-      // "3" (visible)
       expect(maskEmail('nitesh123@gmail.com')).toBe('ni**sh**3@gmail.com')
     })
   })
+
+  describe('isPlaceholderEmail', () => {
+    it('identifies falsy or non-string emails as placeholder', () => {
+      expect(isPlaceholderEmail(null)).toBe(true)
+      expect(isPlaceholderEmail(undefined)).toBe(true)
+      expect(isPlaceholderEmail('')).toBe(true)
+    })
+
+    it('identifies internal system placeholder domains', () => {
+      expect(isPlaceholderEmail('test@instagram.1to7.com')).toBe(true)
+      expect(isPlaceholderEmail('user_123@guest.1to7.com')).toBe(true)
+      expect(isPlaceholderEmail('9876543210@import.1to7.com')).toBe(true)
+      expect(isPlaceholderEmail('USER@INSTAGRAM.1TO7.COM')).toBe(true)
+    })
+
+    it('identifies genuine creator emails as non-placeholder', () => {
+      expect(isPlaceholderEmail('creator@gmail.com')).toBe(false)
+      expect(isPlaceholderEmail('influencer@yahoo.com')).toBe(false)
+      expect(isPlaceholderEmail('contact@agency.in')).toBe(false)
+    })
+  })
 })
+

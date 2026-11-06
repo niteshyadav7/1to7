@@ -125,3 +125,18 @@ export function maskEmail(email: string): string {
 
   return `${result}@${domain}`
 }
+
+/**
+ * Checks if an email is an internal placeholder / system dummy email.
+ * Recognizes @instagram.1to7.com, @guest.1to7.com, and @import.1to7.com.
+ */
+export function isPlaceholderEmail(email?: string | null): boolean {
+  if (!email || typeof email !== 'string') return true
+  const lower = email.trim().toLowerCase()
+  return (
+    lower.endsWith('@instagram.1to7.com') ||
+    lower.endsWith('@guest.1to7.com') ||
+    lower.endsWith('@import.1to7.com')
+  )
+}
+

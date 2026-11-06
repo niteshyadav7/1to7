@@ -45,3 +45,7 @@ next-env.d.ts
 scratch/
 *.csv
 *-export.json
+*.mp4
+*.ass
+*.pdf
+

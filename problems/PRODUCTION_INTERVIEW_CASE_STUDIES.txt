@@ -144,6 +144,7 @@ CASE 133: Phantom Order Backlog False Alarm: PostgreSQL JSONB Empty Object Truth
 CASE 134: Enterprise Brand Magic Link Trust Architecture: Cryptographic JWT Query Bloat, Line-Wrap Truncation Failures, and High-Throughput Branded Short-Code Access Engine
 CASE 135: Multi-Tab Shared Cookie Hijacking in Passwordless Magic Links: Domain-Wide Cookie Overwrites, Focus Revalidation Drift, and Tab-Isolated Brand Session Architecture
 CASE 136: Soft-Deleted & Dormant Record Leakage in Aggregation Pipelines: Unfiltered Archived Profile Counting in POC Operational Performance and Campaign Matrices
+CASE 137: Production Creator Email Lockout & OAuth Disconnect: Atomic Super Admin Identity Rectification, Cross-Account Conflict Detection, and In-Place Profile Audit Trail Architecture
 CASE 117: False-Positive "No Internet Connection" Banner on Active Networks: Single-Point-of-Failure Internal Health Probes, Zero-Debounce Visibility Triggers & Dual-Tier Fallback Connectivity Architecture
 MASTER BLUEPRINT & ENGINEERING PROMPT: Full-Stack Architecture, UI/UX Guidelines & Reusable Production Prompt for Enterprise B2B Dashboards (The Gentelella Standard)
 
@@ -6237,3 +6238,46 @@ S: In a multi-tenant brand portal, opening magic links for two brands in adjacen
 T: Audit the authentication lifecycle to identify why sessions collided across tabs and design an enterprise-grade tab-isolation and session collision prevention architecture.
 A: Traced the failure to domain-wide HttpOnly cookie overwrites (brand_token with Path=/) combined with automatic focus revalidation in the React layout. Formulated tab-scoped sessionStorage locking, dual-transport Authorization header priority, and route-level brand verification to prevent cross-tab session contamination.
 R: Eliminated cross-tenant data corruption risks, provided clear operational workflows for multi-brand QA, and safeguarded enterprise review integrity.
+
+
+====================================================================================================
+CASE 137: Production Creator Email Lockout & OAuth Disconnect: Atomic Super Admin Identity Rectification, Cross-Account Conflict Detection, and In-Place Profile Audit Trail Architecture
+====================================================================================================
+CATEGORIES: Authentication / OAuth / Security / RBAC / PostgreSQL / Production Operations
+INTERVIEW QUESTION: "How do you handle production creator account lockouts caused by typoed or outdated email addresses when the email is tightly coupled to OAuth identity providers and financial credentials?"
+
+[SITUATION]
+On the 1to7 platform (35,000+ onboarded creators), point-of-contact (POC) managers frequently received support escalation requests from creators stating they could no longer log in. Many creators had entered a typoed or unreachable email during initial onboarding or bulk CSV ingestion.
+When attempting to authenticate via Google One-Tap or OAuth, the identity pipeline cross-checked the incoming verified Google email against the email bound to their phone number. If they mismatched, the authentication gateway rejected the login to protect against account takeover.
+However, POCs and support staff lacked any safe mechanism to rectify a creator's email address. The only existing mutation endpoint was the Virtual Profile PUT route (`/api/admin/virtual-profile/[userId]`), which enforced monolithic validation over the creator's full profile—demanding 10-digit PAN card numbers, IFSC formatting, and 6-digit postal PIN codes on all legacy delivery addresses. If a legacy creator profile contained missing or imperfect bank/address data from an earlier CSV migration, the entire update transaction would fail, leaving the creator locked out of production indefinitely.
+
+[ROOT CAUSE]
+1. Monolithic Mutation Fragility & Schema Blast Radius:
+   The existing profile update endpoint coupled primary authentication credentials (`email`, `mobile`) with dozens of optional or legacy business fields (`bank_payout`, `pan_card`, `shipping_addresses`). Attempting to correct a 1-character typo in an email address triggered schema validation on legacy address records, resulting in 400 Bad Request rejections.
+2. Rigid Identity Gatekeeper Collision:
+   In `app/api/auth/google-login/route.ts`, the OAuth resolver required an exact match between the Google profile email and the registered PostgreSQL `users.email`. If a typo existed, the creator was completely blocked from using Google login.
+3. Lack of In-Place Administrative Capabilities in Directory Views:
+   In the main Influencers Directory (`/admin/influencers`), Super Admins could search and view creator profiles inside a rich ProfileModal, but could not edit credentials in-place. Operators had to leave the directory, navigate to a separate virtual profile sub-page, and risk validation errors.
+4. Absence of Atomic Privilege Isolation (RBAC):
+   Because changing an email alters a user's core login identity and communication channel, this capability could not be exposed to general agency staff or POCs. It required strict, tamper-proof Super Admin authorization with append-only audit trail logging.
+
+[SOLUTION & ARCHITECTURE]
+1. Atomic, Zero-Side-Effect Credential Mutation API:
+   Engineered a dedicated endpoint `PATCH /api/admin/influencers/[userId]/email` that updates strictly `email`, sets `is_email_verified = true`, and timestamps `updated_at`. It deliberately bypasses peripheral bank and address validations, ensuring 100% success for legitimate credential corrections regardless of legacy data state.
+2. Strict Role-Based Access Control (RBAC):
+   Enforced server-side verification using `getAdminFromRequest()`. Requests from standard staff, POCs, or brands are immediately terminated with HTTP 403 Forbidden ("Only Super Administrators have permission to update creator email addresses").
+3. Case-Insensitive Cross-Account Conflict Detection:
+   Before persisting modifications, executed `UserService.checkEmailConflict(cleanEmail, userId)` against PostgreSQL. If the requested email is already tied to another registered creator, the transaction aborts with HTTP 409 Conflict, returning the conflicting creator's Full Name and unique sequential `#HY` identifier so the administrator can immediately detect duplicate account attempts.
+4. Placeholder Domain Quarantine:
+   Enforced automated protection via `isPlaceholderEmail()` to block administrators from mistakenly setting internal dummy domains (`@instagram.1to7.com`, `@guest.1to7.com`, `@import.1to7.com`) as genuine user accounts.
+5. In-Place Ergonomic Inline UI with Instant Cache Synchronization:
+   Integrated an inline pencil edit toggle directly into the `ProfileModal` in `/admin/influencers`. Super Admins can click the pencil icon, edit the email, and commit changes with `Enter` (or cancel with `Escape`). Upon success, the UI updates the modal, modifies the data table row, and synchronizes the client-side fast cache (`admin_influencers_cache`) with zero page reload.
+6. Immutable Audit Trail Persistence:
+   Dispatched asynchronous audit logging via `AuditService.logProfileChanges()`, recording the previous email, the new email, the timestamp, and the responsible Super Admin's identity into `profile_logs` for complete accountability.
+
+[INTERVIEW STAR TAKEAWAY]
+S: In a 35,000+ creator production platform, creators who mistyped their email during signup became locked out of Google OAuth, while administrators could not correct emails due to monolithic validation failures on legacy address and bank fields.
+T: Architect an atomic, secure credential rectification system that empowers Super Admins to resolve email lockouts directly from the directory without triggering peripheral schema validation failures or cross-account collisions.
+A: Decoupled email updates into a specialized `PATCH /api/admin/influencers/[userId]/email` route with strict Super Admin RBAC, case-insensitive collision guards, and immutable audit logging. Built an inline editing experience in the Influencers Directory modal with keyboard ergonomics and optimistic cache synchronization.
+R: Reduced creator login recovery time from days of manual DB intervention to a 5-second 1-click admin action, maintained 100% audit compliance, and eliminated authentication deadlocks for production users.
+

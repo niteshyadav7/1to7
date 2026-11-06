@@ -7,7 +7,7 @@ import {
   Users, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   MapPin, Instagram, Loader2, Mail, Phone, Download, CheckCircle2,
   XCircle, User, Banknote, ShieldCheck, Briefcase, Calendar, ChevronDown, Award, AlertTriangle, ExternalLink,
-  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye, BookmarkPlus,
+  Tag, Package, Home, Star, FileText, Languages, FileSpreadsheet, Sliders, X, ArrowRight, Sparkles, RefreshCw, Check, Eye, BookmarkPlus, Pencil,
 } from 'lucide-react'
 import AddToSampleListModal from '@/components/admin/influencers/AddToSampleListModal'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { getFastCache, setFastCache } from '@/lib/utils/cache-utils'
 import { toast } from 'sonner'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { useAdminPermissions } from '@/components/admin/AdminPermissionsContext'
 import { SetAdminHeader } from '@/components/admin/AdminHeaderContext'
 import { getInstagramDisplayHandle, extractInstagramUsername, getInstagramUrl } from '@/lib/instagram-utils'
 import { GhostHistoryModal } from '@/components/admin/ghost/GhostHistoryModal'
@@ -117,13 +118,66 @@ function ProfileModal({
   onViewGhostHistory,
   onGhostAction,
   onAddToSampleList,
+  onEmailUpdated,
 }: {
   user: Influencer
   onClose: () => void
   onViewGhostHistory?: (userId: string, name: string) => void
   onGhostAction?: (actionType: 'ghost' | 'unghost', user: Influencer) => void
   onAddToSampleList?: (user: Influencer) => void
+  onEmailUpdated?: (userId: string, newEmail: string) => void
 }) {
+  const { isSuperAdmin } = useAdminPermissions()
+  const [isEditingEmail, setIsEditingEmail] = useState(false)
+  const [emailInput, setEmailInput] = useState(user.email || '')
+  const [savingEmail, setSavingEmail] = useState(false)
+
+  useEffect(() => {
+    setEmailInput(user.email || '')
+    setIsEditingEmail(false)
+  }, [user.id, user.email])
+
+  const handleSaveEmail = async () => {
+    const clean = emailInput.trim().toLowerCase()
+    if (!clean) {
+      toast.error('Email address cannot be empty')
+      return
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(clean)) {
+      toast.error('Please enter a valid email address format')
+      return
+    }
+
+    if (clean === (user.email || '').trim().toLowerCase()) {
+      setIsEditingEmail(false)
+      return
+    }
+
+    setSavingEmail(true)
+    const toastId = toast.loading('Updating creator email...')
+    try {
+      const res = await fetch(`/api/admin/influencers/${user.id}/email`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: clean }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update email')
+      }
+      toast.success('Creator email updated successfully', { id: toastId })
+      user.email = clean
+      user.is_email_verified = true
+      setIsEditingEmail(false)
+      onEmailUpdated?.(user.id, clean)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update email', { id: toastId })
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -316,10 +370,84 @@ function ProfileModal({
                     <div className="flex items-start gap-3 w-full">
                        <Mail className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
                        <div className="min-w-0 flex-1 w-full">
-                         <p className="text-slate-300 font-medium text-[11px] break-all whitespace-normal leading-tight">{user.email}</p>
-                         <p className="text-[10px] text-slate-500 mt-0.5">
-                           {user.is_email_verified ? <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Verified</span> : 'Unverified'}
-                         </p>
+                         {isEditingEmail ? (
+                           <div className="space-y-1.5 py-0.5">
+                             <div className="flex items-center gap-1.5">
+                               <input
+                                 type="email"
+                                 value={emailInput}
+                                 onChange={(e) => setEmailInput(e.target.value)}
+                                 onKeyDown={(e) => {
+                                   if (e.key === 'Enter') {
+                                     e.preventDefault()
+                                     handleSaveEmail()
+                                   } else if (e.key === 'Escape') {
+                                     setIsEditingEmail(false)
+                                     setEmailInput(user.email || '')
+                                   }
+                                 }}
+                                 disabled={savingEmail}
+                                 placeholder="creator@example.com"
+                                 autoFocus
+                                 className="w-full text-xs font-mono bg-slate-950 border border-indigo-500/50 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder:text-slate-600"
+                               />
+                               <button
+                                 type="button"
+                                 onClick={handleSaveEmail}
+                                 disabled={savingEmail}
+                                 className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 cursor-pointer transition-colors shrink-0 shadow-sm"
+                                 title="Save Email (Enter)"
+                               >
+                                 {savingEmail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => {
+                                   setIsEditingEmail(false)
+                                   setEmailInput(user.email || '')
+                                 }}
+                                 disabled={savingEmail}
+                                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-50 cursor-pointer transition-colors shrink-0 border border-white/10"
+                                 title="Cancel (Esc)"
+                               >
+                                 <X className="h-3.5 w-3.5" />
+                               </button>
+                             </div>
+                             <p className="text-[10px] text-slate-500">
+                               Press <span className="font-semibold text-slate-400">Enter</span> to save, <span className="font-semibold text-slate-400">Esc</span> to cancel
+                             </p>
+                           </div>
+                         ) : (
+                           <>
+                             <div className="flex items-center justify-between gap-2">
+                               <p className="text-slate-300 font-medium text-[11px] break-all whitespace-normal leading-tight font-mono">
+                                 {user.email}
+                               </p>
+                               {isSuperAdmin && (
+                                 <button
+                                   type="button"
+                                   onClick={() => {
+                                     setEmailInput(user.email || '')
+                                     setIsEditingEmail(true)
+                                   }}
+                                   className="p-1 rounded-md text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 cursor-pointer transition-colors shrink-0"
+                                   title="Edit Email (Super Admin)"
+                                 >
+                                   <Pencil className="h-3 w-3" />
+                                 </button>
+                               )}
+                             </div>
+                             <p className="text-[10px] text-slate-500 mt-0.5">
+                               {user.is_email_verified ? (
+                                 <span className="text-emerald-400 flex items-center gap-1">
+                                   <CheckCircle2 className="h-3 w-3" /> Verified
+                                 </span>
+                               ) : (
+                                 'Unverified'
+                               )}
+                             </p>
+                           </>
+                         )}
                        </div>
                     </div>
                     <div className="flex items-start gap-3 w-full">
@@ -1391,6 +1519,36 @@ export default function InfluencersDirectoryPage() {
 
   const [addToSampleTarget, setAddToSampleTarget] = useState<Influencer | null>(null)
 
+  const handleEmailUpdated = (userId: string, newEmail: string) => {
+    setSelectedProfile((prev) =>
+      prev && prev.id === userId
+        ? { ...prev, email: newEmail, is_email_verified: true }
+        : prev
+    )
+
+    setInfluencers((prev) =>
+      prev.map((inf) =>
+        inf.id === userId
+          ? { ...inf, email: newEmail, is_email_verified: true }
+          : inf
+      )
+    )
+
+    try {
+      const cached = getFastCache<any>('admin_influencers_cache')
+      if (cached && Array.isArray(cached.influencers)) {
+        cached.influencers = cached.influencers.map((inf: any) =>
+          inf.id === userId
+            ? { ...inf, email: newEmail, is_email_verified: true }
+            : inf
+        )
+        setFastCache('admin_influencers_cache', cached)
+      }
+    } catch {
+      // cache update error ignored
+    }
+  }
+
   return (
     <div className="space-y-5 pb-24 relative">
       <AnimatePresence>
@@ -1404,6 +1562,7 @@ export default function InfluencersDirectoryPage() {
               setGhostActionTarget({ isOpen: true, actionType, user })
             }}
             onAddToSampleList={(u) => setAddToSampleTarget(u)}
+            onEmailUpdated={handleEmailUpdated}
           />
         )}
         {addToSampleTarget && (

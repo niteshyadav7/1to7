@@ -63,7 +63,7 @@ export class UserService {
     const cleanEmail = email.toLowerCase().trim()
     const { data } = await supabase
       .from('users')
-      .select('id, influencer_id, full_name')
+      .select('id, influencer_id, full_name, email')
       .eq('email', cleanEmail)
       .neq('id', excludeUserId)
       .maybeSingle()

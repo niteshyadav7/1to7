@@ -3,7 +3,7 @@ import { encrypt, verifyToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
 import { resolveOrCreateUserIdentity } from '@/lib/auth-linker'
 import { supabase } from '@/lib/supabase'
-import { maskEmail } from '@/lib/user-utils'
+import { maskEmail, isPlaceholderEmail } from '@/lib/user-utils'
 
 export async function POST(request: Request) {
   try {
@@ -42,17 +42,17 @@ export async function POST(request: Request) {
 
       if (userByMobile) {
         const registeredEmail = userByMobile.email ? userByMobile.email.trim().toLowerCase() : ''
-        const isPlaceholderEmail = !registeredEmail || registeredEmail.endsWith('@instagram.1to7.com')
+        const isPlaceholder = isPlaceholderEmail(registeredEmail)
 
         // If the mobile user already has a real registered email, it MUST match the Google account email!
-        if (!isPlaceholderEmail && registeredEmail !== cleanEmail) {
+        if (!isPlaceholder && registeredEmail !== cleanEmail) {
           return NextResponse.json({
             error: `The selected Google account (${email}) does not match the registered email (${maskEmail(userByMobile.email)}) for mobile number +91 ${cleanMobile}. Please sign in with the correct Google account.`
           }, { status: 400 })
         }
 
         // If the mobile user has a placeholder email, ensure the incoming Google email isn't already used by someone else
-        if (isPlaceholderEmail) {
+        if (isPlaceholder) {
           const { data: userByEmail } = await supabase
             .from('users')
             .select('id, email, mobile')
